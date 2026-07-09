@@ -5,3 +5,5 @@ tools/mesen.zip
 tools/Mesen.app.zip
 tools/*.cpp
 build/
+tools/Dispel/
+vendor/

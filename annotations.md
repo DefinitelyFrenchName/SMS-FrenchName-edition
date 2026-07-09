@@ -74,3 +74,15 @@ and findings made in this project (marked NEW, with evidence).
 Harness gotchas (verified):
 - Mesen2 SNES `RamPowerOnState` defaults to Random → nondeterministic boots. Always pass `--snes.ramPowerOnState=AllZeros`.
 - `emu.setInput` port indices are 0-based (port 0 = P1) — confirmed by $4219 latching start+down set on port 0.
+
+### Mesen 2.1.1 setInput port bug (critical harness note)
+`LuaApi::SetInput` does `ForceParamCount(3)` then `lua_settop(lua, 4)`, so the
+documented 2nd parameter (port) is DISCARDED and always reads as 0. The port is
+effectively the **3rd** argument: `emu.setInput(buttons, 0, port)` with port 0=JOY1, 1=JOY2.
+Verified: setInput({start},0,0)+setInput({down},0,1) → $4219=10, $421B=04.
+Consequence: any second setInput call written as (tbl, 1) silently clobbers port 0.
+
+### Title menu poll cadence
+Menu handler consumes 1-frame press edges ($60) only on some frames; period-4 press
+pulses can phase-lock and never register. Use period-7 (3 on / 4 off) pulses — verified
+every pulse registers at the title menu.
