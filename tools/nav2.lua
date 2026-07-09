@@ -1,15 +1,16 @@
 -- nav2.lua: closed-loop menu navigation using RAM feedback.
--- Steps defined in nav2_steps.lua as { {type=..., ...}, ... }
---   type="pulse": press btn (2on/2off) on port until cond() true, then settle
+-- Mesen 2.1.1 quirk: emu.setInput(buttons, 0, port) -- port is the 3rd arg!
+-- Steps defined in nav2_steps.lua:
+--   type="pulse": press btn (3on/4off, period 7) on port until cond() true, then settle
 --   type="wait":  wait until cond() true (or frames elapsed)
 --   type="shot":  screenshot + optional WRAM dump, immediately continue
---   type="state": save savestate to file (via pending flag consumed in exec cb)
+--   type="state": save savestate to file
 --   type="stop":  end run
 local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
 local frames = 0
 local stepIdx = 1
-local stepFrame = 0   -- frames spent in current step
-local pulsing = nil   -- {btn=, port=}
+local stepFrame = 0
+local pulsing = {}    -- port -> btn
 local log = io.open(TRACE .. "nav2.txt", "w")
 
 local function ram(addr) return emu.read(addr, emu.memType.snesWorkRam) end
@@ -25,18 +26,19 @@ end
 
 emu.addEventCallback(function()
   for port = 0, 1 do
-    if pulsing and pulsing.port == port then
+    local btn = pulsing[port]
+    if btn then
       local on = (frames % 7) < 3
-      emu.setInput({ [pulsing.btn] = on }, port)
+      emu.setInput({ [btn] = on }, 0, port)
     else
       emu.setInput({ a=false,b=false,x=false,y=false,l=false,r=false,
                      up=false,down=false,left=false,right=false,
-                     start=false,select=false }, port)
+                     start=false,select=false }, 0, port)
     end
   end
 end, emu.eventType.inputPolled)
 
--- savestate support: exec callback on the joy_read routine ($00:8353 runs every frame)
+-- savestate support: exec callback on joy_read ($00:8353, runs every frame)
 local pendingSave = nil
 emu.addMemoryCallback(function()
   if pendingSave then
@@ -46,7 +48,7 @@ emu.addMemoryCallback(function()
     L("SAVESTATE written " .. pendingSave .. " len=" .. #ss)
     pendingSave = nil
   end
-end, emu.callbackType.exec, 0x8353, 0x8353, emu.cpuType.snes, emu.memType.snesMemory)
+end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)
 
 local function shot(name, dumpFrom, dumpTo)
   local f = io.open(TRACE .. name .. ".png", "wb")
@@ -66,13 +68,16 @@ emu.addEventCallback(function()
 
   local advance = false
   if st.type == "pulse" then
-    pulsing = { btn = st.btn, port = st.port or 0 }
+    pulsing[st.port or 0] = st.btn
     if st.cond and st.cond(ram, w16) then advance = true
     elseif st.max and stepFrame >= st.max then L("PULSE TIMEOUT " .. st.btn) advance = true end
   elseif st.type == "wait" then
-    pulsing = nil
+    pulsing = {}
     if st.cond and st.cond(ram, w16) then advance = true
     elseif st.frames and stepFrame >= st.frames then advance = true end
+  elseif st.type == "poke" then
+    emu.write(st.addr, st.val, emu.memType.snesWorkRam)
+    advance = true
   elseif st.type == "shot" then
     shot(st.name, st.dumpFrom, st.dumpTo)
     advance = true
@@ -89,7 +94,7 @@ emu.addEventCallback(function()
     L(string.format("step %d (%s%s) done", stepIdx, st.type, st.btn and (":" .. st.btn) or ""))
     stepIdx = stepIdx + 1
     stepFrame = 0
-    pulsing = nil
+    pulsing = {}
   end
 end, emu.eventType.endFrame)
 

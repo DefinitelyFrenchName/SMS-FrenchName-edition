@@ -86,3 +86,13 @@ Consequence: any second setInput call written as (tbl, 1) silently clobbers port
 Menu handler consumes 1-frame press edges ($60) only on some frames; period-4 press
 pulses can phase-lock and never register. Use period-7 (3 on / 4 off) pulses — verified
 every pulse registers at the title menu.
+
+## Character select / VS flow (NEW)
+| Address | Label | Comment |
+|---|---|---|
+| $7E:1B40 | charsel_p1_cursor | holds charID under cursor (1=Moon..10); spatial movement over group photo |
+| $7E:1B42 | charsel_p1_confirmed | 1 after P1 confirms |
+| $7E:1B80 | charsel_p2_cursor | P2 equivalent |
+Flow: title (cursor $1B10=1 = 1P vs 2P, confirm Start) → char select → VS config screen
+(button map + stage) → Start → match. Poking $1B40 before confirm is a reliable way to
+select a character headlessly.
