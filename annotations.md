@@ -96,3 +96,32 @@ every pulse registers at the title menu.
 Flow: title (cursor $1B10=1 = 1P vs 2P, confirm Start) → char select → VS config screen
 (button map + stage) → Start → match. Poking $1B40 before confirm is a reliable way to
 select a character headlessly.
+
+## Uranus crouching LP (2LP) — measured lifecycle (Mesen frame-advance, savestate uranus_vs_moon.mss)
+Buttons: Y=LP, X=LK, B=HP, A=HK. Crouching attacks: 2LP=0x53, 2LK=0x55? (X→0x55 str8),
+2HP=0x57 (str9), 2HK=0x59 (str10). 2LP recovery state = 0x54 (cancellable, in Lua neutral list).
+
+Whiff timeline (press at t=60):
+- t=60 action start (act=0x53, step-0, nothing processed)
+- t=61-63 startup anim: sprite 0x35, dur loaded into $1006=2 (3 frames), $1007=2
+- t=64-67 active: sprite 0x36, hitbox idx 0x0A, $1006 init 3 ($1007=4, 4 frames)
+- t=68 act→0x54 step-0 (hitbox persists this frame → active is 5f total, matches Dustloop)
+- t=69-72 recovery anim: sprite 0x35, $1006 init 3 (4 frames)
+- t=73 act→0x03 crouch neutral
+Dustloop cross-check (2LP): dmg 3 ✓, startup 4 ✓, active 5 ✓, recovery 6, +6 on hit ✓.
+
+On-hit (P1 next to P2, press t=60): hit lands t=64, dmg 3; hitstop freezes P1 tick 8 frames
+(t=65-72); act 0x54 at t=76-80; neutral t=81. P2: act=0x12 hitstun t=65-86, act 00 at 87,
+hurt flag clears 88; first frame a raised block actually protects = vs hit landing t=88.
+
+Cancel mechanics (measured):
+- Press edges during 0x53 (t=66/70/74) are LOST — no buffer into recovery.
+- 0x54 cancels into a new 2LP on ANY frame: press on step-0 frame (76) latches and starts
+  jab next frame (77); press on 77+ starts SAME frame. Jab start S hits at S+4.
+- Infinite window today: press 76..83 (8 frames), jab starts S∈{77..83}, hit ≤87 wins
+  (hit@87 beats P2's block raised same frame; press@84 → hit@88 → BLOCKED).
+
+Patch arithmetic: delay availability of the cancel by N frames (add N non-cancellable
+recovery frames to 2LP before 0x54): earliest start 77+N ≤ 83 → N=6 gives unique start
+frame 83 (presses 82/83 both map to it — engine's step-0 latch), hit on 87 = last winning
+frame → true 1-frame link. N=7 makes the loop impossible (would violate DoD 3b).

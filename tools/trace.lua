@@ -1,0 +1,82 @@
+-- trace.lua: load VS savestate, drive scripted P1 inputs, log player structs per frame.
+-- Experiment config comes from tools/trace_plan.lua:
+--   PLAN: { [t]= {btn1=true,...}, ... }  (inputs applied at local frame t, held until changed)
+--   P2PLAN: same for port 2 (optional)
+--   LOGFROM, LOGTO: local frame range to log
+--   OUT: output file name (in traces/)
+--   POKES: optional { {t=, addr=, val=}, ... }
+local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+dofile("/Users/koneko/Developer/SailorMoonS/tools/trace_plan.lua")
+
+local log = io.open(TRACE .. (OUT or "trace.txt"), "w")
+local loaded = false
+local t = -1              -- local frame counter, starts when state loaded
+local cur1, cur2 = {}, {}
+local applied1, applied2 = nil, nil
+
+local function ram(addr) return emu.read(addr, emu.memType.snesWorkRam) end
+
+-- state load + frame boundary: exec at $80:8353 (joy_read; runs once/frame, before input decode)
+emu.addMemoryCallback(function()
+  if not loaded then
+    local f = io.open(TRACE .. "uranus_vs_moon.mss", "rb")
+    local ss = f:read("*a")
+    f:close()
+    emu.loadSavestate(ss)
+    loaded = true
+    t = 0
+  end
+end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)
+
+emu.addEventCallback(function()
+  if t >= 0 then
+    for k, v in pairs(PLAN) do
+      if k <= t and k > (applied1 or -1) then cur1 = v; applied1 = k end
+    end
+    if P2PLAN then
+      for k, v in pairs(P2PLAN) do
+        if k <= t and k > (applied2 or -1) then cur2 = v; applied2 = k end
+      end
+    end
+  end
+  local base = { a=false,b=false,x=false,y=false,l=false,r=false,
+                 up=false,down=false,left=false,right=false,start=false,select=false }
+  local in1 = {}
+  for k, v in pairs(base) do in1[k] = v end
+  for k, v in pairs(cur1) do in1[k] = v end
+  local in2 = {}
+  for k, v in pairs(base) do in2[k] = v end
+  for k, v in pairs(cur2 or {}) do in2[k] = v end
+  emu.setInput(in2, 0, 1)
+  emu.setInput(in1, 0, 0)
+end, emu.eventType.inputPolled)
+
+emu.addEventCallback(function()
+  if t < 0 then return end
+  if POKES then
+    for _, p in ipairs(POKES) do
+      if p.t == t then emu.write(p.addr, p.val, emu.memType.snesWorkRam) end
+    end
+  end
+  if t >= (LOGFROM or 0) and t <= (LOGTO or 300) then
+    log:write(string.format(
+      "t=%03d p1[act=%02X stp=%02X a4=%02X spr=%02X tick=%02X%02X hb=%02X hurtb=%02X cb=%02X hstop=%02X atk=%02X str=%02X in54=%02X x=%02X%02X] p2[act=%02X hurt=%02X h47=%02X hstop=%02X hp=%02X x=%02X%02X]\n",
+      t,
+      ram(0x1001), ram(0x1002), ram(0x1004), ram(0x1005), ram(0x1007), ram(0x1006),
+      ram(0x1040), ram(0x1041), ram(0x1042), ram(0x1043), ram(0x1044), ram(0x1077), ram(0x1054),
+      ram(0x1022), ram(0x1021),
+      ram(0x1081), ram(0x10C6), ram(0x10C7), ram(0x10C3), ram(0x10C9),
+      ram(0x10A2), ram(0x10A1)))
+  end
+  if t > (LOGTO or 300) then
+    log:close()
+    if SHOT then
+      local f = io.open(TRACE .. SHOT .. ".png", "wb")
+      if f then f:write(emu.takeScreenshot()); f:close() end
+    end
+    emu.stop(0)
+  end
+  t = t + 1
+end, emu.eventType.endFrame)
+
+print("trace loaded")
