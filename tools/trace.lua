@@ -67,6 +67,9 @@ emu.addEventCallback(function()
       ram(0x1022), ram(0x1021),
       ram(0x1081), ram(0x10C6), ram(0x10C7), ram(0x10C3), ram(0x10C9),
       ram(0x10A2), ram(0x10A1)))
+    local cmd = {}
+    for a = 0x105B, 0x1068 do cmd[#cmd+1] = string.format("%02X", ram(a)) end
+    log:write("   cmd5B-68: " .. table.concat(cmd, " ") .. "\n")
   end
   if t > (LOGTO or 300) then
     log:close()

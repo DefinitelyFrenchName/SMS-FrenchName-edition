@@ -125,3 +125,32 @@ Patch arithmetic: delay availability of the cancel by N frames (add N non-cancel
 recovery frames to 2LP before 0x54): earliest start 77+N ≤ 83 → N=6 gives unique start
 frame 83 (presses 82/83 both map to it — engine's step-0 latch), hit on 87 = last winning
 frame → true 1-frame link. N=7 makes the loop impossible (would violate DoD 3b).
+
+## REVISED TARGET (2026-07-10): 2HP > 66 dash cancel — measured mechanics
+Button mapping CORRECTION: **Y=LP, X=HP, B=LK, A=HK** (SF2-SNES layout; the training-Lua
+strength comment "8=LK 9=HP" is wrong — verified empirically by damage/frame data).
+Crouching actions: 2LP=0x53(rec 0x54), 2HP=0x55(rec 0x56), 2LK=0x57(rec 0x58), 2HK=0x59.
+Lua "neutral" list {42,48,54,58} = light-attack recoveries (5LP,5LK,2LP,2LK) — 2HP's 0x56
+is NOT in it; the dash cancel is a separate mechanism.
+
+2HP (0x55) measured (matches Dustloop 8/12/9 dmg7): press t=60, startup 61-67 (spr 0x35,
+dur 6), active 68-78 + step0 (spr 0x6C, hitbox 0x13, dur 0x0A), rec 0x56 79-86, neutral 87.
+On hit: dmg 7, P2 act 0x13 heavy hitstun ~34f (hit@68 → free@103), P1 hitstop 8f.
+
+Forward dash = action 0x60 ("Shadow Dash"): 66 double-tap; recognizer = $105D timer/$105E
+state (1→2 on fwd, →3 on release, dash on 2nd fwd); 14f dash + landing 0x09 + ~5f.
+Dash-cancel gate (measured via 66-completion sweep during 2LP>2HP rep, hit@85):
+- ILLEGAL during 2HP startup / pre-hit (66 completed @83 expired unused; buffer lifetime finite)
+- LEGAL from first frame after hitstop (dash fires @94 = hit85+hitstop8+1, canceling
+  remaining ACTIVE frames directly — 0x56 never entered) through 0x56 recovery.
+- 66 completed during hitstop → dash at 94; completed later → instant dash.
+
+Rep timing [2LP>2HP>66] (P1@0xE8, P2@0x100): 2LP@60 hit 64 → chain 2HP@77 hit 85 →
+buffered dash out D=94 → dash 94-107 → landing 108-112 → presses ≤108 LOST, earliest
+jab press 109 → start 110 → hit 114. P2 (heavy stun from 85) escapes: hit ≤120 wins
+(same-frame-as-block hit wins), 121+ blocked.
+Window today: presses 109-115 (7 frames), starts 110-116, hits 114-120.
+
+**N = 6**: delay dash-out to 100 → landing 114-118, single viable press 115 → start 116 →
+hit 120. N=7 → hit 121 → loop impossible (violates DoD 3b). Patch surface = the dash
+TRIGGER code's gate (script durations don't gate it — dash cancels mid-active).

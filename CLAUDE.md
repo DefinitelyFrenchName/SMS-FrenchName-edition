@@ -1,6 +1,15 @@
 # CLAUDE.md — SMS Uranus infinite patch
 
-## Objective
+## Objective (REVISED 2026-07-10 — supersedes the 2LP wording below)
+Per Dustloop, the real Uranus Infinite™ is `[2LP > 2HP > 66]xN` — the load-bearing link
+is **2HP canceled into the 66 forward dash** (2HP's recovery state 0x58 is treated as
+neutral, letting the dash come out during recovery). Patch so that this dash cancel
+requires a 1-frame link instead of being bufferable: increase the effective recovery of
+**crouching heavy punch (2HP)** before the dash becomes available.
+(Original objective text — targeting the crouching light attack — kept for history;
+all constraints, environment and Definition of done below still apply, applied to 2HP.)
+
+## Original objective (superseded)
 Patch Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan) so Sailor Uranus's
 crouching-jab infinite is no longer bufferable: increase the recovery of her
 **crouching light attack** by enough frames that the loop requires a 1-frame link.
