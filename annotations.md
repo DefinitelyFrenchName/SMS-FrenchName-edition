@@ -56,3 +56,21 @@ and findings made in this project (marked NEW, with evidence).
 - `emu.createSavestate()/emu.loadSavestate(str)` ONLY legal inside an exec memory callback on the main CPU.
 - Input: `emu.setInput({a=..,b=..,x=..,y=..,l=..,r=..,up=..,down=..,left=..,right=..,start=..,select=..}, port)` inside an `emu.eventType.inputPolled` event callback.
 - WRAM $7E:0000-1FFF is mirrored in bank $00 — hook writes via memType snesWorkRam (absolute) to catch all mirrors.
+
+## Title menu / input system (NEW, verified by probe + disassembly)
+| Address | Label | Comment |
+|---|---|---|
+| $00:8353 (code $C0/80:8353) | joy_read | NMI-side: copies $4218-421B to DP; computes press edges |
+| DP $5C/$5D | joy1_held | word, JOY1 (B=0x8000 Y=0x4000 Sel=0x2000 St=0x1000 U=0x800 D=0x400 L=0x200 R=0x100 A=0x80 X=0x40 L=0x20 R=0x10) |
+| DP $5E/$5F | joy2_held | word, JOY2 |
+| DP $60 | joy1_press | newly-pressed edge word, recomputed EVERY frame (1-frame lifetime) |
+| DP $62 | joy2_press | ditto JOY2 |
+| DP $64/$66 | joy1/2_prev | previous frame values |
+| $7E:1B10 | title_cursor | 0=Story 1=1Pvs2P 2=1PvsCom 3=Tournament 4=Practice 5=Options; moves via table $C0:A29D+cursor*4 [up,down,left,right] |
+| $7E:1B14 | demo_countdown | decremented in $C0:A337; 0 → auto-demo |
+| $C0:A2CC | title_move_cursor | applies d-pad edges to $1B10; **polled only every ~4 frames** — 1-frame edges are usually missed; navigation must pulse until $1B10 changes (closed loop) |
+| $C0:A337 | title_confirm_check | confirm = $60 & 0x5080 (Start / Y / A) |
+
+Harness gotchas (verified):
+- Mesen2 SNES `RamPowerOnState` defaults to Random → nondeterministic boots. Always pass `--snes.ramPowerOnState=AllZeros`.
+- `emu.setInput` port indices are 0-based (port 0 = P1) — confirmed by $4219 latching start+down set on port 0.
