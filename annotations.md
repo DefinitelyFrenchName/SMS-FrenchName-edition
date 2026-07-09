@@ -154,3 +154,21 @@ Window today: presses 109-115 (7 frames), starts 110-116, hits 114-120.
 **N = 6**: delay dash-out to 100 → landing 114-118, single viable press 115 → start 116 →
 hit 120. N=7 → hit 121 → loop impossible (violates DoD 3b). Patch surface = the dash
 TRIGGER code's gate (script durations don't gate it — dash cancels mid-active).
+
+## Dash-cancel machinery (NEW — the patch surface)
+| Address | Label | Comment |
+|---|---|---|
+| $C1:0224 | set_action | universal action setter (A = new actionID); all $1001 writes at $C1:022C |
+| $C1:04DA | anim_advance_or | A=next action; returns A = step tick ($06,X) if ≥0, else switches action |
+| $C1:04E8 | own_projectile_alive | carry set if $1100/$1180 object active |
+| $C1:0952 | cmd_cancel_commit | requires connected flag $43,X≠0; reads pending cmd $51/$53,X nibble; flags word from table[Y]; commits table action via $0224. Entry $C1:0958 skips the connected check (neutral states) |
+| $C1:7B25 | uranus_cancel_tbl | words [flags, action]: slots→ 0x26 backdash, 0x60 dash, 0x61/0x62, 0x72 super, 0x67/0x68; flags: 1=ground, 2=air, 4=no-own-projectile, 8=desperation(HP≤0x18, skipped in training mode $8D==4) |
+| $C1:871C | uranus_2HP_handler | step-0 inits dmg7/atkID4/str8/flags $44, clears $43; running: jsr $04DA(→0x56), ldy #$7B25, jsr $0952, jsl $80BFBB |
+| player+0x43 | attack_connected | cleared at attack start, set on connect; gates hit-confirm cancels (NOT hitstop) |
+| player+0x51/0x53 | pending_cmd | command slot nibble from the 66/motion recognizers; expires in ~2-3 unfrozen frames |
+| $C1:BE0E-BE47 | free_space | 58 zero bytes between data blobs; 20k-frame read-watch: never accessed. PATCH STUB at $C1:BE20 |
+
+## PATCH (shipped): build/sms_uranus_infinite_1f.bps
+0x1874D/E: jsr $0952 → jsr $BE20; stub at 0x1BE20: sep #$20; cmp #$04; bcs rts; jmp $0952.
+Gates 2HP command-cancel on step tick < 4 = dash-out +6 frames = 1f-link loop.
+Full derivation, changed bytes, and verification matrix in patch_notes.md.

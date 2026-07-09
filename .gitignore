@@ -4,6 +4,9 @@ tools/Mesen.app/
 tools/mesen.zip
 tools/Mesen.app.zip
 tools/*.cpp
-build/
+build/*.sfc
 tools/Dispel/
 vendor/
+tools/Flips/
+*.sfc
+!*.bps

@@ -19,7 +19,7 @@ local function ram(addr) return emu.read(addr, emu.memType.snesWorkRam) end
 -- state load + frame boundary: exec at $80:8353 (joy_read; runs once/frame, before input decode)
 emu.addMemoryCallback(function()
   if not loaded then
-    local f = io.open(TRACE .. "uranus_vs_moon.mss", "rb")
+    local f = io.open(TRACE .. (STATE or "uranus_vs_moon.mss"), "rb")
     local ss = f:read("*a")
     f:close()
     emu.loadSavestate(ss)
@@ -50,6 +50,13 @@ emu.addEventCallback(function()
   emu.setInput(in2, 0, 1)
   emu.setInput(in1, 0, 0)
 end, emu.eventType.inputPolled)
+
+if WATCH_STUB then
+  emu.addMemoryCallback(function()
+    local st = emu.getState()
+    log:write(string.format("t=%03d STUB-EXEC act=%02X\n", t, ram(0x1001)))
+  end, emu.callbackType.exec, 0xC1BE20, 0xC1BE20, emu.cpuType.snes, emu.memType.snesMemory)
+end
 
 emu.addEventCallback(function()
   if t < 0 then return end
