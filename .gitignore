@@ -1,0 +1,7 @@
+.DS_Store
+traces/
+tools/Mesen.app/
+tools/mesen.zip
+tools/Mesen.app.zip
+tools/*.cpp
+build/
