@@ -5,15 +5,10 @@ PLAN = {
   [62] = { down = true },
   [77] = { down = true, x = true },
   [80] = { down = true },
-  [95] = {},
-  [97] = { right = true },
-  [98] = {},
-  [99] = { right = true },
-  [101] = {},
-  [116] = { down = true, y = true },
-  [118] = { down = true },
+  [95]={}, [97]={right=true}, [98]={}, [99]={right=true}, [101]={},
+  [115]={down=true,y=true}, [117]={down=true},
 }
-P2PLAN = { [95] = { right = true, down = true } }
-LOGFROM = 95
-LOGTO = 250
-OUT = "stk_116.txt"
+P2PLAN = { [116]={right=true}, [117]={}, [119]={right=true}, [121]={} }
+LOGFROM = 115
+LOGTO = 165
+OUT = "zoom_bdash.txt"

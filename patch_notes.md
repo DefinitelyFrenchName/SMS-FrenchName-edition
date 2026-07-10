@@ -124,3 +124,33 @@ to whiffs (no connect flag → no cancel at all, unchanged from vanilla).
 ```
 flips --apply build/sms_uranus_infinite_1f.bps <clean ROM> <output ROM>
 ```
+
+## Addendum: reactive-opponent escape matrix (post-release QA)
+
+Scripted dummy attempting escapes between reps ([2LP > 2HP > 66 > 2LP] boundary),
+P2 in hitstun until frame 119, deadline hit-frame 120. "Sloppy" = pre-patch optimal
+habits (66 buffered during hitstop, jab pressed at the old earliest frame).
+
+| ROM | P1 timing | P2 escape | Outcome |
+|---|---|---|---|
+| clean | sloppy | guard / jab-mash / backdash | **loop holds** (dash@94, next hit 116, P2 never free) |
+| patched | sloppy | guard / jab-mash / backdash | **loop collapses** — buffered 66 expired, no dash at all; P2 blocks or backdashes away |
+| patched | frame-perfect | guard | holds — P2's block (0D) raised on 120 is stuffed by the same-frame hit |
+| patched | frame-perfect | jab mash | holds — P2's single free frame press never lands |
+| patched | frame-perfect | backdash | holds — reversal backdash (0x26) commits on 120, stuffed by same-frame hit before its invuln frames |
+
+Crouching defenders: identical 1-frame link (press 115 only; duck hitstun 0x14/0x15
+escape timing matches standing).
+
+Human-tolerance summary per rep on the patched build:
+- 66 completion window: ~10+ frames → **3 frames** (98-100; earlier expires, later
+  can't combo)
+- next-jab press window: 7-8 frames → **1 frame** (115)
+
+Naked-eye A/B test without TAS tools: buffer the 66 *during the 2HP hitstop*
+(double-tap immediately after the hit connects). Clean ROM: dash comes out
+automatically at the earliest cancel frame. Patched ROM: the buffered input expires
+and **no dash comes out at all** — Uranus finishes 2HP recovery. That input-expiry
+difference is the patch working; a passive training dummy will otherwise make any
+timing "look like" the infinite still works, because late hits still connect on a
+non-blocking target.
