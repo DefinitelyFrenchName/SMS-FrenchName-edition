@@ -172,3 +172,14 @@ TRIGGER code's gate (script durations don't gate it — dash cancels mid-active)
 0x1874D/E: jsr $0952 → jsr $BE20; stub at 0x1BE20: sep #$20; cmp #$04; bcs rts; jmp $0952.
 Gates 2HP command-cancel on step tick < 4 = dash-out +6 frames = 1f-link loop.
 Full derivation, changed bytes, and verification matrix in patch_notes.md.
+
+## Reversal-dash invincibility bug (NEW — root-caused and patched)
+| Address | Label | Comment |
+|---|---|---|
+| player+0x46 | hurt_state | 0xA0 = untargetable (set on knockdown by $C1:0F8D writer); hit-check skips defender while set |
+| $C1:88C8 | uranus_fdash_handler | act 0x60; step-0 init MISSING the engine-standard `stz $46,X` (Moon's dash has it; all attack handlers have it) → reversal dash keeps knockdown invuln |
+| $C1:7F1A / $C1:7D2F | clears of +0x46 | landing (act 09) and neutral handlers clear it — why the bug only spans the dash itself |
+| $C1:0389 | set_xspeed | rep #$30-safe helper; dash calls it with 0x0B00 (11px/f) |
+| $C1:BE2A | dashfix stub | jsr $0389; sep #$20; stz $46,X; rts (patch 2) |
+Backdash (0x26) invuln is by design via script hurtbox idx 0 — unrelated mechanism.
+Patch 2 = build/sms_dashfix.bps (stacks with patch 1 via .ips or sms_both.bps); see patch_notes_dashfix.md.

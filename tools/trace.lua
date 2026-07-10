@@ -55,7 +55,7 @@ if WATCH_STUB then
   emu.addMemoryCallback(function()
     local st = emu.getState()
     log:write(string.format("t=%03d STUB-EXEC act=%02X\n", t, ram(0x1001)))
-  end, emu.callbackType.exec, 0xC1BE20, 0xC1BE20, emu.cpuType.snes, emu.memType.snesMemory)
+  end, emu.callbackType.exec, 0xC1BE2A, 0xC1BE2A, emu.cpuType.snes, emu.memType.snesMemory)
 end
 
 emu.addEventCallback(function()
@@ -77,6 +77,14 @@ emu.addEventCallback(function()
     local cmd = {}
     for a = 0x105B, 0x1068 do cmd[#cmd+1] = string.format("%02X", ram(a)) end
     log:write("   cmd5B-68: " .. table.concat(cmd, " ") .. "\n")
+    if EXTRA then
+      local ex = {}
+      for a = 0x1008, 0x101F do ex[#ex+1] = string.format("%02X", ram(a)) end
+      log:write("   ex08-1F: " .. table.concat(ex, " ") .. "\n")
+      local ex2 = {}
+      for a = 0x1045, 0x1048 do ex2[#ex2+1] = string.format("%02X", ram(a)) end
+      log:write("   ex45-48: " .. table.concat(ex2, " ") .. "\n")
+    end
   end
   if t > (LOGTO or 300) then
     log:close()
