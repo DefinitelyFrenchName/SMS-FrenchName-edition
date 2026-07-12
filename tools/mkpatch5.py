@@ -8,7 +8,7 @@ untouched — so the 2HP>66 infinite is preserved exactly as a 1-frame link (ver
 dash stops on contact with the opponent in the loop, so its reduced top speed never
 matters there; the frame-perfect rep lands the identical 7 hits on the identical frames).
 
-  0x0B00 (11.0 px/f) -> 0x0480 (4.5 px/f)  =>  neutral dash 121px -> 59px (~half).
+  0x0B00 (11.0 px/f) -> 0x0640 (6.25 px/f)  =>  neutral dash 121px -> 82px (~ -1/3).
 
 Only 2 bytes; byte-disjoint from patches 1-4 (patch 2's reversal-fix edit is at the
 adjacent 0x188ED/EE, untouched here). Builds from any input ROM so it stacks.
@@ -20,7 +20,7 @@ CLEAN = "Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japa
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 SITE = 0x188E9              # LDA #$0B00  (dash X-speed)
 OLD = bytes.fromhex("a9000b")
-NEW_SPEED = 0x0480          # 4.5 px/f  (~half of 0x0B00)
+NEW_SPEED = 0x0640          # 6.25 px/f  (~ -1/3 distance: 121px -> 82px)
 
 def build(src_path, out_path, speed=NEW_SPEED):
     data = bytearray(open(src_path, "rb").read())
