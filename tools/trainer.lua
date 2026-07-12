@@ -32,10 +32,19 @@
 --                  (realistic "block the follow-up" test).
 --   4 Mash 2LP     P2 mashes crouching jab the instant it can act (interrupt test).
 --   5 Backdash     P2 backdashes the instant it can act (escape test).
---   6 Wakeup meaty P2 sweeps you to a knockdown, then meaty-jabs your wakeup —
---                  use this to practice the reversal 66 and see if it gets hit.
+--   6 Wakeup meaty P2 sweeps you to a knockdown, then meaty-jabs your wakeup.
+--   7 Mars fireball  REVERSAL TEST — pick MARS as P2. P2 repeats her ground fireball
+--                  (HCF+LK). Get knocked down by the 1st fireball, then reversal 66 on
+--                  wakeup: if the dash passes THROUGH the 2nd fireball unhurt the invuln
+--                  bug is still present; if P1 gets hit, the dash-fix is working.
 --
--- Reads/labels come from annotations.md. Player structs: P1 $7E:1000, P2 $7E:1080.
+-- HUD also shows FRAME ADVANTAGE after each connect/block and both players' HP.
+--   Frame advantage = (frame P2 becomes actionable) - (frame P1 becomes actionable),
+--   in emulator frames; + = you recover first. This is the ENGINE-measured difference
+--   (it may not match Dustloop's printed number, which uses a different hitstop/cancel
+--   convention) — but it's exact and consistent, so it's the right tool for A/B'ing your
+--   own timings (is this + or - on block? did tightening a link change the advantage?).
+-- Reads/labels from annotations.md; structs P1 $7E:1000, P2 $7E:1080.
 
 --------------------------------------------------------------------------------
 local WRAM = emu.memType.snesWorkRam
@@ -58,17 +67,24 @@ local function inStun(a)   return a>=0x10 and a<=0x16 end            -- hit/jugg
 local function inBlk(a)    return a==0x0E or a==0x0F end             -- blockstun
 local function inDown(a)   return a==0x19 or a==0x1A or a==0x1E or a==0x20 end
 local function canAct(a)   return not (inStun(a) or inBlk(a) or inDown(a)) end
+-- "neutral" = free to start a new move (not attacking, not stunned/down):
+-- neutral/walk/crouch (0x00-0x04) or block-ready (0x0C/0x0D).
+local function isNeutral(a) return a <= 0x04 or a == 0x0C or a == 0x0D end
 
 --------------------------------------------------------------------------------
 local MODE = 1
-local MODE_NAME = {"Off","Guard all","Guard after-hit","Mash 2LP","Backdash","Wakeup meaty"}
+local MODE_NAME = {"Off","Guard all","Guard after-hit","Mash 2LP","Backdash","Wakeup meaty","Mars fireball(rev)"}
+local NMODES = #MODE_NAME
 local showHud = true
 local wasHitOnce = false           -- for mode 3
-local p1adv, advClock = nil, 0     -- frame advantage tracking
 local p2FreeAt = -999              -- frame P2 last became actionable
 local combo, comboDmg, p2hpPrev = 0, 0, nil
 local frame = 0
 local canActFlash = 0
+-- frame-advantage tracking (measured from the frame the defender enters stun/blockstun)
+local fa = { tracking = false, p1rec = nil, p2rec = nil }
+local advDisplay = nil             -- last measured P1 frame advantage (+ = P1 free first)
+local advKind = ""                 -- "hit" or "blk"
 
 -- edge-detected hotkeys (pcall-guarded: an unknown key name never crashes the script)
 local keyPrev = {}
@@ -80,13 +96,25 @@ local function pressed(name)
   return now and not was
 end
 
+-- horizontal direction of P1 relative to P2
+local function p1IsLeftOfP2()
+  return (r(0x1021) + 256*r(0x1022)) <= (r(0x10A1) + 256*r(0x10A2))
+end
 -- block direction: P2 holds away from P1 (+down for low block)
 local function backButtons(low)
-  local p1x = r(0x1021) + 256*r(0x1022)
-  local p2x = r(0x10A1) + 256*r(0x10A2)
-  local away = (p1x <= p2x) and {right=true} or {left=true}
+  local away = p1IsLeftOfP2() and {right=true} or {left=true}   -- P1 on left => back is right
   if low then away.down = true end
   return away
+end
+-- forward = toward P1 (for P2's command motions)
+local function fwdButtons()
+  return p1IsLeftOfP2() and {left=true} or {right=true}
+end
+local function merge(a, b)
+  local t = {}
+  for k,v in pairs(a or {}) do t[k]=v end
+  for k,v in pairs(b or {}) do t[k]=v end
+  return t
 end
 
 -- P2 input for the current dummy mode
@@ -120,6 +148,21 @@ local function driveP2()
       if inDown(a1) then btn = { down = true, a = true }   -- 2HK meaty on wakeup
       else btn = { down = true, a = true } end
     end
+  elseif MODE == 7 then                              -- Mars ground fireball, repeated
+    -- REVERSAL TEST — P2 must be MARS. HCF (41236) + LK(B), ~every 24 frames.
+    -- Uranus (P1) is knocked down by the 1st fireball; on wakeup do 66. If the reversal
+    -- dash passes THROUGH the 2nd fireball unhurt, the invuln bug is still present;
+    -- if P1 gets hit (enters hitstun), the dash-fix patch is working.
+    local fwd = fwdButtons()          -- toward P1
+    local back = backButtons(false)   -- away from P1
+    local down = { down = true }
+    local ph = frame % 24
+    if     ph <= 1 then btn = back                       -- 4  back
+    elseif ph <= 3 then btn = merge(down, back)          -- 1  down-back
+    elseif ph <= 5 then btn = down                       -- 2  down
+    elseif ph <= 7 then btn = merge(down, fwd)           -- 3  down-forward
+    elseif ph <= 9 then btn = merge(fwd, { b = true })   -- 6 + LK (B)
+    end                                                  -- 10-23: neutral (gap)
   end
   emu.setInput(btn, 0, 1)   -- port 1 = P2 (Mesen: port is the 3rd arg)
 end
@@ -143,8 +186,24 @@ local function track()
   end
   if canActFlash > 0 then canActFlash = canActFlash - 1 end
 
-  -- crude frame advantage: frames P1 is actionable before P2 is
-  -- (positive = P1 recovers first). Sampled when both settle.
+  -- Frame advantage: start a measurement when P2 enters stun/blockstun (a P1 attack
+  -- connected/was blocked); record the frame each player returns to neutral; advantage
+  -- = P2_recovery_frame - P1_recovery_frame  (positive => P1 acts first).
+  if (inStun(a2) or inBlk(a2)) then
+    if not fa.tracking then
+      fa.tracking = true; fa.p1rec = nil; fa.p2rec = nil
+      advKind = inBlk(a2) and "blk" or "hit"
+    end
+    fa.p2rec = nil                         -- keep resetting until P2 truly leaves stun
+  end
+  if fa.tracking then
+    if fa.p1rec == nil and isNeutral(a1) then fa.p1rec = frame end
+    if fa.p2rec == nil and isNeutral(a2) then fa.p2rec = frame end
+    if fa.p1rec and fa.p2rec then
+      advDisplay = fa.p2rec - fa.p1rec
+      fa.tracking = false
+    end
+  end
 end
 
 --------------------------------------------------------------------------------
@@ -152,16 +211,21 @@ local function hud()
   if not showHud then return end
   local a1, a2 = r(0x1001), r(0x1081)
   local y = 8
-  emu.drawString(8, y, "P2 dummy: F1-6 ["..MODE.."] "..MODE_NAME[MODE], 0x00FF00, 0x000000); y=y+9
-  emu.drawString(8, y, "P1 "..nm(a1).."  step="..string.format("%02X",r(0x1002)), 0xFFFFFF, 0x000000); y=y+9
+  emu.drawString(8, y, "P2 dummy ["..MODE.."] "..MODE_NAME[MODE], 0x00FF00, 0x000000); y=y+9
+  emu.drawString(8, y, "P1 "..nm(a1).."  hp="..string.format("%3d",r(0x1049)), 0xFFFFFF, 0x000000); y=y+9
   emu.drawString(8, y, "P2 "..nm(a2).."  hp="..string.format("%3d",r(0x10C9)), 0xFFFFFF, 0x000000); y=y+9
+  -- frame advantage (last connect/block): + = P1 acts first
+  if advDisplay ~= nil then
+    local col = advDisplay >= 0 and 0x40FF40 or 0xFF6060
+    emu.drawString(8, y, string.format("frame adv (%s, engine): %+d", advKind, advDisplay), col, 0x000000); y=y+9
+  end
   if combo > 0 then
     emu.drawString(8, y, "COMBO "..combo.." hits  "..comboDmg.." dmg", 0xFFFF00, 0x000000); y=y+9
   end
   if canActFlash > 0 and (inStun(a2)==false) then
     emu.drawString(90, 60, ">> P2 CAN ACT <<", 0xFF3030, 0x000000)
   end
-  emu.drawString(8, 210, "keys 1-6 mode  0 reset  9 hud", 0x808080, 0x000000)
+  emu.drawString(8, 210, "keys 1-"..NMODES.." mode  0 reset  9 hud", 0x808080, 0x000000)
 end
 
 --------------------------------------------------------------------------------
@@ -181,12 +245,12 @@ emu.addEventCallback(function() driveP2() end, emu.eventType.inputPolled)
 emu.addEventCallback(function()
   frame = frame + 1
   -- hotkeys (number row; guarded)
-  for i=1,6 do if pressed(tostring(i)) then MODE=i; wasHitOnce=false end end
+  for i=1,NMODES do if pressed(tostring(i)) then MODE=i; wasHitOnce=false; advDisplay=nil end end
   if pressed("0") then resetPos() end
   if pressed("9") then showHud = not showHud end
   track()
   hud()
 end, emu.eventType.endFrame)
 
-emu.displayMessage("Trainer", "Loaded — keys 1-6 pick P2 dummy, 0 reset, 9 HUD")
-print("trainer.lua loaded — you are P1, script drives P2. Keys 1-6 modes, 0 reset, 9 HUD.")
+emu.displayMessage("Trainer", "Loaded — keys 1-7 pick P2 dummy, 0 reset, 9 HUD")
+print("trainer.lua loaded — you are P1, script drives P2. Keys 1-7 modes, 0 reset, 9 HUD.")
