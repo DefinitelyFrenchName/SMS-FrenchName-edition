@@ -202,3 +202,15 @@ baked graphic tiles 0x0C1-0x11C (rows 23-26), NOT a reusable font. Title gfx LZS
 by $C0:916B (src longptr DP$00, dst DP$03); subtitle blob src=C41660->7EA000 (identical clean/BZ).
 BZ overlays custom letter tiles via its custom code region (file 0x1E38-0x4CAC). On-screen text =
 from-scratch graphics hack; deferred. Header-title identification shipped instead.
+
+## Title-screen subtitle patch (patch 4)
+| Address | Label | Comment |
+|---|---|---|
+| $C3:B81F (file 0x3B81F) | title_load_tail | JSL $80:8C43 (DMAs all title gfx to VRAM) then PLB;RTL — hook site |
+| $80:8C43 | title_gfx_dma | performs the VRAM DMAs of loaded title blocks |
+| $C0:916B / $919F | lzss_decompress | title CHR LZSS; subtitle blob src C41660 -> WRAM $7E:A000 staging (identical clean/BZ) |
+| VRAM CHR base | word 0x2000 | BG1; tile T CHR at VRAM word 0x2000 + T*16 (tile 0x10D -> 0x30D0) |
+| subtitle tiles | 0x10D-0x10F,0x11D-0x11F,0x120-0x12F,0x130-0x13F,0x140-0x141,0x150-0x151 | 42 tiles, rows 13-14, palette 0 (idx1 red / idx2 pink / idx3 white) |
+| appended bank $E8/$E9 | title stub+tiles | 195B DMA stub (calls $808C43 then 6 DMA runs) + 1344B custom tiles |
+Text "FrenchName ver. 0.4" white-core/red-outline. Build: tools/mkpatch4.py + tools/texttiles.py.
+Mockup-validated (subtitle band pixel-identical). Notes: patch_notes_title.md.
