@@ -1,9 +1,35 @@
-# patch_notes.md — SMS Uranus Infinite™ → 1-frame link
+# patch_notes.md — SMS Uranus balance/feature patches
 
 Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),
-clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c` (HiROM+FastROM, headerless).
-Patched ROM SHA-1 `c773d99a16910c9aff57a6df019b713ffcf87160`.
+clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c` (HiROM+FastROM, headerless,
+file offset = SNES addr & 0x3FFFFF).
 
+This document covers three independent patches. Each is a separate stackable BPS built
+by its own `tools/mkpatchN.py`; their edits are byte-disjoint, so they combine cleanly.
+
+## Deliverables & how they stack
+
+| Patch | What | Builder | Standalone BPS | Patched SHA-1 |
+|---|---|---|---|---|
+| 1. 1f-link | Uranus infinite → 1-frame link | `tools/mkpatch.py 0x04` | `build/sms_uranus_infinite_1f.bps` (+`.ips`) | `c773d99a…` |
+| 2. Dash-fix | Remove reversal-dash invincibility | `tools/mkpatch2.py` | `build/sms_dashfix.bps` (+`.ips`) | `07d760fe…` |
+| 3. Palettes | Big Zam extended colors + "FrenchName" header | `tools/mkpatch3.py` | `build/sms_palettes.bps` | `291f6474…` |
+
+Combined builds:
+- `build/sms_both.bps` — clean → patch 1 + 2 (stacked SHA-1 `5ae720fe…`)
+- `build/sms_full.bps` — clean → **all three** (SHA-1 `eb7b86f8…`)
+
+Edit-region map (why they're disjoint):
+- Patch 1: `0x1874D/E` + stub `0x1BE20–29` (bank $C1).
+- Patch 2: `0x188ED/E` + stub `0x1BE2A–31` (bank $C1, adjacent free bytes).
+- Patch 3: bank-$C0 hooks `0x884B` / `0x8998` / `0xA630`, appended bank $E8
+  (file 0x280000+), header `0xFFC0` + checksum.
+
+---
+
+# Patch 1 — Uranus Infinite™ → 1-frame link
+
+Patched ROM SHA-1 `c773d99a16910c9aff57a6df019b713ffcf87160`.
 Deliverables: `build/sms_uranus_infinite_1f.bps` (canonical), `.ips` (convenience),
 built by `tools/mkpatch.py 0x04`.
 
@@ -119,12 +145,6 @@ window), the remaining ticks are fewer and the delay is correspondingly smaller;
 irrelevant to the infinite (which requires point-blank first-active-frame hits) and
 to whiffs (no connect flag → no cancel at all, unchanged from vanilla).
 
-## Applying
-
-```
-flips --apply build/sms_uranus_infinite_1f.bps <clean ROM> <output ROM>
-```
-
 ## Addendum: reactive-opponent escape matrix (post-release QA)
 
 Scripted dummy attempting escapes between reps ([2LP > 2HP > 66 > 2LP] boundary),
@@ -154,3 +174,214 @@ and **no dash comes out at all** — Uranus finishes 2HP recovery. That input-ex
 difference is the patch working; a passive training dummy will otherwise make any
 timing "look like" the infinite still works, because late hits still connect on a
 non-blocking target.
+
+## Intentional knock-on effects (endorsed as balance)
+
+The +6f delay shifts the whole rep against the fixed hitstun deadline, so cancels that
+had slack lose it. Measured, and kept as balance features:
+- **Dash → 2HK ender**: on clean it's a true combo (2HK hits frame 118); on the patched
+  build the earliest 2HK hits frame 124 and is blockable. The ender is no longer
+  guaranteed.
+- **Blocked-2HP → dash pressure / SPD mixup**: the dash now starts 6 frames later, giving
+  the defender 6 extra reaction frames before the mixup arrives.
+- **Not affected**: the dash itself, its landing, neutral 66→anything, and dash→throw /
+  dash→SPD input streams are byte-identical to clean (grabs never combo off hitstun, so
+  the deadline shift doesn't touch them). Whiffed 2HP has no connect flag → no cancel at
+  all → unchanged.
+- No single gate value keeps the 2HK ender comboing *and* makes the jab loop 1-frame;
+  the ender had more slack than the jab by construction. The gate is one byte
+  (`0x1BE23`) if a different trade-off is ever wanted (smaller N widens the jab window).
+
+---
+
+# Patch 2 — Remove reversal forward-dash invincibility
+
+Patched (dashfix only) SHA-1 `07d760fea31b727dd30200d59f1239404fc1ab7b`.
+Deliverables: `build/sms_dashfix.bps` (clean → dash-fix), `build/sms_dashfix.ips`
+(checksum-free, **stacks onto the 1f-link ROM**), `build/sms_both.bps` (clean → patch 1+2).
+Built by `tools/mkpatch2.py`.
+
+## The bug (community: "bugged reversal forward dash")
+
+Uranus's 66 forward dash (action 0x60), performed as a reversal out of knockdown wakeup
+(and any other state that allows a command reversal), is fully invincible for its entire
+duration. A neutral 66 is not. Dustloop calls it the dash "gaining the invincible
+properties of backdash" — mechanically that framing is wrong (see root cause).
+
+## Root cause (found, verified at code level)
+
+- On knockdown, the hit-resolution code (writer at `$C1:0F8D`) sets **player+0x46
+  (hurt_state) = 0xA0** — the "untargetable while knocked down" status. It persists
+  through the whole knockdown → lying → stand-up chain (actions 0x19/0x1E/0x20), during
+  which the character also has no hurtbox.
+- Engine convention: **every volitional action's handler clears +0x46 in its step-0 init**
+  (`stz $46,X`). Verified across Uranus's attack handlers (e.g., 2HP at `$C1:872A`), her
+  other movement handlers (`$C1:88FF`, `$C1:8930`), the landing handler (`$C1:7F1A`), the
+  neutral state (`$C1:7D2F`) — and decisively in **Moon's forward-dash handler**, whose
+  reversal dash shows +0x46 = A0 only on the 1-frame step-0 carryover, then 00.
+- **Uranus's forward-dash handler (`$C1:88C8`) is missing that `stz $46,X`.** So a reversal
+  dash carries the knockdown untargetability until the landing handler finally clears it —
+  the entire 14-frame, full-screen dash.
+- Causality proven by poke: zeroing $1046 mid-reversal-dash makes a meaty attack connect
+  on the otherwise-invincible clean ROM.
+- Note: backdash (0x26) is invincible **by design** via its animation script using hurtbox
+  index 0 — an unrelated mechanism, untouched by this patch.
+
+## The fix (restores the engine-standard clear; 10 bytes)
+
+Reroute the step-0-only `jsr $0389` through a stub that performs the original call and
+then the missing clear — exactly what every other handler already does:
+
+| File offset | SNES addr | Old | New | Meaning |
+|---|---|---|---|---|
+| 0x188ED | $C1:88ED | 89 | 2A | `jsr $0389` → `jsr $BE2A` (operand lo) |
+| 0x188EE | $C1:88EE | 03 | BE | (operand hi) |
+| 0x1BE2A | $C1:BE2A | 00 | 20 | stub: `jsr $0389` (original X-speed call) |
+| 0x1BE2B | $C1:BE2B | 00 | 89 | |
+| 0x1BE2C | $C1:BE2C | 00 | 03 | |
+| 0x1BE2D | $C1:BE2D | 00 | E2 | `sep #$20` |
+| 0x1BE2E | $C1:BE2E | 00 | 20 | |
+| 0x1BE2F | $C1:BE2F | 00 | 74 | `stz $46,X` — the missing hurt-state clear |
+| 0x1BE30 | $C1:BE30 | 00 | 46 | |
+| 0x1BE31 | $C1:BE31 | 00 | 60 | `rts` |
+
+Stub sits in the same verified-unused zero region as patch 1's stub ($C1:BE0E–BE47; zero
+accesses over 20k frames of vanilla gameplay), at BE2A — **byte-disjoint from patch 1**
+(0x1874D/E + 0x1BE20–29), so they stack. Width safety: `$0389` and the following `$0336`
+both begin with `rep #$30`, so the stub's exit state (M=1) matches the handler's step≠0
+calling convention.
+
+Coverage of "all reversal contexts": the clear is at the **sink** (the dash's own init),
+so any entry path with stale +0x46 is covered by construction — wakeup after sweeps,
+throws, air-juggle knockdowns (all converge to stand-up 0x20), etc. Air-reset landings
+were already safe (landing handler clears +0x46). The 1-frame step-0 carryover remains,
+identical to Moon's dash and every attack.
+
+## Verification
+
+- **Repro on clean**: sweep → wakeup t=159 → reversal dash → P2 meaty (which provably hits
+  a non-dashing wakeup at t=161) passes through harmlessly; $1046 = A0 for the whole dash.
+- **On dashfix / stacked ROM**: identical scenario → meaty connects at t=161 (P1 → hitstun
+  0x16), knocking Uranus out of the dash.
+- **No side effects** (clean vs dashfix, per-frame logs byte-identical): neutral forward
+  dash; neutral backdash; **reversal backdash** (design invuln intact); whiff traces of
+  2LP/2HP/2LK/2HK.
+- **Moon-vs-Moon session**: stub never executes (exec-watch = 0); her reversal dash
+  unchanged.
+- **Patch 1 still functional on the stacked ROM**: dash-out@100, only press-115 continues
+  the loop.
+- BPS/IPS round-trips: clean→dashfix, dashfix-ips-on-1f-link == stacked reference,
+  clean→both — all byte-exact.
+
+---
+
+# Patch 3 — Extended palettes (Big Zam extraction) + "FrenchName" header
+
+Patched (palettes only) SHA-1 `291f6474cc0470dde388b73e8aba8bf0bf2d44de`; full (all three)
+`eb7b86f8f4196281e7144deeb77b96430d458e03`. Output ROMs are 3 MB.
+Deliverables: `build/sms_palettes.bps` (clean → palettes + header), `build/sms_full.bps`
+(clean → all three fixes). Built by `tools/mkpatch3.py`.
+
+## What this patch does
+
+1. **Extended character palettes** — up to 32 colors/character, 12 populated (2 defaults +
+   10 extras), selectable on character select. This is the Big Zam edition's feature; the
+   90 extra palettes (9 characters × 10) are **extracted from the Big Zam ROM** and
+   re-inserted, so they render identically.
+2. **"FrenchName" ROM-header title** (offset 0xFFC0) — shows in emulator title bars,
+   ROM-info dialogs, and flashcart menus. SNES checksum recomputed.
+
+## Provenance & mechanism
+
+Reuses sprntgd's `sms_patcher.py` palette system (`vendor/sms-training-mode/`), which is
+also what built the Big Zam edition (confirmed: BZ's non-custom diffs match the patcher's
+hook sites exactly). `tools/mkpatch3.py` imports the patcher's `apply_patch`, `PATCH_PAL`,
+and `read_int` and applies them non-interactively, so the injected code and pointers are
+the battle-tested originals — only the color *data* differs (Big Zam's, not BMP files).
+
+Hook sites (all bank $C0, verified disjoint from the bank-$C1 gameplay patches — the only
+base-region bytes patch 3 changes):
+- **0x884B–0x88AC** — 1P palette-load map hook (redirects to the per-slot palette block).
+- **0x8998–0x89F9** — 2P palette-load map hook.
+- **0xA630** — character-select confirm hook → `JSL $E8:000A` (palette select + default
+  stage select).
+- Appended bank **$E8** (file 0x280000): selection/stage code at 0x28000A, then the palette
+  data block from 0x281000. Per character `0x1000` bytes = 32 slots × `0x80`; slot layout
+  `[enable-flag word, pad, icon 4×BGR555 @+0x8, character 16 @+0x10, projectile 16 @+0x30]`.
+  Defaults (slots 0–1) copied from each character's manifest ($E0:0238+id*2); extras
+  (slots 2–11) lifted from the Big Zam block at file 0x2A0000.
+- **0xFFC0** header title, **0xFFDC/DE** checksum.
+
+## Selection (character-select screen)
+
+The patch repurposes **Start / L / R as color-range modifiers**, so you now confirm a
+character with a **face button**, and that button (+modifier) picks the color:
+
+| Buttons | Color |
+|---|---|
+| A | 0 (default 1) |
+| B | 1 (default 2) |
+| Y | 2 |
+| X | 3 |
+| L + A/B/Y/X | 4–7 |
+| R + A/B/Y/X | 8–15 |
+| Start + A/B/Y/X | 16–31 |
+
+Big Zam populates colors 0–11 (A/B/Y/X, L+A/B/Y/X, R+A, R+B); higher slots fall back to the
+two defaults.
+
+Bundled rider (part of the same indivisible patcher blob, kept as-is per request):
+**random stage default** — stage select defaults to random; holding a direction while P2
+confirms picks the home stage.
+
+Roster note: the patcher (and thus Big Zam and this patch) covers **Moon…Chibimoon**
+(9 characters). Saturn is a Super S character, not in this game, so she has no extended
+palettes — correct and expected.
+
+## Verification (CGRAM / screenshot)
+
+- **Selection works**: drove real character-select confirms (A/B/Y/X, L+A, R+A) for Uranus
+  on the palettes ROM, reached a live match, dumped CGRAM. Uranus's character palette
+  (CGRAM indices 128–142) + projectile (164–174) **differ per confirming button; all six
+  tested selections are distinct**. Screenshots confirm visible recolor (A = default navy,
+  R+A = silver).
+- **Faithful extraction**: `sms_palettes` and `sms_full` produce **byte-identical CGRAM**
+  for every selection.
+- **Header**: applied ROM header reads `…S FrenchName`.
+- **No gameplay regression on the combined build** (`sms_full`, savestate-driven): 1f-link
+  dash-out@100 / press-115-only; reversal-dash meaty connects; base-region diff
+  stacked→full = only the four bank-$C0 hook sites + header, bank-$C1 patch bytes intact.
+- **BPS round-trips**: `flips --apply` on a fresh clean ROM reproduces both builds byte-exact.
+
+## Not included (scoped follow-up): on-screen title-screen text
+
+Investigated fully. Big Zam's "BIG ZAM EDITION!!" subtitle and "©MOONLIGHT FIGHT SOCIETY"
+credit are **custom letter-tile graphics injected by its 12 KB of custom code** (file
+0x1E38–0x4CAC) — the title screen has **no reusable Latin font** (credit lines are baked
+single-purpose graphic tiles; the subtitle graphic LZSS-decompresses from a blob identical
+to clean, then is overwritten by BZ's code). Adding on-screen "FrenchName" therefore means
+authoring custom 4bpp letter tiles + an injection hook from scratch (a few hours, non-trivial
+risk), not a simple tilemap edit. The header-title identification is shipped instead (the
+practical way a ROM is identified in emulators/flashcarts); on-screen text is available as a
+follow-up if wanted.
+
+---
+
+# Applying (summary)
+
+```
+# individual
+flips --apply build/sms_uranus_infinite_1f.bps <clean ROM> <out>   # patch 1
+flips --apply build/sms_dashfix.bps            <clean ROM> <out>   # patch 2
+flips --apply build/sms_palettes.bps           <clean ROM> <out>   # patch 3
+
+# combined
+flips --apply build/sms_both.bps <clean ROM> <out>   # patches 1 + 2
+flips --apply build/sms_full.bps <clean ROM> <out>   # patches 1 + 2 + 3
+
+# stacking IPS onto an already-patched ROM (checksum-free variants)
+flips --apply build/sms_dashfix.ips <1f-link ROM> <out>
+```
+
+Standalone per-patch write-ups remain at `patch_notes_dashfix.md` and
+`patch_notes_palettes.md`; this file is the consolidated reference.
