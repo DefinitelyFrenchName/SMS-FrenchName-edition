@@ -20,8 +20,8 @@ CLEAN = "Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japa
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 HOOK = 0x3B81F           # JSL $808C43 in the title CHR loader tail
 HOOK_OLD = bytes.fromhex("22438c80")
-TEXT = "FrenchName ver. 0.4"
-STYLE = "white_red"
+TEXT = "FrenchName ver. 0.4"   # default subtitle; override with --text
+STYLE = "white_red"            # default treatment;  override with --style
 
 # 6 contiguous VRAM runs covering the 42 subtitle tiles (tile ids -> VMADD word = id*16).
 RUNS = [
@@ -33,22 +33,25 @@ RUNS = [
     (0x150, [0x150, 0x151]),
 ]
 
-def _subtitle_tiles():
-    """Return {tile_id: 32-byte 4bpp} for TEXT rendered in STYLE."""
-    tops, bots = T.render(TEXT, STYLE)
+def _subtitle_tiles(text, style):
+    """Return {tile_id: 32-byte 4bpp} for `text` rendered in `style`."""
+    missing = sorted({c for c in text if c not in T.G})
+    if missing:
+        raise SystemExit(f"error: no glyph(s) for {missing} in texttiles.py — add them there first")
+    tops, bots = T.render(text, style)
     m = {}
     for slot, tile in zip(T.ROW13, tops): m[slot] = tile
     for slot, tile in zip(T.ROW14, bots): m[slot] = tile
     return m
 
-def build(src_path, out_path):
+def build(src_path, out_path, text=TEXT, style=STYLE):
     data = bytearray(open(src_path, "rb").read())
     # trim trailing all-zero padding to a 64K boundary base
     while len(data) >= 0x10000 and data[-0x10000:] == bytes(0x10000):
         data = data[:-0x10000]
     assert data[HOOK:HOOK+4] == HOOK_OLD, f"hook bytes: {data[HOOK:HOOK+4].hex()}"
 
-    tiles = _subtitle_tiles()
+    tiles = _subtitle_tiles(text, style)
     # tile data laid out group by group, in run order
     tiledata = bytearray()
     run_srcoff = []  # source offset (within our data blob) for each run
@@ -130,8 +133,16 @@ def _fix_checksum(data):
     data[0xFFDC] = data[0xFFDE] ^ 0xFF; data[0xFFDD] = data[0xFFDF] ^ 0xFF
 
 if __name__ == "__main__":
-    src = sys.argv[1] if len(sys.argv) > 1 else CLEAN
-    out = sys.argv[2] if len(sys.argv) > 2 else "build/sms_title.sfc"
-    if src == CLEAN:
-        assert sha1(open(src, "rb").read()).hexdigest() == CLEAN_SHA1, "clean hash mismatch"
-    build(src, out)
+    import argparse
+    ap = argparse.ArgumentParser(
+        description="Patch the title subtitle. Bump the version by changing --text.")
+    ap.add_argument("src", nargs="?", default=CLEAN, help="input ROM (clean or combined build)")
+    ap.add_argument("out", nargs="?", default="build/sms_title.sfc", help="output ROM path")
+    ap.add_argument("--text", default=TEXT,
+                    help=f'subtitle text, <=21 chars (default: "{TEXT}")')
+    ap.add_argument("--style", default=STYLE, choices=["white_red", "red_white", "red"],
+                    help=f"glyph treatment (default: {STYLE})")
+    a = ap.parse_args()
+    if a.src == CLEAN:
+        assert sha1(open(a.src, "rb").read()).hexdigest() == CLEAN_SHA1, "clean hash mismatch"
+    build(a.src, a.out, a.text, a.style)
