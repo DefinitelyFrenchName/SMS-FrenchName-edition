@@ -15,13 +15,13 @@ by its own `tools/mkpatchN.py`; their edits are byte-disjoint, so they combine c
 | 2. Dash-fix | Remove reversal-dash invincibility | `tools/mkpatch2.py` | `build/sms_dashfix.bps` (+`.ips`) | `07d760fe…` |
 | 3. Palettes | Big Zam extended colors + "FrenchName" header | `tools/mkpatch3.py` | `build/sms_palettes.bps` | `291f6474…` |
 | 4. Title | Title subtitle → "FrenchName ver. 0.4" | `tools/mkpatch4.py` | `build/sms_title.bps` | `e5dce7d5…` |
-| 5. Dash dist | Halve Uranus forward-dash distance | `tools/mkpatch5.py` | `build/sms_dashdist.bps` | `70392f43…` |
+| 5. Dash dist | Cut Uranus forward-dash distance ~1/3 | `tools/mkpatch5.py` | `build/sms_dashdist.bps` | `99acb686…` |
 
 Combined builds:
 - `build/sms_both.bps` — clean → patch 1 + 2 (stacked SHA-1 `5ae720fe…`)
 - `build/sms_full.bps` — clean → patches 1 + 2 + 3 (SHA-1 `eb7b86f8…`)
 - `build/sms_full4.bps` — clean → patches 1 + 2 + 3 + 4 (SHA-1 `51c397cb…`)
-- `build/sms_full5.bps` — clean → **all five** (SHA-1 `21a3090a…`)
+- `build/sms_full5.bps` — clean → **all five** (SHA-1 `b09a189c…`)
 
 Edit-region map (why they're disjoint):
 - Patch 1: `0x1874D/E` + stub `0x1BE20–29` (bank $C1).
@@ -425,25 +425,25 @@ first, and only adds DMAs; it never executes during matches.
 
 # Patch 5 — Halve the forward-dash distance
 
-Patched (standalone) SHA-1 `70392f43…`; all-five `21a3090a…`.
+Patched (standalone) SHA-1 `99acb686…`; all-five `b09a189c…`.
 Deliverables: `build/sms_dashdist.bps` (clean → dash distance only), `build/sms_full5.bps`
 (clean → all five). Built by `tools/mkpatch5.py`.
 
 ## What this patch does
 
 Uranus's forward dash (`66`, action 0x60) is nearly full-screen — one of the reasons she
-stays oppressive even after the other fixes. This cuts its neutral travel roughly in half
-(**121px → 59px**) while leaving the 2HP>66 infinite fully intact as a 1-frame link.
+stays oppressive even after the other fixes. This cuts its neutral travel by roughly a third
+(**121px → 82px**) while leaving the 2HP>66 infinite fully intact as a 1-frame link.
 
 ## Mechanism (2 bytes)
 
 The dash handler (`$C1:88C8`) sets the dash X-speed with `LDA #$0B00` (0x0B00 = 11.0
 px/frame) at file **0x188E9**, then runs for a **fixed 14-frame duration**. The distance is
-`speed × duration`; the duration is state-driven, not speed-driven. So halving the *speed*
-(`0x0B00 → 0x0480`, 4.5 px/f) halves the distance and changes **no frame timing at all**.
+`speed × duration`; the duration is state-driven, not speed-driven. So lowering the *speed*
+(`0x0B00 → 0x0640`, 6.25 px/f) shrinks the distance and changes **no frame timing at all**.
 
-- 0x188EA: `00` → `80`
-- 0x188EB: `0B` → `05`   (`LDA #$0480`)
+- 0x188EA: `00` → `40`
+- 0x188EB: `0B` → `06`   (`LDA #$0640`)
 
 Byte-disjoint from patch 2's reversal hook (0x188ED/EE) and everything else.
 
@@ -456,7 +456,7 @@ duration and all timing are unchanged, the whole rep is frame-for-frame identica
 
 ## Verification
 
-- **Distance**: neutral dash 121px → 59px (~49%, i.e. half). Backdash (0x26, separate
+- **Distance**: neutral dash 121px → 82px (~68%, i.e. -1/3). Backdash (0x26, separate
   handler) **unchanged** (50px both).
 - **1-frame link intact on the all-five build**: frame-perfect rep connects (press 115 →
   hit 120), one-frame-late fails (press 116 blocked) — identical to pre-patch-5; a scripted
@@ -468,8 +468,8 @@ duration and all timing are unchanged, the whole rep is frame-for-frame identica
 
 ## Tuning
 
-The speed is one 16-bit operand (`0x188EA/EB`); e.g. `0x0400`→52px, `0x0480`→59px (shipped,
-~half), `0x0580`→72px. Adjust in `tools/mkpatch5.py` (`NEW_SPEED`) and rebuild if you want a
+The speed is one 16-bit operand (`0x188EA/EB`); e.g. `0x0480`→59px (half), `0x0640`→82px (shipped, -1/3),
+`0x0700`→91px. Adjust in `tools/mkpatch5.py` (`NEW_SPEED`) and rebuild if you want a
 different fraction.
 
 ## Watching the 1-frame link (demo)

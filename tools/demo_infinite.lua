@@ -80,10 +80,11 @@ emu.addEventCallback(function()
   end
   if t >= playStart then
     emu.setInput(p1Input((t - playStart) % REP), 0, 0)   -- P1: the infinite
-    -- P2: neutral for the first ~8 frames so the opening 2LP lands, THEN hold down-back
-    -- guard — which can never come out, proving the loop is a true lock (not a blockstring).
+    -- P2: crouch, NO block. A held block would catch the 1-frame recovery gap on some
+    -- matchups (that's the nature of a 1-frame link) and muddy the demo; a plain crouching
+    -- dummy just takes the combo so you see it connect cleanly on any opponent.
     local p2 = {}; for k,v in pairs(FALSE) do p2[k]=v end
-    if (t - playStart) >= 8 then p2.right = true; p2.down = true end
+    p2.down = true
     emu.setInput(p2, 0, 1)
   end
 end, emu.eventType.inputPolled)
@@ -105,7 +106,7 @@ emu.addEventCallback(function()
 
   -- HUD
   emu.drawString(8, 8,  "DEMO: frame-perfect 1-frame-link infinite", 0x00FF00, 0x000000)
-  emu.drawString(8, 17, "[2LP > 2HP > 66] x N   (P2 = guard)", 0xFFFFFF, 0x000000)
+  emu.drawString(8, 17, "[2LP > 2HP > 66] x N   (P2 = crouch dummy)", 0xFFFFFF, 0x000000)
   emu.drawString(8, 26, "reps "..reps.."   COMBO "..combo.." hits  "..comboDmg.." dmg", 0xFFFF00, 0x000000)
   emu.drawString(8, 35, "each jab link = a 1-FRAME window", 0xFF80FF, 0x000000)
   emu.drawString(8, 210, driving and "R restart   S stop" or "STOPPED — S resume", 0x808080, 0x000000)
