@@ -214,3 +214,13 @@ from-scratch graphics hack; deferred. Header-title identification shipped instea
 | appended bank $E8/$E9 | title stub+tiles | 195B DMA stub (calls $808C43 then 6 DMA runs) + 1344B custom tiles |
 Text "FrenchName ver. 0.4" white-core/red-outline. Build: tools/mkpatch4.py + tools/texttiles.py.
 Mockup-validated (subtitle band pixel-identical). Notes: patch_notes_title.md.
+
+## Forward-dash distance (patch 5)
+| Address | Label | Comment |
+|---|---|---|
+| $C1:88E9 (file 0x188E9) | dash_xspeed | LDA #$0B00 (11.0px/f) -> patch5 LDA #$0480 (4.5px/f); neutral dash 121px->59px |
+Dash duration (14f) is state-driven, not velocity — halving speed halves distance while
+keeping ALL frame timing, so the 2HP>66 infinite is preserved exactly (dash stops on
+contact in the loop). Byte-disjoint from patch 2's reversal hook (0x188ED/EE). Backdash
+(0x26, separate handler) unchanged. Build: tools/mkpatch5.py. Notes: patch_notes.md / patch_notes_title? -> patch 5 section.
+Demo of the frame-perfect 1f-link infinite: tools/demo_infinite.lua (GUI playback).
