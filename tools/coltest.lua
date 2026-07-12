@@ -30,7 +30,7 @@ local STEPS = {
   function() pulse[0]=beat({down=true}); return ram(0x1B10)==1 end,
   function() pulse[0]=beat({start=true}); return sf>40 end,           -- title menu confirm (start ok here)
   function() return sf>240 end,
-  function() emu.write(0x1B40, CHARA, emu.memType.snesWorkRam); return sf>20 end,
+  function() emu.write(0x1B40, CHARA, emu.memType.snesWorkRam); if CHAR2 then emu.write(0x1B80, CHAR2, emu.memType.snesWorkRam) end; return sf>20 end,
   function() pulse[0]=confirm(CONFIRM); return ram(0x1B42)==1 or sf>90 end,   -- P1 color-confirm
   function() pulse[0]={}; return sf>30 end,
   function() pulse[1]=confirm({a=true}); return sf>60 end,            -- P2 confirm (color 0)
