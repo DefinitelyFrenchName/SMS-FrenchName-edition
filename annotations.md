@@ -183,3 +183,22 @@ Full derivation, changed bytes, and verification matrix in patch_notes.md.
 | $C1:BE2A | dashfix stub | jsr $0389; sep #$20; stz $46,X; rts (patch 2) |
 Backdash (0x26) invuln is by design via script hurtbox idx 0 — unrelated mechanism.
 Patch 2 = build/sms_dashfix.bps (stacks with patch 1 via .ips or sms_both.bps); see patch_notes_dashfix.md.
+
+## Palettes + title (patch 3) — Big Zam extraction
+| Address (file) | Label | Comment |
+|---|---|---|
+| 0x884B | pal_load_1P hook | sprntgd PATCH_PAL 1P palette-map redirect |
+| 0x8998 | pal_load_2P hook | 2P palette-map redirect |
+| 0xA630 | charsel_confirm hook | JSL $E8:000A palette-select + default-stage-select |
+| 0x280000 ($E8) | pal code+data block | code @0x28000A; per-char palettes @0x281000+0x1000*id; slot=0x80 [flag,pad,icon@8,char@10,proj@30] BGR555 |
+| 0x2A0000 (Big Zam) | BZ palette donor | slots 2-11 = 10 extras/char extracted for our patch |
+| 0xFFC0 | header title | "…S FrenchName " (11 chars) |
+Selection: face button confirms + picks color (A=0,B=1,Y=2,X=3; L+ =4-7; R+ =8-15; Start+ =16-31).
+Bundled random-stage-default rider kept as-is. Build: tools/mkpatch3.py. Notes: patch_notes_palettes.md.
+
+## Title-screen graphics (investigated, NOT patched)
+Title BG1 tilemap @VRAM word 0; subtitle = tiles 0x10D-0x15F (rows 13-14); credit block =
+baked graphic tiles 0x0C1-0x11C (rows 23-26), NOT a reusable font. Title gfx LZSS-decompressed
+by $C0:916B (src longptr DP$00, dst DP$03); subtitle blob src=C41660->7EA000 (identical clean/BZ).
+BZ overlays custom letter tiles via its custom code region (file 0x1E38-0x4CAC). On-screen text =
+from-scratch graphics hack; deferred. Header-title identification shipped instead.

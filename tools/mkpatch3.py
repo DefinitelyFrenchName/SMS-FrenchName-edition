@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""Patch 3: extended character palettes (extracted from the Big Zam edition) +
+"FrenchName" ROM-header identification.
+
+Ports sprntgd's sms_patcher.py palette system (PATCH_PAL hooks + appended code
+block + palette data block) exactly, so the added selection code and pointers are
+the battle-tested originals. The 30 extra palettes/character are lifted from the
+Big Zam ROM's palette block instead of BMP files.
+
+Selection on the character-select screen (per the patcher readme):
+  A=color0(default) B=1 Y=2 X=3 ; L+(A/B/Y/X)=4-7 ; R+=8-15 ; Start+=16-31
+
+Also writes the internal ROM header title to "FrenchName" (shows in emulator title
+bars / ROM info / flashcart menus) and fixes the SNES checksum.
+
+Builds from any input ROM (clean or the stacked 1f-link+dashfix build): the PATCH_PAL
+anchors live in bank $C0, disjoint from our bank-$C1 gameplay patches.
+"""
+import sys
+import struct
+from hashlib import sha1
+
+sys.path.insert(0, "vendor/sms-training-mode")
+from sms_patcher import apply_patch, PATCH_PAL, read_int  # noqa: E402
+
+CLEAN = "Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
+BIGZAM = "sailor moon s big zam edition (hack).sfc"
+BZ_PAL_BASE = 0x2A0000  # palette block in the Big Zam ROM
+TITLE = b"FrenchName "  # 11 chars, space-padded
+
+NAMES = ["", "Moon", "Mercury", "Mars", "Jupiter", "Venus",
+         "Uranus", "Neptune", "Pluto", "Chibimoon", "Saturn"]
+
+def build(src_path, out_path):
+    data = bytearray(open(src_path, "rb").read())
+    # trim any padding down to the base 0x280000 image the patcher expects
+    if len(data) > 0x280000 and data[0x280000:] == bytes(len(data) - 0x280000):
+        data = data[:0x280000]
+    bz = open(BIGZAM, "rb").read()
+
+    # 1) Apply the palette hooks + selection code + appended block (patcher-exact).
+    apply_patch(data, PATCH_PAL)
+    palette_offset = len(data) - 0x10000
+
+    # 2) Copy each character's two default palettes from the manifest (patcher logic).
+    pointer_offset = 0x200238
+    for chara_id in range(1, 10):
+        chara_offset = read_int(data, pointer_offset + 2 * chara_id) + 0x200000
+        # Color 1 / Color 2 character palettes
+        for ci, ptr_off in ((0, 0x1), (1, 0x4)):
+            src = read_int(data, chara_offset + ptr_off, 3) - 0xC00000
+            dest = palette_offset + 0x1000 * chara_id + 0x10 + 0x80 * ci
+            data[dest:dest + 0x20] = data[src:src + 0x20]
+        # Objects (projectile) palette -> both default slots
+        src = read_int(data, chara_offset + 0xA, 3) - 0xC00000
+        for ci in (0, 1):
+            dest = palette_offset + 0x1000 * chara_id + 0x30 + 0x80 * ci
+            data[dest:dest + 0x20] = data[src:src + 0x20]
+        # Icon palette -> both default slots
+        src = read_int(data, chara_offset + 0x7, 3) - 0xC00000
+        for ci in (0, 1):
+            dest = palette_offset + 0x1000 * chara_id + 0x8 + 0x80 * ci
+            data[dest:dest + 0x8] = data[src:src + 0x8]
+        # Enable flag on the two defaults
+        data[palette_offset + 0x1000 * chara_id] = 1
+        data[palette_offset + 0x1000 * chara_id + 0x80] = 1
+
+    # 3) Import the 30 extra slots/character from the Big Zam block (slots 2..31).
+    imported = 0
+    for chara_id in range(1, 10):
+        for slot in range(2, 32):
+            src = BZ_PAL_BASE + 0x1000 * chara_id + 0x80 * slot
+            dest = palette_offset + 0x1000 * chara_id + 0x80 * slot
+            block = bz[src:src + 0x50]  # flag word + icon(4) + char(16) + proj(16)
+            data[dest:dest + 0x50] = block
+            if block[0] == 1:
+                imported += 1
+
+    # 4) Header title + checksum + pad to 4 Mbit boundary (patcher-exact).
+    data[0xFFC0:0xFFD5] = b"\xBE\xB0\xD7\xB0\xD1\xB0\xDDS " + TITLE.ljust(11) + b" "
+    data += b"\x00" * ((len(data) + 0x7FFFF) // 0x80000 * 0x80000 - len(data))
+    _fix_checksum(data)
+
+    open(out_path, "wb").write(data)
+    print(f"wrote {out_path} from {src_path}: {imported} extra palettes, "
+          f"{len(data):#x} bytes, sha1={sha1(bytes(data)).hexdigest()}")
+
+def _fix_checksum(data):
+    size = len(data)
+    chk_size = 0x80000
+    while chk_size <= size:
+        chk_size <<= 1
+    if chk_size == size:
+        chk = sum(data)
+    else:
+        chk_data = data[chk_size // 2:]
+        while len(chk_data) < chk_size // 2:
+            chk_data += chk_data[len(chk_data) - chk_size:]
+        chk = sum(data[:chk_size // 2]) + sum(chk_data)
+    data[0xFFDE] = chk & 0xFF
+    data[0xFFDF] = chk >> 8 & 0xFF
+    data[0xFFDC] = data[0xFFDE] ^ 0xFF
+    data[0xFFDD] = data[0xFFDF] ^ 0xFF
+
+if __name__ == "__main__":
+    src = sys.argv[1] if len(sys.argv) > 1 else CLEAN
+    out = sys.argv[2] if len(sys.argv) > 2 else "build/sms_palettes.sfc"
+    if src == CLEAN:
+        assert sha1(open(src, "rb").read()).hexdigest() == CLEAN_SHA1, "clean hash mismatch"
+    build(src, out)
