@@ -15,11 +15,13 @@ by its own `tools/mkpatchN.py`; their edits are byte-disjoint, so they combine c
 | 2. Dash-fix | Remove reversal-dash invincibility | `tools/mkpatch2.py` | `build/sms_dashfix.bps` (+`.ips`) | `07d760fe…` |
 | 3. Palettes | Big Zam extended colors + "FrenchName" header | `tools/mkpatch3.py` | `build/sms_palettes.bps` | `291f6474…` |
 | 4. Title | Title subtitle → "FrenchName ver. 0.4" | `tools/mkpatch4.py` | `build/sms_title.bps` | `e5dce7d5…` |
+| 5. Dash dist | Halve Uranus forward-dash distance | `tools/mkpatch5.py` | `build/sms_dashdist.bps` | `70392f43…` |
 
 Combined builds:
 - `build/sms_both.bps` — clean → patch 1 + 2 (stacked SHA-1 `5ae720fe…`)
 - `build/sms_full.bps` — clean → patches 1 + 2 + 3 (SHA-1 `eb7b86f8…`)
-- `build/sms_full4.bps` — clean → **all four** (SHA-1 `51c397cb…`)
+- `build/sms_full4.bps` — clean → patches 1 + 2 + 3 + 4 (SHA-1 `51c397cb…`)
+- `build/sms_full5.bps` — clean → **all five** (SHA-1 `21a3090a…`)
 
 Edit-region map (why they're disjoint):
 - Patch 1: `0x1874D/E` + stub `0x1BE20–29` (bank $C1).
@@ -28,6 +30,8 @@ Edit-region map (why they're disjoint):
   (file 0x280000+), header `0xFFC0` + checksum.
 - Patch 4: bank-$C3 hook `0x3B81F`, appended bank ($E8 standalone / $E9 combined),
   header `0xFFC0` + checksum.
+- Patch 5: 2 bytes at `0x188EA/EB` (dash X-speed operand), adjacent to but disjoint
+  from patch 2's `0x188ED/EE`.
 
 ---
 
@@ -419,6 +423,65 @@ first, and only adds DMAs; it never executes during matches.
 
 ---
 
+# Patch 5 — Halve the forward-dash distance
+
+Patched (standalone) SHA-1 `70392f43…`; all-five `21a3090a…`.
+Deliverables: `build/sms_dashdist.bps` (clean → dash distance only), `build/sms_full5.bps`
+(clean → all five). Built by `tools/mkpatch5.py`.
+
+## What this patch does
+
+Uranus's forward dash (`66`, action 0x60) is nearly full-screen — one of the reasons she
+stays oppressive even after the other fixes. This cuts its neutral travel roughly in half
+(**121px → 59px**) while leaving the 2HP>66 infinite fully intact as a 1-frame link.
+
+## Mechanism (2 bytes)
+
+The dash handler (`$C1:88C8`) sets the dash X-speed with `LDA #$0B00` (0x0B00 = 11.0
+px/frame) at file **0x188E9**, then runs for a **fixed 14-frame duration**. The distance is
+`speed × duration`; the duration is state-driven, not speed-driven. So halving the *speed*
+(`0x0B00 → 0x0480`, 4.5 px/f) halves the distance and changes **no frame timing at all**.
+
+- 0x188EA: `00` → `80`
+- 0x188EB: `0B` → `05`   (`LDA #$0480`)
+
+Byte-disjoint from patch 2's reversal hook (0x188ED/EE) and everything else.
+
+## Why the infinite survives
+
+In the loop the dash cancels 2HP and re-closes the small gap to the opponent — and it
+**stops on contact** with the opponent's pushbox, so its reduced top speed never matters
+there (the gap is ~24-32px, easily covered within 14 frames even at 4.5 px/f). Because the
+duration and all timing are unchanged, the whole rep is frame-for-frame identical.
+
+## Verification
+
+- **Distance**: neutral dash 121px → 59px (~49%, i.e. half). Backdash (0x26, separate
+  handler) **unchanged** (50px both).
+- **1-frame link intact on the all-five build**: frame-perfect rep connects (press 115 →
+  hit 120), one-frame-late fails (press 116 blocked) — identical to pre-patch-5; a scripted
+  3-rep frame-perfect infinite lands the **identical 7 hits on the identical frames**
+  (64/85/120/141/176/197/232) as the full-speed dash.
+- **Reversal fix intact**: with the dash coming out on wakeup, the meaty connects (P1 →
+  hitstun) — the reversal dash is still non-invincible.
+- **BPS round-trips** reproduce both builds byte-exact from clean.
+
+## Tuning
+
+The speed is one 16-bit operand (`0x188EA/EB`); e.g. `0x0400`→52px, `0x0480`→59px (shipped,
+~half), `0x0580`→72px. Adjust in `tools/mkpatch5.py` (`NEW_SPEED`) and rebuild if you want a
+different fraction.
+
+## Watching the 1-frame link (demo)
+
+`tools/demo_infinite.lua` (Mesen GUI Script Window, while in a Uranus match) plays the
+frame-perfect infinite so you can *see* it still works — it snaps to point-blank and loops
+`[2LP > 2HP > 66]xN` against a P2 that's held in guard-after-first-hit (proving the loop is
+a true lock, not a blockstring), auto-restarting before a KO. It's the exact per-rep timing
+a human would need: one 1-frame jab link + one frame-perfect 66.
+
+---
+
 # Applying (summary)
 
 ```
@@ -427,11 +490,13 @@ flips --apply build/sms_uranus_infinite_1f.bps <clean ROM> <out>   # patch 1
 flips --apply build/sms_dashfix.bps            <clean ROM> <out>   # patch 2
 flips --apply build/sms_palettes.bps           <clean ROM> <out>   # patch 3
 flips --apply build/sms_title.bps              <clean ROM> <out>   # patch 4
+flips --apply build/sms_dashdist.bps           <clean ROM> <out>   # patch 5
 
 # combined
 flips --apply build/sms_both.bps  <clean ROM> <out>   # patches 1 + 2
 flips --apply build/sms_full.bps  <clean ROM> <out>   # patches 1 + 2 + 3
 flips --apply build/sms_full4.bps <clean ROM> <out>   # patches 1 + 2 + 3 + 4
+flips --apply build/sms_full5.bps <clean ROM> <out>   # patches 1 + 2 + 3 + 4 + 5
 
 # stacking IPS onto an already-patched ROM (checksum-free variants)
 flips --apply build/sms_dashfix.ips <1f-link ROM> <out>
