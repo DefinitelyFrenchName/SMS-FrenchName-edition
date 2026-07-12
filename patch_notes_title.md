@@ -78,6 +78,26 @@ Hook safety: the stub runs once, during title-load force-blank; it calls the ori
 `$80:8C43` first (so the normal load is unchanged) and only adds DMAs. It executes only in
 the title CHR loader — not during matches.
 
+## Bumping the version (one command)
+
+The subtitle text is a CLI flag; the font has the full glyph set for
+`A–Z a–z 0–9 space .`, so a version bump needs no source edit:
+
+```
+# positionals first (src, out), then --text; then rebuild the BPS
+python3 tools/mkpatch4.py "<clean ROM>" build/sms_title.sfc --text "FrenchName ver. 0.5"
+tools/Flips/flips --create --bps "<clean ROM>" build/sms_title.sfc build/sms_title.bps
+
+# combined build: apply on top of the 3-patch full build
+python3 tools/mkpatch4.py build/sms_full.sfc build/sms_full4.sfc --text "FrenchName ver. 0.5"
+tools/Flips/flips --create --bps "<clean ROM>" build/sms_full4.sfc build/sms_full4.bps
+```
+
+`--style` picks the treatment (`white_red` default, `red_white`, `red`). If the new text
+uses a character with no glyph, the tool stops and names it (add it to `tools/texttiles.py`).
+Text is capped at 21 cells and auto-centered. Running with no `--text` reproduces the shipped
+v0.4 build byte-for-byte.
+
 ## Applying
 
 ```
