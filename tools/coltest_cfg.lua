@@ -1,4 +1,3 @@
-CHARA = 6
-CONFIRM = {a=true}
-TAG = "mkstate"
-SAVE = "uranus_vs_moon_full.mss"
+CHARA=6
+CONFIRM={y=true}
+TAG="f4_Y"
