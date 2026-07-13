@@ -246,6 +246,26 @@ both. N=5 is the strictly better fix: same removal of the mash-buffer, but the i
 frame-perfect link is now a genuine combo instead of a blockable trap. (The full-removal
 option, N=7 / gate `0x03`, was declined in favour of this.)
 
+## Proof it is exactly one frame wide
+
+`tools/demo_link.lua` reloads one savestate and replays the verified sequence
+`2LP > 2HP > 66 > (follow-up 2LP)`, pressing the follow-up on frame `114 + LINK_OFFSET`
+(opponent takes the setup, then holds down-back). Reloading makes every attempt
+byte-identical, so the press frame is the only variable. Deterministic result on the N=5
+build, 3/3 attempts each:
+
+| Offset | Follow-up 2LP | Outcome |
+|---|---|---|
+| `-1` (`tools/demo_link_early.lua`) | 1 frame early | **MOVE DROPPED** — the 2LP never comes out (the press edge lands during dash recovery and is lost; there is no buffer) |
+| `0`  (default) | the only valid frame | **TRUE COMBO** |
+| `+1` (`tools/demo_link_late.lua`)  | 1 frame late | **BLOCKED** — the defender has recovered into crouch-block |
+
+Early and late both fail, only the exact frame connects ⇒ a genuine 1-frame link.
+Run headless: `ROM=build/SailorMoonS_FrenchName_v0.6_all5_truecombo.sfc tools/run.sh tools/demo_link_early.lua`
+(and `_late`, and `tools/demo_link.lua` for on-time). In the Mesen GUI the demos load
+`traces/uranus_vs_jupiter_f5.mss` themselves. `tools/demo_truecombo.lua` is the companion
+that shows the on-time loop being unblockable while the opponent holds down-back.
+
 ## Every changed byte
 
 Identical to patch 1 except the single gate operand:
