@@ -72,9 +72,10 @@ local STATE_NAMES = {[0x00]="neutral",[0x26]="backdash",[0x0C]="stand-block",[0x
 
 local t = -1
 local needLoad = true
-local attempts, escapes, hits = 0, 0, 0
-local hpStart, hitFrame, p2AtHit, moveSeen, p1Hit = nil, nil, nil, nil, false
-local lastVerdict = "..."
+local attempts = 0
+local tally = { HIT=0, TRADE=0, WIN=0, BLOCK=0, ESCAPE=0 }
+local hpStart, hitFrame, p2AtHit, moveSeen, p1Hurt, sawBlock = nil, nil, nil, nil, nil, false
+local lastVerdict, lastKind = "...", nil
 local driving = true
 local hold = 0
 local HOLD = (DEMO_LOG ~= nil) and 2 or 150
@@ -90,7 +91,7 @@ emu.addMemoryCallback(function()
   if needLoad then
     local f = io.open(STATE, "rb"); if not f then return end
     local ss = f:read("*a"); f:close(); emu.loadSavestate(ss)
-    needLoad=false; t=0; hpStart=nil; hitFrame=nil; p2AtHit=nil; moveSeen=nil; p1Hit=false
+    needLoad=false; t=0; hpStart=nil; hitFrame=nil; p2AtHit=nil; moveSeen=nil; p1Hurt=nil; sawBlock=false
   end
 end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)
 
@@ -100,7 +101,7 @@ emu.addEventCallback(function()
 end, emu.eventType.inputPolled)
 
 emu.addEventCallback(function()
-  if pressed("R") then attempts,escapes,hits=0,0,0; lastVerdict="..." end
+  if pressed("R") then attempts=0; tally={HIT=0,TRADE=0,WIN=0,BLOCK=0,ESCAPE=0}; lastVerdict="..." end
   if pressed("S") then driving = not driving end
   if hold>0 then hold=hold-1; if hold==0 then needLoad=true; t=-1 end
   elseif t>=0 then
@@ -108,41 +109,49 @@ emu.addEventCallback(function()
     local p1a, p2a, hp = r(0x1001), r(0x1081), r(0x10C9)
     if t==100 then hpStart=hp end
     if t>=118 and t<=128 and p2a~=0x00 and (p2a<0x0C or p2a>0x16) and p2a~=0x13 then moveSeen=moveSeen or p2a end
-    if hpStart and hp<hpStart and hitFrame==nil then hitFrame=t; p2AtHit=p2a end
-    -- did Uranus (P1) get counter-hit? (hitstun 0x10-0x16 or knockdown 0x19/1A/1E/20 after the meaty)
-    if t>=121 and t<=140 and ((p1a>=0x10 and p1a<=0x16) or p1a==0x19 or p1a==0x1A or p1a==0x1E or p1a==0x20) then p1Hit=true end
-    if t==142 then
+    if hpStart and hp<hpStart and hitFrame==nil then hitFrame=t; p2AtHit=p2a end   -- P2 got hit
+    if t>=120 and t<=128 and p2a>=0x0C and p2a<=0x0F then sawBlock=true end          -- P2 in a guard state
+    -- Uranus hurt? whole hurt range 0x10-0x20: hitstun/flame/electric/knockdown/thrown/held/down
+    if t>=121 and t<=145 and p1a>=0x10 and p1a<=0x20 and p1Hurt==nil then p1Hurt=p1a end
+    if t==146 then
       attempts=attempts+1
-      if REACT=="dp" then
-        if hitFrame then lastVerdict="DP LOST — meaty hit its vulnerable frame 1"; hits=hits+1
-        elseif p1Hit then lastVerdict="DP WON — Uranus counter-hit / knocked down"; escapes=escapes+1
-        else lastVerdict="DP whiffed / traded (P2 unhurt, P1 safe)"; escapes=escapes+1 end
-      elseif hitFrame==nil then lastVerdict="ESCAPED (no damage)"; escapes=escapes+1
-      else
-        local st = STATE_NAMES[p2AtHit] or string.format("state %02X",p2AtHit)
-        local why = (p2AtHit==0x26) and "backdash came out (no frame-1 invuln)"
+      -- describe how Uranus got hurt, if she did
+      local punish = p1Hurt and (
+          (p1Hurt>=0x1B and p1Hurt<=0x1D) and "THROWN"
+       or (p1Hurt==0x19 or p1Hurt==0x1A or p1Hurt==0x1E or p1Hurt==0x1F) and "knocked down"
+       or "counter-hit") or nil
+      local kind, verdict
+      if hitFrame and p1Hurt then kind="TRADE"; verdict="TRADE — both hit ("..punish.." vs meaty)"
+      elseif hitFrame then
+        kind="HIT"
+        local why = (p2AtHit==0x26) and "backdash out, no frame-1 invuln"
                  or (p2AtHit==0x00) and "meaty took the wake frame before the reaction became active"
-                 or (p2AtHit==0x0C or p2AtHit==0x0D) and "reaction became a block, meaty beat same-frame block"
-                 or "hit in "..st
-        lastVerdict="HIT @"..hitFrame.." ("..why..")"; hits=hits+1
-      end
+                 or (p2AtHit==0x0C or p2AtHit==0x0D) and "reaction became block, meaty beat same-frame block"
+                 or "reaction hit"
+        verdict="HIT — meaty wins ("..why..")"
+      elseif p1Hurt then kind="WIN"; verdict="REACTION WINS — Uranus "..punish
+      elseif sawBlock then kind="BLOCK"; verdict="BLOCKED — reaction became a guard (no damage)"
+      else kind="ESCAPE"; verdict="ESCAPED — reaction came out, both safe (whiff/no trade)" end
+      tally[kind]=tally[kind]+1; lastVerdict=verdict; lastKind=kind
       if __log then
-        __log:write(string.format("react=%s attempt=%d hit=%s p2AtHit=%s moveSeen=%s -> %s\n",
-          REACT, attempts, tostring(hitFrame), (p2AtHit and string.format("%02X",p2AtHit) or "nil"),
-          (moveSeen and string.format("%02X",moveSeen) or "nil"), lastVerdict))
-        if attempts>=2 then __log:write("FINAL react="..REACT.." escapes="..escapes.." hits="..hits.."\n"); __log:close(); __log=nil; emu.stop(0) end
+        __log:write(string.format("react=%s attempt=%d p2Hit=%s p2AtHit=%s p1Hurt=%s move=%s -> %s\n",
+          REACT, attempts, tostring(hitFrame), (p2AtHit and string.format("%02X",p2AtHit) or "-"),
+          (p1Hurt and string.format("%02X",p1Hurt) or "-"), (moveSeen and string.format("%02X",moveSeen) or "-"), verdict))
+        if attempts>=2 then __log:write(string.format("FINAL react=%s HIT=%d TRADE=%d WIN=%d BLOCK=%d ESCAPE=%d\n",
+          REACT, tally.HIT, tally.TRADE, tally.WIN, tally.BLOCK, tally.ESCAPE)); __log:close(); __log=nil; emu.stop(0) end
       end
       hold=HOLD
     else t=t+1 end
   end
 
-  -- HUD
-  local esc = lastVerdict:find("ESCAPED")
-  local col = esc and 0x00FF00 or 0xFF4040
-  emu.drawString(8, 8,  "MARS WAKE-UP REACTION vs frame-perfect N=6 meaty", 0xFFFF00, 0x000000)
+  -- HUD  (HIT = meaty wins / bad for defender; WIN/TRADE/BLOCK/ESCAPE = defender not cleanly hit)
+  local col = (lastKind=="HIT") and 0xFF4040 or (lastKind==nil) and 0xC0C0C0 or 0x00FF00
+  local mfvtxt = (MFV==115) and "frame-perfect" or ("meaty press "..MFV)
+  emu.drawString(8, 8,  "WAKE-UP REACTION vs N=6 meaty ("..mfvtxt..")", 0xFFFF00, 0x000000)
   emu.drawString(8, 17, "reaction: "..REACT, 0xFFFFFF, 0x000000)
   emu.drawString(8, 26, "last: "..lastVerdict, col, 0x000000)
-  emu.drawString(8, 35, string.format("attempts %d   ESCAPED %d   HIT %d", attempts, escapes, hits), 0xC0C0C0, 0x000000)
+  emu.drawString(8, 35, string.format("HIT %d  TRADE %d  WIN %d  BLOCK %d  ESCAPE %d",
+    tally.HIT, tally.TRADE, tally.WIN, tally.BLOCK, tally.ESCAPE), 0xC0C0C0, 0x000000)
   emu.drawString(8, 200, hold>0 and "** paused on result **" or "", 0xFFFF00, 0x000000)
   emu.drawString(8, 210, driving and "R reset   S stop" or "STOPPED - S resume", 0x808080, 0x000000)
 end, emu.eventType.endFrame)
