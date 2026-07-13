@@ -4,10 +4,12 @@ tools/Mesen.app/
 tools/mesen.zip
 tools/Mesen.app.zip
 tools/*.cpp
-build/*.sfc
+build/# ROMs (copyrighted source + built) — never track
+*.sfc
 tools/Dispel/
 vendor/
 tools/Flips/
+# ROMs (copyrighted source + built) — never track
 *.sfc
 !*.bps
 *.zip
