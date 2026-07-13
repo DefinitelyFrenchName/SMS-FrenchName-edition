@@ -1,6 +1,6 @@
--- demo_link_early.lua — the follow-up 2LP pressed 1 frame EARLY.
--- Expected: the 2LP is DROPPED (input lands during dash recovery, no rising edge when
--- Uranus becomes actionable) -> the link never connects. Proves you cannot press early.
--- Run in a live Uranus-P1 match; recommended ROM the v0.6 true-combo build.
+-- demo_link_early.lua — after auto-calibrating, loop a single attempt ONE FRAME EARLIER than
+-- the valid frame. On any gate this shows the 2LP getting DROPPED (the press edge lands in
+-- dash recovery, no buffer) — you cannot press early. Run on any patched ROM in a live match
+-- (loads the v0.7 state by default; pass LINK_STATE for another build). See demo_link.lua.
 LINK_OFFSET = -1
 dofile("/Users/koneko/Developer/SailorMoonS/tools/demo_link.lua")
