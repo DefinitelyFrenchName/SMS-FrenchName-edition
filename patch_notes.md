@@ -296,6 +296,13 @@ by a move with genuine **frame-1 invincibility active on the wake frame**, which
 Mars's tested options have. The defender's real "out" is execution: the attacker must be
 frame-perfect every rep, and any ≥1-frame error is cleanly blocked.
 
+**Chibi Moon 5LP (fastest poke in the game)** — `tools/react_chibi5lp.lua`: also **HIT**.
+On wake-up the 5LP's startup (`0x40`) first appears on frame **121** — frame 120 is a forced
+neutral-return frame — so the fastest normal in the game still can't contest the meaty's wake
+frame. This is the general rule: a grounded startup move either can't act on the wake frame
+(starts 121: 5LP, 2LP, jump) or starts on it without invincibility (grab `0x61`, backdash
+`0x26`) — either way the meaty's active low wins.
+
 ### Sailor Neptune's DP — the invincible-reversal case (`tools/react_dp.lua`)
 
 Neptune's DP (`623+HP`) *does* have invincibility, but it starts on **frame 2**, not frame 1.
