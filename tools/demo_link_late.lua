@@ -1,9 +1,7 @@
--- demo_link_late.lua — the follow-up 2LP pressed 1 frame LATE.
--- Result: it STILL CONNECTS, but as a same-frame MEATY, not a true combo — P2 has already
--- recovered from hitstun (its first actionable frame), and the engine's hit-beats-same-
--- frame-block rule lets the 2LP chip through. So it is NOT guaranteed: an invincible
--- reversal or a fast jump-out would escape it. (Press 2 frames late = cleanly blocked; set
--- LINK_OFFSET = 2 to see that.) The guaranteed true combo is only the on-time frame.
--- Run on the v0.6 true-combo ROM in a live match.
+-- demo_link_late.lua — after auto-calibrating, loop a single attempt ONE FRAME LATER than the
+-- valid frame. Outcome depends on the gate: on N=5 (v0.6, true combo) this is a MEATY that
+-- still connects; on N=6 (v0.7, 1-frame meaty) the valid frame IS the meaty, so one later is
+-- cleanly BLOCKED. Either way it is not the intended link. Run in a live match; see the full
+-- picture with demo_link.lua. Pass LINK_STATE for a non-v0.7 build.
 LINK_OFFSET = 1
 dofile("/Users/koneko/Developer/SailorMoonS/tools/demo_link.lua")

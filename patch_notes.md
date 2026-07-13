@@ -11,8 +11,8 @@ by its own `tools/mkpatchN.py`; their edits are byte-disjoint, so they combine c
 
 | Patch | What | Builder | Standalone BPS | Patched SHA-1 |
 |---|---|---|---|---|
-| 1. 1f-link | Uranus infinite → 1-frame link (frame-trap, N=6) | `tools/mkpatch.py 0x04` | `build/sms_uranus_infinite_1f.bps` (+`.ips`) | `c773d99a…` |
-| 1b. 1f-link (true combo) | **Alternative to patch 1** — true unblockable 1-frame link (N=5) | `tools/mkpatch.py 0x05` | `build/sms_uranus_infinite_1f_truecombo.bps` (+`.ips`) | `8966c119…` |
+| 1. 1f-link **(CANONICAL)** | Uranus infinite → **1-frame meaty** (N=6): exactly one press connects, and it's an unblockable-by-block meaty (escapable by invincible reversal / jump) | `tools/mkpatch.py 0x04` | `build/sms_uranus_infinite_1f.bps` (+`.ips`) | `c773d99a…` |
+| 1b. 1f-link (true combo) | **Alternative to patch 1** — true unblockable 1-frame combo (N=5); wider (2-frame connect: combo@0 + meaty@+1) | `tools/mkpatch.py 0x05` | `build/sms_uranus_infinite_1f_truecombo.bps` (+`.ips`) | `8966c119…` |
 | 2. Dash-fix | Remove reversal-dash invincibility | `tools/mkpatch2.py` | `build/sms_dashfix.bps` (+`.ips`) | `07d760fe…` |
 | 3. Palettes | Big Zam extended colors + "FrenchName" header | `tools/mkpatch3.py` | `build/sms_palettes.bps` | `291f6474…` |
 | 4. Title | Title subtitle → "FrenchName ver. 0.4" | `tools/mkpatch4.py` | `build/sms_title.bps` | `e5dce7d5…` |
@@ -24,11 +24,16 @@ Combined builds:
 - `build/sms_full4.bps` — clean → patches 1 + 2 + 3 + 4 (SHA-1 `51c397cb…`)
 - `build/sms_full5.bps` — clean → **all five** (SHA-1 `b09a189c…`)
 - `build/sms_full5_truecombo.bps` — clean → all five with **patch 1b instead of patch 1**
-  (true-combo N=5) + title bumped to `v.0.6`. Playable ROM
+  (true-combo N=5) + title `v.0.6`. Playable ROM
   `build/SailorMoonS_FrenchName_v0.6_all5_truecombo.sfc` (SHA-1 `c96c89fb…`).
   Differs from the v0.5 all-five ROM by exactly **16 bytes**: the gate byte
   `0x1BE23` (`04→05`), 11 title-CHR bytes (the `5→6` version glyph), and 4 header
   checksum bytes — zero other gameplay changes.
+- `build/sms_full5_v07_canonical.bps` — clean → **all five, CANONICAL** (patch 1 = N=6
+  1-frame meaty) + title `v.0.7`. Playable ROM
+  `build/SailorMoonS_FrenchName_v0.7_all5.sfc` (SHA-1 `24aa6b6d…`). This is the recommended
+  build (highest version = canonical). Same gameplay as the v0.5 all-five ROM (both N=6);
+  it only bumps the title version so the latest number is the one to ship.
 
 Edit-region map (why they're disjoint):
 - Patch 1: `0x1874D/E` + stub `0x1BE20–29` (bank $C1).
@@ -216,64 +221,60 @@ Deliverables: `build/sms_uranus_infinite_1f_truecombo.bps` (+`.ips`), built by
 `tools/mkpatch.py 0x05`. **Apply this instead of patch 1, not on top of it** — both
 write the same gate byte at `0x1BE23`.
 
-## Why this exists
+## Why this exists (and why patch 1 is the canonical default)
 
-Patch 1 (gate `0x04`, N=6) makes the `2HP > 66 > 2LP` loop require a frame-perfect
-re-press, but it is a **frame trap, not a true combo**: on the frame-perfect rep the
-defender momentarily *recovers into a block-ready state* before the follow-up 2LP
-arrives, so simply holding down-back escapes the loop. That is the "one reactable
-frame" the tester observed. A real 1-frame link should be an *unblockable* true combo
-that a frame-perfect attacker lands regardless of what the defender holds.
+Both gates make the `2HP > 66 > 2LP` loop require a frame-perfect re-press and equally kill
+the bufferable/mash version (the gating machinery is identical; only the threshold moves by
+one). The difference is *what the single connecting frame is*:
 
-The fix is one byte: shift the recovery gate from N=6 (`0x04`) to **N=5 (`0x05`)**,
-so the dash-cancelled 2LP comes out one frame earlier and connects while the defender
-is still in hitstun.
+- **N=6 (gate `0x04`, patch 1, CANONICAL):** the one connecting frame is a **meaty** — the
+  follow-up 2LP lands on the defender's first frame out of hitstun (crouch-block frame `0x0D`)
+  and the engine's *hit-beats-same-frame-block* rule makes it connect. So it is **unblockable
+  by holding back**, but a frame-1-invincible reversal or a jump-out can escape it. Exactly one
+  press connects (`…114:DROP 115:MEATY 116:BLOCK…`).
+- **N=5 (gate `0x05`, patch 1b):** shifts the dash one frame earlier so the 2LP lands while the
+  defender is still in hitstun (`0x13`) → a **guaranteed true combo** (nothing escapes). But the
+  same-frame quirk means one frame later still connects as a meaty, so the *connect* window is
+  two frames (`…114:COMBO 115:MEATY 116:BLOCK…`).
 
-## Measured proof (Mesen frame-advance, uranus_vs_jupiter savestate)
+> **History note:** N=6 was earlier mischaracterised in this doc as a "frame trap / blockable."
+> That was a measurement-labelling error — the follow-up actually connects as a meaty via the
+> same-frame rule; holding down-back does **not** escape it. The demo's verdict now keys on the
+> defender's action on the exact hit frame, which resolves the confusion.
 
-Defender takes the 2HP clean, then holds **down-back** trying to block the follow-up 2LP.
-Player-2 action-state per frame (`0x13`=heavy body hitstun, `0x0D`=**crouch block**,
-`0x12`=light body hitstun / got hit):
+Per the maintainer's call, the **1-frame meaty (N=6) is the canonical default**: it is a true
+1-frame link (single connecting press) and the meaty leaves a skill-based out (invincible
+reversal / jump), which is the preferred balance. N=5 (true combo) remains a shipped
+alternative for anyone who wants the follow-up guaranteed. (Full-removal N=7 / gate `0x03`
+was declined.)
 
-| Build | P2 state around the follow-up | Result |
+## Proof: the connect window, auto-measured
+
+`tools/demo_link.lua` **auto-calibrates**: it reloads one savestate and replays the verified
+sequence `2LP > 2HP > 66 > (follow-up 2LP)` once for every press frame in a sweep, opponent
+holding down-back, and classifies each by **P2's action on the frame the hit connects** —
+`DROP` (2LP never comes out), `COMBO` (hit in hitstun), `MEATY` (hit after P2 recovered;
+connects via the engine's hit-beats-same-frame-block rule), `BLOCK` (guarded, no damage). It
+then reports the exact window for whatever gate the loaded ROM has — no hand-tuned frame.
+Deterministic, verified on both builds:
+
+| Build | Sweep result | Window |
 |---|---|---|
-| Patch 1 (N=6, gate `0x04`) | `…13 13 13` → **`0D` (crouch block)** → `12` | defender reaches a **block-ready frame** → escapable by holding down-back = frame trap |
-| Patch 1b (N=5, gate `0x05`) | `…13 13 13` → `12` (**no `0D`**) | defender **never leaves hitstun** → 2LP connects even while holding down-back = true unblockable combo |
+| **N=6 canonical (v0.7)** | …114:DROP **115:MEATY** 116:BLOCK… | **1-frame MEATY** — one press connects, unblockable by block, escapable by invincible reversal / jump. No true-combo frame. |
+| N=5 true-combo (v0.6) | …114:COMBO 115:MEATY 116:BLOCK… | 1 true-combo frame **+** 1 meaty frame = 2-frame connect. |
 
-Both variants still kill the *bufferable* (sloppy-input) infinite — the gating machinery
-is identical, only the threshold moves by one; a non-frame-perfect press is rejected in
-both. N=5 is the strictly better fix: same removal of the mash-buffer, but the intended
-frame-perfect link is now a genuine combo instead of a blockable trap. (The full-removal
-option, N=7 / gate `0x03`, was declined in favour of this.)
+So N=6 is a genuine **1-frame link** (single connecting frame); the connect is a meaty rather
+than a true combo, which is the intended balance (holding back never works; a frame-1
+invincible reversal or jump-out does). N=5 trades a second (meaty) connect frame for making
+the first frame a guaranteed true combo. The meaty is engine-wide priority behaviour and is
+inherent to the same-frame rule.
 
-## Proof: the guaranteed combo is exactly one frame
-
-`tools/demo_link.lua` reloads one savestate and replays the verified sequence
-`2LP > 2HP > 66 > (follow-up 2LP)`, pressing the follow-up on frame `114 + LINK_OFFSET`
-(opponent takes the setup, then holds down-back). Reloading makes every attempt
-byte-identical, so the press frame is the only variable. The verdict is keyed on **P2's
-action on the exact frame the follow-up connects** — the honest discriminator between a true
-combo and a meaty. Deterministic result on the N=5 build, 3/3 attempts each:
-
-| Offset | Follow-up 2LP | P2 on hit frame | Outcome |
-|---|---|---|---|
-| `-1` (`demo_link_early.lua`) | 1 frame early | — | **MOVE DROPPED** — 2LP never comes out (edge lost in dash recovery; no buffer) |
-| `0`  (`demo_link.lua`) | only valid frame | **hitstun (0x13)** | **TRUE COMBO** — inescapable (a mashed reversal still can't act) |
-| `+1` (`demo_link_late.lua`) | 1 frame late | **recovered (0x00 / crouch-block 0x0D)** | **MEATY** — still connects via the engine's hit-beats-same-frame-block rule, but P2 has recovered, so it is **not a true combo** (an invincible reversal / jump-out escapes it) |
-| `+2` (`demo_link_blocked.lua`) | 2 frames late | crouch-block, no chip | **BLOCKED** — zero damage, loop stops |
-
-So the **guaranteed true combo is exactly one frame** (offset 0 — hit while the opponent is
-still in hitstun). Because of the same-frame-meaty quirk the follow-up still *connects* at
-`+1` (against a non-invincible defender), making the practical *connect* window two frames;
-clean block starts at `+2`. That +1 meaty is engine-wide priority behaviour and cannot be
-removed without also killing the true combo (it is just "the hitstun boundary + 1").
-Run headless: `ROM=build/SailorMoonS_FrenchName_v0.6_all5_truecombo.sfc tools/run.sh tools/demo_link_early.lua`
-(and `_late`, and `tools/demo_link.lua` for on-time). In the Mesen GUI, open the v0.6 ROM
-first, then run a wrapper; the demos load `traces/uranus_vs_jupiter_v06.mss` themselves —
-that state is **tagged to the v0.6 ROM**, which matters because Mesen's GUI refuses a
-savestate tagged to a different build (regenerate for another ROM by loading any match state
-then `emu.createSavestate()`). `tools/demo_truecombo.lua` is the companion
-that shows the on-time loop being unblockable while the opponent holds down-back.
+Run headless: `ROM=build/SailorMoonS_FrenchName_v0.7_all5.sfc tools/run.sh tools/demo_link.lua`.
+In the Mesen GUI, open the ROM, then Script Window → `tools/demo_link.lua` → Run; it loads a
+matching savestate itself (`traces/uranus_vs_jupiter_v07.mss` by default — states are **tagged
+to a ROM**, and Mesen's GUI refuses a mismatched one; pass `LINK_STATE` for another build).
+Wrappers `demo_link_early/late/blocked.lua` loop a single attempt at `valid ± n` for a big
+verdict; `tools/demo_truecombo.lua` shows the loop being unblockable while P2 holds down-back.
 
 ## Every changed byte
 
