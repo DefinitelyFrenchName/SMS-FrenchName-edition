@@ -48,8 +48,14 @@ def _fix_checksum(data):
     data[0xFFDC] = data[0xFFDE] ^ 0xFF; data[0xFFDD] = data[0xFFDF] ^ 0xFF
 
 if __name__ == "__main__":
-    src = sys.argv[1] if len(sys.argv) > 1 else CLEAN
-    out = sys.argv[2] if len(sys.argv) > 2 else "build/sms_dashdist.sfc"
-    if src == CLEAN:
-        assert sha1(open(src, "rb").read()).hexdigest() == CLEAN_SHA1, "clean hash mismatch"
-    build(src, out)
+    import argparse
+    ap = argparse.ArgumentParser(description="Uranus forward-dash distance nerf (via X-speed).")
+    ap.add_argument("src", nargs="?", default=CLEAN, help="input ROM (clean or a combined build)")
+    ap.add_argument("out", nargs="?", default="build/sms_dashdist.sfc", help="output ROM path")
+    ap.add_argument("--speed", type=lambda s: int(s, 0), default=NEW_SPEED,
+                    help="dash X-speed (8.8 fixed-point). 0x0B00=vanilla 121px, 0x0780~98px (-1/5), "
+                         "0x0640=82px (-1/3, default), 0x0480=59px (-1/2). Lower = shorter dash.")
+    a = ap.parse_args()
+    if a.src == CLEAN:
+        assert sha1(open(a.src, "rb").read()).hexdigest() == CLEAN_SHA1, "clean hash mismatch"
+    build(a.src, a.out, a.speed)
