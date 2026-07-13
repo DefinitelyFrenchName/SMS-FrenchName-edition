@@ -17,6 +17,7 @@ by its own `tools/mkpatchN.py`; their edits are byte-disjoint, so they combine c
 | 3. Palettes | Big Zam extended colors + "FrenchName" header | `tools/mkpatch3.py` | `build/sms_palettes.bps` | `291f6474…` |
 | 4. Title | Title subtitle → "FrenchName ver. 0.4" | `tools/mkpatch4.py` | `build/sms_title.bps` | `e5dce7d5…` |
 | 5. Dash dist | Cut Uranus forward-dash distance ~1/3 | `tools/mkpatch5.py` | `build/sms_dashdist.bps` | `99acb686…` |
+| 6. Dash i-frames **(OPTIONAL)** | Uranus forward dash gains ~6 strike-invuln frames mid-move | `tools/mkpatch6.py` | `build/sms_dashinvuln.bps` (+`.ips`) | `34c5d458…` |
 
 Combined builds:
 - `build/sms_both.bps` — clean → patch 1 + 2 (stacked SHA-1 `5ae720fe…`)
@@ -34,6 +35,10 @@ Combined builds:
   `build/SailorMoonS_FrenchName_v0.7_all5.sfc` (SHA-1 `24aa6b6d…`). This is the recommended
   build (highest version = canonical). Same gameplay as the v0.5 all-five ROM (both N=6);
   it only bumps the title version so the latest number is the one to ship.
+- `build/sms_full6_v08_dashinvuln.bps` — clean → all five **+ optional patch 6** (dash
+  i-frames) + title `v.0.8`. Playable ROM
+  `build/SailorMoonS_FrenchName_v0.8_all5_dashinvuln.sfc` (SHA-1 `979db260…`). An
+  **experimental** build for evaluating the dash-invuln buff; canonical stays v0.7.
 
 Edit-region map (why they're disjoint):
 - Patch 1: `0x1874D/E` + stub `0x1BE20–29` (bank $C1).
@@ -599,6 +604,52 @@ frame-perfect infinite so you can *see* it still works — it snaps to point-bla
 `[2LP > 2HP > 66]xN` against a P2 that's held in guard-after-first-hit (proving the loop is
 a true lock, not a blockstring), auto-restarting before a KO. It's the exact per-rep timing
 a human would need: one 1-frame jab link + one frame-perfect 66.
+
+---
+
+# Patch 6 — Forward-dash i-frames (OPTIONAL / experimental)
+
+Patched (standalone) SHA-1 `34c5d45810e4ac49bb7ed396bf7e0c5b6db34ed4`. Built by
+`tools/mkpatch6.py` (`--lo/--hi` tune the window). **Off by default** — canonical stays v0.7;
+the v0.8 build (`build/SailorMoonS_FrenchName_v0.8_all5_dashinvuln.sfc`) folds it in for
+evaluation.
+
+## Rationale
+The distance nerf (patch 5) made Uranus's forward dash weaker as an approach. This gives it a
+short **strike-invulnerability** window mid-move as compensation — a smaller version of the
+back-dash's advantage (all characters' back-dash is invuln for its full 14 frames).
+
+## Mechanism (measured, not the +0x46 bug)
+Invulnerability in this engine = an **empty hurtbox** (hurtbox index `0`). The back-dash is
+invincible precisely because its animation uses hurtbox index 0 for all 14 frames; the forward
+dash keeps a real hurtbox (`0x4F`) throughout. The per-frame box writer at **`$C0:9CCD`** does
+`sta $41,X` (hurtbox idx) from the animation table. We hook there:
+
+```
+0x09CCD:  95 41 B1 10   (sta $41,X ; lda ($10),Y)   ->   22 85 BE C1   (jsl $C1:BE85)
+```
+
+Stub at `$C1:BE85` (in the free block clear of the patch-1/2 stubs at `BE20-31`) does the
+displaced store, then — **only for Uranus** (`+0x00 == 6`) in a **forward dash** (`+0x01 ==
+0x60`) whose **dash-frame counter `+0x5D`** (the 66-recognizer timer, which runs 1..14 across
+the dash) is in the window — forces `+0x41 = 0` (empty hurtbox), then does the displaced
+collbox load and `rtl`. This is **strike-only** invuln, exactly like the back-dash: the
+collision/throw box is untouched, so throws still catch her.
+
+Measured window with `--lo 5 --hi 10`: `+0x5D` reads 06–0B at frame end (the counter is read
+one tick before its displayed value), i.e. **~6 invulnerable frames in the middle** of the
+14-frame dash. Charge/character-gated, so no other character's dash is affected.
+
+## Verification (on the v0.8 build)
+- **Hurtbox goes empty on exactly the window frames** and returns to `0x4F` before/after
+  (frame-advance trace of `+0x41`).
+- **No spillover on the infinite:** `demo_link` still reports a single **MEATY** connect frame
+  (1-frame link unchanged).
+- **No spillover on the reversal matrix:** the frame-perfect meaty still HITs every option, and
+  a 1-frame-late meaty is still **punished** (Neptune DP → knockdown, Mars grab → throw). The
+  invuln window sits during the dash approach (opponent in hitstun), ~15 frames before Uranus's
+  punishable 2LP recovery, so it changes none of the risk/reward.
+- **Byte-disjoint** from patches 1–5 (bank-`$C0` hook `0x9CCD` + stub `0x1BE85`); stacks freely.
 
 ---
 
