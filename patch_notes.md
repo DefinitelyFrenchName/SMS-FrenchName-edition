@@ -276,6 +276,28 @@ to a ROM**, and Mesen's GUI refuses a mismatched one; pass `LINK_STATE` for anot
 Wrappers `demo_link_early/late/blocked.lua` loop a single attempt at `valid ± n` for a big
 verdict; `tools/demo_truecombo.lua` shows the loop being unblockable while P2 holds down-back.
 
+## Wake-up reversals vs the N=6 meaty (Sailor Mars)
+
+`tools/react_test.lua` (wrappers `react_backdash/njump/bjump/grab/jab.lua`, on the shipped
+Uranus-vs-Mars state) drives the frame-perfect meaty and has Mars attempt a reversal on its
+one actionable frame. **Measured result: none of these escape** — the frame-perfect meaty
+lands on Mars's single actionable frame (120), so:
+
+| Mars wake-up reaction | Result | Why |
+|---|---|---|
+| reversal back-dash | **HIT** | back-dash *does* come out (act `0x26`) but has **no frame-1 invincibility** |
+| neutral jump | **HIT** | can't leave the ground before the meaty takes the actionable frame |
+| back jump | **HIT** | up-back reads as a block on the wake frame → meaty beats same-frame block |
+| 6HP command grab | **HIT** | can't start before the meaty hits |
+| 2LP | **HIT** | can't start before the meaty hits |
+
+So against Mars the frame-perfect meaty is effectively **un-reactable** — it is only escapable
+by a move with genuine **frame-1 invincibility active on the wake frame**, which none of
+Mars's tested options have. The defender's real "out" is execution: the attacker must be
+frame-perfect every rep, and any ≥1-frame error is cleanly blocked (see the sweep above).
+This makes N=6 more oppressive-when-perfect than "escapable by reversal/jump" implied; it is
+still gated entirely behind frame-perfect execution and is not bufferable.
+
 ## Every changed byte
 
 Identical to patch 1 except the single gate operand:
