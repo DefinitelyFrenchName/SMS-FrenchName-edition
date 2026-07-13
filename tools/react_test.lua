@@ -20,6 +20,7 @@
 local REACT = REACTION or "backdash"
 -- Mars reactions use the Mars state; the Neptune DP uses the Neptune state.
 local DEF_STATE = (REACT=="dp") and "/Users/koneko/Developer/SailorMoonS/traces/uranus_vs_neptune_v07.mss"
+              or (REACT=="chibi5lp") and "/Users/koneko/Developer/SailorMoonS/traces/uranus_vs_chibi_v07.mss"
                                  or "/Users/koneko/Developer/SailorMoonS/traces/uranus_vs_mars_v07.mss"
 local STATE = REACT_STATE or DEF_STATE
 local MFV   = REACT_MFV or 115        -- meaty press frame (frame-perfect); try 116 for "1 late"
@@ -54,6 +55,9 @@ local REACTS = {
   dp      = { {113,{left=true}},{115,{down=true}},{117,{down=true,left=true}},
               {118,{down=true,left=true,x=true}},{119,{down=true,left=true,x=true}},
               {120,{down=true,left=true,x=true}},{121,{down=true,left=true,x=true}},{123,{}} },
+  -- Chibi Moon 5LP (fastest poke, neutral+LP=Y). On wake-up its startup begins the frame
+  -- AFTER the wake frame (120 is a neutral-return frame), so it can't contest the meaty.
+  chibi5lp= { {117,{}},{118,{y=true}},{119,{}},{120,{y=true}},{121,{y=true}},{122,{y=true}} },
 }
 local function p2btn(t)
   local plan = REACTS[REACT] or {}
@@ -117,7 +121,7 @@ emu.addEventCallback(function()
       else
         local st = STATE_NAMES[p2AtHit] or string.format("state %02X",p2AtHit)
         local why = (p2AtHit==0x26) and "backdash came out (no frame-1 invuln)"
-                 or (p2AtHit==0x00) and "meaty won the shared wake frame (strike beats the frame-1 startup)"
+                 or (p2AtHit==0x00) and "meaty took the wake frame before the reaction became active"
                  or (p2AtHit==0x0C or p2AtHit==0x0D) and "reaction became a block, meaty beat same-frame block"
                  or "hit in "..st
         lastVerdict="HIT @"..hitFrame.." ("..why..")"; hits=hits+1
