@@ -276,49 +276,39 @@ to a ROM**, and Mesen's GUI refuses a mismatched one; pass `LINK_STATE` for anot
 Wrappers `demo_link_early/late/blocked.lua` loop a single attempt at `valid ± n` for a big
 verdict; `tools/demo_truecombo.lua` shows the loop being unblockable while P2 holds down-back.
 
-## Wake-up reversals vs the N=6 meaty (Sailor Mars)
+## Wake-up reactions vs the N=6 meaty — the full risk/reward matrix
 
-`tools/react_test.lua` (wrappers `react_backdash/njump/bjump/grab/jab.lua`, on the shipped
-Uranus-vs-Mars state) drives the frame-perfect meaty and has Mars attempt a reversal on its
-one actionable frame. **Measured result: none of these escape** — the frame-perfect meaty
-lands on Mars's single actionable frame (120), so:
+`tools/react_test.lua` (wrappers `react_{backdash,njump,bjump,grab,jab,chibi5lp,dp}.lua`)
+drives the meaty and has the defender attempt a reaction on its wake-up frame, reporting
+**HIT** (meaty wins) / **TRADE** (both hit) / **WIN** (defender punishes Uranus) / **BLOCK** /
+**ESCAPE** by reading both players' states on the exchange. Set `REACT_MFV = n` to shift the
+meaty's press frame (115 = frame-perfect). Verified across characters/options:
 
-| Mars wake-up reaction | Result | Why |
+| Defender wake-up option | Frame-perfect (`115`) | 1 frame late (`116`) |
 |---|---|---|
-| reversal back-dash | **HIT** | back-dash *does* come out (act `0x26`) but has **no frame-1 invincibility** |
-| neutral jump | **HIT** | can't leave the ground before the meaty takes the actionable frame |
-| back jump | **HIT** | up-back reads as a block on the wake frame → meaty beats same-frame block |
-| 6HP command grab | **HIT** | the grab is **frame-1** (comes out as `0x61` on the wake frame when unobstructed) — but the meaty 2LP wants the same frame, and the strike wins the same-frame strike-vs-grab, so Mars is hit before entering the grab |
-| 2LP | **HIT** | starts a frame later than the grab; the meaty takes the shared wake frame first |
+| Hold block (stand/crouch) | **HIT** — meaty beats same-frame block | **BLOCK** — fully guarding (2LP is mid, blockable standing too) |
+| Neutral jump | **HIT** | **HIT** — still can't leave the ground in time |
+| 2LP / jab | **HIT** | **HIT** |
+| Chibi Moon 5LP (fastest poke) | **HIT** | **HIT** — (needs press `118` to **TRADE**) |
+| Back jump | **HIT** | **BLOCK** — up-back resolves to a guard |
+| Reversal back-dash | **HIT** — comes out (`0x26`) but no frame-1 invuln | **ESCAPE** — back-dash comes out, both safe |
+| 6HP command grab | **HIT** — frame-1 grab, but the strike wins the same wake frame | **WIN** — the frame-1 throw grabs Uranus (she enters *Held* `0x1C`) |
+| Neptune DP (`623+HP`) | **HIT** — 2LP hits the DP's vulnerable frame-1 startup (`0x69`) | **WIN** — DP is invincible from frame 2, whiffs the 2LP, **knocks Uranus down** |
 
-So against Mars the frame-perfect meaty is effectively **un-reactable** — it is only escapable
-by a move with genuine **frame-1 invincibility active on the wake frame**, which none of
-Mars's tested options have. The defender's real "out" is execution: the attacker must be
-frame-perfect every rep, and any ≥1-frame error is cleanly blocked.
+**Reading it:** the frame-perfect meaty lands on the defender's single actionable frame (120)
+and beats **everything** — even the fastest poke and an invincible reversal (the DP's frame 1
+isn't yet invincible). But a **one-frame-late** meaty is punished across the board: blocked
+(block / back-jump), escaped (back-dash), or outright beaten (grab throw, DP knockdown). Only
+neutral-jump and jab still lose to a 1-late meaty, and even Chibi's 5LP trades at 2-late.
 
-**Chibi Moon 5LP (fastest poke in the game)** — `tools/react_chibi5lp.lua`: also **HIT**.
-On wake-up the 5LP's startup (`0x40`) first appears on frame **121** — frame 120 is a forced
-neutral-return frame — so the fastest normal in the game still can't contest the meaty's wake
-frame. This is the general rule: a grounded startup move either can't act on the wake frame
-(starts 121: 5LP, 2LP, jump) or starts on it without invincibility (grab `0x61`, backdash
-`0x26`) — either way the meaty's active low wins.
+So the balance lands exactly where intended: **the infinite exists only if you are literally
+frame-perfect every rep; the instant you are off by a frame you are blockable, throwable, or
+reversal-punishable** (and blockstun opens guard-cancel options besides). This is why N=6 (the
+1-frame meaty) is canonical — it preserves the execution ceiling without being oppressive.
 
-### Sailor Neptune's DP — the invincible-reversal case (`tools/react_dp.lua`)
-
-Neptune's DP (`623+HP`) *does* have invincibility, but it starts on **frame 2**, not frame 1.
-That single vulnerable startup frame is exactly what a frame-perfect meaty threads:
-
-| Uranus meaty timing | Result |
-|---|---|
-| **frame-perfect** (`MFV=115`) | **DP LOSES** — the 2LP hits the DP's vulnerable frame-1 startup (`0x69` at 120); Neptune is hit, Uranus recovers safely |
-| **1 frame late** (`REACT_MFV=116`) | **DP WINS** — the 2LP lands on DP frame 2 (invincible) and whiffs; the DP counter-hits Uranus into a **knockdown** |
-
-So there *is* real risk/reward against a DP character: frame-perfect execution beats the
-reversal, but a one-frame-late meaty gets blown up by it. Against a character with **no**
-frame-1-or-2 invincible reversal (e.g. Mars), the imperfect meaty is merely blocked — never
-punished. Net: N=6 is un-reactable when perfect, and its "out" is execution risk (blocked
-vs. non-DP, DP-punished vs. reversal characters). Scripts: `tools/react_test.lua` +
-`react_{backdash,njump,bjump,grab,jab,dp}.lua`.
+*(These late-meaty outcomes were found in live testing by the maintainer and reproduced here;
+the harness verdicts — throw via the `0x1C` Held state, and trade detection — were fixed to
+match.)*
 
 ## Every changed byte
 
