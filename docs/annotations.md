@@ -233,3 +233,13 @@ keeping ALL frame timing, so the 2HP>66 infinite is preserved exactly (dash stop
 contact in the loop). Byte-disjoint from patch 2's reversal hook (0x188ED/EE). Backdash
 (0x26, separate handler) unchanged. Build: tools/mkpatch5.py. Notes: patch_notes.md / patch_notes_title? -> patch 5 section.
 Demo of the frame-perfect 1f-link infinite: tools/demo_infinite.lua (GUI playback).
+
+## Pluto 5HP hitbox (patch 7, OPTIONAL)
+| Address | Label | Comment |
+|---|---|---|
+| $8A:F0C1 | pluto_hit_table | Pluto's hitbox table (file 0xAF0C1); box N at +N*8, fmt [x_off_r,w_r,x_off_l,w_l,y_off,h,flags,?] |
+| hit[0x03] | pluto_5hp_active | 5HP overhead active phase (act 0x46); y_off=-109 h=54 -> spans -109..-55 (high, whiffs crouchers). Exclusive to 5HP. |
+| file 0xAF0DE | 5HP box height | patch 7 raises 54->62 (bottom -47) => hits all crouchers except Chibi (crouch top -46); 64 = incl Chibi |
+5HP is two phases: act 0x44 startup (boxes 01/04/14) -> act 0x46 active (box 0x03). Crouch
+hurtbox tops (y): Mars -60, Uranus -59/Pluto -59, Neptune -58, Moon -56, Mercury/Jupiter -54,
+Venus -49, Chibi -46. Patch 7 = build/sms_pluto5hp.bps; see patch_notes.md "Patch 7".

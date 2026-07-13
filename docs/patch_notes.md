@@ -18,6 +18,7 @@ by its own `tools/mkpatchN.py`; their edits are byte-disjoint, so they combine c
 | 4. Title | Title subtitle → "FrenchName ver. 0.4" | `tools/mkpatch4.py` | `build/sms_title.bps` | `e5dce7d5…` |
 | 5. Dash dist | Cut Uranus forward-dash distance ~1/3 | `tools/mkpatch5.py` | `build/sms_dashdist.bps` | `99acb686…` |
 | 6. Dash i-frames **(OPTIONAL)** | Uranus forward dash gains ~6 strike-invuln frames mid-move | `tools/mkpatch6.py` | `build/sms_dashinvuln.bps` (+`.ips`) | `34c5d458…` |
+| 7. Pluto 5HP **(OPTIONAL)** | Pluto 5HP hitbox extended down to hit crouchers (all but Chibi) | `tools/mkpatch7.py` | `build/sms_pluto5hp.bps` | `fc757936…` |
 
 Combined builds:
 - `build/sms_both.bps` — clean → patch 1 + 2 (stacked SHA-1 `5ae720fe…`)
@@ -668,6 +669,44 @@ one tick before its displayed value), i.e. **~6 invulnerable frames in the middl
   invuln window sits during the dash approach (opponent in hitstun), ~15 frames before Uranus's
   punishable 2LP recovery, so it changes none of the risk/reward.
 - **Byte-disjoint** from patches 1–5 (bank-`$C0` hook `0x9CCD` + stub `0x1BE85`); stacks freely.
+
+---
+
+# Patch 7 — Pluto 5HP hits crouchers (OPTIONAL / experimental)
+
+Patched (standalone) SHA-1 `fc757936cfc822621233436e9410b3b24548cd83`. Built by
+`tools/mkpatch7.py` (`--h` tunes the reach). **Off by default.** Test build:
+`build/SailorMoonS_FrenchName_v0.7_all5_pluto5hp.sfc`.
+
+## What & why
+Pluto's 5HP is a two-phase move — startup (act `0x44`, boxes 01/04/14) into an overhead
+active phase (act `0x46`, hit-box index **`0x03`**). That active box sits high (y `-109..-55`,
+i.e. 55–109px above the feet), so it **whiffs crouching opponents** whose hurtbox tops are
+below `-55`. The request: extend that box straight down so it connects on crouchers.
+
+## Mechanism (measured)
+`hit[0x03]` in Pluto's hit table (`$8A:F0C1`, box at `+0x18`, height byte at file `0xAF0DE`).
+The patch increases only its height `h` (top/x/flags untouched → a pure downward extension):
+
+| `h` | box bottom | who it hits crouching |
+|---|---|---|
+| 54 (vanilla) | −55 | only the tallest crouches (Mars/Uranus/Neptune/Pluto/Moon) |
+| **62 (default)** | −47 | **every crouching character EXCEPT Chibi Moon** |
+| 64 | −45 | all crouchers including Chibi |
+
+The "all but Chibi" outcome falls out of the geometry: measured crouch-hurtbox tops are Mars
+−60 … Moon −56 … Mercury/Jupiter −54, Venus −49, **Chibi −46** (uniquely the shortest). A
+bottom of −47 reaches every top except Chibi's −46.
+
+## Verification (test build)
+- **All 8 playable crouchers HIT except Chibi** (Moon, Mercury, Mars, Jupiter, Venus, Uranus,
+  Neptune, Pluto-mirror hit; Chibi whiffs) — confirmed in-emulator, one state per matchup.
+- **No regression:** standing opponents still hit (the box only grows downward; top unchanged).
+- **No side effects:** box `0x03` is exclusive to 5HP's active phase (act `0x46`) — Pluto's
+  other moves use different box indices (02 / 05 / 01·04·14), so nothing else changes.
+- **One byte** (`0xAF0DE`) + checksum; byte-disjoint from patches 1–6.
+
+*(Saturn is not a playable character in this game, so she is not a crouching opponent.)*
 
 ---
 
