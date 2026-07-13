@@ -16,7 +16,7 @@ adjacent 0x188ED/EE, untouched here). Builds from any input ROM so it stacks.
 import sys
 from hashlib import sha1
 
-CLEAN = "Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 SITE = 0x188E9              # LDA #$0B00  (dash X-speed)
 OLD = bytes.fromhex("a9000b")
