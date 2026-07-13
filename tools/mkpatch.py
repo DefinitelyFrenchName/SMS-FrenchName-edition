@@ -9,17 +9,19 @@ Cancel commit allowed only when tick < GATE. Vanilla behavior = always allowed.
 GATE meanings (on-hit, hit at t=85, hitstop 8, tick 0A..00 at t=94..104):
   GATE 0x0B -> unchanged (tick always < 0x0B)   [sanity]
   GATE 0x09 -> dash-out 95 (+1 frame)           [proof]
-  GATE 0x05 -> dash-out 99 (+5 frames)          [1f link, TRUE COMBO — patch 1b]
-  GATE 0x04 -> dash-out 100 (+6 frames)         [1f link, frame-trap — patch 1]
+  GATE 0x05 -> dash-out 99 (+5 frames)          [1f link, TRUE COMBO — patch 1b, alt]
+  GATE 0x04 -> dash-out 100 (+6 frames)         [1f link, 1-frame MEATY — patch 1, CANONICAL]
   GATE 0x03 -> dash-out 101 (+7 frames)         [loop removed entirely]
-N.B. lower gate = more recovery. 0x05 (N=5) lands the frame-perfect follow-up while the
-defender is still in hitstun (unblockable true combo); 0x04 (N=6) lets the defender reach
-a crouch-block frame first (holding down-back escapes). See patch_notes.md "Patch 1b".
+N.B. lower gate = more recovery. 0x04 (N=6, canonical) makes the single connecting press a
+MEATY on the defender's first actionable frame — unblockable by holding back (hit beats
+same-frame block), escapable only by a frame-1/2-invincible reversal. 0x05 (N=5) shifts one
+frame earlier so it lands in hitstun (guaranteed true combo, but a 2-frame connect window).
+See docs/patch_notes.md "Patch 1" / "Patch 1b".
 """
 import hashlib
 import sys
 
-CLEAN = "Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 gate = int(sys.argv[1], 0) if len(sys.argv) > 1 else 0x04

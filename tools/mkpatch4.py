@@ -16,7 +16,7 @@ from hashlib import sha1
 sys.path.insert(0, "tools")
 import texttiles as T  # noqa: E402
 
-CLEAN = "Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 HOOK = 0x3B81F           # JSL $808C43 in the title CHR loader tail
 HOOK_OLD = bytes.fromhex("22438c80")

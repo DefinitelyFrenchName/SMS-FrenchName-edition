@@ -23,9 +23,9 @@ from hashlib import sha1
 sys.path.insert(0, "vendor/sms-training-mode")
 from sms_patcher import apply_patch, PATCH_PAL, read_int  # noqa: E402
 
-CLEAN = "Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
-BIGZAM = "sailor moon s big zam edition (hack).sfc"
+BIGZAM = "roms/sailor moon s big zam edition (hack).sfc"
 BZ_PAL_BASE = 0x2A0000  # palette block in the Big Zam ROM
 TITLE = b"FrenchName "  # 11 chars, space-padded
 

@@ -43,7 +43,7 @@ Deliverable = a BPS/IPS patch against the clean ROM + a writeup of what bytes ch
 - Emulator: build Mesen2 headless (preferred) or BizHawk/mono for Lua write-callbacks
   and frame advance. Scripts in tools/, traces in traces/, keep them out of git if huge.
 - Disassembler: pelrun/Dispel (plain `make`) or tools/disasm65816.py.
-- Maintain annotations.md (address → label/comment). Commit after each finding.
+- Maintain docs/annotations.md (address → label/comment). Commit after each finding.
 - Never patch the ROM in place; generate patches via flips (BPS) from build/.
 - All timing claims must be validated by frame-advance in emulator, not inferred.
 - The engine processes attacks starting the frame AFTER action start (per Lua comments);
@@ -58,7 +58,7 @@ Deliverable = a BPS/IPS patch against the clean ROM + a writeup of what bytes ch
 3. Verified in-emulator: (a) the old bufferable timing no longer connects,
    (b) a frame-perfect re-press still does (infinite becomes 1f link, not removed),
    (c) no side effects on her other moves (scripts may share data/pointers).
-4. BPS patch + patch_notes.md documenting every changed byte.
+4. BPS patch + docs/patch_notes.md documenting every changed byte.
 
 ## Reference material
 - docs/sms_uranus_rom_map.md — full verified ROM map (this project's bible)

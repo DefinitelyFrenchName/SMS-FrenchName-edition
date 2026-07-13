@@ -5,4 +5,4 @@ exec ./tools/Mesen.app/Contents/MacOS/Mesen --testrunner --timeout=${2:-300} \
   --debug.scriptWindow.allowIoOsAccess=true --debug.scriptWindow.scriptTimeout=300 \
   --snes.port1.type=SnesController --snes.port2.type=SnesController \
   --snes.ramPowerOnState=AllZeros \
-  "${ROM:-Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc}" "$1"
+  "${ROM:-roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc}" "$1"

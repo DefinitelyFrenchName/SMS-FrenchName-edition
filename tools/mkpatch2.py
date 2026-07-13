@@ -15,7 +15,7 @@ Byte-disjoint from the 1f-link patch (0x1874D/E, 0x1BE20-29) - both stack.
 import hashlib
 import sys
 
-CLEAN = "Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 src = sys.argv[1] if len(sys.argv) > 1 else CLEAN
