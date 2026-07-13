@@ -11,7 +11,8 @@ by its own `tools/mkpatchN.py`; their edits are byte-disjoint, so they combine c
 
 | Patch | What | Builder | Standalone BPS | Patched SHA-1 |
 |---|---|---|---|---|
-| 1. 1f-link | Uranus infinite → 1-frame link | `tools/mkpatch.py 0x04` | `build/sms_uranus_infinite_1f.bps` (+`.ips`) | `c773d99a…` |
+| 1. 1f-link | Uranus infinite → 1-frame link (frame-trap, N=6) | `tools/mkpatch.py 0x04` | `build/sms_uranus_infinite_1f.bps` (+`.ips`) | `c773d99a…` |
+| 1b. 1f-link (true combo) | **Alternative to patch 1** — true unblockable 1-frame link (N=5) | `tools/mkpatch.py 0x05` | `build/sms_uranus_infinite_1f_truecombo.bps` (+`.ips`) | `8966c119…` |
 | 2. Dash-fix | Remove reversal-dash invincibility | `tools/mkpatch2.py` | `build/sms_dashfix.bps` (+`.ips`) | `07d760fe…` |
 | 3. Palettes | Big Zam extended colors + "FrenchName" header | `tools/mkpatch3.py` | `build/sms_palettes.bps` | `291f6474…` |
 | 4. Title | Title subtitle → "FrenchName ver. 0.4" | `tools/mkpatch4.py` | `build/sms_title.bps` | `e5dce7d5…` |
@@ -22,6 +23,12 @@ Combined builds:
 - `build/sms_full.bps` — clean → patches 1 + 2 + 3 (SHA-1 `eb7b86f8…`)
 - `build/sms_full4.bps` — clean → patches 1 + 2 + 3 + 4 (SHA-1 `51c397cb…`)
 - `build/sms_full5.bps` — clean → **all five** (SHA-1 `b09a189c…`)
+- `build/sms_full5_truecombo.bps` — clean → all five with **patch 1b instead of patch 1**
+  (true-combo N=5) + title bumped to `v.0.6`. Playable ROM
+  `build/SailorMoonS_FrenchName_v0.6_all5_truecombo.sfc` (SHA-1 `c96c89fb…`).
+  Differs from the v0.5 all-five ROM by exactly **16 bytes**: the gate byte
+  `0x1BE23` (`04→05`), 11 title-CHR bytes (the `5→6` version glyph), and 4 header
+  checksum bytes — zero other gameplay changes.
 
 Edit-region map (why they're disjoint):
 - Patch 1: `0x1874D/E` + stub `0x1BE20–29` (bank $C1).
@@ -199,6 +206,55 @@ had slack lose it. Measured, and kept as balance features:
 - No single gate value keeps the 2HK ender comboing *and* makes the jab loop 1-frame;
   the ender had more slack than the jab by construction. The gate is one byte
   (`0x1BE23`) if a different trade-off is ever wanted (smaller N widens the jab window).
+
+---
+
+# Patch 1b — 1f-link, true-combo variant (N=5)  *(alternative to patch 1)*
+
+Patched (standalone) SHA-1 `8966c119d1415f64f4bebd2af9c33f91847cd60b`.
+Deliverables: `build/sms_uranus_infinite_1f_truecombo.bps` (+`.ips`), built by
+`tools/mkpatch.py 0x05`. **Apply this instead of patch 1, not on top of it** — both
+write the same gate byte at `0x1BE23`.
+
+## Why this exists
+
+Patch 1 (gate `0x04`, N=6) makes the `2HP > 66 > 2LP` loop require a frame-perfect
+re-press, but it is a **frame trap, not a true combo**: on the frame-perfect rep the
+defender momentarily *recovers into a block-ready state* before the follow-up 2LP
+arrives, so simply holding down-back escapes the loop. That is the "one reactable
+frame" the tester observed. A real 1-frame link should be an *unblockable* true combo
+that a frame-perfect attacker lands regardless of what the defender holds.
+
+The fix is one byte: shift the recovery gate from N=6 (`0x04`) to **N=5 (`0x05`)**,
+so the dash-cancelled 2LP comes out one frame earlier and connects while the defender
+is still in hitstun.
+
+## Measured proof (Mesen frame-advance, uranus_vs_jupiter savestate)
+
+Defender takes the 2HP clean, then holds **down-back** trying to block the follow-up 2LP.
+Player-2 action-state per frame (`0x13`=heavy body hitstun, `0x0D`=**crouch block**,
+`0x12`=light body hitstun / got hit):
+
+| Build | P2 state around the follow-up | Result |
+|---|---|---|
+| Patch 1 (N=6, gate `0x04`) | `…13 13 13` → **`0D` (crouch block)** → `12` | defender reaches a **block-ready frame** → escapable by holding down-back = frame trap |
+| Patch 1b (N=5, gate `0x05`) | `…13 13 13` → `12` (**no `0D`**) | defender **never leaves hitstun** → 2LP connects even while holding down-back = true unblockable combo |
+
+Both variants still kill the *bufferable* (sloppy-input) infinite — the gating machinery
+is identical, only the threshold moves by one; a non-frame-perfect press is rejected in
+both. N=5 is the strictly better fix: same removal of the mash-buffer, but the intended
+frame-perfect link is now a genuine combo instead of a blockable trap. (The full-removal
+option, N=7 / gate `0x03`, was declined in favour of this.)
+
+## Every changed byte
+
+Identical to patch 1 except the single gate operand:
+
+| File offset | Clean | Patch 1 (N=6) | Patch 1b (N=5) | Meaning |
+|---|---|---|---|---|
+| `0x1874C–E` | `20 52 09` | `20 20 BE` | `20 20 BE` | `jsr $0952` → `jsr $BE20` (hook) |
+| `0x1BE20–29` | `00…` | stub | stub | `sep #$20; cmp #GATE; bcs +3; jmp $0952; rts` |
+| `0x1BE23` | — | `04` | **`05`** | gate = N (recovery frames before dash-cancel is allowed) |
 
 ---
 
