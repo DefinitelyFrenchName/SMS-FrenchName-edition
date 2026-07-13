@@ -9,7 +9,12 @@ Cancel commit allowed only when tick < GATE. Vanilla behavior = always allowed.
 GATE meanings (on-hit, hit at t=85, hitstop 8, tick 0A..00 at t=94..104):
   GATE 0x0B -> unchanged (tick always < 0x0B)   [sanity]
   GATE 0x09 -> dash-out 95 (+1 frame)           [proof]
-  GATE 0x04 -> dash-out 100 (+6 frames = final] [1f link]
+  GATE 0x05 -> dash-out 99 (+5 frames)          [1f link, TRUE COMBO — patch 1b]
+  GATE 0x04 -> dash-out 100 (+6 frames)         [1f link, frame-trap — patch 1]
+  GATE 0x03 -> dash-out 101 (+7 frames)         [loop removed entirely]
+N.B. lower gate = more recovery. 0x05 (N=5) lands the frame-perfect follow-up while the
+defender is still in hitstun (unblockable true combo); 0x04 (N=6) lets the defender reach
+a crouch-block frame first (holding down-back escapes). See patch_notes.md "Patch 1b".
 """
 import hashlib
 import sys
