@@ -14,12 +14,16 @@
 -- USAGE (headless, reproducible):
 --   ROM="build/SailorMoonS_FrenchName_v0.6_all5_truecombo.sfc" tools/run.sh tools/demo_link.lua
 --   (wrappers demo_link_early.lua / demo_link_late.lua set the offset for you)
--- USAGE (Mesen GUI): Debug -> Script Window -> open a wrapper -> Run. The demo loads
---   traces/uranus_vs_jupiter_f5.mss itself, so you need not set up the match by hand.
+-- USAGE (Mesen GUI): open the v0.6 true-combo ROM, then Debug -> Script Window -> open a
+--   wrapper -> Run. The demo loads traces/uranus_vs_jupiter_v06.mss itself (that state is
+--   tagged to the v0.6 ROM; Mesen refuses a state tagged to a different ROM — that was the
+--   earlier "won't run"). No match setup by hand needed.
 -- Keys: R reset tally, S stop.
 
 local OFFSET = LINK_OFFSET or 0
-local STATE  = LINK_STATE or "/Users/koneko/Developer/SailorMoonS/traces/uranus_vs_jupiter_f5.mss"
+-- Savestate MUST be tagged to the ROM you have open, or Mesen's GUI refuses it. This one
+-- is tagged to the v0.6 true-combo ROM. Override with LINK_STATE if you use another build.
+local STATE  = LINK_STATE or "/Users/koneko/Developer/SailorMoonS/traces/uranus_vs_jupiter_v06.mss"
 
 local WRAM = emu.memType.snesWorkRam
 local function r(a) return emu.read(a, WRAM) end
@@ -60,7 +64,9 @@ end
 -- state (re)load must happen inside an exec callback on the main CPU
 emu.addMemoryCallback(function()
   if needLoad then
-    local f = io.open(STATE, "rb"); local ss = f:read("*a"); f:close()
+    local f = io.open(STATE, "rb")
+    if not f then emu.drawString(8, 80, "ERROR: savestate not found: "..STATE, 0xFF0000, 0x000000); return end
+    local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss)
     needLoad = false; t = 0
     seen53, sawBlock, sawHit, hpRef = false, false, false, nil

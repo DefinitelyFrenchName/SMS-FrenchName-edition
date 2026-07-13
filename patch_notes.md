@@ -262,8 +262,11 @@ build, 3/3 attempts each:
 
 Early and late both fail, only the exact frame connects ⇒ a genuine 1-frame link.
 Run headless: `ROM=build/SailorMoonS_FrenchName_v0.6_all5_truecombo.sfc tools/run.sh tools/demo_link_early.lua`
-(and `_late`, and `tools/demo_link.lua` for on-time). In the Mesen GUI the demos load
-`traces/uranus_vs_jupiter_f5.mss` themselves. `tools/demo_truecombo.lua` is the companion
+(and `_late`, and `tools/demo_link.lua` for on-time). In the Mesen GUI, open the v0.6 ROM
+first, then run a wrapper; the demos load `traces/uranus_vs_jupiter_v06.mss` themselves —
+that state is **tagged to the v0.6 ROM**, which matters because Mesen's GUI refuses a
+savestate tagged to a different build (regenerate for another ROM by loading any match state
+then `emu.createSavestate()`). `tools/demo_truecombo.lua` is the companion
 that shows the on-time loop being unblockable while the opponent holds down-back.
 
 ## Every changed byte
