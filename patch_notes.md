@@ -246,21 +246,27 @@ both. N=5 is the strictly better fix: same removal of the mash-buffer, but the i
 frame-perfect link is now a genuine combo instead of a blockable trap. (The full-removal
 option, N=7 / gate `0x03`, was declined in favour of this.)
 
-## Proof it is exactly one frame wide
+## Proof: the guaranteed combo is exactly one frame
 
 `tools/demo_link.lua` reloads one savestate and replays the verified sequence
 `2LP > 2HP > 66 > (follow-up 2LP)`, pressing the follow-up on frame `114 + LINK_OFFSET`
 (opponent takes the setup, then holds down-back). Reloading makes every attempt
-byte-identical, so the press frame is the only variable. Deterministic result on the N=5
-build, 3/3 attempts each:
+byte-identical, so the press frame is the only variable. The verdict is keyed on **P2's
+action on the exact frame the follow-up connects** — the honest discriminator between a true
+combo and a meaty. Deterministic result on the N=5 build, 3/3 attempts each:
 
-| Offset | Follow-up 2LP | Outcome |
-|---|---|---|
-| `-1` (`tools/demo_link_early.lua`) | 1 frame early | **MOVE DROPPED** — the 2LP never comes out (the press edge lands during dash recovery and is lost; there is no buffer) |
-| `0`  (default) | the only valid frame | **TRUE COMBO** |
-| `+1` (`tools/demo_link_late.lua`)  | 1 frame late | **BLOCKED** — the defender has recovered into crouch-block |
+| Offset | Follow-up 2LP | P2 on hit frame | Outcome |
+|---|---|---|---|
+| `-1` (`demo_link_early.lua`) | 1 frame early | — | **MOVE DROPPED** — 2LP never comes out (edge lost in dash recovery; no buffer) |
+| `0`  (`demo_link.lua`) | only valid frame | **hitstun (0x13)** | **TRUE COMBO** — inescapable (a mashed reversal still can't act) |
+| `+1` (`demo_link_late.lua`) | 1 frame late | **recovered (0x00 / crouch-block 0x0D)** | **MEATY** — still connects via the engine's hit-beats-same-frame-block rule, but P2 has recovered, so it is **not a true combo** (an invincible reversal / jump-out escapes it) |
+| `+2` (`demo_link_blocked.lua`) | 2 frames late | crouch-block, no chip | **BLOCKED** — zero damage, loop stops |
 
-Early and late both fail, only the exact frame connects ⇒ a genuine 1-frame link.
+So the **guaranteed true combo is exactly one frame** (offset 0 — hit while the opponent is
+still in hitstun). Because of the same-frame-meaty quirk the follow-up still *connects* at
+`+1` (against a non-invincible defender), making the practical *connect* window two frames;
+clean block starts at `+2`. That +1 meaty is engine-wide priority behaviour and cannot be
+removed without also killing the true combo (it is just "the hitstun boundary + 1").
 Run headless: `ROM=build/SailorMoonS_FrenchName_v0.6_all5_truecombo.sfc tools/run.sh tools/demo_link_early.lua`
 (and `_late`, and `tools/demo_link.lua` for on-time). In the Mesen GUI, open the v0.6 ROM
 first, then run a wrapper; the demos load `traces/uranus_vs_jupiter_v06.mss` themselves —

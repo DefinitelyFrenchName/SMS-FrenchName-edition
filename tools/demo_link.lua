@@ -6,10 +6,13 @@
 -- the only variable is that one press frame. The opponent takes the setup clean, then
 -- holds DOWN-BACK to block the follow-up.
 --
---    LINK_OFFSET =  0  -> press on the only valid frame  -> TRUE COMBO
+--    LINK_OFFSET =  0  -> only valid frame -> TRUE COMBO (hit lands during hitstun)
 --    LINK_OFFSET = -1  -> 1 frame EARLY -> 2LP DROPPED (input lost in dash recovery)
---    LINK_OFFSET = +1  -> 1 frame LATE  -> opponent RECOVERS and BLOCKS it
--- -1 and +1 both fail, only 0 works => the link is exactly one frame wide.
+--    LINK_OFFSET = +1  -> 1 frame LATE  -> P2 has RECOVERED; still CONNECTS as a same-frame
+--                         MEATY (engine's hit-beats-same-frame-block rule), NOT a true combo
+--    LINK_OFFSET = +2  -> 2 frames late -> cleanly BLOCKED (no damage)
+-- The guaranteed TRUE COMBO is exactly one frame (offset 0). +1 still connects as a meaty
+-- (beatable by an invincible reversal / jump-out), so the "connect" window is 2 frames.
 --
 -- USAGE (headless, reproducible):
 --   ROM="build/SailorMoonS_FrenchName_v0.6_all5_truecombo.sfc" tools/run.sh tools/demo_link.lua
@@ -50,10 +53,12 @@ end
 
 local t = -1
 local needLoad = true
-local attempts, combos, drops, blocks = 0, 0, 0, 0
-local seen53, sawBlock, sawHit, hpRef = false, false, false, nil
+local attempts, combos, meaties, drops, blocks = 0, 0, 0, 0, 0
+local seen53, sawBlock, hpRef, hitP2 = false, false, nil, nil
 local lastVerdict = "..."
 local driving = true
+local hold = 0
+local HOLD = (DEMO_LOG ~= nil) and 2 or 150   -- GUI: freeze ~2.5s on each result so it's readable
 
 local keyPrev = {}
 local function pressed(name)
@@ -69,21 +74,45 @@ emu.addMemoryCallback(function()
     local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss)
     needLoad = false; t = 0
-    seen53, sawBlock, sawHit, hpRef = false, false, false, nil
+    seen53, sawBlock, hpRef, hitP2 = false, false, nil, nil
   end
 end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)
 
 emu.addEventCallback(function()
-  if not driving or t < 0 then emu.setInput(FALSE,0,0); emu.setInput(FALSE,0,1); return end
+  if not driving or t < 0 or hold > 0 then emu.setInput(FALSE,0,0); emu.setInput(FALSE,0,1); return end
   emu.setInput(latched(PLAN, t), 0, 0)
   emu.setInput(latched(P2PLAN, t), 0, 1)
 end, emu.eventType.inputPolled)
 
 local __log = (DEMO_LOG ~= nil) and io.open(DEMO_LOG, "w") or nil
 
+local function drawHUD()
+  local sign = OFFSET==0 and "+0  (only valid frame)"
+            or (OFFSET>0 and "+"..OFFSET.." frame LATE" or OFFSET.." frame EARLY")
+  local vcol = lastVerdict:find("TRUE COMBO") and 0x00FF00 or 0xFF4040
+  emu.drawString(8, 8,  "1-FRAME-LINK PROOF  —  follow-up 2LP timing: "..sign, 0xFFFF00, 0x000000)
+  emu.drawString(8, 17, "each attempt reloads the same state; only the press frame differs", 0xFFFFFF, 0x000000)
+  emu.drawString(8, 26, "last attempt: "..lastVerdict, vcol, 0x000000)
+  emu.drawString(8, 35, string.format("attempts %d  COMBO %d  meaty %d  dropped %d  blocked %d",
+    attempts, combos, meaties, drops, blocks), 0xC0C0C0, 0x000000)
+  local note = OFFSET==0 and "=> true combo (hit lands during hitstun)"
+            or (OFFSET==1 and "=> +1 still CONNECTS as a same-frame meaty (not a true combo)"
+            or  "=> off by "..OFFSET.." frames")
+  emu.drawString(8, 44, note, vcol, 0x000000)
+  emu.drawString(8, 200, hold>0 and "** RESULT (paused) — reloading... **" or "", 0xFFFF00, 0x000000)
+  emu.drawString(8, 210, driving and "R reset   S stop" or "STOPPED — S resume", 0x808080, 0x000000)
+end
+
 emu.addEventCallback(function()
-  if pressed("R") then attempts,combos,drops,blocks=0,0,0,0; lastVerdict="..." end
+  if pressed("R") then attempts,combos,meaties,drops,blocks=0,0,0,0,0; lastVerdict="..." end
   if pressed("S") then driving = not driving end
+
+  if hold > 0 then                         -- freeze on the result before reloading
+    hold = hold - 1
+    if hold == 0 then needLoad = true; t = -1 end
+    drawHUD()
+    return
+  end
   if t < 0 then return end
 
   if t == 5 then emu.write(0x1021, 0xE8, WRAM) end   -- match trace.lua: snap P1 to point-blank
@@ -93,41 +122,34 @@ emu.addEventCallback(function()
   if t >= FV and t <= FV + 14 then
     if p1a == 0x53 then seen53 = true end
     if p2a==0x0C or p2a==0x0D or p2a==0x0E or p2a==0x0F then sawBlock = true end
-    if hpRef and hp < hpRef and p2a>=0x10 and p2a<=0x16 then sawHit = true end
+    -- record P2's action on the exact frame the follow-up connects (hp drops)
+    if hpRef and hp < hpRef and hitP2 == nil then hitP2 = p2a end
   end
 
   if driving and t == RESOLVE then
     attempts = attempts + 1
+    -- verdict keyed on P2's state ON the hit frame: hitstun = true combo; block state
+    -- (0x0C-0F) but hp still dropped = same-frame meaty (P2 recovered, not a true combo).
     if not seen53 then lastVerdict="MOVE DROPPED (too early)"; drops=drops+1
-    elseif sawHit and not sawBlock then lastVerdict="TRUE COMBO"; combos=combos+1
+    elseif hitP2 and hitP2>=0x10 and hitP2<=0x16 then lastVerdict="TRUE COMBO (hit in hitstun)"; combos=combos+1
+    elseif hitP2 then lastVerdict="MEATY — connects but P2 RECOVERED (not a true combo)"; meaties=meaties+1
     elseif sawBlock then lastVerdict="BLOCKED (too late)"; blocks=blocks+1
     else lastVerdict="whiff / no connect"; drops=drops+1 end
     if __log then
-      __log:write(string.format("attempt %d offset=%+d seen53=%s hit=%s block=%s -> %s\n",
-        attempts, OFFSET, tostring(seen53), tostring(sawHit), tostring(sawBlock), lastVerdict))
+      __log:write(string.format("attempt %d offset=%+d seen53=%s hitP2=%s block=%s -> %s\n",
+        attempts, OFFSET, tostring(seen53), (hitP2 and string.format("%02X",hitP2) or "nil"), tostring(sawBlock), lastVerdict))
       if attempts >= 3 then
         __log:write("FINAL offset="..OFFSET.." verdict="..lastVerdict..
-          " combos="..combos.." drops="..drops.." blocks="..blocks.."\n")
+          " combos="..combos.." meaties="..meaties.." drops="..drops.." blocks="..blocks.."\n")
         __log:close(); __log=nil; emu.stop(0)
       end
     end
-    needLoad = true; t = -1        -- reload same state for the next attempt
+    hold = HOLD                    -- freeze on this result, then reload for the next attempt
   else
     t = t + 1
   end
 
-  -- HUD
-  local sign = OFFSET==0 and "+0  (only valid frame)"
-            or (OFFSET>0 and "+"..OFFSET.." frame LATE" or OFFSET.." frame EARLY")
-  local vcol = (lastVerdict=="TRUE COMBO") and 0x00FF00 or 0xFF4040
-  emu.drawString(8, 8,  "1-FRAME-LINK PROOF  —  follow-up 2LP timing: "..sign, 0xFFFF00, 0x000000)
-  emu.drawString(8, 17, "each attempt reloads the same state; only the press frame differs", 0xFFFFFF, 0x000000)
-  emu.drawString(8, 26, "last attempt: "..lastVerdict, vcol, 0x000000)
-  emu.drawString(8, 35, string.format("attempts %d   COMBO %d   dropped %d   blocked %d",
-    attempts, combos, drops, blocks), 0xC0C0C0, 0x000000)
-  emu.drawString(8, 44, OFFSET==0 and "=> connects every time (true combo)"
-                                   or "=> never connects (off by one frame)", vcol, 0x000000)
-  emu.drawString(8, 210, driving and "R reset   S stop" or "STOPPED — S resume", 0x808080, 0x000000)
+  drawHUD()
 end, emu.eventType.endFrame)
 
 print("demo_link.lua loaded (LINK_OFFSET="..OFFSET.."). R reset, S stop.")
