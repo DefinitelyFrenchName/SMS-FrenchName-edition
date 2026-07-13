@@ -184,6 +184,15 @@ Full derivation, changed bytes, and verification matrix in patch_notes.md.
 Backdash (0x26) invuln is by design via script hurtbox idx 0 — unrelated mechanism.
 Patch 2 = build/sms_dashfix.bps (stacks with patch 1 via .ips or sms_both.bps); see patch_notes_dashfix.md.
 
+## Box-index writer + dash i-frames (patch 6, OPTIONAL)
+| Address | Label | Comment |
+|---|---|---|
+| $C0:9CA4-9CE1 | box_writer_batch | per-frame loop over objects X=0x1000..0x1180 (+0x80); reads 4-byte anim-frame entry via ($10),Y [Y=+0x05*4], writes +0x18/+0x40(hitbox)/+0x41(hurtbox)/+0x42(collbox) |
+| $C0:9CCD | sta $41,X | THE hurtbox-idx write. Empty hurtbox idx 0 = invulnerable (how backdash/anims get i-frames) |
+| player+0x5D | dash frame ctr | the 66-recognizer timer; runs 1..14 across a forward dash (act 0x60) — usable as the dash frame index |
+| $C1:BE85 | dashinvuln stub | patch 6: hook 0x9CCD → jsl; for Uranus(+0=6) fwd-dash(+1=0x60) with +0x5D in window, stz +0x41 (empty hurtbox = strike i-frames). Off by default. |
+Patch 6 = build/sms_dashinvuln.bps (strike-only mid-dash i-frames, ~frames 5-10, tunable --lo/--hi); see patch_notes.md "Patch 6".
+
 ## Palettes + title (patch 3) — Big Zam extraction
 | Address (file) | Label | Comment |
 |---|---|---|
