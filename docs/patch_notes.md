@@ -49,6 +49,24 @@ Edit-region map (why they're disjoint):
   header `0xFFC0` + checksum.
 - Patch 5: 2 bytes at `0x188EA/EB` (dash X-speed operand), adjacent to but disjoint
   from patch 2's `0x188ED/EE`.
+- Patch 6: bank-$C0 hook `0x09CCD` + stub `0x1BE85` (bank $C1, clear of patches 1/2).
+
+## Tunable parameters (the knobs)
+
+Every balance/cosmetic value is a builder argument — nothing needs hex editing. Rebuild the
+one patch (or re-run the whole chain) after changing a knob; all stack.
+
+| Knob | Builder & flag | Default | Options / effect |
+|---|---|---|---|
+| **Infinite gate (N)** | `mkpatch.py <gate>` (positional hex) | `0x04` | `0x05` = N5 true combo (2-frame connect); **`0x04` = N6 1-frame meaty (canonical)**; `0x03` = N7 loop removed. Lower gate = more 2HP recovery before the dash cancel. Byte `0x1BE23`. |
+| **Dash distance** | `mkpatch5.py … --speed <hex>` | `0x0640` | `0x0B00` vanilla (121px); `0x0780` ≈ 98px (−1/5); **`0x0640` = 82px (−1/3)**; `0x0480` = 59px (−1/2). 8.8 fixed-point X-speed; lower = shorter. Infinite unaffected (dash stops on contact). |
+| **Dash i-frames (opt.)** | `mkpatch6.py … --lo <n> --hi <n>` | `5`–`10` | Strike-invuln while the dash frame-counter `+0x5D` is in `[lo,hi]` (1..14). Default ≈ 6 middle frames. Uranus-only, strike-only. |
+| **Title text** | `mkpatch4.py … --text "<str>"` | `"FrenchName ver. 0.4"` | The red subtitle (≤20 chars, the font covers A-Z a-z 0-9 space `.`). Bump the version here. |
+| **Title style** | `mkpatch4.py … --style <s>` | `white_red` | `white_red` (white core/red outline), `red_white`, `red`. |
+
+Patches 2 (dashfix) and 3 (palettes) have no knobs — they're single-purpose. Example
+retune: `python3 tools/mkpatch.py 0x05 build/n5.sfc` (true-combo gate), or
+`python3 tools/mkpatch6.py "<clean>" build/tight.sfc --lo 6 --hi 9` (tighter i-frame window).
 
 ---
 
