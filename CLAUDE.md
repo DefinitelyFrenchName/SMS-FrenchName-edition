@@ -1,5 +1,10 @@
 # CLAUDE.md — SMS Uranus infinite patch
 
+> **STATUS (2026-07-13): the original objective is DONE and the project has grown well beyond it
+> (7 patches, tooling, full verification). Before doing anything, read `HANDOFF.md` (operational
+> map) and `docs/patch_notes.md` (per-patch detail). The sections below are the original brief,
+> kept for history.**
+
 ## Objective (REVISED 2026-07-10 — supersedes the 2LP wording below)
 Per Dustloop, the real Uranus Infinite™ is `[2LP > 2HP > 66]xN` — the load-bearing link
 is **2HP canceled into the 66 forward dash** (2HP's recovery state 0x58 is treated as

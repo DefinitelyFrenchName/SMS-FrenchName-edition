@@ -4,8 +4,10 @@ Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),
 clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c` (HiROM+FastROM, headerless,
 file offset = SNES addr & 0x3FFFFF).
 
-This document covers three independent patches. Each is a separate stackable BPS built
-by its own `tools/mkpatchN.py`; their edits are byte-disjoint, so they combine cleanly.
+This document covers seven independent patches (1–5 gameplay/cosmetic, 6–7 optional/
+experimental). Each is a separate stackable BPS built by its own `tools/mkpatchN.py`; their
+edits are byte-disjoint, so they combine cleanly. **New here? Read `HANDOFF.md` first** — it is
+the operational map (current state, deliverables, tooling, findings, gotchas).
 
 ## Deliverables & how they stack
 
@@ -40,6 +42,9 @@ Combined builds:
   i-frames) + title `v.0.8`. Playable ROM
   `build/SailorMoonS_FrenchName_v0.8_all5_dashinvuln.sfc` (SHA-1 `979db260…`). An
   **experimental** build for evaluating the dash-invuln buff; canonical stays v0.7.
+- `build/sms_full7_pluto5hp.bps` — clean → canonical all-five **+ optional patch 7** (Pluto
+  5HP). Playable ROM `build/SailorMoonS_FrenchName_v0.7_all5_pluto5hp.sfc` (SHA-1 `8e70f452…`);
+  differs from canonical v0.7 by one gameplay byte (`0xAF0DE 54→62`) + checksum.
 
 Edit-region map (why they're disjoint):
 - Patch 1: `0x1874D/E` + stub `0x1BE20–29` (bank $C1).
