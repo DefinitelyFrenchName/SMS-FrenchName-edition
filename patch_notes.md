@@ -288,15 +288,30 @@ lands on Mars's single actionable frame (120), so:
 | reversal back-dash | **HIT** | back-dash *does* come out (act `0x26`) but has **no frame-1 invincibility** |
 | neutral jump | **HIT** | can't leave the ground before the meaty takes the actionable frame |
 | back jump | **HIT** | up-back reads as a block on the wake frame → meaty beats same-frame block |
-| 6HP command grab | **HIT** | can't start before the meaty hits |
-| 2LP | **HIT** | can't start before the meaty hits |
+| 6HP command grab | **HIT** | the grab is **frame-1** (comes out as `0x61` on the wake frame when unobstructed) — but the meaty 2LP wants the same frame, and the strike wins the same-frame strike-vs-grab, so Mars is hit before entering the grab |
+| 2LP | **HIT** | starts a frame later than the grab; the meaty takes the shared wake frame first |
 
 So against Mars the frame-perfect meaty is effectively **un-reactable** — it is only escapable
 by a move with genuine **frame-1 invincibility active on the wake frame**, which none of
 Mars's tested options have. The defender's real "out" is execution: the attacker must be
-frame-perfect every rep, and any ≥1-frame error is cleanly blocked (see the sweep above).
-This makes N=6 more oppressive-when-perfect than "escapable by reversal/jump" implied; it is
-still gated entirely behind frame-perfect execution and is not bufferable.
+frame-perfect every rep, and any ≥1-frame error is cleanly blocked.
+
+### Sailor Neptune's DP — the invincible-reversal case (`tools/react_dp.lua`)
+
+Neptune's DP (`623+HP`) *does* have invincibility, but it starts on **frame 2**, not frame 1.
+That single vulnerable startup frame is exactly what a frame-perfect meaty threads:
+
+| Uranus meaty timing | Result |
+|---|---|
+| **frame-perfect** (`MFV=115`) | **DP LOSES** — the 2LP hits the DP's vulnerable frame-1 startup (`0x69` at 120); Neptune is hit, Uranus recovers safely |
+| **1 frame late** (`REACT_MFV=116`) | **DP WINS** — the 2LP lands on DP frame 2 (invincible) and whiffs; the DP counter-hits Uranus into a **knockdown** |
+
+So there *is* real risk/reward against a DP character: frame-perfect execution beats the
+reversal, but a one-frame-late meaty gets blown up by it. Against a character with **no**
+frame-1-or-2 invincible reversal (e.g. Mars), the imperfect meaty is merely blocked — never
+punished. Net: N=6 is un-reactable when perfect, and its "out" is execution risk (blocked
+vs. non-DP, DP-punished vs. reversal characters). Scripts: `tools/react_test.lua` +
+`react_{backdash,njump,bjump,grab,jab,dp}.lua`.
 
 ## Every changed byte
 

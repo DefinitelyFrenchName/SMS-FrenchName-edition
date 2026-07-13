@@ -18,8 +18,11 @@
 -- Keys: R reset, S stop.
 
 local REACT = REACTION or "backdash"
-local STATE = REACT_STATE or "/Users/koneko/Developer/SailorMoonS/traces/uranus_vs_mars_v07.mss"
-local MFV   = REACT_MFV or 115        -- meaty press frame (Mars); auto = the frame hp drops
+-- Mars reactions use the Mars state; the Neptune DP uses the Neptune state.
+local DEF_STATE = (REACT=="dp") and "/Users/koneko/Developer/SailorMoonS/traces/uranus_vs_neptune_v07.mss"
+                                 or "/Users/koneko/Developer/SailorMoonS/traces/uranus_vs_mars_v07.mss"
+local STATE = REACT_STATE or DEF_STATE
+local MFV   = REACT_MFV or 115        -- meaty press frame (frame-perfect); try 116 for "1 late"
 
 local WRAM = emu.memType.snesWorkRam
 local function r(a) return emu.read(a, WRAM) end
@@ -47,6 +50,10 @@ local REACTS = {
   jab     = { {117,{down=true}},{118,{down=true,y=true}},{119,{down=true}},{120,{down=true,y=true}},{121,{down=true}},{122,{down=true,y=true}} },
   grab    = { {117,{left=true}},{118,{left=true,x=true}},{119,{left=true}},{120,{left=true,x=true}},{121,{left=true}},{122,{left=true,x=true}} },
   backdash= { {116,{right=true}},{117,{}},{118,{right=true}},{119,{}},{120,{right=true}},{121,{}} },
+  -- Neptune DP: 623+HP buffered through hitstun (forward=left, +X). Invincible from frame 2.
+  dp      = { {113,{left=true}},{115,{down=true}},{117,{down=true,left=true}},
+              {118,{down=true,left=true,x=true}},{119,{down=true,left=true,x=true}},
+              {120,{down=true,left=true,x=true}},{121,{down=true,left=true,x=true}},{123,{}} },
 }
 local function p2btn(t)
   local plan = REACTS[REACT] or {}
@@ -62,7 +69,7 @@ local STATE_NAMES = {[0x00]="neutral",[0x26]="backdash",[0x0C]="stand-block",[0x
 local t = -1
 local needLoad = true
 local attempts, escapes, hits = 0, 0, 0
-local hpStart, hitFrame, p2AtHit, moveSeen = nil, nil, nil, nil
+local hpStart, hitFrame, p2AtHit, moveSeen, p1Hit = nil, nil, nil, nil, false
 local lastVerdict = "..."
 local driving = true
 local hold = 0
@@ -79,7 +86,7 @@ emu.addMemoryCallback(function()
   if needLoad then
     local f = io.open(STATE, "rb"); if not f then return end
     local ss = f:read("*a"); f:close(); emu.loadSavestate(ss)
-    needLoad=false; t=0; hpStart=nil; hitFrame=nil; p2AtHit=nil; moveSeen=nil
+    needLoad=false; t=0; hpStart=nil; hitFrame=nil; p2AtHit=nil; moveSeen=nil; p1Hit=false
   end
 end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)
 
@@ -94,19 +101,24 @@ emu.addEventCallback(function()
   if hold>0 then hold=hold-1; if hold==0 then needLoad=true; t=-1 end
   elseif t>=0 then
     if t==5 then emu.write(0x1021,0xE8,WRAM) end
-    local p2a, hp = r(0x1081), r(0x10C9)
+    local p1a, p2a, hp = r(0x1001), r(0x1081), r(0x10C9)
     if t==100 then hpStart=hp end
-    -- did Mars's chosen move state ever appear (backdash 0x26 / a jump / an attack)?
     if t>=118 and t<=128 and p2a~=0x00 and (p2a<0x0C or p2a>0x16) and p2a~=0x13 then moveSeen=moveSeen or p2a end
     if hpStart and hp<hpStart and hitFrame==nil then hitFrame=t; p2AtHit=p2a end
-    if t==135 then
+    -- did Uranus (P1) get counter-hit? (hitstun 0x10-0x16 or knockdown 0x19/1A/1E/20 after the meaty)
+    if t>=121 and t<=140 and ((p1a>=0x10 and p1a<=0x16) or p1a==0x19 or p1a==0x1A or p1a==0x1E or p1a==0x20) then p1Hit=true end
+    if t==142 then
       attempts=attempts+1
-      if hitFrame==nil then lastVerdict="ESCAPED (no damage)"; escapes=escapes+1
+      if REACT=="dp" then
+        if hitFrame then lastVerdict="DP LOST — meaty hit its vulnerable frame 1"; hits=hits+1
+        elseif p1Hit then lastVerdict="DP WON — Uranus counter-hit / knocked down"; escapes=escapes+1
+        else lastVerdict="DP whiffed / traded (P2 unhurt, P1 safe)"; escapes=escapes+1 end
+      elseif hitFrame==nil then lastVerdict="ESCAPED (no damage)"; escapes=escapes+1
       else
         local st = STATE_NAMES[p2AtHit] or string.format("state %02X",p2AtHit)
-        local why = (p2AtHit==0x26) and "backdash came out, no invuln"
-                 or (p2AtHit==0x00) and "reaction couldn't start in time"
-                 or (p2AtHit==0x0C or p2AtHit==0x0D) and "reaction became a block, meaty beat it"
+        local why = (p2AtHit==0x26) and "backdash came out (no frame-1 invuln)"
+                 or (p2AtHit==0x00) and "meaty won the shared wake frame (strike beats the frame-1 startup)"
+                 or (p2AtHit==0x0C or p2AtHit==0x0D) and "reaction became a block, meaty beat same-frame block"
                  or "hit in "..st
         lastVerdict="HIT @"..hitFrame.." ("..why..")"; hits=hits+1
       end
