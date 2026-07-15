@@ -14,9 +14,9 @@ Playable roster (charID): 1 Moon, 2 Mercury, 3 Mars, 4 Jupiter, 5 Venus, 6 Uranu
 
 ---
 
-## 1. Current state (2026-07-13) — everything green
+## 1. Current state (2026-07-16) — everything green
 
-Seven patches, all built and verified in-emulator. The **canonical** shipping build is **v0.7**.
+Eight patches, all built and verified in-emulator. The **canonical** shipping build is **v0.7**.
 
 | # | Patch | Builder | Standalone BPS |
 |---|---|---|---|
@@ -28,15 +28,17 @@ Seven patches, all built and verified in-emulator. The **canonical** shipping bu
 | 5 | Forward-dash distance −1/3 | `mkpatch5.py` | `build/sms_dashdist.bps` |
 | 6 | Forward-dash i-frames (OPTIONAL) | `mkpatch6.py` | `build/sms_dashinvuln.bps` |
 | 7 | Pluto 5HP hits crouchers (OPTIONAL) | `mkpatch7.py` | `build/sms_pluto5hp.bps` |
+| 8 | Venus 6HP throw tech window 6f→13f (OPTIONAL) | `mkpatch8.py` | `build/sms_venustech.bps` |
 
 ### Playable ROMs (all in `build/`; `.sfc` are gitignored, rebuild from BPS)
 - **`SailorMoonS_FrenchName_v0.7_all5.sfc`** — SHA-1 `24aa6b6d…` — **CANONICAL** (patches 1–5).
 - `SailorMoonS_FrenchName_v0.6_all5_truecombo.sfc` — `c96c89fb…` — N=5 true-combo alternative.
 - `SailorMoonS_FrenchName_v0.8_all5_dashinvuln.sfc` — `979db260…` — canonical + patch 6 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_pluto5hp.sfc` — `8e70f452…` — canonical + patch 7 (experimental).
+- `SailorMoonS_FrenchName_v0.7_all5_venustech.sfc` — `3e3cd687…` — canonical + patch 8 (experimental).
 
 Each ROM's BPS is `build/sms_full5_v07_canonical.bps` / `sms_full5_truecombo.bps` /
-`sms_full6_v08_dashinvuln.bps` / `sms_full7_pluto5hp.bps`.
+`sms_full6_v08_dashinvuln.bps` / `sms_full7_pluto5hp.bps` / `sms_full8_venustech.bps`.
 
 ---
 
@@ -64,6 +66,7 @@ python3 tools/mkpatch5.py /tmp/s4.sfc     /tmp/s5.sfc         # (patch 6/7 optio
 | Dash i-frames | `mkpatch6.py --lo/--hi` | `5`–`10` | any window in dash frames 1..14 |
 | Title text/style | `mkpatch4.py --text/--style` | — | `white_red`/`red_white`/`red` |
 | Pluto 5HP reach | `mkpatch7.py --h` | `62` | `54`=vanilla, `62`=all but Chibi, `64`=all |
+| Venus tech window | `mkpatch8.py --extra` | `1` | `0`=vanilla 6f, `1`=13f, `2`=19f, `3`=24f (standard≈15f) |
 
 ---
 
@@ -89,6 +92,14 @@ python3 tools/mkpatch5.py /tmp/s4.sfc     /tmp/s5.sfc         # (patch 6/7 optio
   this: it forces `+0x41=0` during Uranus's forward-dash frames 5–10 (strike-only, throws still
   catch). The reversal-dash *bug* (patch 2) was a different thing — the `+0x46` untargetable
   flag lingering from knockdown; fixed by adding `stz $46,X` to the dash's step-0 init.
+- **Throw teching is mash-based, not a one-press window.** During a throw hold, script-driven
+  steps sample the victim's fresh attack presses (`+0x50 & 0xF0`, latched at 30Hz) and count
+  them in the **thrower's `+0x56`** (`$C1:07CF`); at the toss, count ≥ 2 → victim act `0x23`
+  (tech, HALF damage) else `0x1D` (thrown, full) — `$C1:0823`. Threshold is global; the
+  per-throw "window" = which hold-anim steps sample (script entry byte5 ≠ 0, scripts in bank
+  $C1, interpreter `$C1:06E5`). Venus 6HP sampled 6f (vs Jupiter's standard 15f) → patch 8
+  sets one script byte (`0x16C70`) to make it 13f. Full map in annotations.md + patch_notes.md
+  Patch 8.
 - **Hitboxes.** Box format = `[x_off_r, w_r, x_off_l, w_l, y_off, h, flags, ?]` (8 bytes).
   `y_off` negative = above the feet (origin at feet, +y down). Extend a box *down* = increase
   `h`. Per-char box tables in bank `$8A`; the per-frame box-index writer is `$C0:9CCD`
@@ -117,6 +128,12 @@ python3 tools/mkpatch5.py /tmp/s4.sfc     /tmp/s5.sfc         # (patch 6/7 optio
   measurement.
 - `coltest.lua` + `coltest_cfg.lua` — **navigate char-select and save a match savestate**
   (set CHARA/CHAR2/SAVE, run on the target ROM → writes `traces/<SAVE>`).
+- `techsweep.lua` + `techsweep_cfg.lua` — **throw-tech measurement**: reload-per-attempt sweep
+  of the defender's mash-start frame (or mash count, `VARY="MASH"`), classifies
+  TECHED/THROWN/NOTHROW per attempt. The patch-8 workhorse; see its header for knobs.
+- `techfind.lua` (+ optional `techfind_cfg.lua`) — throw instrumentation: logs defender
+  actionID writes with writer PC, mash-counter (+0x56) writes, sampling instants (exec watch
+  on $C1:07D3), optional ROM script-read watch (SCRIPT_LO/HI).
 
 **Other tools:** `extract_sms_hitboxes.py` → `docs/sms_all_boxes.json` (per-char box tables);
 `tools/Dispel/dispel` disassembler (**build once**: `cc -O2 -o dispel main.c 65816.c` in
@@ -126,8 +143,9 @@ python3 tools/mkpatch5.py /tmp/s4.sfc     /tmp/s5.sfc         # (patch 6/7 optio
 **Savestates** (`traces/`, gitignored except force-added ones): `*_v07.mss` are tagged to the
 canonical ROM (`uranus_vs_{jupiter,mars,neptune,chibi}_v07`, `pluto_vs_chibi_v07`,
 `pluto_vs_1..7,10`); `uranus_vs_jupiter_v06` (N=5 ROM); `uranus_vs_jupiter_f5` (headless
-self-tests). The four `_v06`/`_v07` Uranus states + Mars/Neptune/Chibi are **force-added to
-git** so the demos work.
+self-tests); `venus_vs_jupiter_clean` / `jupiter_vs_venus_clean` (clean ROM, patch-8
+techsweep both ways). The four `_v06`/`_v07` Uranus states + Mars/Neptune/Chibi + the two
+Venus states are **force-added to git** so the demos work.
 
 ---
 
@@ -187,8 +205,9 @@ vendor/   sms-training-mode (RAM map + palette patcher)
 ## 8. Open threads / possible future work
 - **Dash distance** (patch 5): maintainer said −1/3 "feels much better" but *may* retune later.
   One flag: `mkpatch5.py --speed`. Infinite is unaffected by dash speed (dash stops on contact).
-- **Patch 6 (dash i-frames)** and **patch 7 (Pluto 5HP)** are experimental, off by default —
-  awaiting a decision on whether to fold into a future canonical.
+- **Patch 6 (dash i-frames)**, **patch 7 (Pluto 5HP)** and **patch 8 (Venus throw tech)** are
+  experimental, off by default — awaiting a decision on whether to fold into a future
+  canonical.
 - If folding experiments into canonical, bump the title version (`mkpatch4.py --text`) for a
   naked-eye A/B tell — the maintainer is a pad tester who values on-screen version + ROM hashes.
 - No open bugs. All shipped behavior is measured, not inferred.
