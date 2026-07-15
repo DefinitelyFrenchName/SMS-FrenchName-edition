@@ -21,6 +21,7 @@ the operational map (current state, deliverables, tooling, findings, gotchas).
 | 5. Dash dist | Cut Uranus forward-dash distance ~1/3 | `tools/mkpatch5.py` | `build/sms_dashdist.bps` | `99acb686…` |
 | 6. Dash i-frames **(OPTIONAL)** | Uranus forward dash gains ~6 strike-invuln frames mid-move | `tools/mkpatch6.py` | `build/sms_dashinvuln.bps` (+`.ips`) | `34c5d458…` |
 | 7. Pluto 5HP **(OPTIONAL)** | Pluto 5HP hitbox extended down to hit crouchers (all but Chibi) | `tools/mkpatch7.py` | `build/sms_pluto5hp.bps` | `fc757936…` |
+| 8. Venus throw tech **(OPTIONAL)** | Venus 6HP throw mash-escape window 6f → 13f (standard-ish; Jupiter=15f) | `tools/mkpatch8.py` | `build/sms_venustech.bps` | `63ce0748…` |
 
 Combined builds:
 - `build/sms_both.bps` — clean → patch 1 + 2 (stacked SHA-1 `5ae720fe…`)
@@ -45,6 +46,10 @@ Combined builds:
 - `build/sms_full7_pluto5hp.bps` — clean → canonical all-five **+ optional patch 7** (Pluto
   5HP). Playable ROM `build/SailorMoonS_FrenchName_v0.7_all5_pluto5hp.sfc` (SHA-1 `8e70f452…`);
   differs from canonical v0.7 by one gameplay byte (`0xAF0DE 54→62`) + checksum.
+- `build/sms_full8_venustech.bps` — clean → canonical all-five **+ optional patch 8** (Venus
+  throw tech). Playable ROM `build/SailorMoonS_FrenchName_v0.7_all5_venustech.sfc`
+  (SHA-1 `3e3cd687…`); differs from canonical v0.7 by one gameplay byte (`0x16C70 00→01`)
+  + checksum.
 
 Edit-region map (why they're disjoint):
 - Patch 1: `0x1874D/E` + stub `0x1BE20–29` (bank $C1).
@@ -56,6 +61,8 @@ Edit-region map (why they're disjoint):
 - Patch 5: 2 bytes at `0x188EA/EB` (dash X-speed operand), adjacent to but disjoint
   from patch 2's `0x188ED/EE`.
 - Patch 6: bank-$C0 hook `0x09CCD` + stub `0x1BE85` (bank $C1, clear of patches 1/2).
+- Patch 7: one byte `0xAF0DE` (bank $8A Pluto hit table).
+- Patch 8: one byte `0x16C70` (bank $C1 Venus throw-hold script data).
 
 ## Tunable parameters (the knobs)
 
@@ -69,6 +76,7 @@ one patch (or re-run the whole chain) after changing a knob; all stack.
 | **Dash i-frames (opt.)** | `mkpatch6.py … --lo <n> --hi <n>` | `5`–`10` | Strike-invuln while the dash frame-counter `+0x5D` is in `[lo,hi]` (1..14). Default ≈ 6 middle frames. Uranus-only, strike-only. |
 | **Title text** | `mkpatch4.py … --text "<str>"` | `"FrenchName ver. 0.4"` | The red subtitle (≤20 chars, the font covers A-Z a-z 0-9 space `.`). Bump the version here. |
 | **Title style** | `mkpatch4.py … --style <s>` | `white_red` | `white_red` (white core/red outline), `red_white`, `red`. |
+| **Venus tech window (opt.)** | `mkpatch8.py … --extra <n>` | `1` | Extra sampling steps on the throw-hold script: `0` = vanilla 6f, **`1` = 13f (default)**, `2` = 19f, `3` = 24f (whole hold). Standard throws ≈ 15f (Jupiter). Bytes `0x16C70/78/80`. |
 
 Patches 2 (dashfix) and 3 (palettes) have no knobs — they're single-purpose. Example
 retune: `python3 tools/mkpatch.py 0x05 build/n5.sfc` (true-combo gate), or
@@ -712,6 +720,84 @@ bottom of −47 reaches every top except Chibi's −46.
 - **One byte** (`0xAF0DE`) + checksum; byte-disjoint from patches 1–6.
 
 *(Saturn is not a playable character in this game, so she is not a crouching opponent.)*
+
+---
+
+# Patch 8 — Venus 6HP throw: standard-ish mash-escape window (OPTIONAL / experimental)
+
+**Deliverables:** `tools/mkpatch8.py` (builder, stacks onto any input ROM),
+`build/sms_venustech.bps` (standalone, patched SHA-1 `63ce0748…`),
+`build/sms_full8_venustech.bps` (canonical v0.7 + this, SHA-1 `3e3cd687…`,
+ROM `build/SailorMoonS_FrenchName_v0.7_all5_venustech.sfc`).
+
+## What this patch does
+Venus's 6HP proximity throw is the least escapable throw in the game: the mash-escape
+("tech") sampling window is **6 frames** where the standard is ~15 (Jupiter measured; the
+community's Dustloop numbers — Venus ~6f vs standard 14–19 — agree once measurement
+conventions line up). This patch extends her sampling window to **13 frames** (closest the
+animation-step granularity allows to the 12-frame design target), keeping a small edge over
+standard throws as the original design intended. Nothing else about the throw changes:
+same damage (22), same hold/toss timing, same animation, and an un-mashed throw is
+frame-for-frame identical (verified byte-identical trace).
+
+## Changed bytes (1 gameplay + checksum)
+
+| File offset | SNES addr | Old | New | Meaning |
+|---|---|---|---|---|
+| `0x16C70` | `$C1:6C70` | `00` | `01` | byte5 of throw-hold script entry 3 (step 06): enable mash sampling during that step |
+| `0xFFDC/DE` | header | — | — | checksum + complement (auto) |
+
+`--extra 2/3` additionally set `0x16C78` / `0x16C80` (entries 4/5, steps 08/0A) for 19f/24f
+windows.
+
+## Mechanism (reverse-engineered, all measured in-emulator)
+Throws in this game are escaped by **mashing attack buttons**, not by a one-press window:
+
+1. **Connect** (`$C1:0612–65F`): on grab, the victim is set to act `0x1C` (Held), `+0x46=0xA0`,
+   and the **thrower's mash counter `+0x56` is zeroed** by the per-character hold handler
+   (Venus: `$C1:772C`). An ~8-frame engine freeze follows the connect.
+2. **Sampling** (`$C1:07CF–07DC`, inside the script-driven victim-drag routine): on every
+   non-frozen frame whose hold-script entry has **byte5 ≠ 0**, if the victim has a freshly
+   pressed attack button (`+0x50 & 0xF0`), the thrower's `+0x56` increments. The victim's
+   `+0x50` press bits latch on the 30Hz input tick, so ~1 press per 2 frames is the max
+   useful mash rate.
+3. **Decision** (`$C1:0823–871`, at the toss): `+0x56 >= 2` → victim gets act `0x23`
+   (throw tech) and takes **half damage**, both recover; else act `0x1D` (thrown) and full
+   damage. The threshold (2) and damage-halving are global; **the only per-throw variable is
+   which hold steps sample** — i.e. the script bytes this patch sets.
+
+The hold animation script (8-byte entries per animation step, interpreter `$C1:06E5`,
+indexed by thrower `+0x07`) lives at `$C1:6C53` for Venus (only reader of these bytes;
+verified by operand scan of bank $C1 + ROM read-watch). Entry byte5 doubles as the damage
+value **only** in the header entry (offset +0, read at toss time) — in hold steps it is
+purely the sampling gate, so setting it on entries 3–5 has no damage side effect.
+
+Measured sampling schedules (connect at t=60, freeze t=62–69):
+
+| Throw | Script | Sampling frames | Window | Mash-start deadline (2f cadence) |
+|---|---|---|---|---|
+| Venus 6HP clean | `$C1:6C53` | 61, 70–75 | 6f | connect+12 |
+| **Venus 6HP patched** | 〃 (byte5 of entry 3 set) | 61, 70–82 | **13f** | **connect+19** |
+| Jupiter 6HP (standard ref) | `$C1:5A07` | 61, 70–84 | 15f | connect+21 |
+
+## Verification matrix (all in-emulator, `tools/techsweep.lua`)
+- **Window widened:** press-frame sweep TECHED band `[55..72]` → `[55..79]` (P1 Venus);
+  P2-side Venus `[55..80]` (1f input-parity difference, both sides covered).
+- **Standard throws unchanged:** Jupiter sweep on patched ROM identical to clean (`[55..81]`).
+- **Un-mashed throw unchanged:** full trace clean vs patched **byte-identical** (damage 22,
+  toss at connect+34, same act/step/sprite sequence).
+- **Mash mechanism intact:** threshold still 6 presses @ gap-2 from connect+1; tech commit
+  still `0x23` at the toss frame, normal recovery for both.
+- **Naked-eye A/B tell:** mash starting at connect+16 → ESCAPES (half damage) on patched,
+  THROWN (full damage) on clean.
+- **Full chain:** on `v0.7_all5_venustech`, `demo_link.lua` still reports a single MEATY
+  frame (infinite patch untouched) and the Venus window is as above.
+- **BPS round-trip:** both BPS re-apply to SHA-1s `63ce0748…` / `3e3cd687…`.
+- **Byte-disjoint:** combined ROM differs from canonical v0.7 by `0x16C70` + checksum only.
+
+*(Tooling provenance note: throw action IDs were cross-checked against the game itself, not
+the inherited Super S training Lua; its "mash A while mash_time<14" auto-tech is a heuristic
+from the other game.)*
 
 ---
 

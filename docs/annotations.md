@@ -243,3 +243,19 @@ Demo of the frame-perfect 1f-link infinite: tools/demo_infinite.lua (GUI playbac
 5HP is two phases: act 0x44 startup (boxes 01/04/14) -> act 0x46 active (box 0x03). Crouch
 hurtbox tops (y): Mars -60, Uranus -59/Pluto -59, Neptune -58, Moon -56, Mercury/Jupiter -54,
 Venus -49, Chibi -46. Patch 7 = build/sms_pluto5hp.bps; see patch_notes.md "Patch 7".
+
+## Throw / throw-tech machinery (patch 8 research — closes the "throws unmapped" gap)
+| Address | Label | Comment |
+|---|---|---|
+| $C1:0612 | throw_connect | on grab: victim +0x01=0x1C (Held), victim +0x46=0xA0, thrower +0x46=0xE0, victim +0x06=0x80, +0x30..35/+0x02 cleared; ~8-frame engine freeze follows |
+| $C1:06E5 | throw_script_interp | runs a throw-hold script: 8-byte entries indexed by thrower +0x07 (steps by 2 per anim step). Entry: [victim_pose, drag_x lo/hi, drag_y lo/hi, byte5, byte6→thrower+0x78, swap_flag]. byte0=0xFF marks a header entry → toss path $C1:07E5 (byte1-4 = toss x/y velocity, byte5 = damage) |
+| $C1:07CF | tech_sampler | per non-frozen frame of hold steps with entry byte5≠0: if victim +0x50 & 0xF0 (fresh attack press, latched at 30Hz) → inc thrower +0x56 (mash counter) |
+| $C1:0823 | toss_decision | thrower +0x56 >= 2 → victim act 0x23 (tech) + HALF damage (lsr), else act 0x1D + full damage. Threshold global; per-throw variance = sampling steps only |
+| +0x56 (thrower) | mash_counter | zeroed by the per-char hold handler at throw start (Venus: $C1:772C `stz $56,X`) |
+| $C1:770F | venus_throwhold_handler | act 0x58 (hold) state proc; script `ldy #$6C53 / jsr $06E5`; act 0x59 = toss |
+| $C1:6C53 (file 0x16C53) | venus_throw_script | header (dmg 0x16=22, toss vel) + hold entries 1-5 (steps 02-0A). byte5=01 on entries 1,2 only → 6f sampling window (t=61,70-75). Patch 8: entry3 byte5 (file 0x16C70) 00→01 → 13f (t=61,70-82) |
+| $C1:5A07 (file 0x15A07) | jupiter_throw_script | standard reference: entries 1,2 sample but steps are longer → 15f window (t=61,70-84); toss headers at $5A67/$5A77 (dmg 0x1C=28) |
+All `ldy #$imm / jsr $06E5` throw-script call sites in bank $C1 (one per char/throw):
+Moon $2884/$28AC, Mercury $38EE/$3916/$3926, Mars $4925/$495D/$496D, Jupiter $5A07/$5A3F/$5A67/$5A77,
+Venus $6C53, Uranus $7B59/$7B81 (+specials $7BB1..$7C39), Neptune $8F19/$8F41 (file = 0x10000+addr).
+Tools: tools/techsweep.lua (window/threshold measurement), tools/techfind.lua (instrumentation).
