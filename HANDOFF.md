@@ -180,6 +180,8 @@ Venus states are **force-added to git** so the demos work.
 ```bash
 # 1-frame-link window on the canonical build (expect a single MEATY frame):
 ROM="build/SailorMoonS_FrenchName_v0.7_all5.sfc" tools/run.sh tools/demo_link.lua
+# Venus throw-tech window (patch 8): expect TECH [55..72] clean, [55..79] patched:
+ROM="build/sms_venustech.sfc" tools/run.sh tools/techsweep.lua 500   # → traces/techsweep_out.txt
 # reversal outcome (frame-perfect vs +1 late):
 # edit a react_*.lua or pass REACT_MFV; see react_test.lua header.
 # rebuild any BPS and confirm round-trip:
