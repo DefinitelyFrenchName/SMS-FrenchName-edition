@@ -4,7 +4,7 @@ Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),
 clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c` (HiROM+FastROM, headerless,
 file offset = SNES addr & 0x3FFFFF).
 
-This document covers seven independent patches (1–5 gameplay/cosmetic, 6–7 optional/
+This document covers eight independent patches (1–5 gameplay/cosmetic, 6–8 optional/
 experimental). Each is a separate stackable BPS built by its own `tools/mkpatchN.py`; their
 edits are byte-disjoint, so they combine cleanly. **New here? Read `HANDOFF.md` first** — it is
 the operational map (current state, deliverables, tooling, findings, gotchas).
@@ -76,6 +76,7 @@ one patch (or re-run the whole chain) after changing a knob; all stack.
 | **Dash i-frames (opt.)** | `mkpatch6.py … --lo <n> --hi <n>` | `5`–`10` | Strike-invuln while the dash frame-counter `+0x5D` is in `[lo,hi]` (1..14). Default ≈ 6 middle frames. Uranus-only, strike-only. |
 | **Title text** | `mkpatch4.py … --text "<str>"` | `"FrenchName ver. 0.4"` | The red subtitle (≤20 chars, the font covers A-Z a-z 0-9 space `.`). Bump the version here. |
 | **Title style** | `mkpatch4.py … --style <s>` | `white_red` | `white_red` (white core/red outline), `red_white`, `red`. |
+| **Pluto 5HP reach (opt.)** | `mkpatch7.py … --h <n>` | `62` | New active-box height: `54` = vanilla (whiffs crouchers), **`62` = hits all crouchers except Chibi**, `64` = all incl. Chibi. Byte `0xAF0DE`. |
 | **Venus tech window (opt.)** | `mkpatch8.py … --extra <n>` | `1` | Extra sampling steps on the throw-hold script: `0` = vanilla 6f, **`1` = 13f (default)**, `2` = 19f, `3` = 24f (whole hold). Standard throws ≈ 15f (Jupiter). Bytes `0x16C70/78/80`. |
 
 Patches 2 (dashfix) and 3 (palettes) have no knobs — they're single-purpose. Example
@@ -810,12 +811,18 @@ flips --apply build/sms_dashfix.bps            <clean ROM> <out>   # patch 2
 flips --apply build/sms_palettes.bps           <clean ROM> <out>   # patch 3
 flips --apply build/sms_title.bps              <clean ROM> <out>   # patch 4
 flips --apply build/sms_dashdist.bps           <clean ROM> <out>   # patch 5
+flips --apply build/sms_dashinvuln.bps         <clean ROM> <out>   # patch 6 (optional)
+flips --apply build/sms_pluto5hp.bps           <clean ROM> <out>   # patch 7 (optional)
+flips --apply build/sms_venustech.bps          <clean ROM> <out>   # patch 8 (optional)
 
 # combined
 flips --apply build/sms_both.bps  <clean ROM> <out>   # patches 1 + 2
 flips --apply build/sms_full.bps  <clean ROM> <out>   # patches 1 + 2 + 3
 flips --apply build/sms_full4.bps <clean ROM> <out>   # patches 1 + 2 + 3 + 4
 flips --apply build/sms_full5.bps <clean ROM> <out>   # patches 1 + 2 + 3 + 4 + 5
+flips --apply build/sms_full6_v08_dashinvuln.bps <clean ROM> <out>  # canonical + patch 6
+flips --apply build/sms_full7_pluto5hp.bps       <clean ROM> <out>  # canonical + patch 7
+flips --apply build/sms_full8_venustech.bps      <clean ROM> <out>  # canonical + patch 8
 
 # stacking IPS onto an already-patched ROM (checksum-free variants)
 flips --apply build/sms_dashfix.ips <1f-link ROM> <out>
