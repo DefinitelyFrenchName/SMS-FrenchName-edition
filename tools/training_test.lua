@@ -367,12 +367,52 @@ tests.T6 = {
         local p = ctx.snap.p[2]
         return p.hp == p.maxhp,
                string.format("t200 hp=%02X max=%02X (want restored)", p.hp, p.maxhp) end },
+    { t = 201, fn = function(ctx)
+        local bar = emu.read(0x0801, ctx.C.WRAM)
+        return bar == ctx.snap.p[2].maxhp,
+               string.format("t201 hpbar=%02X (want %02X, bar visually refilled)",
+                 bar, ctx.snap.p[2].maxhp) end },
     { t = 220, fn = function(ctx)
         local tv = emu.read(0x0802, ctx.C.WRAM)
         return tv == ctx._timer0,
                string.format("t220 timer=%02X (want frozen at %02X)", tv, ctx._timer0) end },
   },
 }
+
+-- T7: KO auto-reset — poke P2 to 2 HP, kill with a jab; regen must reload the baseline
+-- position state (auto-captured at t=30) before the round-end flow, restoring full HP.
+tests.T7 = (function()
+  local koSeen, done = false, false
+  return {
+    STATE = "venus_vs_jupiter_clean.mss",
+    DONE = 1e9,
+    CHECKS = {},
+    POKES = { { t = 5, addr = 0x1021, val = 0xE8 },
+              { t = 50, addr = 0x10C9, val = 1 }, { t = 50, addr = 0x0801, val = 1 } },
+    PLAN1 = { [60] = { y = true }, [63] = {} },
+    ONFRAME = function(ctx, log, finish)
+      if done then return end
+      if ctx.t == 35 then
+        log(ctx.anchor.posState and "PASS: baseline position state auto-captured"
+            or "FAIL: no baseline state at t=35")
+      end
+      if ctx.snap.p[2].hp == 0 and ctx.C.isKDAct(ctx.snap.p[2].act) then koSeen = true end
+      if koSeen and ctx.t <= 10 then
+        local hp = ctx.snap.p[2].hp
+        log(hp == 0x60 and "PASS: KO triggered reload of baseline (P2 back at full)"
+            or string.format("FAIL: after KO reload hp=%02X", hp))
+        done = true
+        finish()
+      end
+      if ctx.frame > 900 then
+        log(koSeen and "FAIL: KO seen but no reload happened"
+            or "FAIL: KO never happened (setup broken)")
+        done = true
+        finish()
+      end
+    end,
+  }
+end)()
 
 -- ---------- harness ----------
 local T = tests[TEST]
