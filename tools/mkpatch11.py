@@ -78,7 +78,11 @@ SET_TECH = ST + 0x23   # 0 off, 1 on
 SET_DMG = ST + 0x24    # 0 off, 1 on
 SET_REGEN = ST + 0x25  # 0 off, 1 on (dummy)
 SET_REFILL = ST + 0x26 # 0 off, 1 on (both players)
-SETTINGS = (SET_POSE, SET_GUARD, SET_WAKE, SET_TECH, SET_DMG, SET_REGEN, SET_REFILL)
+SET_REC = ST + 0x27    # 0 off, 1 armed (consumed at menu close)
+SET_PLAY = ST + 0x28   # 0 off, 1 once, 2 loop
+SET_SHOW = ST + 0x29   # 0 off, 1 on (input + advantage display)
+SETTINGS = (SET_POSE, SET_GUARD, SET_WAKE, SET_TECH, SET_DMG, SET_REGEN, SET_REFILL,
+            SET_REC, SET_PLAY, SET_SHOW)
 # dummy runtime
 WAKEARMED = ST + 0x30
 OSFRAMES = ST + 0x31
@@ -91,6 +95,30 @@ HPSHAD2 = ST + 0x37
 REFILLED2 = ST + 0x38   # we refilled P2 during this knockdown -> force standup at 0x1E
 REFILLED1 = ST + 0x39
 GOTHIT = ST + 0x3A      # P2 has been hit/thrown (guard=afterhit latch, oracle semantics)
+# recording/playback (ring at $7F:E000, via WMDATA $2180-83 -- probe-verified free)
+RECACTIVE = ST + 0x42
+RECPTR = ST + 0x44      # 16-bit byte offset into the ring (2 bytes/frame: $5D,$5C raw)
+RECLEN = ST + 0x46      # 16-bit
+PLAYPTR = ST + 0x48     # 16-bit
+PLAYACTIVE = ST + 0x4A
+CAPT_L = ST + 0x4B
+CAPT_H = ST + 0x4C
+# SHOW displays
+WIPED = ST + 0x55       # BG3 rows 0-17 wiped this episode
+PMODE = ST + 0x56       # painter mode: 0 = wipe+menu, 1 = wipe-only (SHOW)
+TMWANT = ST + 0x57      # computed each frame: BG3 wanted on
+CNT1 = ST + 0x58        # frames-actionable counters (advantage approximation)
+CNT2 = ST + 0x59
+EXCH = ST + 0x5A        # an exchange (constraint) happened since last settle
+ADVSIGN = ST + 0x5B
+ADVMAG = ST + 0x5C
+ADVTTL = ST + 0x5D
+ADVDIRTY = ST + 0x5E
+INPDIRTY = ST + 0x5F
+SHOWPREV_L = ST + 0x60
+SHOWPREV_H = ST + 0x61
+REC_BASE = 0xE000       # WMDATA 16-bit offset within bank $7F ($2183=1)
+REC_MAX = 0x0FFE        # 2047 frames ~ 34s
 
 # ---------------- BG3 / font ----------------
 BG3_CHR = 0x5000
@@ -98,13 +126,13 @@ GLYPH_TILE0 = 0xC7
 BLANK = 0x2000
 TM_ON, TM_OFF = 0x17, 0x13
 P10_LETTERS = list("GCREVSALPUNIHMTY")
-P11_LETTERS = list("BDFJKOW") + [">", "#"]
+P11_LETTERS = list("BDFJKOW") + [">", "-"]
 FONT_LETTERS = P10_LETTERS + P11_LETTERS
 assert len(FONT_LETTERS) <= 25
 
 # menu geometry: 9 rows on BG3 map rows 4-12, cells cols 3-24 (22 cells/row)
 PANEL_ROW0, PANEL_COL, PANEL_W = 4, 3, 22
-NROWS = 9
+NROWS = 12
 WIPEROWS = 18   # menu-open first blanks BG3 map rows 0-17 full-width (movelist residue)
 # per painted row, offsets within the 22 cells: cursor@1, name@3(6), value@10(8)
 CUR_OFF, NAME_OFF, VAL_OFF = 1, 3, 10
@@ -117,9 +145,12 @@ MENU = [
     ("DAMAGE", SET_DMG,   ["OFF", "ON"]),                      # 5
     ("REGEN",  SET_REGEN, ["OFF", "ON"]),                      # 6
     ("REFILL", SET_REFILL,["OFF", "ON"]),                      # 7
-    ("RESET",  None,      ["GO"]),                             # 8: action row
+    ("RECORD", SET_REC,   ["OFF", "ARM"]),                     # 8 (consumed at close)
+    ("PLAY",   SET_PLAY,  ["OFF", "ONCE", "LOOP"]),            # 9
+    ("SHOW",   SET_SHOW,  ["OFF", "ON"]),                      # 10 (input + adv display)
+    ("RESET",  None,      ["GO"]),                             # 11: action row
 ]
-DMG_ROW, RESET_ROW = 5, 8
+DMG_ROW, RESET_ROW = 5, 11
 
 
 def row_addr(i):
@@ -189,7 +220,25 @@ gof1:
   sta_l ${REFILLED2:06X}
   sta_l ${REFILLED1:06X}
 goffkeep:
+  lda_l ${RECACTIVE:06X}
+  beq gkrec
   lda #$00
+  sta_l ${RECACTIVE:06X}
+  rep #$20
+  lda_l ${RECPTR:06X}
+  sta_l ${RECLEN:06X}
+  sep #$20
+gkrec:
+  lda #$00
+  sta_l ${PLAYACTIVE:06X}
+  sta_l ${WIPED:06X}
+  sta_l ${TMWANT:06X}
+  sta_l ${ADVTTL:06X}
+  sta_l ${ADVDIRTY:06X}
+  sta_l ${INPDIRTY:06X}
+  sta_l ${CNT1:06X}
+  sta_l ${CNT2:06X}
+  sta_l ${EXCH:06X}
   sta_l ${VISIBLE:06X}
   sta_l ${FONTUP:06X}
   sta_l ${UIVIS:06X}
@@ -202,7 +251,9 @@ goffkeep:
 ginit:
   lda_l ${MAGIC:06X}
   cmp #$A5
-  beq inited
+  bne doinit
+  jmp inited
+doinit:
   lda #$A5
   sta_l ${MAGIC:06X}
   lda #$00
@@ -219,6 +270,16 @@ ginit:
   sta_l ${EATLINGER:06X}
   sta_l ${PREVH_L:06X}
   sta_l ${PREVH_H:06X}
+  sta_l ${RECACTIVE:06X}
+  sta_l ${PLAYACTIVE:06X}
+  sta_l ${WIPED:06X}
+  sta_l ${TMWANT:06X}
+  sta_l ${ADVTTL:06X}
+  rep #$20
+  sta_l ${RECLEN:06X}
+  sta_l ${RECPTR:06X}
+  sta_l ${PLAYPTR:06X}
+  sep #$20
   lda #$01
   sta_l ${CURSOR:06X}
   lda #$FF
@@ -253,23 +314,39 @@ def _chord():
   lda $005C
   and #$30
   cmp #$30
-  bne nochord
+  beq chord1
+  jmp nochord
+chord1:
   lda_l ${EDGE_L:06X}
   and #$30
-  beq nochord
+  bne chord2
+  jmp nochord
+chord2:
   lda_l ${MENUOPEN:06X}
-  bne chclose
+  bne chclosej
+  lda_l ${RECACTIVE:06X}
+  beq oprec
+  lda #$00
+  sta_l ${RECACTIVE:06X}
+  rep #$20
+  lda_l ${RECPTR:06X}
+  sta_l ${RECLEN:06X}
+  sep #$20
+oprec:
+  lda #$00
+  sta_l ${PLAYACTIVE:06X}
   lda #$01
   sta_l ${MENUOPEN:06X}
   lda #$01
   sta_l ${CURSOR:06X}
   lda #$00
   sta_l ${PAINTROW:06X}
+  sta_l ${PMODE:06X}
   lda #$FF
   sta_l ${CLEARROW:06X}
   sta_l ${REDRAW_A:06X}
-  bra nochord
-chclose:
+  jmp nochord
+chclosej:
   lda #$00
   sta_l ${MENUOPEN:06X}
   sta_l ${UIVIS:06X}
@@ -279,7 +356,52 @@ chclose:
   sta_l ${REDRAW_A:06X}
   lda #$02
   sta_l ${EATLINGER:06X}
+  lda_l ${SET_REC:06X}
+  beq ccnorec
+  lda #$00
+  sta_l ${SET_REC:06X}
+  lda #$01
+  sta_l ${RECACTIVE:06X}
+  rep #$20
+  lda #$0000
+  sta_l ${RECPTR:06X}
+  sep #$20
+  jmp nochord
+ccnorec:
+  lda_l ${SET_PLAY:06X}
+  bne ccplay1
+  jmp nochord
+ccplay1:
+  rep #$20
+  lda_l ${RECLEN:06X}
+  sep #$20
+  bne ccplay2
+  jmp nochord
+ccplay2:
+  lda #$01
+  sta_l ${PLAYACTIVE:06X}
+  rep #$20
+  lda #$0000
+  sta_l ${PLAYPTR:06X}
+  sep #$20
 nochord:
+  lda_l ${MENUOPEN:06X}
+  bne showdone
+  lda_l ${SET_SHOW:06X}
+  beq showdone
+  lda_l ${WIPED:06X}
+  bne showdone
+  lda_l ${PAINTROW:06X}
+  cmp #$FF
+  bne showdone
+  lda_l ${CLEARROW:06X}
+  cmp #$FF
+  bne showdone
+  lda #$00
+  sta_l ${PAINTROW:06X}
+  lda #$01
+  sta_l ${PMODE:06X}
+showdone:
 """
 
 
@@ -537,6 +659,88 @@ wbd:
   lda #$06
   sta_l ${BDPHASE:06X}
 nofire:
+  lda_l ${RECACTIVE:06X}
+  bne dorec
+  jmp injplay
+dorec:
+  lda $005D
+  sta_l ${CAPT_H:06X}
+  lda $005C
+  sta_l ${CAPT_L:06X}
+  lda #$01
+  sta $2183
+  rep #$20
+  lda_l ${RECPTR:06X}
+  clc
+  adc #${REC_BASE:04X}
+  sta $2181
+  sep #$20
+  lda_l ${CAPT_H:06X}
+  sta $2180
+  lda_l ${CAPT_L:06X}
+  sta $2180
+  rep #$20
+  lda_l ${RECPTR:06X}
+  inc_a
+  inc_a
+  sta_l ${RECPTR:06X}
+  cmp #${REC_MAX:04X}
+  sep #$20
+  bcc recok
+  lda #$00
+  sta_l ${RECACTIVE:06X}
+  rep #$20
+  lda_l ${RECPTR:06X}
+  sta_l ${RECLEN:06X}
+  sep #$20
+recok:
+  lda #$00
+  sta $005C
+  sta $005D
+  lda_l ${CAPT_H:06X}
+  sta $005F
+  lda_l ${CAPT_L:06X}
+  sta $005E
+  jmp injdone
+injplay:
+  lda_l ${PLAYACTIVE:06X}
+  bne doplay
+  jmp injos0
+doplay:
+  lda #$01
+  sta $2183
+  rep #$20
+  lda_l ${PLAYPTR:06X}
+  clc
+  adc #${REC_BASE:04X}
+  sta $2181
+  sep #$20
+  lda $2180
+  sta $005F
+  lda $2180
+  sta $005E
+  rep #$20
+  lda_l ${PLAYPTR:06X}
+  inc_a
+  inc_a
+  sta_l ${PLAYPTR:06X}
+  cmp_l ${RECLEN:06X}
+  sep #$20
+  bcc playok
+  lda_l ${SET_PLAY:06X}
+  cmp #$02
+  beq ploop
+  lda #$00
+  sta_l ${PLAYACTIVE:06X}
+  bra playok
+ploop:
+  rep #$20
+  lda #$0000
+  sta_l ${PLAYPTR:06X}
+  sep #$20
+playok:
+  jmp injdone
+injos0:
   lda_l ${OSFRAMES:06X}
   beq injbd
   dec_a
@@ -718,6 +922,126 @@ rfs1:
   lda #$00
   sta_l ${REFILLED1:06X}
 rfdone:
+  lda $1001
+  cmp #$04
+  bcc a1ok
+  cmp #$0C
+  beq a1ok
+  cmp #$0D
+  beq a1ok
+  lda #$00
+  sta_l ${CNT1:06X}
+  bra a1d
+a1ok:
+  lda_l ${CNT1:06X}
+  cmp #$FF
+  beq a1d
+  inc_a
+  sta_l ${CNT1:06X}
+a1d:
+  lda $1081
+  cmp #$04
+  bcc a2ok
+  cmp #$0C
+  beq a2ok
+  cmp #$0D
+  beq a2ok
+  lda #$00
+  sta_l ${CNT2:06X}
+  bra a2d
+a2ok:
+  lda_l ${CNT2:06X}
+  cmp #$FF
+  beq a2d
+  inc_a
+  sta_l ${CNT2:06X}
+a2d:
+  lda $1001
+  cmp #$0E
+  bcc ex1
+  cmp #$2A
+  bcs ex1
+  lda #$01
+  sta_l ${EXCH:06X}
+ex1:
+  lda $1081
+  cmp #$0E
+  bcc ex2
+  cmp #$2A
+  bcs ex2
+  lda #$01
+  sta_l ${EXCH:06X}
+ex2:
+  lda_l ${EXCH:06X}
+  bne adv0
+  jmp advttl
+adv0:
+  lda_l ${CNT1:06X}
+  beq advttlj
+  lda_l ${CNT2:06X}
+  beq advttlj
+  cmp #$01
+  beq settle2
+  lda_l ${CNT1:06X}
+  cmp #$01
+  beq settle1
+advttlj:
+  jmp advttl
+settle2:
+  lda_l ${CNT1:06X}
+  cmp #$02
+  bcc advttlj
+  dec_a
+  cmp #$0A
+  bcc s2ok
+  lda #$09
+s2ok:
+  sta_l ${ADVMAG:06X}
+  lda #$00
+  sta_l ${ADVSIGN:06X}
+  bra setshow
+settle1:
+  lda_l ${CNT2:06X}
+  cmp #$02
+  bcc advttlj
+  dec_a
+  cmp #$0A
+  bcc s1ok
+  lda #$09
+s1ok:
+  sta_l ${ADVMAG:06X}
+  lda #$01
+  sta_l ${ADVSIGN:06X}
+setshow:
+  lda #$5A
+  sta_l ${ADVTTL:06X}
+  lda #$01
+  sta_l ${ADVDIRTY:06X}
+  lda #$00
+  sta_l ${EXCH:06X}
+advttl:
+  lda_l ${ADVTTL:06X}
+  beq tmw
+  dec_a
+  sta_l ${ADVTTL:06X}
+  bne tmw
+  lda #$01
+  sta_l ${ADVDIRTY:06X}
+tmw:
+  lda_l ${UIVIS:06X}
+  bne tmwant1
+  lda_l ${SET_SHOW:06X}
+  beq tmwant0
+  lda_l ${WIPED:06X}
+  beq tmwant0
+tmwant1:
+  lda #$01
+  sta_l ${TMWANT:06X}
+  bra tmwd
+tmwant0:
+  lda #$00
+  sta_l ${TMWANT:06X}
+tmwd:
 """
 
 
@@ -952,6 +1276,17 @@ wipew:
   lda_l ${PAINTROW:06X}
   inc_a
   sta_l ${PAINTROW:06X}
+  cmp #${WIPEROWS + 1:02X}
+  bne wdone
+  lda_l ${PMODE:06X}
+  beq wdone
+  lda #$FF
+  sta_l ${PAINTROW:06X}
+  lda #$01
+  sta_l ${WIPED:06X}
+  sta_l ${INPDIRTY:06X}
+  sta_l ${ADVDIRTY:06X}
+wdone:
   jmp tmmgmt
 prow:
   sec
@@ -969,6 +1304,9 @@ painted:
   sta_l ${PAINTROW:06X}
   lda #$01
   sta_l ${UIVIS:06X}
+  sta_l ${WIPED:06X}
+  sta_l ${INPDIRTY:06X}
+  sta_l ${ADVDIRTY:06X}
 pfromrd:
   jmp tmmgmt
 pnx:
@@ -992,11 +1330,257 @@ nocurs:
   pla
 {redraw_chain}  jmp tmmgmt
 nordrw:
-  jmp tmmgmt
+  jmp disp
 dofont:
 {_font_dma(font_addr, font_bank, font_size, dst)}
   jmp tmmgmt
+
+disp:
+  lda_l ${SET_SHOW:06X}
+  bne d1
+  jmp tmmgmt
+d1:
+  lda_l ${WIPED:06X}
+  bne d2
+  jmp tmmgmt
+d2:
+  lda_l ${INPDIRTY:06X}
+  bne dinp
+  lda $005C
+  cmp_l ${SHOWPREV_L:06X}
+  bne dinp
+  lda $005D
+  cmp_l ${SHOWPREV_H:06X}
+  bne dinp
+  jmp dadv
+dinp:
+  lda #$00
+  sta_l ${INPDIRTY:06X}
+  lda $005C
+  sta_l ${SHOWPREV_L:06X}
+  lda $005D
+  sta_l ${SHOWPREV_H:06X}
+  rep #$20
+  lda #$1264
+  sta $2116
+  sep #$20
+  lda $005D
+  and #$08
+  rep #$20
+  bne lit0
+  lda #$2000
+  bra wr0
+lit0:
+  lda #$WORD_U
+wr0:
+  sta $2118
+  sep #$20
+  lda $005D
+  and #$04
+  rep #$20
+  bne lit1
+  lda #$2000
+  bra wr1
+lit1:
+  lda #$WORD_D
+wr1:
+  sta $2118
+  sep #$20
+  lda $005D
+  and #$02
+  rep #$20
+  bne lit2
+  lda #$2000
+  bra wr2
+lit2:
+  lda #$WORD_L
+wr2:
+  sta $2118
+  sep #$20
+  lda $005D
+  and #$01
+  rep #$20
+  bne lit3
+  lda #$2000
+  bra wr3
+lit3:
+  lda #$WORD_R
+wr3:
+  sta $2118
+  lda #$2000
+  sta $2118
+  sep #$20
+  lda $005D
+  and #$40
+  rep #$20
+  bne lit5
+  lda #$2000
+  bra wr5
+lit5:
+  lda #$WORD_L
+wr5:
+  sta $2118
+  sep #$20
+  lda $005D
+  and #$40
+  rep #$20
+  bne lit6
+  lda #$2000
+  bra wr6
+lit6:
+  lda #$WORD_P
+wr6:
+  sta $2118
+  lda #$2000
+  sta $2118
+  sep #$20
+  lda $005D
+  and #$80
+  rep #$20
+  bne lit8
+  lda #$2000
+  bra wr8
+lit8:
+  lda #$WORD_L
+wr8:
+  sta $2118
+  sep #$20
+  lda $005D
+  and #$80
+  rep #$20
+  bne lit9
+  lda #$2000
+  bra wr9
+lit9:
+  lda #$WORD_K
+wr9:
+  sta $2118
+  lda #$2000
+  sta $2118
+  sep #$20
+  lda $005C
+  and #$40
+  rep #$20
+  bne lit11
+  lda #$2000
+  bra wr11
+lit11:
+  lda #$WORD_H
+wr11:
+  sta $2118
+  sep #$20
+  lda $005C
+  and #$40
+  rep #$20
+  bne lit12
+  lda #$2000
+  bra wr12
+lit12:
+  lda #$WORD_P
+wr12:
+  sta $2118
+  lda #$2000
+  sta $2118
+  sep #$20
+  lda $005C
+  and #$80
+  rep #$20
+  bne lit14
+  lda #$2000
+  bra wr14
+lit14:
+  lda #$WORD_H
+wr14:
+  sta $2118
+  sep #$20
+  lda $005C
+  and #$80
+  rep #$20
+  bne lit15
+  lda #$2000
+  bra wr15
+lit15:
+  lda #$WORD_K
+wr15:
+  sta $2118
+  sep #$20
+dadv:
+  lda_l ${ADVDIRTY:06X}
+  bne dadv1
+  jmp tmmgmt
+dadv1:
+  lda #$00
+  sta_l ${ADVDIRTY:06X}
+  lda_l ${ADVTTL:06X}
+  bne advdraw
+  rep #$20
+  lda #$1276
+  sta $2116
+  lda #$2000
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  lda #$129B
+  sta $2116
+  lda #$2000
+  sta $2118
+  sep #$20
+  jmp tmmgmt
+advdraw:
+  rep #$20
+  lda #$1276
+  sta $2116
+  lda #$WORD_A
+  sta $2118
+  lda #$WORD_D
+  sta $2118
+  lda #$WORD_V
+  sta $2118
+  lda #$2000
+  sta $2118
+  sep #$20
+  lda_l ${ADVSIGN:06X}
+  rep #$20
+  bne sgm
+  lda #$2000
+  bra sgw
+sgm:
+  lda #$WORD_MINUS
+sgw:
+  sta $2118
+  sep #$20
+  lda_l ${ADVMAG:06X}
+  rep #$20
+  and #$00FF
+  clc
+  adc #$2C50
+  sta $2118
+  lda #$129B
+  sta $2116
+  sep #$20
+  lda_l ${ADVMAG:06X}
+  rep #$20
+  and #$00FF
+  clc
+  adc #$2C60
+  sta $2118
+  sep #$20
+  jmp tmmgmt
 {paint_blocks}"""
+    body = (body
+            .replace("$WORD_A", f"${0x2C00 | (GLYPH_TILE0 + idx['A']):04X}")
+            .replace("$WORD_D", f"${0x2C00 | (GLYPH_TILE0 + idx['D']):04X}")
+            .replace("$WORD_V", f"${0x2C00 | (GLYPH_TILE0 + idx['V']):04X}")
+            .replace("$WORD_L", f"${0x2C00 | (GLYPH_TILE0 + idx['L']):04X}")
+            .replace("$WORD_P", f"${0x2C00 | (GLYPH_TILE0 + idx['P']):04X}")
+            .replace("$WORD_K", f"${0x2C00 | (GLYPH_TILE0 + idx['K']):04X}")
+            .replace("$WORD_H", f"${0x2C00 | (GLYPH_TILE0 + idx['H']):04X}")
+            .replace("$WORD_U", f"${0x2C00 | (GLYPH_TILE0 + idx['U']):04X}")
+            .replace("$WORD_R", f"${0x2C00 | (GLYPH_TILE0 + idx['R']):04X}")
+            .replace("$WORD_MINUS", f"${0x2C00 | (GLYPH_TILE0 + idx['-']):04X}"))
     return _upl2_wrap(body)
 
 
@@ -1034,16 +1618,76 @@ def _upl2_wrap(body):
   sep #$20
 {body}tmmgmt:
   sep #$20
-  lda_l ${UIVIS:06X}
+  lda_l ${TMWANT:06X}
   cmp_l ${PREVUI:06X}
-  beq tmsteady
-  lda_l ${UIVIS:06X}
+  bne tmchg
+  jmp tmsteady
+tmchg:
+  lda_l ${TMWANT:06X}
   sta_l ${PREVUI:06X}
-  bne tmsteady
+  beq tmoff
+  jmp tmsteady
+tmoff:
   lda #${TM_OFF:02X}
   sta $212C
+  rep #$20
+  lda #$1264
+  sta $2116
+  lda #${BLANK:04X}
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  lda #$1284
+  sta $2116
+  lda #${BLANK:04X}
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sep #$20
 tmsteady:
-  lda_l ${UIVIS:06X}
+  lda_l ${TMWANT:06X}
   beq tmdone
   lda #${TM_ON:02X}
   sta $212C
