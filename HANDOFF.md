@@ -16,7 +16,7 @@ Playable roster (charID): 1 Moon, 2 Mercury, 3 Mars, 4 Jupiter, 5 Venus, 6 Uranu
 
 ## 1. Current state (2026-07-16) — everything green
 
-Nine patches, all built and verified in-emulator. The **canonical** shipping build is **v0.7**.
+Ten patches, all built and verified in-emulator. The **canonical** shipping build is **v0.7**.
 
 | # | Patch | Builder | Standalone BPS |
 |---|---|---|---|
@@ -30,6 +30,7 @@ Nine patches, all built and verified in-emulator. The **canonical** shipping bui
 | 7 | Pluto 5HP hits crouchers (OPTIONAL) | `mkpatch7.py` | `build/sms_pluto5hp.bps` |
 | 8 | Venus 6HP throw tech window 6f→13f (OPTIONAL) | `mkpatch8.py` | `build/sms_venustech.bps` |
 | 9 | Neptune Deep Submerge fireball hitbox tracks sprite (OPTIONAL) | `mkpatch9.py` | `build/sms_neptune_ds.bps` |
+| 10 | In-match combo counter, base game (OPTIONAL) | `mkpatch10.py` | `build/sms_combocounter.bps` |
 
 ### Playable ROMs (all in `build/`; `.sfc` are gitignored, rebuild from BPS)
 - **`SailorMoonS_FrenchName_v0.7_all5.sfc`** — SHA-1 `24aa6b6d…` — **CANONICAL** (patches 1–5).
