@@ -1,5 +1,5 @@
-CHARA = 6
-CHAR2 = 4
+CHARA = 7
+CHAR2 = 9
 CONFIRM = {a=true}
-TAG = "utm"
-SAVE = "uranus_vs_jupiter_tm.mss"
+TAG = "nep_chibi"
+SAVE = "neptune_vs_chibi.mss"

@@ -5,7 +5,9 @@
 -- Box format [x_off_r, w_r, x_off_l, w_l, y_off(signed), h, flags, ?]: origin at the feet,
 -- +y down; facing selects the (x_off, w) pair. Colors: attack red, hurt body green /
 -- head yellow, collision blue. Hurtboxes hidden while invulnerable (idx 0 / hurt>=0x80).
--- Projectile slots draw with their owner's tables. Toggle: key '8'.
+-- Projectile slots draw from their OWN object box table, selected by the projectile's +0x00
+-- object id (e.g. Neptune's Deep Submerge fireball = id 0x18 -> table $8A:FD51), NOT the
+-- owner's char table. Object ids run past the 9-char roster (10..27). Toggle: key '8'.
 local M = {}
 
 function M.init(ctx)
@@ -49,7 +51,8 @@ function M.init(ctx)
   end
 
   local function drawFor(base, snapP)
-    if not snapP or snapP.char == 0 or snapP.char > 9 then return end
+    -- char == box-table id: 1..9 fighters, 10..27 projectile/object tables; >=0x80 = despawned
+    if not snapP or snapP.char == 0 or snapP.char >= 0x80 then return end
     local s = ctx.snap
     local wramR = function(a) return emu.read(a, C.WRAM) end
     local x = wramR(base + 0x21) + 256 * wramR(base + 0x22)
@@ -80,7 +83,7 @@ function M.init(ctx)
     for i = 1, 2 do
       drawFor(C.BASE[i], s.p[i])
       if s.proj[i].alive then
-        drawFor(C.PROJ[i], { char = s.p[i].char })
+        drawFor(C.PROJ[i], { char = s.proj[i].char })   -- projectile's OWN object id
       end
     end
   end

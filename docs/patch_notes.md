@@ -802,6 +802,74 @@ from the other game.)*
 
 ---
 
+# Patch 9 — Neptune "Deep Submerge" fireball hitbox follows the sprite (OPTIONAL / experimental)
+
+Builder: `tools/mkpatch9.py` · standalone `build/sms_neptune_ds.bps` · combined
+`build/sms_full9_neptuneds.bps` → `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc`
+(sha1 `b1c3163f…`). OFF by default; canonical stays v0.7.
+
+## What & why
+Neptune's **Deep Submerge** projectile (214LP = action `0x62`, 214HP = action `0x63`) is the
+famously bugged move: the fireball **sprite descends** on a down-forward arc, but its
+**hitbox floats at head level** and doesn't follow — so it whiffs where it visually connects
+and connects where the ball isn't. This patch makes the hitbox track the ball for the whole
+descent. Sprite trajectory is treated as ground truth (the fix aligns the box to it).
+
+## Mechanism (measured in-emulator)
+- Deep Submerge spawns a **projectile object** into slot `$7E:1100`/`$7E:1180` (P1/P2). A
+  projectile picks its box table from the hit pointer table `$8A:C1F1` by its **own** `+0x00`
+  object id (not the owner's char id). Both LP and HP spawn object id **`0x18`** → hit table
+  **`$8A:FD51`** (file `0xAFD51`), which is **exclusive to this fireball** (pointer idx 24; no
+  character or other projectile shares it).
+- Box position is `screenY = origin_Y(+0x25) + y_off`. Traced (`tools/ds_trace.lua`): the
+  fireball's origin `+0x25` **descends** y=128→166 (Yvel +512 LP / +768 HP) while the visible
+  ball stays **centred on that origin** (extent ≈ origin ±11). But the hit-box `y_off` values
+  were authored for an **upward** path — they climb over the move: entries `1,2,3 = -27`,
+  entry `4 = -60`. So the box rises while the ball falls → the box floats 27–60px **above** the
+  ball ("mostly stays at head level"). Sprite and hitbox on opposite vertical paths = the bug.
+- Overlay (`tools/ds_overlay.lua`) renders the actual box vs the ball: vanilla box sits at
+  chest/head height with the ball down on the grass; on the last active frame (box 4) they are
+  ~40px apart, zero overlap.
+
+## Changed bytes (4 gameplay + checksum)
+Recentre every active hit box on the origin (where the ball is drawn): set each entry's
+`y_off` (byte +4) to **`-11`** (`0xF5`), keep height `h=22` and the x offsets. With `y_off=-11,
+h=22` the box spans origin −11..+11 = the ball, and being origin-relative-constant it now tracks
+the ball for the entire descent (LP and HP share the table).
+
+| file offset | entry | field | vanilla | patched |
+|---|---|---|---|---|
+| `0xAFD5D` | hit[1] | y_off | `-27` (0xE5) | `-11` (0xF5) |
+| `0xAFD65` | hit[2] | y_off | `-27` (0xE5) | `-11` (0xF5) |
+| `0xAFD6D` | hit[3] | y_off | `-27` (0xE5) | `-11` (0xF5) |
+| `0xAFD75` | hit[4] | y_off | `-60` (0xC4) | `-11` (0xF5) |
+
+Tunable: `mkpatch9.py --yoff <n>` (default `-11`; more negative biases the box higher, less
+negative lower). Only the hit boxes change — the fireball's hurt/collision boxes are untouched.
+
+## Verification (in-emulator, both LP and HP)
+- **Tracking:** patched overlay shows the box centred on the ball every active frame across the
+  descent (vs vanilla floating high). Both LP (boxes 1–4) and HP (boxes 1–2, same table).
+- **Connects at the true position/time:** crouching Chibi Moon — patched connects at **t=44**
+  with the ball at its real low position (Y=164, box 153–175); vanilla only connects at **t=52**
+  (8f later) after the ball travels deep onto Chibi and via the stray high box. Standing targets
+  (Chibi, Jupiter) still hit — full-height hurtboxes are unaffected.
+- **No side effects:** combined ROM differs from canonical v0.7 by **exactly 6 bytes** — the 4
+  `y_off` bytes above + 2 checksum bytes. Neptune's normals/DP/super and every other
+  character's projectile are byte-identical (table `$8A:FD51` is fireball-exclusive).
+- **BPS round-trip:** `sms_full9_neptuneds.bps` re-applies to sha1 `b1c3163f…`.
+- **Impact (surface for the pad):** this is a legitimacy fix but changes coverage — the fireball
+  now reliably hits low/crouching targets where the ball passes, and loses the *phantom*
+  head-level hit (it no longer clips targets the ball visually flies under). No damage/startup
+  change.
+
+*(A related observation, NOT changed: the fireball's **hurtbox** (its vulnerability, for players
+who try to destroy the fireball) uses the separate hurt table and may share the same
+authored-upward mismatch; left untouched since the request was the hitbox. One-flag follow-up if
+wanted.)*
+
+---
+
 # Applying (summary)
 
 ```
@@ -814,6 +882,7 @@ flips --apply build/sms_dashdist.bps           <clean ROM> <out>   # patch 5
 flips --apply build/sms_dashinvuln.bps         <clean ROM> <out>   # patch 6 (optional)
 flips --apply build/sms_pluto5hp.bps           <clean ROM> <out>   # patch 7 (optional)
 flips --apply build/sms_venustech.bps          <clean ROM> <out>   # patch 8 (optional)
+flips --apply build/sms_neptune_ds.bps         <clean ROM> <out>   # patch 9 (optional)
 
 # combined
 flips --apply build/sms_both.bps  <clean ROM> <out>   # patches 1 + 2
@@ -823,6 +892,7 @@ flips --apply build/sms_full5.bps <clean ROM> <out>   # patches 1 + 2 + 3 + 4 + 
 flips --apply build/sms_full6_v08_dashinvuln.bps <clean ROM> <out>  # canonical + patch 6
 flips --apply build/sms_full7_pluto5hp.bps       <clean ROM> <out>  # canonical + patch 7
 flips --apply build/sms_full8_venustech.bps      <clean ROM> <out>  # canonical + patch 8
+flips --apply build/sms_full9_neptuneds.bps      <clean ROM> <out>  # canonical + patch 9
 
 # stacking IPS onto an already-patched ROM (checksum-free variants)
 flips --apply build/sms_dashfix.ips <1f-link ROM> <out>
