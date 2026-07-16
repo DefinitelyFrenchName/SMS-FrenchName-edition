@@ -8,6 +8,11 @@
 -- Projectile slots draw from their OWN object box table, selected by the projectile's +0x00
 -- object id (e.g. Neptune's Deep Submerge fireball = id 0x18 -> table $8A:FD51), NOT the
 -- owner's char table. Object ids run past the 9-char roster (10..27). Toggle: key '8'.
+--
+-- Only the HIT pointer table ($8A:C1F1) was extended for projectiles; the HURT/COLL pointer
+-- tables are roster-only (10 entries). So for a projectile (id >= 10) hurt/coll would index
+-- garbage and draw a flickering phantom box — and projectiles have no gameplay hurtbox anyway
+-- (not destructible). So projectiles draw their HIT box only.
 local M = {}
 
 function M.init(ctx)
@@ -65,10 +70,13 @@ function M.init(ctx)
     local hurtState = wramR(base + 0x46)
     local step = wramR(base + 0x02)
     local T = tablesFor(snapP.char)
-    if coll ~= 0 then drawBox(sx, sy, T.coll + coll * 8, facingLeft, 0x4060E0) end
-    if hub ~= 0 and hurtState < 0x80 then
-      drawBox(sx, sy, T.hurt + hub * 16, facingLeft, 0x40C040)      -- body
-      drawBox(sx, sy, T.hurt + hub * 16 + 8, facingLeft, 0xC0FF00)  -- head
+    local isProj = snapP.char >= 10   -- projectiles: only the HIT table is valid (see header)
+    if not isProj then
+      if coll ~= 0 then drawBox(sx, sy, T.coll + coll * 8, facingLeft, 0x4060E0) end
+      if hub ~= 0 and hurtState < 0x80 then
+        drawBox(sx, sy, T.hurt + hub * 16, facingLeft, 0x40C040)      -- body
+        drawBox(sx, sy, T.hurt + hub * 16 + 8, facingLeft, 0xC0FF00)  -- head
+      end
     end
     if hb ~= 0 and step >= 1 then
       drawBox(sx, sy, T.hit + hb * 8, facingLeft, 0xE03028)
