@@ -342,6 +342,31 @@ tests.T5 = (function()
   return T
 end)()
 
+-- T6: regen module — P1 5LP hits P2 at t=64 (hp 0x60->0x5E); HP must stay down through
+-- the 2s window, restore to max (+0x4A) after, and the frozen round timer must not tick.
+tests.T6 = {
+  STATE = "venus_vs_jupiter_clean.mss",
+  POKES = { { t = 5, addr = 0x1021, val = 0xE8 } },
+  PLAN1 = { [60] = { y = true }, [63] = {} },
+  DONE = 230,
+  CHECKS = {
+    { t = 20, fn = function(ctx)
+        ctx._timer0 = emu.read(0x0802, ctx.C.WRAM)
+        return true, string.format("timer captured %02X", ctx._timer0) end },
+    { t = 100, fn = function(ctx)
+        local hp = ctx.snap.p[2].hp
+        return hp == 0x5E, string.format("t100 hp=%02X (want 5E, still damaged)", hp) end },
+    { t = 200, fn = function(ctx)
+        local p = ctx.snap.p[2]
+        return p.hp == p.maxhp,
+               string.format("t200 hp=%02X max=%02X (want restored)", p.hp, p.maxhp) end },
+    { t = 220, fn = function(ctx)
+        local tv = emu.read(0x0802, ctx.C.WRAM)
+        return tv == ctx._timer0,
+               string.format("t220 timer=%02X (want frozen at %02X)", tv, ctx._timer0) end },
+  },
+}
+
 -- ---------- harness ----------
 local T = tests[TEST]
 if not T then error("unknown TEST " .. tostring(TEST)) end

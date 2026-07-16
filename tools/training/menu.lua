@@ -47,6 +47,10 @@ function M.init(ctx)
                   function(d) ctx.ui.sConvSF6 = not ctx.ui.sConvSF6 end },
     { "meter",    function() return ctx.ui.meterMode end,
                   function(d) ctx.ui.meterMode = (ctx.ui.meterMode == "auto") and "frozen" or "auto" end },
+    { "timer",    function() return ctx.mod.regen.timerFreeze and "frozen" or "running" end,
+                  function(d) ctx.mod.regen.timerFreeze = not ctx.mod.regen.timerFreeze end },
+    { "hp regen", function() return ctx.mod.regen.hpRegen and "2s to max" or "off" end,
+                  function(d) ctx.mod.regen.hpRegen = not ctx.mod.regen.hpRegen end },
   }
 
   local function saveSettings()
@@ -54,9 +58,10 @@ function M.init(ctx)
       local f = assert(io.open(SETTINGS, "w"))
       f:write(string.format(
         "return { pose=%q, guard=%q, tech=%s, wakeup=%q, trigger=%q, hudMode=%d, " ..
-        "hudScale=%d, hitboxes=%s, sConvSF6=%s }\n",
+        "hudScale=%d, hitboxes=%s, sConvSF6=%s, timerFreeze=%s, hpRegen=%s }\n",
         dm().pose, dm().guard, tostring(dm().tech), dm().wakeup, rec().trigger,
-        ctx.ui.hudMode, ctx.cfg.hudScale, tostring(ctx.ui.hitboxes), tostring(ctx.ui.sConvSF6)))
+        ctx.ui.hudMode, ctx.cfg.hudScale, tostring(ctx.ui.hitboxes), tostring(ctx.ui.sConvSF6),
+        tostring(ctx.mod.regen.timerFreeze), tostring(ctx.mod.regen.hpRegen)))
       f:close()
     end)
   end
@@ -71,6 +76,8 @@ function M.init(ctx)
       ctx.cfg.hudScale = s.hudScale or ctx.cfg.hudScale
       if s.hitboxes ~= nil then ctx.ui.hitboxes = s.hitboxes end
       if s.sConvSF6 ~= nil then ctx.ui.sConvSF6 = s.sConvSF6 end
+      if s.timerFreeze ~= nil then ctx.mod.regen.timerFreeze = s.timerFreeze end
+      if s.hpRegen ~= nil then ctx.mod.regen.hpRegen = s.hpRegen end
     end
   end
   loadSettings()
