@@ -90,6 +90,7 @@ REGENT = ST + 0x36
 HPSHAD2 = ST + 0x37
 REFILLED2 = ST + 0x38   # we refilled P2 during this knockdown -> force standup at 0x1E
 REFILLED1 = ST + 0x39
+GOTHIT = ST + 0x3A      # P2 has been hit/thrown (guard=afterhit latch, oracle semantics)
 
 # ---------------- BG3 / font ----------------
 BG3_CHR = 0x5000
@@ -110,7 +111,7 @@ CUR_OFF, NAME_OFF, VAL_OFF = 1, 3, 10
 MENU = [
     ("TRAINING", None, None),                                  # 0: title
     ("POSE",   SET_POSE,  ["STAND", "CROUCH", "JUMP"]),        # 1
-    ("GUARD",  SET_GUARD, ["OFF", "ALL"]),                     # 2
+    ("GUARD",  SET_GUARD, ["OFF", "ALL", "HIT"]),              # 2 (HIT = after first hit)
     ("WAKEUP", SET_WAKE,  ["OFF", "JAB", "THROW", "DASH"]),    # 3
     ("TECH",   SET_TECH,  ["OFF", "ON"]),                      # 4
     ("DAMAGE", SET_DMG,   ["OFF", "ON"]),                      # 5
@@ -211,6 +212,7 @@ ginit:
   sta_l ${TECHPHASE:06X}
   sta_l ${REGENT:06X}
   sta_l ${RESETREQ:06X}
+  sta_l ${GOTHIT:06X}
   sta_l ${UIVIS:06X}
   sta_l ${PREVUI:06X}
   sta_l ${CURSDIRT:06X}
@@ -454,6 +456,7 @@ rsgo:
   sta_l ${OSFRAMES:06X}
   sta_l ${BDPHASE:06X}
   sta_l ${TECHPHASE:06X}
+  sta_l ${GOTHIT:06X}
 rsfail:
 rsdone:
 """
@@ -487,6 +490,20 @@ arm:
   lda #$01
   sta_l ${WAKEARMED:06X}
 wadone:
+  lda $1081
+  cmp #$10
+  bcc gh1
+  cmp #$19
+  bcc ghset
+gh1:
+  cmp #$1B
+  bcc ghdone
+  cmp #$1E
+  bcs ghdone
+ghset:
+  lda #$01
+  sta_l ${GOTHIT:06X}
+ghdone:
   lda_l ${WAKEARMED:06X}
   beq nofire
   lda $1081
@@ -572,6 +589,11 @@ toff:
 injguard:
   lda_l ${SET_GUARD:06X}
   beq injpose
+  cmp #$01
+  beq doguard
+  lda_l ${GOTHIT:06X}
+  beq injpose
+doguard:
   lda_l ${SIDEBACK:06X}
   ora #$04
   sta $005F
