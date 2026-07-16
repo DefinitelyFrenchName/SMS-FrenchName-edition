@@ -19,7 +19,7 @@ tools/training_cfg.lua      <- optional user config (safe to delete; defaults ap
 tools/training/             <- the module package (all required)
     main.lua  const.lua  gamestate.lua  input.lua  recorder.lua  dummy.lua
     framedata.lua  combo.lua  labels.lua  regen.lua  menu.lua  hud.lua
-    hud_panel.lua  hud_bar.lua  hud_pianoroll.lua  hud_boxes.lua  hitbox_h.lua
+    hud_panel.lua  hud_bar.lua  hud_pianoroll.lua  hud_boxes.lua  hud_combo.lua  hitbox_h.lua
 tools/training_test.lua     <- headless self-test harness (optional, for development)
 tools/training_test_cfg.lua <- selects which self-test runs (optional)
 traces/                     <- recordings + settings are saved here at runtime

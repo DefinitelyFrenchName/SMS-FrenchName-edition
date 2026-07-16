@@ -112,12 +112,20 @@ that's the number that governs the Uranus infinite, for example).
 | THROWN | Throw completed (full damage) |
 | TRADE | Both players' hits connect on the same frame |
 
-## Combo counter
+## Combo counter (on-screen overlay)
 
-`N HITS · M DMG` in the panel. A hit landing after the defender had **any actionable
-frame** restarts the count and tags it as a reset (fake pressure) — a string with no
-actionable gap counts as one true combo. Note the frame-perfect N=6 meaty *continues* the
-combo: measured, the defender genuinely has zero actionable frames against it.
+A big `N HITS` counter appears under the **attacker's** health bar (left when you combo
+the dummy, right when P2 combos you) from 2 hits, with the damage total under it, and
+lingers ~1.2 s after the chain ends. It counts **true chains only**: a hit landing after
+the defender had *any* actionable frame restarts the count — a displayed number is always
+a sequence the defender could not have interrupted.
+
+Colors:
+- **GOLD** — classic true chain: every follow-up landed while the defender was still in stun.
+- **MAGENTA + `1F` tag** — the chain contains at least one **non-bufferable link**: a hit
+  that landed on the defender's first possible out-of-stun frame (the 1-frame meaty — the
+  canonical Uranus infinite lights up magenta when performed frame-perfectly). One frame
+  later and the defender would have been free, so these links cannot be buffered.
 
 ## Hitbox viewer (`8`)
 
