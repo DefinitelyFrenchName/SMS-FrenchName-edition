@@ -18,7 +18,7 @@ The base game's Practice mode upgraded in-ROM (works on hardware): **L+R opens a
 recording into a $7F:E000 WMDATA ring, puppet-record) / SHOW (live input display + ADV ±N)
 / RESET. Dummy driven by rewriting P2's pad words at the joy_read tail ($80:8373 hook) —
 the Lua trainer's mechanism, in 65816. Second hook $80:D574 (vblank) does all VRAM/TM work.
-Native Start=movelist / Select=exit preserved. See `docs/patch_notes.md` Patch 11 for the
+Native Start=movelist / Select=exit preserved. See `docs/trainingplus.md` (dedicated guide) and `docs/patch_notes.md` Patch 11 for the
 pad guide, the RE facts (mode 4/5 semantics, dead HUD producer, BG3=movelist layer,
 TM management, KO-latch standup trick, bank-$7F state) and the full verification list.
 

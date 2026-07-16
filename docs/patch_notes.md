@@ -1040,6 +1040,8 @@ and `patch_notes_title.md`; this file is the consolidated reference.
 
 # Patch 11 (OPTIONAL) — In-ROM training mode upgrade ("Training+")
 
+**User guide: `docs/trainingplus.md`** (install, menu reference, drills, internals summary).
+
 **Builder:** `tools/mkpatch11.py [src] [out] [--stage pipe|tier1]` (stacks on any patch 1-10 ROM, any order)
 **Standalone BPS:** `build/sms_trainingplus.bps` (clean+11, ROM sha1 `42add705…`)
 **Canonical+11 BPS:** `build/sms_full11_trainingplus.bps` (v0.7 five + 11, sha1 `09106a07…`)
