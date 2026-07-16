@@ -1,6 +1,6 @@
 # HANDOFF — SMS Sailor Moon S balance/feature patch project
 
-**Read this first.** It is the operational map: current state, deliverables, how to build,
+**Read this first.** (New session? `docs/NEXT_SESSION.md` is the 60-second orientation.) It is the operational map: current state, deliverables, how to build,
 how to test, what was learned, and the traps. Deep per-patch detail is in
 `docs/patch_notes.md`; **how the engine works, by subsystem, is in
 `docs/sms_engine_internals.md`** (the synthesis — read it to understand or modify the game);
