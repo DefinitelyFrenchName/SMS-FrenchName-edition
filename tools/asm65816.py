@@ -40,6 +40,8 @@ def assemble(lines, org, bank):
             return 3  # absolute
         if mn in ("jml","jmp"):
             return 4 if mn == "jml" else 3
+        if mn in ("lda_l","sta_l","cmp_l"):
+            return 4  # long addressing: opcode + 24-bit address
         raise ValueError(f"size: unknown {mn} {op}")
 
     def apply_flags(mn, op, m, x):
@@ -81,6 +83,7 @@ def assemble(lines, org, bank):
               "tax":0xAA,"txa":0x8A,"tay":0xA8,"tya":0x98,"xba":0xEB,"clc":0x18,"sec":0x38,
               "inc_a":0x1A,"dec_a":0x3A,"inx":0xE8,"dex":0xCA,"iny":0xC8,"dey":0x88,"nop":0xEA}
     BR = {"bra":0x80,"bcc":0x90,"bcs":0xB0,"beq":0xF0,"bne":0xD0,"bpl":0x10,"bmi":0x30}
+    LONG = {"lda_l":0xAF,"sta_l":0x8F,"cmp_l":0xCF}   # 24-bit absolute-long, DBR-independent
     # absolute opcodes: (imm, abs)
     OPS = {"lda":(0xA9,0xAD),"sta":(None,0x8D),"cmp":(0xC9,0xCD),"ldx":(0xA2,0xAE),
            "stx":(None,0x8E),"ldy":(0xA0,0xAC),"sty":(None,0x8C),"adc":(0x69,0x6D),
@@ -113,6 +116,9 @@ def assemble(lines, org, bank):
                 out += bytes([0x5C, addr & 0xFF, (addr >> 8) & 0xFF, bk]); pc += 4
             else:
                 out += bytes([0x4C, addr & 0xFF, (addr >> 8) & 0xFF]); pc += 3
+        elif mn in LONG:
+            v = int(op.replace("$",""), 16)
+            out += bytes([LONG[mn], v & 0xFF, (v >> 8) & 0xFF, (v >> 16) & 0xFF]); pc += 4
         elif mn in OPS:
             imm_op, abs_op = OPS[mn]
             if op.startswith("#"):
