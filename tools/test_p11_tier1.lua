@@ -49,6 +49,23 @@ local PHASES = {
       check("guard-blockstun", saw.blockstun)
       check("guard-nohp", ram(0x10C9) == 0x60, string.format("hp=%02X", ram(0x10C9)))
     end },
+  { name = "guard-afterhit", dur = 160,
+    tick = function(pt)
+      if pt == 5 then stw(0x21, 2) end
+      if pt == 10 then p2close() end
+      if pt >= 24 and pt <= 25 then pulse[0] = { down = true, y = true } elseif pt == 26 then pulse[0] = nil end
+      if pt >= 90 and pt <= 91 then pulse[0] = { down = true, y = true } elseif pt == 92 then pulse[0] = nil end
+      if pt == 85 then p2close() end
+      local a = ram(0x1081)
+      if pt < 60 and a >= 0x10 and a <= 0x16 then saw.firsthit = true end
+      if pt > 90 and a == 0x0F then saw.thenblock = true end
+      if pt > 90 and a >= 0x10 and a <= 0x16 then saw.secondhit = true end
+    end,
+    fin = function()
+      check("afterhit-first-connects", saw.firsthit)
+      check("afterhit-then-blocks", saw.thenblock and not saw.secondhit,
+        string.format("block=%s hit2=%s", tostring(saw.thenblock), tostring(saw.secondhit)))
+    end },
   { name = "pose-crouch", dur = 40,
     tick = function(pt) if pt == 5 then stw(0x20, 1) end end,
     fin = function() check("crouch", ram(0x1081) == 0x03, string.format("act=%02X", ram(0x1081))) end },
