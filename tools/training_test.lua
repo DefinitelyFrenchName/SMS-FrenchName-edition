@@ -104,22 +104,174 @@ tests.T2H = {
   },
 }
 
+-- T3: recorder round-trip. Phase A: drive the dummy (P2) directly with a scripted 2LK and
+-- record its act sequence as baseline. Phase B: reload, feed the SAME script through the
+-- user pad with pad-swap + recording armed. Phase C: reload, play the slot back and assert
+-- the dummy's act sequence is IDENTICAL to baseline. Also unit-checks direction mirroring.
+tests.T3 = (function()
+  local plan = { [60] = { down = true, b = true }, [64] = {}, [70] = { b = true }, [72] = {} }
+  local phase = "A"
+  local baseline, replay = {}, {}
+  -- stateless latched lookup (a stateful cursor would be corrupted by the one stray frame
+  -- that runs between requesting a savestate reload and the reload actually happening)
+  local function planPad(t)
+    local bestK, best = -1, {}
+    for k, v in pairs(plan) do
+      if k <= t and k > bestK then bestK, best = k, v end
+    end
+    local out = {}
+    for kk, vv in pairs(C0.FALSE_PAD) do out[kk] = vv end
+    for kk, vv in pairs(best) do out[kk] = vv end
+    return out
+  end
+  local T
+  T = {
+    STATE = "venus_vs_jupiter_clean.mss",
+    DONE = 1e9,   -- custom end
+    CHECKS = {},
+    padSource = function(ctx, port)
+      local t = ctx.t
+      if t < 0 then return C0.FALSE_PAD end
+      if phase == "A" and port == 1 then return planPad(t) end
+      if phase == "B" and port == 0 then return planPad(t) end
+      return C0.FALSE_PAD
+    end,
+    ONFRAME = function(ctx, log, finish)
+      local rec = ctx.mod.recorder
+      local t = ctx.t
+      if phase == "A" then
+        if t >= 55 and t <= 100 then baseline[#baseline + 1] = ctx.snap.p[2].act end
+        if t == 101 then
+          -- unit: direction normalization round-trip
+          local inp = ctx.mod.input
+          local m = inp.maskOf({ left = true, y = true }, false)  -- P on right side: left = fwd
+          local ok1 = m == (ctx.C.M_FWD + ctx.C.M_LP)
+          local pad = inp.padOf(ctx.C.M_FWD, true)                -- on left side: fwd = right
+          local ok2 = pad.right and not pad.left
+          log((ok1 and ok2) and "PASS: direction mirror round-trip"
+              or string.format("FAIL: mirror m=%X right=%s", m, tostring(pad.right)))
+          phase = "B"; applied = nil; cur = {}
+          ctx.anchor.loadreq = T._state
+        end
+      elseif phase == "B" then
+        if t == 5 then ctx.actions.record(ctx) end       -- arm + pad-swap
+        if t == 101 then
+          ctx.actions.record(ctx)                        -- end recording
+          local n = #rec.slots[rec.cur]
+          log(n > 10 and ("PASS: recorded " .. n .. " frames")
+              or ("FAIL: recorded only " .. n .. " frames"))
+          phase = "C"; applied = nil; cur = {}
+          ctx.anchor.loadreq = T._state
+        end
+      elseif phase == "C" then
+        if t == 59 then ctx.actions.play(ctx) end        -- playback begins at t=60's poll
+        if t >= 55 and t <= 100 then replay[#replay + 1] = ctx.snap.p[2].act end
+        if t == 101 then
+          local same, diffAt = true, nil
+          for k = 1, #baseline do
+            if baseline[k] ~= replay[k] then same = false; diffAt = k; break end
+          end
+          log(same and "PASS: playback act sequence identical to baseline"
+              or string.format("FAIL: diverges at idx %d (base %02X vs %02X)",
+                  diffAt, baseline[diffAt] or 255, replay[diffAt] or 255))
+          finish()
+        end
+      end
+    end,
+  }
+  return T
+end)()
+
+-- T4: dummy guard + combo counter vs the v0.7 infinite rep (RUN ON THE v0.7-family ROM,
+-- e.g. build/SailorMoonS_FrenchName_v0.7_all5_venustech.sfc — patch 8 doesn't touch this).
+-- Sequence = demo_link's rep: 2LP > 2HP > 66 > follow-up 2LP at FV. Dummy: crouch, then
+-- guard-all from t=100 (down-back). Oracle (HANDOFF reversal matrix / demo_link):
+--   FV=115 frame-perfect: the meaty HITS through same-frame block; combo restarts at 1.
+--   FV=116 one late:      the dummy BLOCKS (blockstun 0x0E/0F, no damage).
+tests.T4 = (function()
+  local phase = "meaty"          -- then "late"
+  local FV = 115
+  local hpAt110, sawHit, sawBlock = nil, false, false
+  local function plan(t)
+    local kf = { {10,{down=true}}, {60,{down=true,y=true}}, {62,{down=true}},
+                 {77,{down=true,x=true}}, {80,{down=true}},
+                 {95,{}}, {97,{right=true}}, {98,{}}, {99,{right=true}}, {101,{}},
+                 {FV,{down=true,y=true}}, {FV+2,{down=true}} }
+    local best = {}
+    for _, e in ipairs(kf) do if e[1] <= t then best = e[2] end end
+    local out = {}
+    for kk, vv in pairs(C0.FALSE_PAD) do out[kk] = vv end
+    for kk, vv in pairs(best) do out[kk] = vv end
+    return out
+  end
+  local T
+  T = {
+    STATE = "uranus_vs_jupiter_v07.mss",
+    DONE = 1e9,
+    CHECKS = {},
+    POKES = { { t = 5, addr = 0x1021, val = 0xE8 } },
+    padSource = function(ctx, port)
+      if port == 0 and ctx.t >= 0 then return plan(ctx.t) end
+      return C0.FALSE_PAD
+    end,
+    ONFRAME = function(ctx, log, finish)
+      local t = ctx.t
+      local dm = ctx.mod.dummy
+      if t == 2 then dm.pose = "crouch"; dm.guard = "off"; dm.wakeup = "off" end
+      if t == 100 then dm.guard = "all" end
+      if t == 95 and phase == "meaty" then
+        local c = ctx.combo[2]
+        log((c.hits == 2 and not c.reset)
+            and "PASS: 2LP>2HP combo = 2 hits TRUE"
+            or string.format("FAIL: combo hits=%s reset=%s",
+                tostring(c.hits), tostring(c.reset)))
+      end
+      if t == 110 then hpAt110 = ctx.snap.p[2].hp; sawHit = false; sawBlock = false end
+      if t > 110 and t <= 135 then
+        if ctx.snap.p[2].hp < (hpAt110 or 0) then sawHit = true end
+        if C0.isBlockstunAct(ctx.snap.p[2].act) then sawBlock = true end
+      end
+      if t == 136 then
+        if phase == "meaty" then
+          log(sawHit and "PASS: FV=115 meaty hits through same-frame block"
+              or "FAIL: FV=115 meaty did not hit")
+          -- the frame-perfect N=6 meaty gives the defender ZERO actionable frames (it lands
+          -- on their first out-of-hitstun frame and hit beats same-frame block — reversal
+          -- matrix: nothing escapes), so the combo counter correctly CONTINUES: 3 hits.
+          local c = ctx.combo[2]
+          log((c.hits == 3 and not c.reset)
+              and "PASS: seamless meaty continues combo (3 hits, no reset)"
+              or string.format("FAIL: combo hits=%s reset=%s after meaty",
+                  tostring(c.hits), tostring(c.reset)))
+          phase = "late"; FV = 116
+          ctx.anchor.loadreq = T._state
+        else
+          log((sawBlock and not sawHit) and "PASS: FV=116 is blocked (guard-all works)"
+              or string.format("FAIL: late meaty sawHit=%s sawBlock=%s",
+                  tostring(sawHit), tostring(sawBlock)))
+          finish()
+        end
+      end
+    end,
+  }
+  return T
+end)()
+
 -- ---------- harness ----------
 local T = tests[TEST]
 if not T then error("unknown TEST " .. tostring(TEST)) end
 local log = io.open(TRACE .. "training_test_" .. TEST .. ".txt", "w")
 local fails, ran = 0, 0
 
-local applied = { nil, nil }
-local cur = { {}, {} }
 local function planPad(plan, which, t)
   if not plan then return FALSE end
+  local bestK, best = -1, {}
   for k, v in pairs(plan) do
-    if k <= t and k > (applied[which] or -1) then cur[which] = v; applied[which] = k end
+    if k <= t and k > bestK then bestK, best = k, v end
   end
   local out = {}
   for kk, vv in pairs(FALSE) do out[kk] = vv end
-  for kk, vv in pairs(cur[which]) do out[kk] = vv end
+  for kk, vv in pairs(best) do out[kk] = vv end
   return out
 end
 
@@ -128,7 +280,9 @@ local main = dofile(ROOT .. "training/main.lua")
 ctxRef = main.run(ROOT, {
   headless = true,
   padSource = function(port)
-    local t = ctxRef and ctxRef.t or -1
+    if not ctxRef then return FALSE end
+    if T.padSource then return T.padSource(ctxRef, port) end
+    local t = ctxRef.t
     if t < 0 then return FALSE end
     return planPad(port == 0 and T.PLAN1 or T.PLAN2, port + 1, t)
   end,
@@ -137,7 +291,19 @@ ctxRef = main.run(ROOT, {
 ctxRef.onFirstExec = function(ctx)
   local f = io.open(TRACE .. T.STATE, "rb")
   if not f then log:write("FAIL: no state " .. T.STATE .. "\n"); log:close(); emu.stop(1); return end
-  ctx.anchor.loadreq = f:read("*a"); f:close()
+  T._state = f:read("*a"); f:close()
+  ctx.anchor.loadreq = T._state
+end
+
+local function logLine(s)
+  ran = ran + 1
+  if s:sub(1, 4) == "FAIL" then fails = fails + 1 end
+  log:write(s .. "\n"); log:flush()
+end
+local function finish()
+  log:write(string.format("%s: %d checks, %d failed\n", TEST, ran, fails))
+  log:close()
+  emu.stop(fails == 0 and 0 or 1)
 end
 
 -- checks run as a frame hook AFTER all module hooks (appended last)
@@ -149,18 +315,12 @@ table.insert(ctxRef.hooks.frame, function(ctx)
   end
   for _, chk in ipairs(T.CHECKS) do
     if chk.t == ctx.t then
-      ran = ran + 1
       local ok, msg = chk.fn(ctx)
-      log:write((ok and "PASS: " or "FAIL: ") .. (msg or "") .. "\n")
-      log:flush()
-      if not ok then fails = fails + 1 end
+      logLine((ok and "PASS: " or "FAIL: ") .. (msg or ""))
     end
   end
-  if ctx.t == T.DONE then
-    log:write(string.format("%s: %d checks, %d failed\n", TEST, ran, fails))
-    log:close()
-    emu.stop(fails == 0 and 0 or 1)
-  end
+  if T.ONFRAME then T.ONFRAME(ctx, logLine, finish) end
+  if ctx.t == T.DONE then finish() end
 end)
 
 print("training_test loaded: " .. TEST)
