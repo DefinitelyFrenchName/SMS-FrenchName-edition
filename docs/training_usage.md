@@ -124,9 +124,11 @@ hurtbox, blue = collision/push box. Hurtboxes disappear while a character is inv
 that's the actual invulnerability mechanism in this engine, so what you see is what hits.
 Box data is read live from the ROM, so box-altering patches (e.g. patch 7) render truthfully.
 
-## Piano roll (right edge)
+## Piano roll (left edge)
 
 Your inputs per frame, newest at the bottom: direction as numpad notation (2 = down,
 6 = forward, 3 = down-forward…), then `P K P K` columns = LP LK HP HK (light/dark shades).
 Identical consecutive frames compress into one row with `xN`. While you record or the dummy
-plays back, the roll switches to P2's inputs so you can inspect the recording.
+plays back, the roll switches to P2's inputs and moves to the **right edge** — it always
+sits on the tracked player's own side, so it never masks the corner your carry pushes
+toward.

@@ -1,10 +1,14 @@
--- hud_pianoroll.lua — TAStudio-style per-frame input history strip (ScriptHud, right edge).
+-- hud_pianoroll.lua — TAStudio-style per-frame input history strip (ScriptHud).
 --
 -- One row per frame scrolling upward (newest at the bottom), showing the tracked player's
 -- inputs: direction as numpad notation (fighting-game standard: 1=down-back .. 9=up-fwd,
 -- 5 omitted) + one colored letter column per button (P K H K = LP LK HP HK). Consecutive
 -- identical rows compress into one row with a xN count. Shows P1 by default; auto-switches
 -- to the dummy side while recording/playing back.
+--
+-- The strip anchors to the TRACKED PLAYER'S side of the screen: P1 -> LEFT edge (P1's
+-- corner carry goes rightward, so a right-edge roll would mask the action), P2 (while you
+-- record/drive the dummy) -> right edge for the mirror reason.
 local M = {}
 
 function M.init(ctx)
@@ -61,7 +65,7 @@ function M.init(ctx)
     local surf = hud.hudSurface()
     if not surf or #rows == 0 then return end
     local w = surf.visibleWidth or surf.width
-    local x0 = w - 58
+    local x0 = (trackedPlayer() == 1) and 6 or (w - 58)   -- tracked player's side
     local rowH = 9
     local nShow = math.min(#rows, ctx.cfg.rollRows)
     local yTop = 40
