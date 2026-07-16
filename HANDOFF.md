@@ -2,7 +2,9 @@
 
 **Read this first.** It is the operational map: current state, deliverables, how to build,
 how to test, what was learned, and the traps. Deep per-patch detail is in
-`docs/patch_notes.md`; address-level notes in `docs/annotations.md`; the verified ROM map in
+`docs/patch_notes.md`; **how the engine works, by subsystem, is in
+`docs/sms_engine_internals.md`** (the synthesis — read it to understand or modify the game);
+address-level notes in `docs/annotations.md`; the verified ROM map in
 `docs/sms_uranus_rom_map.md`. Persistent findings also live in the memory file
 `uranus-patch-state.md`.
 

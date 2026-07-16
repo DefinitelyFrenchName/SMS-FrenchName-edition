@@ -148,7 +148,9 @@ hurtbox, blue = collision/push box. Hurtboxes disappear while a character is inv
 that's the actual invulnerability mechanism in this engine, so what you see is what hits.
 Box data is read live from the ROM, so box-altering patches render truthfully (patch 7's
 Pluto 5HP, patch 9's Deep Submerge). Projectiles draw from their **own** object box tables
-(object id 10–27 → bank $8A pointer table), not their owner's.
+(object id 10–27 → bank $8A pointer table), not their owner's — and **only their hit box**
+(the hurt/coll pointer tables are roster-only, so a projectile's hurt/coll would read garbage;
+projectiles aren't destructible anyway).
 
 ## Piano roll (left edge)
 
