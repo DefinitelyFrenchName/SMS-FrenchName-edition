@@ -57,6 +57,14 @@ and findings made in this project (marked NEW, with evidence).
   so the box tracks the ball. Tools: `ds_trace.lua`, `ds_overlay.lua`, `ds_hittest.lua`.
 - Tooling fix: the training-mode overlay (`hud_boxes.lua`) drew projectiles from the owner's
   char table; corrected to use the projectile's own `+0x00` (guard now allows ids up to 0x7F).
+- **Projectile collision `$C0:C352`** (disassembled): resolves the projectile's **HIT** box from
+  `$8A:C1F1[+0x00]` + `+0x40` and tests it vs (a) the OTHER projectile's HIT box `C395-C3D2`
+  (projectile-vs-projectile clash) and (b) the player's HURT box `$8A:C229[char]` + `+0x41`
+  (`C3D5-C42E`). It **never reads the projectile's own `+0x41`**. The HURT and COLL pointer
+  tables are **roster-only (10 entries each** — `C229..C23D`, `C23D..C251`); only HIT was
+  extended to 28. So projectiles have **no functional hurt/coll box** — their `+0x41`/`+0x42`
+  (written by the shared box-writer) are vestigial. A projectile's hit box doubles as its
+  hittable/clashable region → patch 9's hit-box fix covers offense AND clash.
 
 ## ROM (ground truth recap — see sms_uranus_rom_map.md)
 - $8A:C1F1/C229/C23D box pointer tables; Uranus boxes $8A:E3E1/E489/E999.
