@@ -162,6 +162,79 @@ local PHASES = {
       check("reset-p2x", p2x == 0x110, string.format("%04X", p2x))
       check("reset-acts", ram(0x1001) == 0 and ram(0x1081) == 0)
     end },
+  { name = "recplay", dur = 320,
+    tick = function(pt)
+      if pt >= 10 and pt <= 12 then pulse[0] = { l = true, r = true } elseif pt == 13 then pulse[0] = nil end
+      if pt == 50 then stw(0x27, 1) end                                     -- SET_REC=ARM
+      if pt >= 55 and pt <= 57 then pulse[0] = { l = true, r = true } elseif pt == 58 then pulse[0] = nil end
+      if pt == 62 then check("rec-active", st(0x42) == 1, string.format("ra=%02X", st(0x42))) end
+      -- puppet script: crouch 20f then crouch-jab
+      if pt >= 65 and pt <= 84 then pulse[0] = { down = true } end
+      if pt >= 85 and pt <= 86 then pulse[0] = { down = true, y = true } end
+      if pt == 87 then pulse[0] = nil end
+      if pt == 80 then check("rec-puppet-crouch", ram(0x1081) == 0x03, string.format("p2act=%02X", ram(0x1081))) end
+      if pt == 80 then check("rec-puppet-eatsP1", ram(0x1001) == 0, string.format("p1act=%02X", ram(0x1001))) end
+      if pt >= 88 and pt <= 95 and ram(0x1081) >= 0x2B then saw.puppetjab = true end
+      if pt == 96 then check("rec-puppet-jab", saw.puppetjab) end
+      if pt >= 100 and pt <= 102 then pulse[0] = { l = true, r = true } elseif pt == 103 then pulse[0] = nil end
+      if pt == 110 then
+        local len = st(0x46) + 256 * st(0x47)
+        check("rec-stopped", st(0x42) == 0 and len > 40 and len < 200, string.format("len=%d", len))
+        stw(0x28, 2)                                                        -- SET_PLAY=LOOP
+      end
+      if pt >= 115 and pt <= 117 then pulse[0] = { l = true, r = true } elseif pt == 118 then pulse[0] = nil end
+      if pt == 122 then check("play-active", st(0x4A) == 1, string.format("pa=%02X", st(0x4A))) end
+      if pt >= 122 then
+        local a = ram(0x1081)
+        if a >= 0x2B and not saw.injab then saw.injab = true; saw.jabs = (saw.jabs or 0) + 1 end
+        if a < 0x2B then saw.injab = false end
+        if a == 0x03 then saw.playcrouch = true end
+      end
+    end,
+    fin = function()
+      check("play-crouch", saw.playcrouch)
+      check("play-loops", (saw.jabs or 0) >= 2, string.format("jabs=%d", saw.jabs or 0))
+    end },
+  { name = "show-direct", dur = 90,
+    tick = function(pt)
+      if pt == 5 then stw(0x29, 1) end                                      -- SET_SHOW=1, no menu
+      if pt == 60 then
+        check("show-wiped", st(0x55) == 1, string.format("w=%02X", st(0x55)))
+        check("show-tmwant", st(0x57) == 1, string.format("tw=%02X", st(0x57)))
+      end
+    end,
+    fin = function() end },
+  { name = "show-display", dur = 280,
+    tick = function(pt)
+      if pt == 5 then stw(0x29, 1) end
+      if pt == 10 then p2close() end
+      -- hold down+y and check the input display cells (row 19: base word $1264)
+      if pt >= 60 and pt <= 70 then pulse[0] = { down = true, y = true } end
+      if pt == 68 then
+        check("show-inp-D", vword(0x1264 + 1) == tw("D"), string.format("%04X", vword(0x1264 + 1)))
+        check("show-inp-LP", vword(0x1264 + 5) == tw("L") and vword(0x1264 + 6) == tw("P"),
+          string.format("%04X %04X", vword(0x1264 + 5), vword(0x1264 + 6)))
+        check("show-inp-U-blank", vword(0x1264) == 0x2000, string.format("%04X", vword(0x1264)))
+      end
+      if pt == 71 then pulse[0] = nil end
+      if pt == 90 then
+        check("show-inp-clear", vword(0x1264 + 1) == 0x2000, string.format("%04X", vword(0x1264 + 1)))
+        local f = io.open(TRACE .. "p11_show.png", "wb"); f:write(emu.takeScreenshot()); f:close()
+      end
+      -- advantage: land a 2LP on the idle dummy, expect ~+6 settle
+      if pt >= 100 and pt <= 101 then pulse[0] = { down = true, y = true } elseif pt == 102 then pulse[0] = nil end
+      if pt >= 103 and st(0x5D) ~= 0 and not saw.adv then
+        saw.adv = true; saw.sign = st(0x5B); saw.mag = st(0x5C)
+      end
+      if pt == 200 then
+        check("adv-settled", saw.adv)
+        check("adv-plus", saw.sign == 0, string.format("sign=%s", tostring(saw.sign)))
+        check("adv-mag", (saw.mag or 0) >= 4 and (saw.mag or 0) <= 8, string.format("mag=%s", tostring(saw.mag)))
+        check("adv-vram-A", vword(0x1276) == tw("A"), string.format("%04X", vword(0x1276)))
+        check("adv-vram-digit", vword(0x1276 + 5) == 0x2C50 + (saw.mag or 0), string.format("%04X", vword(0x1276 + 5)))
+      end
+    end,
+    fin = function() end },
   { name = "menu", dur = 300,
     tick = function(pt)
       if pt >= 10 and pt <= 12 then pulse[0] = { l = true, r = true } elseif pt == 13 then pulse[0] = nil end
