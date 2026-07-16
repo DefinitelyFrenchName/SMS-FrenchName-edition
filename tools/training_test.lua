@@ -273,8 +273,8 @@ end)()
 -- T5: event labels on deterministic scenarios (clean ROM, Venus vs Jupiter):
 --   A: Venus 6HP throw + P2 mash        -> "P2 THROW TECH"
 --   B: same, no mash                    -> "P2 THROWN"
---   C: P1 heavy startup vs P2 jab       -> "P2 COUNTER" (P2's hit lands in P1's startup)
 --   D: Venus sweep + dummy wakeup jab   -> "P2 REVERSAL"
+--   (COUNTER was removed — no counter-hit bonus in this game; GC has its own test T8)
 tests.T5 = (function()
   local phase = "A"
   local function fired(ctx, want)
@@ -286,8 +286,6 @@ tests.T5 = (function()
   local plans = {
     A = { p1 = { [60] = { right = true, x = true }, [63] = {} }, mash = true },
     B = { p1 = { [60] = { right = true, x = true }, [63] = {} } },
-    C = { p1 = { [58] = { x = true }, [61] = {} },
-          p2 = { [60] = { y = true }, [62] = {} } },
     D = { p1 = { [60] = { down = true, a = true }, [63] = {} } },
   }
   local function pad(plan, t)
@@ -341,7 +339,7 @@ tests.T5 = (function()
       end
       if t == ((phase == "D") and 230 or 150) then
         local want = ({ A = "P2 THROW TECH", B = "P2 THROWN",
-                        C = "P2 COUNTER", D = "P2 REVERSAL" })[phase]
+                        D = "P2 REVERSAL" })[phase]
         log(fired(ctx, want) and ("PASS: " .. phase .. " fired " .. want)
             or ("FAIL: " .. phase .. " missing " .. want .. " (got: " ..
                 (function()
@@ -351,8 +349,7 @@ tests.T5 = (function()
                 end)() .. ")"))
         ctx.mod.labels.fired = {}
         if phase == "A" then phase = "B"
-        elseif phase == "B" then phase = "C"
-        elseif phase == "C" then phase = "D"
+        elseif phase == "B" then phase = "D"
         else finish(); return end
         ctx.anchor.loadreq = T._state
       end
@@ -425,6 +422,31 @@ tests.T7 = (function()
     end,
   }
 end)()
+
+-- T8: GUARD CANCEL label (RUN ON A v0.7-FAMILY ROM — uses the v07 Mars state). P2 Mars
+-- blocks Uranus 2HP, then rolls HCF+LK during blockstun: the fireball act starts DIRECTLY
+-- from blockstun (measured act 0x0E -> 0x68) => "P2 GC" fires (and not REVERSAL).
+tests.T8 = {
+  STATE = "uranus_vs_mars_v07.mss",
+  POKES = { { t = 5, addr = 0x1021, val = 0xE8 } },
+  PLAN1 = { [10] = { down = true }, [60] = { down = true, x = true }, [63] = { down = true } },
+  PLAN2 = { [10] = { right = true, down = true },
+            [74] = { right = true }, [76] = { right = true, down = true },
+            [78] = { down = true }, [80] = { down = true, left = true },
+            [82] = { left = true, b = true }, [85] = { left = true }, [87] = {} },
+  DONE = 140,
+  CHECKS = {
+    { t = 2, fn = function(ctx) ctx.mod.dummy.enabled = false; return true, "dummy off" end },
+    { t = 130, fn = function(ctx)
+        local gc, rev = false, false
+        for _, f in ipairs(ctx.mod.labels.fired) do
+          if f.text == "P2 GC" then gc = true end
+          if f.text == "P2 REVERSAL" then rev = true end
+        end
+        return gc and not rev,
+               string.format("t130 GC=%s REVERSAL=%s (want GC only)", tostring(gc), tostring(rev)) end },
+  },
+}
 
 -- ---------- harness ----------
 local T = tests[TEST]

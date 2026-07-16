@@ -112,7 +112,7 @@ player's side (`status` menu row picks the placement; default both).
 | MEATY | A hit connects within 2 frames of the defender leaving stun/knockdown — includes the 1-frame meaty that lands on their first exit frame (hit beats same-frame block) |
 | REVERSAL | A move starts on the defender's first actionable frame (±1) after stun/knockdown |
 | PUNISH | A hit connects while the victim is in **recovery** of their own move |
-| COUNTER | A hit connects during the victim's **startup** (informational — this game has no counter-hit bonus) |
+| GC | **Guard cancel** — a special canceling blockstun directly (a move starting straight out of a blockstun frame). The game-defining SMS mechanic: if you're new, this is the thing to learn |
 | THROW TECH | Throw escaped by mashing (half damage) |
 | THROWN | Throw completed (full damage) |
 | TRADE | Both players' hits connect on the same frame |

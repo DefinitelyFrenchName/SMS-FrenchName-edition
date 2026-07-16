@@ -1,7 +1,13 @@
--- labels.lua — event popups: MEATY / REVERSAL / PUNISH / COUNTER / THROW TECH / THROWN /
--- TRADE. All derived from framedata events + class history; drawn stacked above the frame
--- meter with a fade. COUNTER is SF-style "hit during startup" — informational only (this
--- game has no counter-hit bonus). M.fired collects {t, text} for headless assertions.
+-- labels.lua — event popups: GC / MEATY / REVERSAL / PUNISH / THROW TECH / THROWN / TRADE.
+-- All derived from framedata events + class history; drawn above the frame meter and/or
+-- under the combo counter (ctx.ui.labelMode). M.fired collects {t, text} for tests.
+--
+-- GC (guard cancel) is this game's defining mechanic: a special canceling blockstun.
+-- Measured (Mars fireball out of blocked Uranus 2HP): the special's act starts DIRECTLY
+-- from a blockstun act (0x0E/0x0F -> attack act, stun flag still set on the transition
+-- frame) — so the trigger is a move starting <=1 frame from a BLOCKSTUN frame. REVERSAL
+-- is scoped to hard-constraint exits (hitstun/knockdown/throw) so the two never overlap.
+-- (No COUNTER label: the game has no counter-hit bonus.)
 local M = {}
 
 function M.init(ctx)
@@ -16,7 +22,7 @@ function M.init(ctx)
   ctx.ui.labelMode = ctx.ui.labelMode or "both"   -- off | meter | combo | both
 
   local COLORS = {
-    MEATY = 0xFF8020, REVERSAL = 0x40C0FF, PUNISH = 0xFF3030, COUNTER = 0xE0E040,
+    MEATY = 0xFF8020, REVERSAL = 0x40C0FF, PUNISH = 0xFF3030, GC = 0x40FF80,
     ["THROW TECH"] = 0x40C0B0, THROWN = 0xA040C8, TRADE = 0xC0C0C0,
   }
 
@@ -35,16 +41,20 @@ function M.init(ctx)
   end
   M.fire = fire
 
-  -- per-player constraint tracking (last frame the player was in a constrained class)
-  local CONSTR = { [CLS.HITSTUN] = true, [CLS.BLOCKSTUN] = true, [CLS.KNOCKDOWN] = true,
-                   [CLS.THROWN] = true }
-  local lastConstrained = { -99, -99 }
+  -- per-player constraint tracking (last frame the player was in a constrained class);
+  -- blockstun tracked separately: exits into a move are GC, hard-constraint exits REVERSAL
+  local HARD = { [CLS.HITSTUN] = true, [CLS.KNOCKDOWN] = true, [CLS.THROWN] = true }
+  local lastConstrained = { -99, -99 }   -- any constraint incl. blockstun (meaty window)
+  local lastHard = { -99, -99 }
+  local lastBlockstun = { -99, -99 }
 
   local function step()
     local s = ctx.snap
     if not s then return end
     for i = 1, 2 do
-      if CONSTR[s.p[i].cls] then lastConstrained[i] = ctx.t end
+      local cls = s.p[i].cls
+      if HARD[cls] then lastHard[i] = ctx.t; lastConstrained[i] = ctx.t end
+      if cls == CLS.BLOCKSTUN then lastBlockstun[i] = ctx.t; lastConstrained[i] = ctx.t end
       -- throw tech / thrown transitions
       local prev = ctx.prev and ctx.prev.p[i]
       if prev then
@@ -73,7 +83,8 @@ function M.init(ctx)
   end
 
   table.insert(fd.on.moveStart, function(ev)
-    if ev.t - lastConstrained[ev.player] <= 2 then fire("REVERSAL", ev.player) end
+    if ev.t - lastBlockstun[ev.player] <= 1 then fire("GC", ev.player)
+    elseif ev.t - lastHard[ev.player] <= 2 then fire("REVERSAL", ev.player) end
   end)
 
   table.insert(fd.on.connect, function(ev)
@@ -89,8 +100,6 @@ function M.init(ctx)
     if ev.kind == "hit" then
       if defClsAtHit == CLS.RECOVERY or defClsAtHit == CLS.RECOVERY_C then
         fire("PUNISH", ev.attacker)
-      elseif defClsAtHit == CLS.STARTUP or (defClsAtHit == CLS.ACTIVE) then
-        fire("COUNTER", ev.attacker)
       end
     end
   end)
@@ -116,7 +125,8 @@ function M.init(ctx)
   table.insert(ctx.hooks.frame, step)
   table.insert(ctx.hooks.draw, draw)
   table.insert(ctx.hooks.reset, function()
-    popups = {}; lastConstrained = { -99, -99 }; lastText = nil
+    popups = {}; M.side = { nil, nil }; lastText = nil
+    lastConstrained = { -99, -99 }; lastHard = { -99, -99 }; lastBlockstun = { -99, -99 }
   end)
 end
 
