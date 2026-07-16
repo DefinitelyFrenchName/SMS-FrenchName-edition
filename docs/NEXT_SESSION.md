@@ -31,6 +31,39 @@ training mode**. Nothing is broken or half-done. No open bugs.
   draw hit box only for ids ≥10) and HP-regen life-bar red gaps (bar fill is per-cell PALETTE;
   producer only repaints the boundary during a drain → regen now repaints the full bar to VRAM).
 
+## ⭐ INCOMING CHALLENGE (start here) — in-ROM training mode
+
+The maintainer's next request: **improve the base-game's built-in training mode as a fully
+separate ROM patch** (its own branch is welcome; "beyond experimental"). Carte blanche, no
+token limit, take initiative — the one hard rule is **don't break the game**. The point is to
+test how far the *in-game* mode can be pushed (the Lua training mode will always be more
+powerful; this is the ROM-side counterpart). **Plan first, ask questions, then build.**
+
+What we already know that de-risks this (all from this session's RE — see
+`sms_engine_internals.md`):
+- The base game HAS a training mode (`$7E:008D` game_mode 4/5). The vendor Super-S Lua
+  (`vendor/sms-training-mode/SailorMoonS.lua`) documents what its *own* training features poked
+  (dummy stance/guard/recovery, HP freeze, position reset) — a menu of *what the RAM supports*,
+  but it's Super S provenance so **every address/behavior must be re-validated on this game**.
+- We own the in-match HUD pipeline (producer `$C0:D5E8` → staging → NMI uploader `$C0:D56F`),
+  the append-bank + JML-trampoline patch pattern, a working 65816 mini-assembler
+  (`tools/asm65816.py`), free WRAM (`$0816-$08FF`, `$0900-$09FF`), free BG3 CHR (tiles
+  `0xC7-0xDF`), and a custom-glyph uploader (`tools/hudfont.py`). Patch 10 is the template: it
+  hooks the per-frame producer and draws text/HUD — a training-mode patch would do the same but
+  add *input handling* (a menu driven by the pad in-match) and *dummy control* (write P2's
+  action/inputs), plus a mode gate on `$7E:008D`.
+- The **oracle is the Lua training mode** — any in-ROM feature (frame data, dummy recovery,
+  hitbox display, etc.) can be validated against `tools/training/` frame-for-frame, exactly like
+  patch 10's counter/labels were.
+- Hard unknowns to probe first: how the game reads training-menu input / whether a training
+  pause/menu screen exists to hook; whether writing P2's action bytes to script the dummy is
+  safe mid-frame; NMI/vblank budget for anything heavier than patch 10. Frame budget headroom is
+  large (patch 10 counter+labels = ~2.6%, zero lag) but a full menu + dummy AI is more.
+
+Suggested first move for the new session: read this file + `sms_engine_internals.md`, then a
+Phase-1 probe pass (game_mode map, training-screen/menu-input RE, dummy-write safety) before
+committing to a feature set. Scope it in tiers like patch 10 (Tier-1 success bar + stretch).
+
 ## Solid / don't re-verify (measured, not inferred)
 
 - All 10 patches stack cleanly (byte-disjoint) and the all-patches ROM boots + plays.
