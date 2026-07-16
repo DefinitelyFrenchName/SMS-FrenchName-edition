@@ -36,7 +36,7 @@ function M.init(ctx)
     { "rec slot", function() return tostring(rec().cur) .. " (" .. #rec().slots[rec().cur] .. "f)" end,
                   function(d) rec().cur = ((rec().cur - 1 + d) % 4) + 1 end },
     { "trigger",  function() return rec().trigger end,
-                  function(d) rec().trigger = cyc({ "manual", "loop", "wakeup", "blockstun", "hitstun", "random" }, rec().trigger, d) end },
+                  function(d) rec().trigger = cyc({ "manual", "loop", "wakeup", "blockstun", "hitstun", "random", "gc" }, rec().trigger, d) end },
     { "hud mode", function() return tostring(ctx.ui.hudMode) end,
                   function(d) ctx.ui.hudMode = ((ctx.ui.hudMode - 1 + d) % 4) + 1 end },
     { "hud scale", function() return tostring(ctx.cfg.hudScale) end,
@@ -53,6 +53,12 @@ function M.init(ctx)
                   function(d) ctx.mod.regen.hpRegen = not ctx.mod.regen.hpRegen end },
     { "ko reset", function() return ctx.mod.regen.koReset and "on" or "off" end,
                   function(d) ctx.mod.regen.koReset = not ctx.mod.regen.koReset end },
+    { "gc chance", function() return tostring(rec().gcChance) .. "%" end,
+                  function(d) local v = { 100, 75, 50, 25 }
+                    for i, c in ipairs(v) do
+                      if c == rec().gcChance then rec().gcChance = v[((i - 1 + d) % #v) + 1]; return end
+                    end
+                    rec().gcChance = 100 end },
     { "status",   function() return ctx.ui.labelMode end,
                   function(d) ctx.ui.labelMode = cyc({ "both", "combo", "meter", "off" }, ctx.ui.labelMode, d) end },
   }
@@ -62,11 +68,11 @@ function M.init(ctx)
       local f = assert(io.open(SETTINGS, "w"))
       f:write(string.format(
         "return { pose=%q, guard=%q, tech=%s, wakeup=%q, trigger=%q, hudMode=%d, " ..
-        "hudScale=%d, hitboxes=%s, sConvSF6=%s, timerFreeze=%s, hpRegen=%s, koReset=%s, labelMode=%q }\n",
+        "hudScale=%d, hitboxes=%s, sConvSF6=%s, timerFreeze=%s, hpRegen=%s, koReset=%s, labelMode=%q, gcChance=%d }\n",
         dm().pose, dm().guard, tostring(dm().tech), dm().wakeup, rec().trigger,
         ctx.ui.hudMode, ctx.cfg.hudScale, tostring(ctx.ui.hitboxes), tostring(ctx.ui.sConvSF6),
         tostring(ctx.mod.regen.timerFreeze), tostring(ctx.mod.regen.hpRegen),
-        tostring(ctx.mod.regen.koReset), ctx.ui.labelMode))
+        tostring(ctx.mod.regen.koReset), ctx.ui.labelMode, rec().gcChance))
       f:close()
     end)
   end
@@ -85,6 +91,7 @@ function M.init(ctx)
       if s.hpRegen ~= nil then ctx.mod.regen.hpRegen = s.hpRegen end
       if s.koReset ~= nil then ctx.mod.regen.koReset = s.koReset end
       ctx.ui.labelMode = s.labelMode or ctx.ui.labelMode
+      rec().gcChance = s.gcChance or rec().gcChance
     end
   end
   loadSettings()
