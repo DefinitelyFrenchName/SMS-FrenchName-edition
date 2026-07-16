@@ -10,7 +10,7 @@ game, not just look up an address.
 - `docs/annotations.md` — the flat address→label reference (the "phone book"). Every address
   here is (or should be) there too; that file is the source of truth for exact addresses.
 - `docs/sms_uranus_rom_map.md` — the original verified ROM map ("the bible"), terse.
-- `docs/patch_notes.md` — per-patch detail (what each of the 10 patches changed and why).
+- `docs/patch_notes.md` — per-patch detail (what each of the 11 patches changed and why).
 - `docs/sms_all_boxes.json` — extracted per-character/​object hit/hurt/coll box tables.
 
 **Ground truth.** Clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`, **HiROM +
@@ -33,17 +33,21 @@ Low WRAM (`$7E:0000–$1FFF`, mirrored in bank $00):
 
 | Range | What |
 |---|---|
-| `$005C` / `$005E` | raw joypad word, P1 / P2 (SNES pad bit order: B=0x8000,Y=0x4000,…,A=0x80,X=0x40,L=0x20,R=0x10) |
-| `$008D` | **game_mode** — 0/1 versus, 4/5 training, others story/menu (the producer HUD routine only runs in a match, so it self-gates; a strict mode gate reads `$008D`) |
+| `$005C` / `$005E` | raw joypad word, P1 / P2 (SNES pad bit order: B=0x8000,Y=0x4000,…,A=0x80,X=0x40,L=0x20,R=0x10); press edges in `$0060/$0062`, previous frame in `$0064/$0066` — all derived by joy_read (§3) |
+| `$0070` | **in-match flag** — 4 while any match runs (VS *and* Practice), 0 outside |
+| `$008D` | **game_mode** — 1 = VS (1P-vs-2P), **4 = Practice (no HP subtraction)**, **5 = Practice with damage / attract demo**, others story/menu (§10). The producer self-gates to matches; a strict mode gate reads `$008D` |
+| `$01FA` | screen state: 0x80 = match running, **0xE4 = movelist open** (Start in Practice) |
 | `$0800` / `$0801` | **displayed** HP bar value P1 / P2 (drains toward struct HP; written only by the HUD producer) |
 | `$0802` | round timer (BCD; decremented by the producer) |
 | `$0806–$0815` | **HUD tile staging** — (VRAM addr, tile) entries the NMI uploader flushes: P1 bar, P2 bar, timer digits |
-| `$0816–$08FF` | **FREE** (HUD page tail; unused) — patch 10 combo-counter state + staging live here |
-| `$0900–$09FF` | **FREE** (verified zero accesses over 400 active frames) — patch 10 label state + glyph staging |
+| `$0816–$08FF` | FREE **in VS matches only** (patch 10 state lives here) — **native Practice mode touches the whole `$0816–$09FF` range**; do not use it for training-mode state (patch 11 found this the hard way) |
+| `$0900–$09FF` | FREE in VS only (patch 10 labels) — same Practice caveat as above |
 | `$0A00`/`$0A02` | camera scroll X / Y (world→screen: screen = world − camera) |
 | `$1000` / `$1080` | **player structs**, P1 / P2 (0x80 bytes each) |
 | `$1100` / `$1180` | **projectile slots**, P1's / P2's projectile (same struct layout) |
-| `$1B10` | title menu cursor; `$1B40`/`$1B80` char-select cursors, `$1B42` P1-confirmed |
+| `$1B10` | title menu cursor — the menu is a **2-column × 3-row grid** (nav table `$C0:A29D+cursor*4`): left column 0/1/2, right column 3/**4 = Practice**/5; left/right swaps columns (0↔3, 1↔4, 2↔5). Reach Practice headlessly: down (0→1), right (1→4) |
+| `$1B40`/`$1B80` | char-select cursors, `$1B42` P1-confirmed |
+| **bank `$7F`** | boot's RAM clear zeroes it once; scene loads / round intros use **`$7F:0000–5FFF`** as scratch; **steady-state gameplay touches none of it** → `$7F:6000+` is free for patch state (patch 11 uses `$7F:F000+` for state, `$7F:E000+` for its recording ring). The **WMDATA port `$2180–$2183`** is never touched by the game — safe as a pointer-addressed window into `$7F` for code without indexed addressing |
 
 ### Player / object struct (`base + offset`)
 
@@ -117,15 +121,16 @@ handler (uploads graphics). Key routines and where they run (measured by PPU sca
 
 | Routine | Addr | When | Does |
 |---|---|---|---|
-| joy read | `$80:8353` | once/frame, NMI-side | reads pads, computes press edges. Canonical per-frame anchor for tooling |
+| joy read | `$80:8353` | once/frame, **NMI scanline 237** (before the uploader in the same NMI) | copies prev held to `$64/$66`, reads pads into `$5C-$5F`, then derives press edges `$60/$62`. Canonical per-frame anchor for tooling. **`$80:8373`** (between held-store and edge-derivation) is the perfect input-override hook: rewrite `$5E/$5F` there and the game derives edges itself — the 30 Hz latch and motion recognizers (44 backdash included) behave exactly as with a real pad (patch 11's dummy) |
 | per-object update | `JSL $C1:0000` | main loop | runs each object's state proc (state procs ≈ `$C1:122A`, `$C1:15BD`) |
 | box-index writer | `$C0:9CCD` (batch `$C0:9CA4–9CE1`) | main loop | per object, writes +0x40/41/42 from the current anim frame |
-| **HUD producer** | `$C0:D5E8` | **main loop, scanline 101, once/frame** | animates displayed HP `$0800/01` toward struct HP, computes bar+timer tiles into `$0806-$0815`, decrements timer `$0802` |
-| **HUD uploader** | `$C0:D56F` | **NMI/vblank, scanline 237** | flushes the `$0806-$0815` staging to VRAM (`$2116/$2118`) |
+| **HUD producer** | `$C0:D5E8` | **main loop, scanline 101, once/frame — VS/story matches only, NEVER in Practice (§10)** | animates displayed HP `$0800/01` toward struct HP, computes bar+timer tiles into `$0806-$0815`, decrements timer `$0802` |
+| **HUD uploader** | `$C0:D56F` | **NMI/vblank, scanline 237 (after joy_read), every mode incl. Practice** | flushes the `$0806-$0815` staging to VRAM (`$2116/$2118`); in Practice the staging is always clean and it falls straight through — but it still runs, which is why patch 11 hooks **`$80:D574`** (inside it) for vblank VRAM work |
 
 This **producer → staging → uploader** split is the "Arch A" HUD design: the main loop writes
 what to draw into WRAM, the vblank handler pushes it to VRAM. Patch 10 rides both hooks (see
-§10) — compute in the producer, draw in the uploader.
+§11) — compute in the producer, draw in the uploader.
+**In Practice mode the producer NEVER runs** (§10) — hook it and your code is dead there.
 
 **FastROM headroom.** A frame is ≈40,850 CPU-cycle-counter units as measured; patch 10's added
 per-frame work is ~0.6% (counter) to ~2.6% (counter+labels), and clean-vs-patched gameplay RAM
@@ -166,6 +171,13 @@ palette<<10 | tile`; HUD text uses `0x2C00 | tile` (priority + palette 3).
   cannot rely on nameplate tiles for arbitrary text. Patch 10's status labels upload their own
   2bpp font (`tools/hudfont.py`) to **free CHR slots 0xC7–0xDF** (verified zero across 5
   matchups) and DMA them in during vblank.
+
+**Layer enable (TM, `$212C`) is written only at scene setup** (zero writes observed over
+in-match probes) — a VS match runs TM=0x17 (BG1+BG2+BG3+OBJ); **Practice runs TM=0x13 (BG3
+off)** because BG3 there is the pre-staged movelist, shown by flipping TM when Start is
+pressed (§10). A patch can therefore own TM mid-scene by writing it per-vblank; the game
+won't fight back until the next scene load. `mode1Bg3Priority` is set, so priority-bit BG3
+tiles (word `0x2C00|tile`) render **above sprites** — floating-UI friendly.
 
 Title-screen text is a separate pipeline (patch 4): a once-per-load force-blank DMA hook at
 `$C3:B81F`; that technique does **not** transfer to per-frame in-match rendering.
@@ -283,7 +295,57 @@ viewer drawing the projectile's phantom hurtbox from the roster-only table (§5)
 
 ---
 
-## 10. Modding playbook
+## 10. Practice mode (game_mode 4/5) — how the native trainer works
+
+Entered from the title menu (down, right → Practice; `$008D` becomes 4 already at char
+select). Everything here was probe-verified on this game in the patch-11 session
+(`tools/probe_p11_*.lua`; flat facts in `annotations.md` "patch 11 RE").
+
+**The damage switch is the whole difference between modes 4 and 5.** In mode 4 a hit
+resolves *completely* — connect latch (+0x43), hitstun act, hitstop, pushback — and only
+the HP subtraction is skipped. Poking `$008D = 5` mid-match turns HP loss on; 4 turns it
+back off. Nothing else observable changes. Two corollaries:
+- The **attract demo is a real match running at mode 5** — any patch gating on
+  "mode ∈ {4,5}" will also fire during the demo unless it distinguishes (patch 11 accepts
+  5 only when its own flag says *it* set the value).
+- Desperation moves (HP ≤ 0x18 gated) are additionally skipped when `$8D == 4` (the cancel
+  table's bit-8 check is bypassed), and can never trigger anyway since HP never drops.
+
+**No HUD, no timer, no round flow.** The HUD producer `$C0:D5E8` never executes in Practice
+(mode 4 *or* 5): no bars, no timer decrement (`$0802-04` stay 0), no displayed-HP animation.
+And a KO in mode 5 goes knockdown → down (0x1E) → KO pose (0x1F ≈ 66f after death) and then
+**nothing** — no round-end flow ever fires; the match keeps running with a body on the floor.
+The KO decision is **latched at damage-apply**: refilling struct HP (or `$0800/1`) during the
+knockdown does *not* prevent 0x1F. The proven way to cancel a death (patch 11's REFILL):
+refill HP during the KD **and force the engine's own standup act** (+0x01/+0x04 = 0x20,
++0x02 = 1, +0x06/07 = 0) when the body reaches act 0x1E — recovery is then fully normal.
+
+**BG3 is the movelist layer.** In Practice the whole BG3 tilemap holds the pre-staged
+command list for P1's character, invisible because TM=0x13. **Start** flips the movelist on
+(`$01FA` 0x80 → 0xE4) and — key fact — **restages the entire layer on every press**, so a
+patch may paint BG3 freely mid-match and the native movelist repairs itself. **Select exits
+the match** (~60f fade, `$0070` → 0). The BG3 CHR still contains the resident HUD digits and
+the free glyph window 0xC7–0xDF; palettes are identical to VS.
+
+**Screen-state bytes for gating:** in-match = `$0070 == 4` (also 4 in VS — combine with
+`$008D`); actually-running = `$01FA == 0x80` (movelist = 0xE4).
+
+**The input-override surface** (how the in-ROM dummy works, and the ROM-side equivalent of
+the Lua trainer's `setInput`): joy_read stores fresh held words at `$5C-$5F` *before* it
+derives press edges. Code hooked at `$80:8373` that rewrites P2's `$5E/$5F` gets everything
+downstream for free — edges next frame, the 30 Hz +0x50 press latch, motion recognizers
+(an injected back/neutral/back fires the 44 backdash), blocking, throw-tech mash counting.
+Holding down-back = `$5F = 0x04|back-bit` where back is 0x01 (Right) if P2.x ≥ P1.x else
+0x02. Zeroing P1's `$5C/$5D` at the same point "eats" the pad invisibly (used by patch 11's
+menu; note the release-edge leak when you stop eating — hold the eat 2 extra frames).
+
+Patch 11 (`tools/mkpatch11.py`, `docs/trainingplus.md`) builds the full in-ROM trainer on
+these facts: L+R menu, dummy layers, native damage switch, no-KO refill, WMDATA recording
+ring, input/advantage displays — hooks at `$80:8373` + `$80:D574`, state in `$7F:F000+`.
+
+---
+
+## 11. Modding playbook
 
 **Append-a-bank + hook pattern** (patches 3, 4, 10): grow the ROM to the next 64K boundary,
 put your code/data there (SNES bank = `0xC0 + (fileoffset>>16)`), and repoint an existing call
@@ -297,19 +359,48 @@ bank from the input ROM length so patches **stack** (each appends past the previ
 overwrite the routine's first bytes with `JML yourstub`; your stub runs your code, then
 replicates the displaced instructions and `JML`s back to the instruction after the overwrite.
 No stack frame is added, so the routine's own `RTS/RTL` still returns to its real caller.
+Two refinements from patch 11:
+- **Hook mid-routine, not just at entries** — patch 11 hooks `$80:8373` (joy_read tail) and
+  `$80:D574` (*inside* the uploader, right after patch 10's continuation point), so both
+  patches coexist with **no chaining and no order sensitivity**: each asserts only its own
+  vanilla bytes, which the other never touches.
+- **Displaced instructions that can't be reassembled** (direct-page ops, or a branch): splice
+  the original bytes raw after the assembled stub (dp case), or replay branch-aware — preserve
+  the caller's flags with `php…plp`, then re-execute the displaced `beq/sta` with two JML
+  exits, one per branch arm (patch 11's UPL2 hook does exactly this for `beq $D596/sta $2116`).
 
 **Free resources inventory** (for a new patch):
 - *ROM code*: the verified-unused zero region at end of bank $C1, `0x1BE0E–0x1BE47` (patches
   1/2 use `0x1BE20–31`, patch 6 uses `0x1BE85+`) — only a few dozen bytes; anything bigger goes
   in an appended bank.
-- *WRAM scratch*: `$0816–$08FF` and `$0900–$09FF` are verified free (patch 10 uses them).
+- *WRAM scratch*: `$0816–$08FF` and `$0900–$09FF` are free **in VS matches** (patch 10 uses
+  them) but **NOT in Practice** (the native mode touches the whole range — re-probe freedom
+  in every mode your patch is active in).
+- *Bank `$7F`*: `$7F:6000+` untouched in steady-state play (loads use `$7F:0000-5FFF`); the
+  WMDATA port `$2180-83` is game-free (pointer-addressed `$7F` access without indexing).
+  Patch 11's state (`$7F:F000+`) and recording ring (`$7F:E000+`) live here, reached with
+  long addressing (`lda.l/sta.l/cmp.l`).
 - *VRAM CHR (BG3, 2bpp)*: free glyph slots `0xC7–0xDF` (25 tiles), zero across matchups.
+  Patches 10 and 11 both upload fonts there — same tile slots, different colors (3 vs 1
+  white), safe because their visibility domains never overlap (VS vs Practice).
+- *BG3 tilemap in Practice*: the whole map is paintable (it's the TM-off movelist layer;
+  the movelist restages itself on Start — see §10).
 
 **The mini-assembler** `tools/asm65816.py` handles the hand-written stubs. It tracks the M/X
 processor flags through `rep/sep` and sizes immediates accordingly — the load-bearing subtlety
 is that `ldx #$00` must emit a **16-bit** immediate when X is 16-bit (a hex-length heuristic
 gets this wrong and silently corrupts everything after). It only has 8-bit relative branches,
-so for a far conditional target write `bne skip; jmp far; skip:`.
+so for a far conditional target write `bne skip; jmp far; skip:`. Patch 11 added `eor`
+(imm/abs) and **long addressing** `lda_l/sta_l/cmp_l` (24-bit operands, DBR-independent —
+how the `$7F` state is reached with no indexed modes).
+
+**⚠ The tracker-vs-runtime width trap** (two real crashes in patch 11): the assembler's M/X
+tracking is *linear through the source*, but control flow isn't — a label whose fall-through
+predecessor ended in `rep #$20` is *emitted* 16-bit even if the *jump* into it arrives in
+8-bit mode (or vice versa), and the CPU then decodes garbage. Rule: at **every label that can
+be reached by a jump/branch, re-assert the width explicitly** (`sep #$20`/`rep #$20` as the
+first instruction) unless every path provably matches. The `rep`-before-branch idiom is safe
+(`rep`/`sep` preserve Z and C, so `cmp` in 8-bit, then `rep #$20`, then `beq` works).
 
 **Gotchas that cost real time** (also in HANDOFF.md §5): `emu.setInput` port is the **3rd** arg;
 savestate load/save only inside an exec callback on `$80:8353`; the GUI refuses a savestate
@@ -319,7 +410,7 @@ B=LK A=HK.
 
 ---
 
-## 11. Frame-data semantics (as implemented, oracle-validated)
+## 12. Frame-data semantics (as implemented, oracle-validated)
 
 - **Startup S** = frames from an attack's step-0 frame up to but *not including* the first
   active frame (this game's Dustloop convention; e.g. Uranus 2LP S4). Active **follows the
@@ -341,7 +432,7 @@ patch 10 transliterates the same logic into 65816 and is validated *against* the
 
 ---
 
-## 12. Cross-reference — subsystem → patches → tools
+## 13. Cross-reference — subsystem → patches → tools
 
 | Subsystem | Key addresses | Patches | Probe/analysis tools |
 |---|---|---|---|
@@ -353,8 +444,9 @@ patch 10 transliterates the same logic into 65816 and is validated *against* the
 | Projectiles | slots `$1100/1180`, `$8A:FD51` | 9 | `probe_ds*.lua`, `extract_proj_boxes.py` |
 | Title text | `$C3:B81F` | 3, 4 | `texttiles.py`, `mockup.lua` |
 | In-ROM combo/labels | hooks above + WRAM `$0900+`, CHR 0xC7 | 10 | `mkpatch10.py`, `hudfont.py`, `perf_patch10.lua`, `test_labels.lua` |
+| Practice mode / in-ROM trainer | `$80:8373`, `$80:D574`, `$008D` 4↔5, `$0070`, `$01FA`, `$7F:E000/F000`, TM `$212C` | 11 | `mkpatch11.py`, `probe_p11_*.lua`, `test_p11_tier1.lua`, `perf_patch11.lua` |
 
-**Builders** `tools/mkpatch{,2..10}.py` (all take `(src,out)` positionals, stack on any input).
+**Builders** `tools/mkpatch{,2..11}.py` (all take `(src,out)` positionals, stack on any input).
 **Frame-data engine + training mode** `tools/training/` (Lua; also the patch oracles).
-**The all-patches test ROM** is `build/SailorMoonS_FrenchName_v1.0_ALLPATCHES.sfc` (SHA-1
-`f20f2883…`, BPS `build/sms_allpatches_v1.0.bps`).
+**The all-patches test ROM** is `build/SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` (SHA-1
+`be2cb752…`, BPS `build/sms_allpatches_v1.1.bps`; the v1.0/`f20f2883…` ROM is patches 1-10).
