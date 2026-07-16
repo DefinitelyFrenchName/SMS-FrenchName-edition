@@ -46,7 +46,8 @@ Everything below assumes the script is running (see `training_install.md`).
 | S display | dustloop / SF6 | Same as key `F` |
 | meter | auto / frozen | Same as key `G` |
 | timer | frozen / running | Round timer freeze (frozen by default) |
-| hp regen | 2s to max / off | Restore the dummy to its character's max HP after 2 s without taking damage (waits until it's actionable and no combo is open) |
+| hp regen | 2s to max / off | Restore the dummy to its character's max HP after 2 s without taking damage (waits until it's actionable and no combo is open); the life bar refills with it |
+| ko reset | on / off | On any KO, instantly reload the position state (`Q`) instead of letting the round end — a baseline is auto-captured at session start if you never saved one |
 
 Settings persist to `traces/training_settings.lua` when the menu closes.
 

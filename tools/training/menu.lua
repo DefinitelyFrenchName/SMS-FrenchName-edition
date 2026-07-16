@@ -51,6 +51,8 @@ function M.init(ctx)
                   function(d) ctx.mod.regen.timerFreeze = not ctx.mod.regen.timerFreeze end },
     { "hp regen", function() return ctx.mod.regen.hpRegen and "2s to max" or "off" end,
                   function(d) ctx.mod.regen.hpRegen = not ctx.mod.regen.hpRegen end },
+    { "ko reset", function() return ctx.mod.regen.koReset and "on" or "off" end,
+                  function(d) ctx.mod.regen.koReset = not ctx.mod.regen.koReset end },
   }
 
   local function saveSettings()
@@ -58,10 +60,11 @@ function M.init(ctx)
       local f = assert(io.open(SETTINGS, "w"))
       f:write(string.format(
         "return { pose=%q, guard=%q, tech=%s, wakeup=%q, trigger=%q, hudMode=%d, " ..
-        "hudScale=%d, hitboxes=%s, sConvSF6=%s, timerFreeze=%s, hpRegen=%s }\n",
+        "hudScale=%d, hitboxes=%s, sConvSF6=%s, timerFreeze=%s, hpRegen=%s, koReset=%s }\n",
         dm().pose, dm().guard, tostring(dm().tech), dm().wakeup, rec().trigger,
         ctx.ui.hudMode, ctx.cfg.hudScale, tostring(ctx.ui.hitboxes), tostring(ctx.ui.sConvSF6),
-        tostring(ctx.mod.regen.timerFreeze), tostring(ctx.mod.regen.hpRegen)))
+        tostring(ctx.mod.regen.timerFreeze), tostring(ctx.mod.regen.hpRegen),
+        tostring(ctx.mod.regen.koReset)))
       f:close()
     end)
   end
@@ -78,6 +81,7 @@ function M.init(ctx)
       if s.sConvSF6 ~= nil then ctx.ui.sConvSF6 = s.sConvSF6 end
       if s.timerFreeze ~= nil then ctx.mod.regen.timerFreeze = s.timerFreeze end
       if s.hpRegen ~= nil then ctx.mod.regen.hpRegen = s.hpRegen end
+      if s.koReset ~= nil then ctx.mod.regen.koReset = s.koReset end
     end
   end
   loadSettings()
