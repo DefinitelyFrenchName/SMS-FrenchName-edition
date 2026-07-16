@@ -23,6 +23,7 @@ the operational map (current state, deliverables, tooling, findings, gotchas).
 | 7. Pluto 5HP **(OPTIONAL)** | Pluto 5HP hitbox extended down to hit crouchers (all but Chibi) | `tools/mkpatch7.py` | `build/sms_pluto5hp.bps` | `fc757936…` |
 | 8. Venus throw tech **(OPTIONAL)** | Venus 6HP throw mash-escape window 6f → 13f (standard-ish; Jupiter=15f) | `tools/mkpatch8.py` | `build/sms_venustech.bps` | `63ce0748…` |
 | 9. Neptune fireball **(OPTIONAL)** | Deep Submerge fireball hitbox tracks the descending sprite (was stuck at head level) | `tools/mkpatch9.py` | `build/sms_neptune_ds.bps` | `d5ee12a3…` |
+| 10. In-match combo counter **(OPTIONAL)** | Live combo-hit counter rendered by the base game under each attacker's bar (no overlay needed) | `tools/mkpatch10.py` | `build/sms_combocounter.bps` | `ccdd1510…` |
 
 Combined builds:
 - `build/sms_both.bps` — clean → patch 1 + 2 (stacked SHA-1 `5ae720fe…`)
@@ -887,6 +888,81 @@ now lands at the ball's true position too. No further bytes to change.
 
 ---
 
+# Patch 10 — in-match combo counter (base game) (OPTIONAL / experimental)
+
+**Deliverables:** `tools/mkpatch10.py`, `build/sms_combocounter.bps` (standalone, patched
+SHA-1 `ccdd1510…`), `build/sms_full10_combo.bps` (canonical v0.7 + this, ROM
+`build/SailorMoonS_FrenchName_v0.7_all5_combo.sfc`, SHA-1 `b0d5500f…`). Answers the
+feasibility question "can the training-mode combo counter live in the ROM?" — **yes**, and
+the measured cost is negligible.
+
+## What it does
+Renders a live **combo-hit counter** (big yellow digits, up to 99) under the attacker's
+health bar — left when P1 combos, right when P2 combos — using the base game's own HUD, so
+it shows on real hardware and any emulator with **no Lua overlay**. Counts true chains only
+(defender never actionable between hits), exactly like `tools/training/combo.lua`: a hit
+after ≥3 free frames restarts at 1; shows from `--min-hits` (default 2), fades after `--ttl`
+frames. Gated to VS + training modes (`--modes`, default `$008D` ∈ {0,1,4,5}).
+
+## Mechanism (Arch A — reverse-engineered, no new tiles, no NMI surgery)
+The in-match HUD is a staging-buffer design: a **main-loop producer `$C0:D5E8`** (scanline
+101, once/frame) computes bar+timer tile updates into WRAM `$0806-$0815`; an **NMI uploader
+`$C0:D56F`** (scanline 237, vblank) flushes them to VRAM. Patch 10 adds two JML trampolines:
+- **compute** (producer hook): per-frame combo tick over both player structs (`+0x49` HP for
+  hit detection via a shadow byte, `+0x01` act for the actionable/true-chain test), storing
+  state + digit tiles into the **unused HUD page tail `$0816-$08FF`**;
+- **flush** (uploader hook): pushes the staged digit tile words to free tilemap cells in
+  vblank.
+Big digit tiles 0-9 already exist in the HUD CHR (`0x2C50+N` top, `0x2C60+N` bottom — the
+timer's tiles), and HUD tilemap rows 6-7 are blank, so **no graphics are added** — the patch
+is pure code + WRAM. Full RE map in `docs/annotations.md` ("In-match HUD rendering").
+
+## Changed bytes (2 hooks + header/checksum; appended bank for the stubs)
+
+| File offset | SNES addr | Old | New | Meaning |
+|---|---|---|---|---|
+| `0x0D5E8` | `$C0:D5E8` | `C2 10 E2 20` | `5C ll hh bk` | producer entry → JML compute stub |
+| `0x0D56F` | `$C0:D56F` | `C2 30 AD 06` | `5C ll hh bk` | uploader entry → JML flush stub |
+| appended bank | `$E8/$EA:0000` | — | ~700 B | compute + flush stubs (auto-placed past ROM end) |
+| `0xFFC0`, `0xFFDC/DE` | header | — | — | FrenchName header + checksum |
+
+Byte-disjoint from patches 1–9 (they touch `0x1874D`, `0x188EA-EE`, `0x9CCD`, `0x884B/8998/
+A630`, `0x3B81F`, `0xAF0DE`, `0x16C70`, `0xAFD5D-75`; stubs `0x1BE20-31/0x1BE85`). WRAM
+scratch `$08A0-$08FF` verified unused; VRAM cells (`$10C2/C3/E2/E3`, `$10DC/DD/FC/FD`) are
+blank tilemap cells the game never writes in-match.
+
+## Performance (the measured answer)
+Over the infinite-rep scenario (`cpu.cycleCount` deltas): **compute stub mean 191 / max 254
+cycles/frame** (main loop, scanline 101 — huge headroom before vblank), **flush stub 44
+cycles/frame** (vblank, trivial). Frame budget ≈ 40,951 cycles → **~0.57 % overhead**.
+Definitive lag test: clean vs patched with identical scripted inputs — the two players'
+gameplay RAM (`$1000-$10FF`) and the round timer are **frame-identical** the entire scenario
+⇒ **zero added lag frames, zero gameplay change** (the patch only reads structs and writes
+its own scratch + free VRAM cells).
+
+## Verification (`tools/test_patch10.lua`, headless)
+- **Oracle equivalence:** the ROM counter (`$08B0`) equals the Lua combo module's count
+  frame-for-frame across the infinite rep (0 mismatches), peaking at 3.
+- **Digit render:** poked values stage the correct tile words — `3`→ones `2C53`/tens blank
+  (leading-zero suppression), `15`→`2C51`+`2C55`, `7`→`2C57`; visually confirmed on-screen
+  (screenshots: live "3", poked "15"/"8" on both sides).
+- **Gating:** in a disallowed mode (`$008D`=2) the counter blanks.
+- **Non-interference / no lag:** frame-identical gameplay RAM + timer clean vs patched.
+- **Packaging:** BPS round-trip SHA-1 `ccdd1510…`; hooks byte-disjoint from patches 1–9.
+
+## Knob
+| Knob | Flag | Default | Effect |
+|---|---|---|---|
+| Min hits to show | `mkpatch10.py --min-hits` | `2` | counter appears from N hits |
+| Display TTL | `mkpatch10.py --ttl` | `72` | frames the count lingers after the last hit |
+| Mode gate | `mkpatch10.py --modes` | `0,1,4,5` | `$008D` values to show in; `all` = every match |
+
+*(GC/MEATY status codes were scoped out for v1 — the counter is the deliverable; the RE
+groundwork (action-setter hook, blockstun-exit detection) is documented and would be a
+follow-up.)*
+
+---
+
 # Applying (summary)
 
 ```
@@ -900,6 +976,7 @@ flips --apply build/sms_dashinvuln.bps         <clean ROM> <out>   # patch 6 (op
 flips --apply build/sms_pluto5hp.bps           <clean ROM> <out>   # patch 7 (optional)
 flips --apply build/sms_venustech.bps          <clean ROM> <out>   # patch 8 (optional)
 flips --apply build/sms_neptune_ds.bps         <clean ROM> <out>   # patch 9 (optional)
+flips --apply build/sms_combocounter.bps       <clean ROM> <out>   # patch 10 (optional)
 
 # combined
 flips --apply build/sms_both.bps  <clean ROM> <out>   # patches 1 + 2
