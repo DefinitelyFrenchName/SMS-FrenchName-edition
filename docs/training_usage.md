@@ -1,0 +1,132 @@
+# Training mode — commands & usage reference
+
+You are **P1**; the script drives **P2** (the dummy) unless you take control of it.
+Everything below assumes the script is running (see `training_install.md`).
+
+## Keyboard hotkeys (rebindable in `training_cfg.lua` → `TM_CFG.keys`)
+
+| Key | Action |
+|---|---|
+| `M` | Open/close the **menu** (navigate `W`/`S`, change value `A`/`D`) |
+| `1`–`7` | Dummy **quick modes**: 1 off · 2 guard all · 3 guard after first hit · 4 crouch · 5 wakeup jab · 6 wakeup backdash · 7 wakeup slot-playback |
+| `0` | **Reset positions** (both characters to mid-screen, actions cleared) |
+| `9` | Cycle **HUD mode**: full → meter only → panel only → off |
+| `8` | Toggle **hitbox viewer** |
+| `R` | **Record** toggle: arm recording into the current slot (pad-swap turns on; recording starts at your first input) / stop & save |
+| `T` | **Playback** toggle: play the current slot (or stop playback) |
+| `Y` | Cycle **recording slot** 1–4 (shows length) |
+| `U` | Cycle **playback trigger**: manual → loop → wakeup → blockstun → hitstun → random |
+| `Q` / `E` | **Save / restore position state** (in-memory savestate — repeatable, survives nothing but the session) |
+| `G` | Freeze/unfreeze the **frame meter** (inspect the last exchange; works with pause + frame advance) |
+| `P` | Manual **pad swap** (your pad drives P2 until pressed again) |
+| `F` | Toggle **startup display convention** (see "Frame data conventions") |
+
+## Pad controls (disable with `TM_CFG.padControls = false`)
+
+| Input | Action |
+|---|---|
+| hold `R` (shoulder) | **Drive the dummy** while held (momentary pad swap, nothing recorded) |
+| `Select` | **Record toggle** — same as keyboard `R`: press once to arm (your next input starts the recording, you're controlling P2), press again to stop & save |
+| `Start` | Normal game pause (untouched) |
+
+## The menu (`M`)
+
+| Row | Values | Meaning |
+|---|---|---|
+| dummy | on/off | Master switch for all dummy layers |
+| pose | stand / crouch / jump | Idle stance. **stand = port 2 left free** (a second pad can play the dummy) |
+| guard | off / all / afterhit | `all` = hold down-back whenever able; `afterhit` = start guarding after the first hit taken |
+| auto tech | on/off | Mash throw-escape while grabbed (2 sampled presses = tech, half damage) |
+| wakeup | off / block / jab / backdash / throw / slot | One-shot action on the first actionable frame after knockdown/throw; `slot` plays the current recording (reversal timing) |
+| rec slot | 1–4 (length) | Active recording slot |
+| trigger | manual / loop / wakeup / blockstun / hitstun / random | When playback fires; `random` picks any non-empty slot (mixup training) |
+| hud mode | 1–4 | Same as key `9` |
+| hud scale | 1–4 | ScriptHud overlay resolution |
+| hitboxes | on/off | Same as key `8` |
+| S display | dustloop / SF6 | Same as key `F` |
+| meter | auto / frozen | Same as key `G` |
+
+Settings persist to `traces/training_settings.lua` when the menu closes.
+
+## Recording workflow
+
+1. Pick a slot (`Y`), press `R` (or pad `Select`) — you now control P2; the recording
+   starts on your **first input** (idle lead-in is skipped).
+2. Perform the sequence, press `R`/`Select` again — trailing neutral is trimmed, the slot
+   is saved to `traces/training_slots.lua`.
+3. Play it: `T` (manual), or set a trigger (`U`): **wakeup** replays it the instant P2
+   becomes actionable after a knockdown — the classic reversal dummy. `reversal_lead`
+   (cfg, default 1) starts playback a frame early so reversal-timed moves come out
+   frame-perfect.
+4. Recordings store **back/forward relative to facing** — they mirror automatically when
+   sides switch.
+
+## The frame meter (bottom)
+
+Two tracks: P1 above, P2 below; one cell = one frame, newest on the right. It records
+while anything is happening and **freezes when both players idle**, keeping the last
+exchange readable (SF6 behavior). Colors:
+
+| Color | Class | | Color | Class |
+|---|---|---|---|---|
+| green | startup | | yellow | hitstun |
+| red | **active** | | dark gold | blockstun |
+| blue | recovery | | slate | block held |
+| light blue | **cancellable recovery** | | rust | knockdown / getting up |
+| dark gray | neutral | | purple | thrown / held |
+| gray | movement (walk/jump/dash) | | teal | throw tech |
+
+Modifiers: **white strip on top** = invulnerable that frame (empty hurtbox / untargetable);
+**pale strip at bottom** = cancel window; **dimmed cell** = hitstop (excluded from all
+counts); **thin red sub-row** = that player's projectile is active. Segment counts print at
+the start of each run; the **advantage badge** (`+N` green / `-N` red) lands between the
+tracks when an exchange settles.
+
+Above the meter, the last-move summary: `P1 2LP  S4 A5 R4 T13  hit +6 (c+12)` — startup /
+active / recovery / total, then advantage on hit or block. `c+N` is **cancel advantage**:
+your advantage if you cancel the recovery (this game's links live in cancellable recovery —
+that's the number that governs the Uranus infinite, for example).
+
+## Frame data conventions (important)
+
+- **S (startup)** counts the frames *before* the first active frame — the convention this
+  game's Dustloop wiki uses (2LP = S4). Press `F` for SF6-style display ("hits on frame
+  N": S+1). The toggle is display-only.
+- **Counts exclude hitstop** — on-hit and whiff numbers match.
+- **Active frames follow the hitbox**, including the measured 1-frame persistence into the
+  recovery act — "can this frame hit?" is the definition.
+- **Advantage** = first-neutral-frame delta (`+` = you recover first), measured only after
+  the defender actually reacted, and deferred while any projectile is live.
+
+## Labels (popups above the meter)
+
+| Label | Fires when |
+|---|---|
+| MEATY | A hit connects with the attack already active ≥2 frames while the defender was leaving knockdown/stun (includes the hit-beats-same-frame-block case) |
+| REVERSAL | A move starts on the defender's first actionable frame (±1) after stun/knockdown |
+| PUNISH | A hit connects while the victim is in **recovery** of their own move |
+| COUNTER | A hit connects during the victim's **startup** (informational — this game has no counter-hit bonus) |
+| THROW TECH | Throw escaped by mashing (half damage) |
+| THROWN | Throw completed (full damage) |
+| TRADE | Both players' hits connect on the same frame |
+
+## Combo counter
+
+`N HITS · M DMG` in the panel. A hit landing after the defender had **any actionable
+frame** restarts the count and tags it as a reset (fake pressure) — a string with no
+actionable gap counts as one true combo. Note the frame-perfect N=6 meaty *continues* the
+combo: measured, the defender genuinely has zero actionable frames against it.
+
+## Hitbox viewer (`8`)
+
+Red = attack box (only while genuinely active), green = body hurtbox, yellow = head
+hurtbox, blue = collision/push box. Hurtboxes disappear while a character is invulnerable —
+that's the actual invulnerability mechanism in this engine, so what you see is what hits.
+Box data is read live from the ROM, so box-altering patches (e.g. patch 7) render truthfully.
+
+## Piano roll (right edge)
+
+Your inputs per frame, newest at the bottom: direction as numpad notation (2 = down,
+6 = forward, 3 = down-forward…), then `P K P K` columns = LP LK HP HK (light/dark shades).
+Identical consecutive frames compress into one row with `xN`. While you record or the dummy
+plays back, the roll switches to P2's inputs so you can inspect the recording.
