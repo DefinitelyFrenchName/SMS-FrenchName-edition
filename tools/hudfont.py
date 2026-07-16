@@ -26,13 +26,25 @@ GLYPHS = {
     "N": ["10001","11001","10101","10011","10001","10001","10001"],
     "I": ["11111","00100","00100","00100","00100","00100","11111"],
     "H": ["10001","10001","10001","11111","10001","10001","10001"],
+    # patch-11 additions (menu vocabulary; keep the 16 above untouched — patch 10 shares them)
+    "B": ["11110","10001","10001","11110","10001","10001","11110"],
+    "D": ["11110","10001","10001","10001","10001","10001","11110"],
+    "F": ["11111","10000","10000","11110","10000","10000","10000"],
+    "J": ["00111","00010","00010","00010","00010","10010","01100"],
+    "K": ["10001","10010","10100","11000","10100","10010","10001"],
+    "O": ["01110","10001","10001","10001","10001","10001","01110"],
+    "W": ["10001","10001","10001","10101","10101","11011","10001"],
+    ">": ["10000","11000","11100","11110","11100","11000","10000"],  # menu cursor
 }
 
 COLOR = 3   # 2bpp pixel index for glyph pixels (matches digit outline color)
 
 
 def glyph_2bpp(ch):
-    """Return the 16-byte 2bpp tile for a letter, or all-zero for space/unknown."""
+    """Return the 16-byte 2bpp tile for a letter, or all-zero for space/unknown.
+    "#" = solid 8x8 backdrop tile in color index 2 (menu panel background)."""
+    if ch == "#":
+        return bytes([0x00, 0xFF]) * 8   # every pixel = color 2 (plane1 set)
     rows = GLYPHS.get(ch)
     out = bytearray(16)
     if not rows:
