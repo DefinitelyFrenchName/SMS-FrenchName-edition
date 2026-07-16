@@ -16,7 +16,7 @@ Playable roster (charID): 1 Moon, 2 Mercury, 3 Mars, 4 Jupiter, 5 Venus, 6 Uranu
 
 ## 1. Current state (2026-07-16) — everything green
 
-Eight patches, all built and verified in-emulator. The **canonical** shipping build is **v0.7**.
+Nine patches, all built and verified in-emulator. The **canonical** shipping build is **v0.7**.
 
 | # | Patch | Builder | Standalone BPS |
 |---|---|---|---|

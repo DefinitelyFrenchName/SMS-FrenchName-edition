@@ -4,7 +4,7 @@ Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),
 clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c` (HiROM+FastROM, headerless,
 file offset = SNES addr & 0x3FFFFF).
 
-This document covers eight independent patches (1–5 gameplay/cosmetic, 6–8 optional/
+This document covers nine independent patches (1–5 gameplay/cosmetic, 6–9 optional/
 experimental). Each is a separate stackable BPS built by its own `tools/mkpatchN.py`; their
 edits are byte-disjoint, so they combine cleanly. **New here? Read `HANDOFF.md` first** — it is
 the operational map (current state, deliverables, tooling, findings, gotchas).
@@ -22,6 +22,7 @@ the operational map (current state, deliverables, tooling, findings, gotchas).
 | 6. Dash i-frames **(OPTIONAL)** | Uranus forward dash gains ~6 strike-invuln frames mid-move | `tools/mkpatch6.py` | `build/sms_dashinvuln.bps` (+`.ips`) | `34c5d458…` |
 | 7. Pluto 5HP **(OPTIONAL)** | Pluto 5HP hitbox extended down to hit crouchers (all but Chibi) | `tools/mkpatch7.py` | `build/sms_pluto5hp.bps` | `fc757936…` |
 | 8. Venus throw tech **(OPTIONAL)** | Venus 6HP throw mash-escape window 6f → 13f (standard-ish; Jupiter=15f) | `tools/mkpatch8.py` | `build/sms_venustech.bps` | `63ce0748…` |
+| 9. Neptune fireball **(OPTIONAL)** | Deep Submerge fireball hitbox tracks the descending sprite (was stuck at head level) | `tools/mkpatch9.py` | `build/sms_neptune_ds.bps` | `d5ee12a3…` |
 
 Combined builds:
 - `build/sms_both.bps` — clean → patch 1 + 2 (stacked SHA-1 `5ae720fe…`)
@@ -50,6 +51,10 @@ Combined builds:
   throw tech). Playable ROM `build/SailorMoonS_FrenchName_v0.7_all5_venustech.sfc`
   (SHA-1 `3e3cd687…`); differs from canonical v0.7 by one gameplay byte (`0x16C70 00→01`)
   + checksum.
+- `build/sms_full9_neptuneds.bps` — clean → canonical all-five **+ optional patch 9** (Neptune
+  Deep Submerge fireball). Playable ROM `build/SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc`
+  (SHA-1 `b1c3163f…`); differs from canonical v0.7 by four gameplay bytes (`0xAFD5D/65/6D/75`,
+  the fireball hit-box `y_off`) + checksum.
 
 Edit-region map (why they're disjoint):
 - Patch 1: `0x1874D/E` + stub `0x1BE20–29` (bank $C1).
@@ -63,6 +68,8 @@ Edit-region map (why they're disjoint):
 - Patch 6: bank-$C0 hook `0x09CCD` + stub `0x1BE85` (bank $C1, clear of patches 1/2).
 - Patch 7: one byte `0xAF0DE` (bank $8A Pluto hit table).
 - Patch 8: one byte `0x16C70` (bank $C1 Venus throw-hold script data).
+- Patch 9: four bytes `0xAFD5D/65/6D/75` (bank $8A Deep Submerge fireball hit table `$8A:FD51`,
+  object-id 0x18 — exclusive; disjoint from every character/projectile table).
 
 ## Tunable parameters (the knobs)
 
@@ -78,6 +85,7 @@ one patch (or re-run the whole chain) after changing a knob; all stack.
 | **Title style** | `mkpatch4.py … --style <s>` | `white_red` | `white_red` (white core/red outline), `red_white`, `red`. |
 | **Pluto 5HP reach (opt.)** | `mkpatch7.py … --h <n>` | `62` | New active-box height: `54` = vanilla (whiffs crouchers), **`62` = hits all crouchers except Chibi**, `64` = all incl. Chibi. Byte `0xAF0DE`. |
 | **Venus tech window (opt.)** | `mkpatch8.py … --extra <n>` | `1` | Extra sampling steps on the throw-hold script: `0` = vanilla 6f, **`1` = 13f (default)**, `2` = 19f, `3` = 24f (whole hold). Standard throws ≈ 15f (Jupiter). Bytes `0x16C70/78/80`. |
+| **Neptune fireball box (opt.)** | `mkpatch9.py … --yoff <n>` | `-11` | `y_off` of the 4 active hit boxes vs the projectile origin (ball ≈ origin ±11): **`-11` = centred on the ball (tracks the descent)**; more negative biases higher, less negative lower. `-27`/`-60` = vanilla (floats at head level). Bytes `0xAFD5D/65/6D/75`. |
 
 Patches 2 (dashfix) and 3 (palettes) have no knobs — they're single-purpose. Example
 retune: `python3 tools/mkpatch.py 0x05 build/n5.sfc` (true-combo gate), or
