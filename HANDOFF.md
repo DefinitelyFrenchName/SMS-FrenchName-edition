@@ -167,8 +167,9 @@ size degenerate headless; screenshots don't composite ScriptHud (console surface
 
 **Other tools:** `extract_sms_hitboxes.py` → `docs/sms_all_boxes.json` (per-char box tables);
 `extract_proj_boxes.py` (projectile/object box tables, idx 10–27); `ds_trace.lua` /
-`ds_overlay.lua` / `ds_hittest.lua` (Neptune Deep Submerge fireball: log projectile slot,
-draw its live hitbox vs sprite, hit-test a posed target — patch 9 workhorses);
+`ds_overlay.lua` / `ds_hittest.lua` / `ds_clash.lua` (Neptune Deep Submerge fireball: log
+projectile slot, draw its live hitbox vs sprite, hit-test a posed target, and a Neptune-mirror
+two-fireball clash demo — patch 9 workhorses; states `neptune_vs_{jupiter,chibi,neptune}.mss`);
 `tools/Dispel/dispel` disassembler (**build once**: `cc -O2 -o dispel main.c 65816.c` in
 `tools/Dispel/`); `texttiles.py` + `mockup.lua` (title font); `mkpatch3` reuses
 `vendor/sms-training-mode/sms_patcher.py` for the palette port.
