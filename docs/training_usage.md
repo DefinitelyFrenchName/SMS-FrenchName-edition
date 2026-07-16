@@ -45,6 +45,8 @@ Everything below assumes the script is running (see `training_install.md`).
 | hitboxes | on/off | Same as key `8` |
 | S display | dustloop / SF6 | Same as key `F` |
 | meter | auto / frozen | Same as key `G` |
+| timer | frozen / running | Round timer freeze (frozen by default) |
+| hp regen | 2s to max / off | Restore the dummy to its character's max HP after 2 s without taking damage (waits until it's actionable and no combo is open) |
 
 Settings persist to `traces/training_settings.lua` when the menu closes.
 

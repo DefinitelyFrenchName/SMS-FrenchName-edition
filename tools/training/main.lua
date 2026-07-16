@@ -39,7 +39,7 @@ function M.run(ROOT, opts)
   if TM_CFG then for k, v in pairs(TM_CFG) do ctx.cfg[k] = v end end
 
   local MODULES = opts.modules or
-    { "gamestate", "input", "recorder", "dummy", "framedata", "combo", "labels",
+    { "gamestate", "input", "recorder", "dummy", "framedata", "combo", "labels", "regen",
       "hud", "hud_panel", "hud_bar", "hud_pianoroll", "hud_boxes", "menu" }
   for _, name in ipairs(MODULES) do
     local m = dofile(ROOT .. "training/" .. name .. ".lua")
