@@ -146,7 +146,9 @@ Colors:
 Red = attack box (only while genuinely active), green = body hurtbox, yellow = head
 hurtbox, blue = collision/push box. Hurtboxes disappear while a character is invulnerable —
 that's the actual invulnerability mechanism in this engine, so what you see is what hits.
-Box data is read live from the ROM, so box-altering patches (e.g. patch 7) render truthfully.
+Box data is read live from the ROM, so box-altering patches render truthfully (patch 7's
+Pluto 5HP, patch 9's Deep Submerge). Projectiles draw from their **own** object box tables
+(object id 10–27 → bank $8A pointer table), not their owner's.
 
 ## Piano roll (left edge)
 
