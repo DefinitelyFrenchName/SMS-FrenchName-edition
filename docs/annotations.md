@@ -312,3 +312,22 @@ Combo/status counting logic proven in tools/training/{combo,labels}.lua (reads +
 Detection mirrors tools/training/labels.lua (GC/MEATY/REVERSAL/PUNISH/TECH); runs in the
 producer stub $C0:D5E8 (no new hooks). Perf: +2.62% CPU, frame-identical (zero lag). Tools:
 tools/hudfont.py (glyphs), tools/test_labels.lua (oracle), tools/perf_patch10.lua (lag suite).
+
+## Native training mode (patch 11 RE, 2026-07-16) — all verified on clean ROM, Mesen headless
+
+| Addr / fact | Meaning |
+|---|---|
+| $7E:1B10 title menu | **2 cols x 3 rows** (nav table $C0:A29D+cursor*4 confirmed): left col 0/1/2, right col 3/**4=Practice**/5. Reach Practice: down (0->1), right (1->4). The old "6 vertical entries" reading was wrong. |
+| $7E:008D values | VS 1P-vs-2P match = **01**; native training = **04**; attract demo = **05**; training w/ damage = **05**. Poking $8D 4->5 mid-match enables damage (vendor semantic CONFIRMED on this game). |
+| mode 4 hit rule | Hits fully connect in mode 4 (attacker +0x43 latch set, defender hitstun act 0x12, hitstop 8) — **only the HP subtraction is gated**. Mode 5 = same + damage. Blocks/combos/throws all work natively in 4. |
+| $7E:0070 | = **4 while in any match** (VS and training), 0 outside. In-match qualifier for gates ($008D alone is ambiguous at training char-select, which is already mode 4). |
+| $7E:01FA | 0x80 = match running; **0xE4 = movelist open** (Start toggles it). **Select exits the training match** (~60f fade, $0070->0). |
+| L / R shoulders | **No observable effect in-match** (WRAM-diff clean) — free as patch-11 menu trigger. |
+| HUD producer $C0:D5E8 | **NEVER executes in a training match** (mode 4 or 5): no HUD drawn, no timer decrement ($0802-04 stay 0), no bar latching. Patch-10's counter therefore never rendered in training. Uploader $C0:D56F DOES run every frame (NMI, scanline 237 — same NMI as joy_read $80:8353, joy first). |
+| TM ($212C) | Training match mainScreenLayers = **0x13 (BG3 off)**; VS = 0x17. Game writes TM only at scene setup (0 writes over 40f in-match). CGRAM identical to VS (HUD palettes loaded, BG3 pal 3 usable); BG3 digit CHR loaded; free window 0xC7-0xDF all-zero. **To show BG3 UI in training: force TM=0x17 during vblank while visible, restore 0x13.** mode1Bg3Priority=1, BG3 scroll 0/0. |
+| BG3 tilemap in mode 4 | Rows 8-15 write-test survived 160f of fighting (game never writes them in-match); rows 9-16 hold invisible stale cells (BG3 off) — safe to overwrite; on exit the game wipes the map to zeros. |
+| KO in mode-5 training | hp=0 -> KD acts -> act 0x1F at ~+66f; **no round-end flow ever fires** ($0070/$008D unchanged, game runs on). KO-refill can act any time during the KD. |
+| Injection @ $80:8373 | Overwriting P2 held word $5E/$5F at the point after joy_read stores held words but before edge calc: game derives press edges itself next frame (**no need to touch $60-$67**); +0x50 latch follows at 30Hz; down-back blocks; alternating HK yields fresh presses every 2f; back/neutral/back fires the 44 backdash (act 0x26) on wakeup — **no action force-writes needed**. |
+| Bank $7F | Boot clears all 64K once; scene-load/round-intro uses **$7F:0000-5FFF**; steady-state match traffic ZERO. **$7F:F000-$7FFF = patch-11 state home.** |
+| WRAM $0816-$09FF | Heavily touched in native training (the VS-mode zero-access result does NOT transfer). Do not use for training-mode state. |
+| traces/training_p11.mss | Clean-ROM native training match savestate (Uranus vs Jupiter, mode 4), made by tools/probe_p11_nav.lua. |
