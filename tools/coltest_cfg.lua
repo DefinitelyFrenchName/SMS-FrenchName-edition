@@ -1,5 +1,5 @@
 CHARA = 7
-CHAR2 = 9
+CHAR2 = 7
 CONFIRM = {a=true}
-TAG = "nep_chibi"
-SAVE = "neptune_vs_chibi.mss"
+TAG = "nep_nep"
+SAVE = "neptune_vs_neptune.mss"
