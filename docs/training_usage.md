@@ -109,7 +109,7 @@ player's side (`status` menu row picks the placement; default both).
 
 | Label | Fires when |
 |---|---|
-| MEATY | A hit connects with the attack already active ≥2 frames while the defender was leaving knockdown/stun (includes the hit-beats-same-frame-block case) |
+| MEATY | A hit connects within 2 frames of the defender leaving stun/knockdown — includes the 1-frame meaty that lands on their first exit frame (hit beats same-frame block) |
 | REVERSAL | A move starts on the defender's first actionable frame (±1) after stun/knockdown |
 | PUNISH | A hit connects while the victim is in **recovery** of their own move |
 | COUNTER | A hit connects during the victim's **startup** (informational — this game has no counter-hit bonus) |
