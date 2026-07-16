@@ -7,7 +7,11 @@
 --   no combo being open, so a slow knockdown string can't trigger a mid-sequence refill.
 --   The HUD life bar has its OWN latched value ($7E:0800 = P1 bar, $7E:0801 = P2 bar —
 --   found by WRAM diff: it only updates through the damage routine), so the refill writes
---   both the struct HP and the bar value; otherwise the bar stays visually damaged.
+--   both the struct HP and the bar value. But the bar RENDERING (HUD producer $C0:D5E8)
+--   only repaints the single boundary tile per frame during a DRAIN animation — it has no
+--   fill path — and fill level is shown by PALETTE (filled = palette $64, emptied = $60/red).
+--   So an instant refill leaves the previously-emptied cells red ("disjointed red parts").
+--   Fix: repaint the full bar's tilemap cells directly to VRAM (all $64-palette full tiles).
 --   (framedata treats HP increases as discontinuities and resets cleanly, so the refill
 --   produces no ghost events. Restore-to-combo-start is a possible future variant.)
 -- * KO reset (default on): if either player enters KO (act 0x1F), reload the position
@@ -30,8 +34,21 @@ function M.init(ctx)
   M.koReset = true
 
   local HPBAR = 0x0800          -- +0 = P1 displayed HP, +1 = P2 (latched by damage routine)
+  local VRAM = emu.memType.snesVideoRam
   local timerVal = nil          -- captured lazily; nil = re-capture next frame
   local lastDamageT = 0
+
+  -- HUD tilemap (BG3, word $1000). Each HP bar = 12 cells x 2 rows; a full cell references
+  -- the solid bar tile under palette $64. P2 bar: top cells $1072-$107D, bottom $1092-$109D
+  -- (P1: top $1062-$106D, bottom $1082-$108D). See docs/sms_engine_internals.md §4.
+  local function fullBar(topL, botL, topTile, botTile)
+    for i = 0, 11 do
+      local tw, bw = (topL + i) * 2, (botL + i) * 2
+      emu.write(tw, topTile % 256, VRAM);     emu.write(tw + 1, math.floor(topTile / 256), VRAM)
+      emu.write(bw, botTile % 256, VRAM);     emu.write(bw + 1, math.floor(botTile / 256), VRAM)
+    end
+  end
+  local function repaintP2Bar() fullBar(0x1072, 0x1092, 0x6401, 0x6411) end
 
   local function step()
     local s = ctx.snap
@@ -50,7 +67,8 @@ function M.init(ctx)
       if p.hp < p.maxhp and ctx.t - lastDamageT >= REGEN_FRAMES
          and FREE[p.cls] and not (ctx.combo and ctx.combo[2].active) then
         emu.write(C.BASE[2] + C.OFF.hp, p.maxhp, C.WRAM)
-        emu.write(HPBAR + 1, p.maxhp, C.WRAM)      -- keep the life bar in sync
+        emu.write(HPBAR + 1, p.maxhp, C.WRAM)      -- latched bar value (used by the drain path)
+        repaintP2Bar()                             -- repaint every full cell (fixes red gaps)
         lastDamageT = ctx.t
       end
     end
