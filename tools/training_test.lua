@@ -257,6 +257,91 @@ tests.T4 = (function()
   return T
 end)()
 
+-- T5: event labels on deterministic scenarios (clean ROM, Venus vs Jupiter):
+--   A: Venus 6HP throw + P2 mash        -> "P2 THROW TECH"
+--   B: same, no mash                    -> "P2 THROWN"
+--   C: P1 heavy startup vs P2 jab       -> "P2 COUNTER" (P2's hit lands in P1's startup)
+--   D: Venus sweep + dummy wakeup jab   -> "P2 REVERSAL"
+tests.T5 = (function()
+  local phase = "A"
+  local function fired(ctx, want)
+    for _, f in ipairs(ctx.mod.labels.fired) do
+      if f.text == want then return true end
+    end
+    return false
+  end
+  local plans = {
+    A = { p1 = { [60] = { right = true, x = true }, [63] = {} }, mash = true },
+    B = { p1 = { [60] = { right = true, x = true }, [63] = {} } },
+    C = { p1 = { [58] = { x = true }, [61] = {} },
+          p2 = { [60] = { y = true }, [62] = {} } },
+    D = { p1 = { [60] = { down = true, a = true }, [63] = {} } },
+  }
+  local function pad(plan, t)
+    if not plan then return C0.FALSE_PAD end
+    local bestK, best = -1, {}
+    for k, v in pairs(plan) do
+      if k <= t and k > bestK then bestK, best = k, v end
+    end
+    local out = {}
+    for kk, vv in pairs(C0.FALSE_PAD) do out[kk] = vv end
+    for kk, vv in pairs(best) do out[kk] = vv end
+    return out
+  end
+  local T
+  T = {
+    STATE = "venus_vs_jupiter_clean.mss",
+    DONE = 1e9,
+    CHECKS = {},
+    POKES = { { t = 5, addr = 0x1021, val = 0xE8 } },
+    padSource = function(ctx, port)
+      local t = ctx.t
+      if t < 0 then return C0.FALSE_PAD end
+      local pl = plans[phase]
+      if port == 0 then return pad(pl.p1, t) end
+      if pl.mash then
+        -- HK press every other frame from t=61 (throw-tech mash)
+        local out = {}
+        for kk, vv in pairs(C0.FALSE_PAD) do out[kk] = vv end
+        if t >= 61 and t <= 85 and t % 2 == 1 then out.a = true end
+        return out
+      end
+      return pad(pl.p2, t)
+    end,
+    ONFRAME = function(ctx, log, finish)
+      local t = ctx.t
+      local dm = ctx.mod.dummy
+      if t == 2 then
+        dm.enabled = (phase == "D")
+        dm.guard = "off"; dm.pose = "stand"; dm.tech = false
+        dm.wakeup = (phase == "D") and "jab" or "off"
+      end
+      if phase == "D" and t >= 150 and t <= 226 and t % 8 == 0 then
+        log(string.format("DBG t=%d p2act=%02X cls=%s out2=%s", t, ctx.snap.p[2].act,
+          ctx.C.CLS_NAME[ctx.snap.p[2].cls or 13], tostring(ctx.out and ctx.out[2] ~= nil)))
+      end
+      if t == ((phase == "D") and 230 or 150) then
+        local want = ({ A = "P2 THROW TECH", B = "P2 THROWN",
+                        C = "P2 COUNTER", D = "P2 REVERSAL" })[phase]
+        log(fired(ctx, want) and ("PASS: " .. phase .. " fired " .. want)
+            or ("FAIL: " .. phase .. " missing " .. want .. " (got: " ..
+                (function()
+                  local out = {}
+                  for _, f in ipairs(ctx.mod.labels.fired) do out[#out + 1] = f.text end
+                  return table.concat(out, ", ")
+                end)() .. ")"))
+        ctx.mod.labels.fired = {}
+        if phase == "A" then phase = "B"
+        elseif phase == "B" then phase = "C"
+        elseif phase == "C" then phase = "D"
+        else finish(); return end
+        ctx.anchor.loadreq = T._state
+      end
+    end,
+  }
+  return T
+end)()
+
 -- ---------- harness ----------
 local T = tests[TEST]
 if not T then error("unknown TEST " .. tostring(TEST)) end

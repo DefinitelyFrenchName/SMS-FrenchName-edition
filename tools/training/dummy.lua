@@ -26,6 +26,7 @@ function M.init(ctx)
   local gotHit = false          -- for guard=afterhit
   local wakeArmed = false
   local backdashPhase = 0
+  local oneshot = { mask = 0, frames = 0 }   -- held a few frames (30Hz input latch)
 
   -- quick modes (keyboard 1-7, trainer.lua parity)
   local QUICK = {
@@ -51,16 +52,9 @@ function M.init(ctx)
     return m
   end
 
-  -- one endFrame pass: arm wakeup triggers, track hits
-  local function frame()
-    local s = ctx.snap
-    if not s then return end
-    local d = s.p[M.port]
-    if d.cls == CLS.HITSTUN or d.cls == CLS.THROWN then gotHit = true end
-    if d.cls == CLS.KNOCKDOWN or d.cls == CLS.THROWN then wakeArmed = true end
-  end
-
-  -- input stage (after recorder: recorder set ctx.out[port] already if playing)
+  -- input stage (after recorder: recorder set ctx.out[port] already if playing).
+  -- NOTE: runs at inputPolled, so ctx.snap is the last CLASSIFIED frame (frame hooks
+  -- ordered dummy-before-framedata would see cls=nil — track state here instead).
   local function stage()
     if not M.enabled then return end
     local i = M.port
@@ -69,6 +63,8 @@ function M.init(ctx)
     local s = ctx.snap
     if not s then return end
     local d = s.p[i]
+    if d.cls == CLS.HITSTUN or d.cls == CLS.THROWN then gotHit = true end
+    if d.cls == CLS.KNOCKDOWN or d.cls == CLS.THROWN then wakeArmed = true end
     local onL = gs.onLeft(i)
     local m = nil
 
@@ -76,8 +72,8 @@ function M.init(ctx)
     if wakeArmed and (d.cls == CLS.NEUTRAL or d.cls == CLS.MOVEMENT or d.cls == CLS.BLOCKHOLD)
        and M.wakeup ~= "off" then
       wakeArmed = false
-      if M.wakeup == "jab" then m = mask(C.M_LP)
-      elseif M.wakeup == "throw" then m = mask(C.M_FWD, C.M_HP)
+      if M.wakeup == "jab" then oneshot = { mask = mask(C.M_LP), frames = 3 }
+      elseif M.wakeup == "throw" then oneshot = { mask = mask(C.M_FWD, C.M_HP), frames = 3 }
       elseif M.wakeup == "backdash" then backdashPhase = 6
       elseif M.wakeup == "slot" and ctx.mod.recorder then
         ctx.mod.recorder.startPlay()
@@ -86,6 +82,10 @@ function M.init(ctx)
         -- just fall through to guard layer with gotHit set
         gotHit = true
       end
+    end
+    if oneshot.frames > 0 then
+      m = oneshot.mask
+      oneshot.frames = oneshot.frames - 1
     end
     if backdashPhase > 0 then
       -- double-tap back: back,neutral,back held briefly
@@ -115,9 +115,9 @@ function M.init(ctx)
   end
 
   table.insert(ctx.hooks.input, stage)
-  table.insert(ctx.hooks.frame, frame)
   table.insert(ctx.hooks.reset, function()
     gotHit = false; wakeArmed = false; backdashPhase = 0
+    oneshot = { mask = 0, frames = 0 }
   end)
 end
 

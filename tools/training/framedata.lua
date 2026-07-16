@@ -156,6 +156,7 @@ function M.init(ctx)
         elseif not m.curPhase then
           m.curPhase = { a = 0 }
         end
+        if not m.seenActive then m.firstActiveT = ctx.t end
         m.seenActive = true
         m.lastActiveT = ctx.t
         if not frz then m.A = m.A + 1; m.curPhase.a = m.curPhase.a + 1 end
