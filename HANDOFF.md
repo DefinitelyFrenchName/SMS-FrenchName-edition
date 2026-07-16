@@ -29,6 +29,7 @@ Eight patches, all built and verified in-emulator. The **canonical** shipping bu
 | 6 | Forward-dash i-frames (OPTIONAL) | `mkpatch6.py` | `build/sms_dashinvuln.bps` |
 | 7 | Pluto 5HP hits crouchers (OPTIONAL) | `mkpatch7.py` | `build/sms_pluto5hp.bps` |
 | 8 | Venus 6HP throw tech window 6f→13f (OPTIONAL) | `mkpatch8.py` | `build/sms_venustech.bps` |
+| 9 | Neptune Deep Submerge fireball hitbox tracks sprite (OPTIONAL) | `mkpatch9.py` | `build/sms_neptune_ds.bps` |
 
 ### Playable ROMs (all in `build/`; `.sfc` are gitignored, rebuild from BPS)
 - **`SailorMoonS_FrenchName_v0.7_all5.sfc`** — SHA-1 `24aa6b6d…` — **CANONICAL** (patches 1–5).
@@ -36,9 +37,11 @@ Eight patches, all built and verified in-emulator. The **canonical** shipping bu
 - `SailorMoonS_FrenchName_v0.8_all5_dashinvuln.sfc` — `979db260…` — canonical + patch 6 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_pluto5hp.sfc` — `8e70f452…` — canonical + patch 7 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_venustech.sfc` — `3e3cd687…` — canonical + patch 8 (experimental).
+- `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 
 Each ROM's BPS is `build/sms_full5_v07_canonical.bps` / `sms_full5_truecombo.bps` /
-`sms_full6_v08_dashinvuln.bps` / `sms_full7_pluto5hp.bps` / `sms_full8_venustech.bps`.
+`sms_full6_v08_dashinvuln.bps` / `sms_full7_pluto5hp.bps` / `sms_full8_venustech.bps` /
+`sms_full9_neptuneds.bps`.
 
 ---
 
@@ -67,6 +70,7 @@ python3 tools/mkpatch5.py /tmp/s4.sfc     /tmp/s5.sfc         # (patch 6/7 optio
 | Title text/style | `mkpatch4.py --text/--style` | — | `white_red`/`red_white`/`red` |
 | Pluto 5HP reach | `mkpatch7.py --h` | `62` | `54`=vanilla, `62`=all but Chibi, `64`=all |
 | Venus tech window | `mkpatch8.py --extra` | `1` | `0`=vanilla 6f, `1`=13f, `2`=19f, `3`=24f (standard≈15f) |
+| Neptune fireball box y_off | `mkpatch9.py --yoff` | `-11` | box vs origin; `-11`=centred on ball, more neg=higher |
 
 ---
 
@@ -105,6 +109,14 @@ python3 tools/mkpatch5.py /tmp/s4.sfc     /tmp/s5.sfc         # (patch 6/7 optio
   `h`. Per-char box tables in bank `$8A`; the per-frame box-index writer is `$C0:9CCD`
   (`sta $41,X` from the animation table). Pluto's 5HP is two-phase (act `0x44` startup →
   act `0x46` active, hit-box `0x03`); patch 7 raises that box's `h` so it reaches crouchers.
+- **Projectiles** live in slots `$7E:1100`/`1180` and pick their box table by their **own**
+  `+0x00` object id (not the owner's char). The hit pointer table `$8A:C1F1` has 28 entries:
+  1–9 roster, 10–27 = 9 distinct projectile/object tables (`$8A:FBD9..FDA1`); dump with
+  `tools/extract_proj_boxes.py`. **Neptune's Deep Submerge** (214LP `0x62` / 214HP `0x63`)
+  spawns object id `0x18` → table `$8A:FD51` (exclusive). Its hitbox was authored for an upward
+  arc while the ball falls (origin `+0x25` descends 128→166, box `y_off` climbs -27→-60), so the
+  hitbox floats above the sprite; **patch 9** recentres the box on the ball (`y_off → -11`).
+  Measured with `ds_trace.lua` / `ds_overlay.lua` / `ds_hittest.lua`.
 
 ---
 
@@ -154,6 +166,9 @@ inputPolled precedes exec@$80:8353; getInput is clean if read before setInput; S
 size degenerate headless; screenshots don't composite ScriptHud (console surface only).
 
 **Other tools:** `extract_sms_hitboxes.py` → `docs/sms_all_boxes.json` (per-char box tables);
+`extract_proj_boxes.py` (projectile/object box tables, idx 10–27); `ds_trace.lua` /
+`ds_overlay.lua` / `ds_hittest.lua` (Neptune Deep Submerge fireball: log projectile slot,
+draw its live hitbox vs sprite, hit-test a posed target — patch 9 workhorses);
 `tools/Dispel/dispel` disassembler (**build once**: `cc -O2 -o dispel main.c 65816.c` in
 `tools/Dispel/`); `texttiles.py` + `mockup.lua` (title font); `mkpatch3` reuses
 `vendor/sms-training-mode/sms_patcher.py` for the palette port.
@@ -163,7 +178,9 @@ canonical ROM (`uranus_vs_{jupiter,mars,neptune,chibi}_v07`, `pluto_vs_chibi_v07
 `pluto_vs_1..7,10`); `uranus_vs_jupiter_v06` (N=5 ROM); `uranus_vs_jupiter_f5` (headless
 self-tests); `venus_vs_jupiter_clean` / `jupiter_vs_venus_clean` (clean ROM, patch-8
 techsweep both ways). The four `_v06`/`_v07` Uranus states + Mars/Neptune/Chibi + the two
-Venus states are **force-added to git** so the demos work.
+Venus states are **force-added to git** so the demos work. Patch 9 adds
+`neptune_vs_jupiter.mss` / `neptune_vs_chibi.mss` (Neptune=P1, force-added) for the Deep
+Submerge fireball demos.
 
 ---
 

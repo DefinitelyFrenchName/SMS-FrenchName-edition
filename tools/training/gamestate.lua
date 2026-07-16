@@ -25,7 +25,8 @@ function M.init(ctx)
 
   local function sampleProj(base)
     local pc = r(base + O.charID)
-    return { alive = pc ~= 0 and pc < 0x80, hb = r(base + O.hb), char = r(base + O.charID) }
+    return { alive = pc ~= 0 and pc < 0x80, hb = r(base + O.hb), char = pc,
+             y = r(base + O.posY) }
   end
 
   local function step()

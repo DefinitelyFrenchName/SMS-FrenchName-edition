@@ -42,6 +42,22 @@ and findings made in this project (marked NEW, with evidence).
 ## Uranus action IDs (from training Lua neutral_state — "cancellable recovery animations (light attacks)")
 0x42, 0x48, 0x54, 0x58 — the four light-normal recovery states (stand/crouch LP/LK; exact mapping TBD empirically).
 
+## Projectile objects & their box tables (Deep Submerge, patch 9)
+- Projectile slots `$7E:1100` (P1) / `$7E:1180` (P2): same 0x80-byte struct as fighters; alive
+  when `+0x00 != 0 && < 0x80`. The box_writer_batch ($C0:9CA4) loops these two slots too.
+- A projectile selects its box table from `$8A:C1F1` (hit) by its **own** `+0x00` object id, not
+  the owner's char. The hit pointer table has **28 entries**: idx 1–9 = roster, idx 10–27 =
+  projectile/object tables (9 distinct: `$8A:FBD9,FC69,FC91,FCB9,FCF1,FD29,FD51,FD79,FDA1`).
+  Dump with `tools/extract_proj_boxes.py`.
+- **Neptune Deep Submerge** (fireball): 214LP = action `0x62`, 214HP = action `0x63`; both spawn
+  object id **`0x18`** → hit table **`$8A:FD51`** (file `0xAFD51`), exclusive (pointer idx 24).
+  Traced: origin `+0x25` descends 128→166 (Yvel +512/+768) while the ball stays centred on the
+  origin, but hit entries `1,2,3` had `y_off=-27` and `4` had `y_off=-60` (authored for an
+  UPWARD arc) → hitbox floats above the ball. Patch 9 sets entries 1–4 `y_off=-11` (keep h=22)
+  so the box tracks the ball. Tools: `ds_trace.lua`, `ds_overlay.lua`, `ds_hittest.lua`.
+- Tooling fix: the training-mode overlay (`hud_boxes.lua`) drew projectiles from the owner's
+  char table; corrected to use the projectile's own `+0x00` (guard now allows ids up to 0x7F).
+
 ## ROM (ground truth recap — see sms_uranus_rom_map.md)
 - $8A:C1F1/C229/C23D box pointer tables; Uranus boxes $8A:E3E1/E489/E999.
 - $C0:BFC0 hit check; $C0:CDD5+ damage tables `[dmg, hitstun, level, flags]` — GLOBAL, do not patch.
