@@ -39,7 +39,8 @@ Everything below assumes the script is running (see `training_install.md`).
 | auto tech | on/off | Mash throw-escape while grabbed (2 sampled presses = tech, half damage) |
 | wakeup | off / block / jab / backdash / throw / slot | One-shot action on the first actionable frame after knockdown/throw; `slot` plays the current recording (reversal timing) |
 | rec slot | 1–4 (length) | Active recording slot |
-| trigger | manual / loop / wakeup / blockstun / hitstun / random | When playback fires; `random` picks any non-empty slot (mixup training) |
+| trigger | manual / loop / wakeup / blockstun / hitstun / random / gc | When playback fires; `random` picks any non-empty slot (mixup training); `gc` fires the slot on **blockstun entry** — the GC trainer (see below) |
+| gc chance | 100 / 75 / 50 / 25 % | Probability the `gc` trigger fires per blockstun entry — lower it to practice hit-confirming against random guard cancels |
 | hud mode | 1–4 | Same as key `9` |
 | hud scale | 1–4 | ScriptHud overlay resolution |
 | hitboxes | on/off | Same as key `8` |
@@ -64,6 +65,14 @@ Settings persist to `traces/training_settings.lua` when the menu closes.
    frame-perfect.
 4. Recordings store **back/forward relative to facing** — they mirror automatically when
    sides switch.
+
+### GC trainer
+
+Record the dummy's character performing its special once (slot of your choice), then set
+`guard = all` and `trigger = gc`: every time the dummy enters blockstun, the recording
+fires immediately, the motion completes inside the stun, and the special **guard-cancels
+your blockstring** (green `GC` label). Drop `gc chance` below 100% to practice
+hit-confirming vs a dummy that GCs unpredictably — the true SMS matchup experience.
 
 ## The frame meter (bottom)
 

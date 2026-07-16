@@ -7,7 +7,12 @@
 --     input, ends on 'R' again (trailing neutral trimmed).
 --   * key 'T' plays the current slot once; the trigger mode ('U' key / menu) can instead
 --     fire it automatically: manual / loop / on_wakeup / on_blockstun_end / on_hitstun_end
---     / random (random picks any non-empty slot each time).
+--     / random (random picks any non-empty slot each time) / gc.
+--   * 'gc' = GUARD-CANCEL TRAINER: the slot fires on blockstun ENTRY, so a recorded
+--     special motion completes inside the stun and cancels it (record the dummy character's
+--     special once, set guard=all + trigger=gc, then run your blockstrings — the dummy
+--     GCs through them). M.gcChance (menu "gc chance") makes it probabilistic so you can
+--     practice hit-confirming vs random GCs.
 --   * reversal_lead (cfg): start playback N frames before the predicted first actionable
 --     frame so reversal-timed recordings come out frame-perfect (default 1; the engine
 --     latches a press on the last constrained frame into a move on the next).
@@ -22,13 +27,14 @@ function M.init(ctx)
 
   M.slots = { {}, {}, {}, {} }          -- [n] = array of masks
   M.cur = 1
-  M.trigger = "manual"                  -- manual|loop|wakeup|blockstun|hitstun|random
+  M.trigger = "manual"                  -- manual|loop|wakeup|blockstun|hitstun|random|gc
+  M.gcChance = 100                      -- % chance the gc trigger fires per blockstun entry
   M.state = "idle"                      -- idle|armed|recording|playing
   M.playPos = 0
   M.playSlot = 1
   local dummyPort = 2                   -- player index being driven (P2)
 
-  local TRIGGERS = { "manual", "loop", "wakeup", "blockstun", "hitstun", "random" }
+  local TRIGGERS = { "manual", "loop", "wakeup", "blockstun", "hitstun", "random", "gc" }
 
   -- ---- persistence ----
   local function saveSlots()
@@ -104,7 +110,10 @@ function M.init(ctx)
     if not ctx.headless then emu.displayMessage("training", "trigger: " .. M.trigger) end
   end
 
-  -- ---- auto-trigger detection (endFrame; acts at inputPolled next frame) ----
+  -- ---- auto-trigger detection ----
+  -- Runs at the TOP of the input stage (inputPolled), where ctx.snap is the last fully
+  -- CLASSIFIED frame — a plain frame hook here would run before framedata sets cls and
+  -- never see constraints (the same ordering trap dummy.lua hit).
   local CONSTRAINED = {}
   do
     local CLS = C.CLS
@@ -129,12 +138,17 @@ function M.init(ctx)
         startPlay()
       end
     end
+    -- GC trainer: fire on blockstun ENTRY so the motion resolves inside the stun
+    if M.trigger == "gc" and con == "blockstun" and wasConstraint ~= "blockstun" then
+      if M.gcChance >= 100 or math.random(100) <= M.gcChance then startPlay() end
+    end
     if M.trigger == "loop" and M.state == "idle" then startPlay() end
     wasConstraint = con
   end
 
   -- ---- input pipeline stage ----
   local function stage()
+    autoTrigger()
     local onLeftD = gs.onLeft(dummyPort)
     if M.state == "armed" or M.state == "recording" then
       -- the user's pad (already routed to the dummy port by pad-swap) is the source
@@ -158,7 +172,6 @@ function M.init(ctx)
   end
 
   table.insert(ctx.hooks.input, stage)
-  table.insert(ctx.hooks.frame, autoTrigger)
   table.insert(ctx.hooks.reset, function()
     if M.state == "playing" then M.state = "idle" end
     wasConstraint = nil

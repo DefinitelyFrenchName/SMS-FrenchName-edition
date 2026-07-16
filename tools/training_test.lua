@@ -448,6 +448,41 @@ tests.T8 = {
   },
 }
 
+-- T9: GC TRAINER end-to-end (v0.7-family ROM). Dummy Mars guards all; slot 1 holds the
+-- fireball motion (facing-relative masks); trigger=gc, 100%. P1's blocked 2HP must be
+-- guard-canceled AUTONOMOUSLY: playback fires on blockstun entry, fireball act comes out
+-- of blockstun, "P2 GC" label fires.
+tests.T9 = {
+  STATE = "uranus_vs_mars_v07.mss",
+  POKES = { { t = 5, addr = 0x1021, val = 0xE8 } },
+  PLAN1 = { [10] = { down = true }, [60] = { down = true, x = true }, [63] = { down = true } },
+  DONE = 150,
+  CHECKS = {
+    { t = 2, fn = function(ctx)
+        local dm, rec = ctx.mod.dummy, ctx.mod.recorder
+        dm.enabled = true; dm.guard = "all"; dm.pose = "stand"; dm.wakeup = "off"; dm.tech = false
+        -- Mars fireball HCF+LK as facing-relative masks (back=1 fwd=2 down=4 LK=0x20),
+        -- 2 frames per motion step, matching the measured GC trace
+        rec.slots[1] = { 1, 1, 5, 5, 4, 4, 6, 6, 0x22, 0x22, 0x22, 2, 2 }
+        rec.cur = 1; rec.trigger = "gc"; rec.gcChance = 100
+        return true, "gc trainer armed" end },
+    { t = 130, fn = function(ctx)
+        local gc = false
+        for _, f in ipairs(ctx.mod.labels.fired) do
+          if f.text == "P2 GC" then gc = true end
+        end
+        local fireball = false
+        for k = 0, 60 do
+          local e = ctx.mod.gamestate.ago(k)
+          if e and (e.p[2].act == 0x68 or e.p[2].act == 0x69 or e.p[2].act == 0x6A) then
+            fireball = true
+          end
+        end
+        return gc and fireball,
+               string.format("t130 GC=%s fireball=%s (want both)", tostring(gc), tostring(fireball)) end },
+  },
+}
+
 -- ---------- harness ----------
 local T = tests[TEST]
 if not T then error("unknown TEST " .. tostring(TEST)) end
