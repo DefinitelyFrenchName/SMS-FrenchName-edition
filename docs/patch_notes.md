@@ -957,9 +957,50 @@ its own scratch + free VRAM cells).
 | Display TTL | `mkpatch10.py --ttl` | `72` | frames the count lingers after the last hit |
 | Mode gate | `mkpatch10.py --modes` | `0,1,4,5` | `$008D` values to show in; `all` = every match |
 
-*(GC/MEATY status codes were scoped out for v1 — the counter is the deliverable; the RE
-groundwork (action-setter hook, blockstun-exit detection) is documented and would be a
-follow-up.)*
+## Status labels (`--events labels`)
+
+Adds on-screen text under each attacker for the training-mode events — **GC, MEATY, REVERSAL,
+PUNISH, TECH** (THROW TECH shortened to TECH) — rendered by the base game. Same two hooks as
+the counter (extended stubs); detection mirrors `tools/training/labels.lua` and is validated
+against it as the oracle.
+
+- **Glyphs:** the in-match nameplate font is matchup-dependent (**G appears in no character's
+  name**), so a compact 2bpp uppercase font (`tools/hudfont.py`, the ~16 letters the label set
+  needs) is uploaded once per label-episode via DMA to **free BG3 CHR slots `0xC7-0xDF`**
+  (verified zero across 5 matchups). Re-armed when both labels idle → survives per-match CHR
+  reloads. Label text renders to free row-7 tilemap cells (`$10E5+` left / `$10F2+` right),
+  disjoint from the counter's cells.
+- **Detection** (in the producer stub, no new hooks): per-player `prevAct`, constraint-recency
+  (any / hard), a 3-state move-phase, and an HP shadow. GC = attack act with prevAct in
+  blockstun; REVERSAL = attack ≤2f after leaving hard constraint; MEATY = hit ≤2f after the
+  defender left constraint; PUNISH = hit while the defender is in its own move's recovery
+  (move-phase active-seen, hitbox gone); TECH = act→0x23. Priority TECH>GC>REVERSAL>PUNISH>MEATY.
+- **Verification:** each label fires iff the Lua fires it, across scripted scenarios — GC (Mars
+  fireball out of blocked 2HP), MEATY (frame-perfect infinite), TECH (throw mash), REVERSAL
+  (wakeup jab), PUNISH (hit during 2HP recovery). `tools/test_labels.lua` + scenario cfgs.
+
+### Performance (labels build) — the measured lag answer
+`tools/perf_patch10.lua` over the heavy scenario (infinite rep + labels firing):
+
+| Metric | Value |
+|---|---|
+| compute stub | mean 508 / max 825 cyc/frame (main loop, scanline 101) |
+| flush stub | mean 140 / max 245 cyc/frame (vblank) |
+| worst-case cost | **2.62 %** of the ~40,853-cycle frame |
+| glyph-upload span | 3 scanlines (vblank ≈ 38 — fits with margin) |
+| **lag** | clean-vs-labels gameplay RAM + timer **frame-identical**; 1500-frame soak signature-identical ⇒ **zero dropped frames** |
+
+The 2.62 % is well within the frame's headroom (proven: no frame ever diverges from clean), so
+there is **no noticeable lag** — the definitive test is frame-identity, not the percentage.
+
+## Knob (labels)
+| Knob | Flag | Default | Effect |
+|---|---|---|---|
+| Status labels | `mkpatch10.py --events` | `off` | `labels` = also show GC/MEATY/REVERSAL/PUNISH/TECH text |
+
+Standalone `build/sms_combolabels.bps` (SHA-1 `bf5ba9f9…`), combined
+`build/sms_full10_combolabels.bps` (ROM `…_v0.7_all5_combolabels.sfc`). Same two hooks as the
+counter (`0x0D56F`, `0x0D5E8`) — byte-disjoint from patches 1–9.
 
 ---
 
