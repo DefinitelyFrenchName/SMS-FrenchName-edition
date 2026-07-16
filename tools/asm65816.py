@@ -19,7 +19,7 @@ def assemble(lines, org, bank):
     the hex-string length (so `ldx #$00` in 16-bit X mode correctly emits a 3-byte imm).
     Start state assumes 8-bit A/X (m=x=1); the stubs set width explicitly up front.
     """
-    A_IMM = ("lda", "cmp", "adc", "sbc", "and", "ora", "bit")   # width = M flag
+    A_IMM = ("lda", "cmp", "adc", "sbc", "and", "ora", "eor", "bit")   # width = M flag
     X_IMM = ("ldx", "ldy", "cpx", "cpy")                          # width = X flag
 
     def size_of(mn, op, m, x):
@@ -30,7 +30,7 @@ def assemble(lines, org, bank):
             return 2
         if mn in ("bra","bcc","bcs","beq","bne","bpl","bmi"):
             return 2
-        if mn in ("inc","dec","stz","lda","sta","cmp","ldx","stx","ldy","sty","adc","sbc","and","ora","asl","lsr","cpx","cpy","bit"):
+        if mn in ("inc","dec","stz","lda","sta","cmp","ldx","stx","ldy","sty","adc","sbc","and","ora","eor","asl","lsr","cpx","cpy","bit"):
             if op.startswith("#"):
                 if mn in A_IMM:
                     return 2 if m else 3
@@ -87,7 +87,7 @@ def assemble(lines, org, bank):
     # absolute opcodes: (imm, abs)
     OPS = {"lda":(0xA9,0xAD),"sta":(None,0x8D),"cmp":(0xC9,0xCD),"ldx":(0xA2,0xAE),
            "stx":(None,0x8E),"ldy":(0xA0,0xAC),"sty":(None,0x8C),"adc":(0x69,0x6D),
-           "sbc":(0xE9,0xED),"and":(0x29,0x2D),"ora":(0x09,0x0D),"inc":(None,0xEE),
+           "sbc":(0xE9,0xED),"and":(0x29,0x2D),"ora":(0x09,0x0D),"eor":(0x49,0x4D),"inc":(None,0xEE),
            "dec":(None,0xCE),"stz":(None,0x9C),"asl":(None,0x0E),"lsr":(None,0x4E)}
     for ln in lines:
         s = ln.split(";")[0].strip()

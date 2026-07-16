@@ -1,27 +1,33 @@
 #!/usr/bin/env python3
 """Patch 11 (OPTIONAL): in-ROM TRAINING MODE UPGRADE for the base game's Practice mode.
 
-Native Practice facts this patch is built on (probe-verified, docs/annotations.md "patch 11 RE"):
-  * game_mode $008D: 4 = training (hits connect, HP subtraction gated OFF), 5 = same with
-    damage ON (the attract demo also runs at 5 -> we only accept 5 when WE set it).
-  * $0070 == 4 while in any match; $01FA == 0x80 while the match is actually running
-    (0xE4 = native movelist open via Start; Select exits the mode -- both left untouched).
-  * The HUD producer $C0:D5E8 NEVER runs in Practice: no HUD, no timer. BG3 is off
-    (TM $212C = 0x13, VS uses 0x17); BG3 CHR digits + palettes ARE loaded; the whole BG3
-    tilemap is writable and survives; game writes TM only at scene setup.
-  * joy_read tail: at $80:8373 the held words $5C/$5E are stored but press edges are not
-    yet derived -- rewriting $5E/$5F here drives P2 perfectly (edges auto-derived next
-    frame; 44 backdash recognizer fires; 30Hz press latch behaves).
-  * Bank $7F is untouched in steady-state play (scene loads use $7F:0000-5FFF only)
-    -> all patch state lives at $7F:F000+ (long addressing, DBR-independent).
+Adds to the native Practice mode (game_mode 4/5), rendered and driven entirely by the
+base game (works on hardware): an L+R in-match menu on BG3 controlling
+  POSE (stand/crouch/jump) . GUARD (off/all) . WAKEUP (off/jab/throw/backdash)
+  TECH (throw-tech mash) . DAMAGE (the native 4<->5 damage switch) . REGEN . REFILL
+  RESET (position reset)
+The dummy is driven by rewriting P2's pad words after joy_read -- the same input-level
+mechanism as the Lua training mode (the oracle), never by forcing action bytes.
 
-Hooks (both byte-disjoint from patches 1-10, so stacking order never matters):
-  * $80:8373 joy_read tail  -> INPUT stub: gate + (later) menu FSM + dummy injection
-  * $80:D574 uploader body  -> UPL2 stub: vblank-only VRAM work (TM force, font DMA,
-    row rendering); replays the displaced `beq/sta $2116` branch-aware.
+Native Practice facts this is built on (probe-verified, docs/annotations.md "patch 11 RE"):
+  * $008D: 4 = training, hits connect but HP subtraction is off; 5 = damage on (the
+    attract demo also runs at 5 -> gate accepts 5 only when WE set it, via DMGFLAG).
+  * $0070 == 4 in any match; $01FA == 0x80 match running / 0xE4 movelist (Start).
+    Select exits. Both native functions are preserved (menu eats P1 input while open).
+  * HUD producer never runs in Practice (no HUD/timer). BG3 = the pre-staged movelist
+    layer, restaged on every Start press -> the patch may paint BG3 freely; TM ($212C,
+    0x13 here / 0x17 with BG3) is written by the game only at scene setup, so the patch
+    forces 0x17 per-vblank only while its menu is showing.
+  * joy_read tail $80:8373: held words stored, press edges not yet derived -- rewriting
+    $5C-$5F here is a perfect input override (edges auto-derive; 44 recognizer fires).
+  * Bank $7F is untouched in steady-state play -> all state lives at $7F:F000+ (long
+    addressing). Boot clears it; MAGIC re-inits defaults on first gated frame.
 
-Build stages (incremental validation, patch-10 discipline):
-  pipe = gate + render plumbing only: shows a "TRAINING" row on BG3 while gated.
+Hooks (byte-disjoint from patches 1-10; stacking order never matters):
+  * $80:8373 joy_read tail -> INPUT stub (all logic; runs every frame, self-gates)
+  * $80:D574 uploader body -> UPL2 stub (all VRAM/TM work, vblank; branch-aware replay)
+
+Stages: pipe (plumbing smoke test) / tier1 (full build; default).
 """
 import argparse
 from hashlib import sha1
@@ -33,51 +39,670 @@ import hudfont  # noqa: E402
 CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
-INP = 0x008373                       # joy_read tail: rep #$20 / lda $5C (edge calc follows)
+INP = 0x008373
 INP_OLD = bytes.fromhex("c220a55c")
 INP_CONT = 0x808377
-
-UPL2 = 0x00D574                      # uploader body: beq $D596 / sta $2116
+UPL2 = 0x00D574
 UPL2_OLD = bytes.fromhex("f0208d1621")
-UPL2_CONT_STA = 0x80D579             # after the displaced sta $2116
-UPL2_CONT_BEQ = 0x80D596             # the displaced beq's target
-
-# patch-10 hook sites -- patch 11 must never touch these (diagnostic only)
+UPL2_CONT_STA = 0x80D579
+UPL2_CONT_BEQ = 0x80D596
 P10_PROD, P10_PROD_OLD = 0x00D5E8, bytes.fromhex("c210e220")
 P10_UPL, P10_UPL_OLD = 0x00D56F, bytes.fromhex("c230ad0608")
 
-# ---- $7F:F000 state block (boot-cleared once by the game's RAM clear; we re-init on gate) ----
+# ---------------- $7F:F000 state block ----------------
 ST = 0x7FF000
-MAGIC = ST + 0x00      # 0xA5 = settings initialized
-FONTUP = ST + 0x01     # glyphs uploaded this visibility episode
-VISIBLE = ST + 0x02    # gate result this frame (written by INPUT stub)
-PREVVIS = ST + 0x03    # uploader-side shadow of VISIBLE (transition detect)
-DMGFLAG = ST + 0x04    # 0xA5 = mode 5 was set by US (accept gate at $8D==5)
+MAGIC = ST + 0x00     # 0xA5 = initialized
+FONTUP = ST + 0x01    # font uploaded this visibility episode
+VISIBLE = ST + 0x02   # gate result (INPUT -> UPL2)
+DMGFLAG = ST + 0x04   # 0xA5 = mode 5 set by us
+MENUOPEN = ST + 0x05
+CURSOR = ST + 0x06    # 1..8 (row 0 = title)
+EATLINGER = ST + 0x07
+PREVH_L = ST + 0x08   # raw P1 held shadows (our own edge chain)
+PREVH_H = ST + 0x09
+EDGE_L = ST + 0x0A
+EDGE_H = ST + 0x0B
+SIDEBACK = ST + 0x0C  # $5F back-direction bit for P2 (01=Right, 02=Left)
+UIVIS = ST + 0x0D     # menu painted & showing (TM keyed to this)
+PAINTROW = ST + 0x0E  # 0=font, 1..9=rows, 0xFF idle
+CLEARROW = ST + 0x0F  # 0..8 rows, 0xFF idle
+PREVUI = ST + 0x10
+CURSDIRT = ST + 0x11  # repaint all cursor cells
+REDRAW_A = ST + 0x12  # row idx or 0xFF
+RESETREQ = ST + 0x13
+# settings
+SET_POSE = ST + 0x20   # 0 stand, 1 crouch, 2 jump
+SET_GUARD = ST + 0x21  # 0 off, 1 all
+SET_WAKE = ST + 0x22   # 0 off, 1 jab, 2 throw, 3 backdash
+SET_TECH = ST + 0x23   # 0 off, 1 on
+SET_DMG = ST + 0x24    # 0 off, 1 on
+SET_REGEN = ST + 0x25  # 0 off, 1 on (dummy)
+SET_REFILL = ST + 0x26 # 0 off, 1 on (both players)
+SETTINGS = (SET_POSE, SET_GUARD, SET_WAKE, SET_TECH, SET_DMG, SET_REGEN, SET_REFILL)
+# dummy runtime
+WAKEARMED = ST + 0x30
+OSFRAMES = ST + 0x31
+OSLO = ST + 0x32
+OSHI = ST + 0x33
+BDPHASE = ST + 0x34
+TECHPHASE = ST + 0x35
+REGENT = ST + 0x36
+HPSHAD2 = ST + 0x37
+REFILLED2 = ST + 0x38   # we refilled P2 during this knockdown -> force standup at 0x1E
+REFILLED1 = ST + 0x39
 
-# ---- BG3 real estate ----
+# ---------------- BG3 / font ----------------
 BG3_CHR = 0x5000
-GLYPH_TILE0 = 0xC7                   # shared window start (patch 10 uses 0xC7-0xD6)
+GLYPH_TILE0 = 0xC7
 BLANK = 0x2000
-TM_ON, TM_OFF = 0x17, 0x13           # mainScreenLayers with/without BG3
-
-# shared-superset font: patch 10's 16 letters in ITS derivation order, then p11 extras
+TM_ON, TM_OFF = 0x17, 0x13
 P10_LETTERS = list("GCREVSALPUNIHMTY")
 P11_LETTERS = list("BDFJKOW") + [">", "#"]
 FONT_LETTERS = P10_LETTERS + P11_LETTERS
-assert len(FONT_LETTERS) <= 25, "font exceeds free CHR window 0xC7-0xDF"
+assert len(FONT_LETTERS) <= 25
 
-TITLE_ROW_ADDR = 0x1000 + 9 * 32 + 4   # BG3 row 9, col 4 (word addr $1124)
+# menu geometry: 9 rows on BG3 map rows 4-12, cells cols 3-24 (22 cells/row)
+PANEL_ROW0, PANEL_COL, PANEL_W = 4, 3, 22
+NROWS = 9
+WIPEROWS = 18   # menu-open first blanks BG3 map rows 0-17 full-width (movelist residue)
+# per painted row, offsets within the 22 cells: cursor@1, name@3(6), value@10(8)
+CUR_OFF, NAME_OFF, VAL_OFF = 1, 3, 10
+MENU = [
+    ("TRAINING", None, None),                                  # 0: title
+    ("POSE",   SET_POSE,  ["STAND", "CROUCH", "JUMP"]),        # 1
+    ("GUARD",  SET_GUARD, ["OFF", "ALL"]),                     # 2
+    ("WAKEUP", SET_WAKE,  ["OFF", "JAB", "THROW", "DASH"]),    # 3
+    ("TECH",   SET_TECH,  ["OFF", "ON"]),                      # 4
+    ("DAMAGE", SET_DMG,   ["OFF", "ON"]),                      # 5
+    ("REGEN",  SET_REGEN, ["OFF", "ON"]),                      # 6
+    ("REFILL", SET_REFILL,["OFF", "ON"]),                      # 7
+    ("RESET",  None,      ["GO"]),                             # 8: action row
+]
+DMG_ROW, RESET_ROW = 5, 8
 
 
-def tilew(ch, idx):
-    """BG3 tilemap word for a font letter: priority + palette 3 + tile id."""
-    return 0x2C00 | (GLYPH_TILE0 + idx[ch])
+def row_addr(i):
+    return 0x1000 + (PANEL_ROW0 + i) * 32 + PANEL_COL
+
+
+def _words(text, width, idx):
+    w = []
+    for c in text:
+        assert c in idx, f"glyph missing: {c}"
+        w.append(0x2C00 | (GLYPH_TILE0 + idx[c]))
+    return w + [BLANK] * (width - len(w))
+
+
+# ================= INPUT stub =================
+
+def _gate():
+    set_zeros = "".join(f"  sta_l ${s:06X}\n" for s in SETTINGS)
+    return f"""
+  lda $008D
+  cmp #$04
+  beq gmode
+  cmp #$05
+  bne gofar
+  lda_l ${DMGFLAG:06X}
+  cmp #$A5
+  beq gmode
+gofar:
+  jmp goff
+gmode:
+  lda $0070
+  cmp #$04
+  beq g2
+  jmp goff
+g2:
+  lda $01FA
+  cmp #$80
+  beq g3
+  jmp goffkeep
+g3:
+  lda #$01
+  sta_l ${VISIBLE:06X}
+  jmp ginit
+goff:
+  lda_l ${DMGFLAG:06X}
+  cmp #$A5
+  bne gof1
+  lda $0070
+  cmp #$04
+  beq gof1
+  lda #$04
+  sta $008D
+  lda #$00
+  sta_l ${DMGFLAG:06X}
+gof1:
+  lda #$FF
+  sta_l ${CLEARROW:06X}
+  lda #$00
+  sta_l ${MENUOPEN:06X}
+  sta_l ${EATLINGER:06X}
+  sta_l ${WAKEARMED:06X}
+  sta_l ${OSFRAMES:06X}
+  sta_l ${BDPHASE:06X}
+  sta_l ${TECHPHASE:06X}
+  sta_l ${REGENT:06X}
+  sta_l ${RESETREQ:06X}
+  sta_l ${REFILLED2:06X}
+  sta_l ${REFILLED1:06X}
+goffkeep:
+  lda #$00
+  sta_l ${VISIBLE:06X}
+  sta_l ${FONTUP:06X}
+  sta_l ${UIVIS:06X}
+  sta_l ${MENUOPEN:06X}
+  sta_l ${CURSDIRT:06X}
+  lda #$FF
+  sta_l ${PAINTROW:06X}
+  sta_l ${REDRAW_A:06X}
+  jmp exit
+ginit:
+  lda_l ${MAGIC:06X}
+  cmp #$A5
+  beq inited
+  lda #$A5
+  sta_l ${MAGIC:06X}
+  lda #$00
+{set_zeros}  sta_l ${WAKEARMED:06X}
+  sta_l ${OSFRAMES:06X}
+  sta_l ${BDPHASE:06X}
+  sta_l ${TECHPHASE:06X}
+  sta_l ${REGENT:06X}
+  sta_l ${RESETREQ:06X}
+  sta_l ${UIVIS:06X}
+  sta_l ${PREVUI:06X}
+  sta_l ${CURSDIRT:06X}
+  sta_l ${EATLINGER:06X}
+  sta_l ${PREVH_L:06X}
+  sta_l ${PREVH_H:06X}
+  lda #$01
+  sta_l ${CURSOR:06X}
+  lda #$FF
+  sta_l ${PAINTROW:06X}
+  sta_l ${CLEARROW:06X}
+  sta_l ${REDRAW_A:06X}
+inited:
+"""
+
+
+def _edges():
+    """EDGE = raw & ~prev, per byte; then prev = raw. Uses P1 held $5C/$5D."""
+    return f"""
+  lda_l ${PREVH_L:06X}
+  eor #$FF
+  and $005C
+  sta_l ${EDGE_L:06X}
+  lda $005C
+  sta_l ${PREVH_L:06X}
+  lda_l ${PREVH_H:06X}
+  eor #$FF
+  and $005D
+  sta_l ${EDGE_H:06X}
+  lda $005D
+  sta_l ${PREVH_H:06X}
+"""
+
+
+def _chord():
+    """L+R chord (both held + fresh edge on either) toggles the menu."""
+    return f"""
+  lda $005C
+  and #$30
+  cmp #$30
+  bne nochord
+  lda_l ${EDGE_L:06X}
+  and #$30
+  beq nochord
+  lda_l ${MENUOPEN:06X}
+  bne chclose
+  lda #$01
+  sta_l ${MENUOPEN:06X}
+  lda #$01
+  sta_l ${CURSOR:06X}
+  lda #$00
+  sta_l ${PAINTROW:06X}
+  lda #$FF
+  sta_l ${CLEARROW:06X}
+  sta_l ${REDRAW_A:06X}
+  bra nochord
+chclose:
+  lda #$00
+  sta_l ${MENUOPEN:06X}
+  sta_l ${UIVIS:06X}
+  sta_l ${CLEARROW:06X}
+  lda #$FF
+  sta_l ${PAINTROW:06X}
+  sta_l ${REDRAW_A:06X}
+  lda #$02
+  sta_l ${EATLINGER:06X}
+nochord:
+"""
+
+
+def _menu_fsm():
+    """Navigation + value edit while MENUOPEN; eats all P1 input."""
+    # left/right value adjust: per-row chain
+    adj = ""
+    for i, (name, setaddr, vals) in enumerate(MENU):
+        if i == 0:
+            continue
+        if i == RESET_ROW:
+            adj += f"""
+  lda_l ${CURSOR:06X}
+  cmp #${i:02X}
+  bne adj{i}
+  lda #$01
+  sta_l ${RESETREQ:06X}
+  jmp adjdone
+adj{i}:
+"""
+            continue
+        mx = len(vals) - 1
+        dmgfx = ""
+        if i == DMG_ROW:
+            dmgfx = f"""
+  lda_l ${SET_DMG:06X}
+  bne dmgon
+  lda #$04
+  sta $008D
+  lda #$00
+  sta_l ${DMGFLAG:06X}
+  bra dmgfx
+dmgon:
+  lda #$05
+  sta $008D
+  lda #$A5
+  sta_l ${DMGFLAG:06X}
+dmgfx:
+"""
+        adj += f"""
+  lda_l ${CURSOR:06X}
+  cmp #${i:02X}
+  bne adj{i}
+  lda_l ${EDGE_H:06X}
+  and #$01
+  beq lft{i}
+  lda_l ${setaddr:06X}
+  inc_a
+  cmp #${mx + 1:02X}
+  bne st{i}
+  lda #$00
+st{i}:
+  sta_l ${setaddr:06X}
+  bra fx{i}
+lft{i}:
+  lda_l ${setaddr:06X}
+  bne dn{i}
+  lda #${mx + 1:02X}
+dn{i}:
+  dec_a
+  sta_l ${setaddr:06X}
+fx{i}:
+{dmgfx}  lda_l ${CURSOR:06X}
+  sta_l ${REDRAW_A:06X}
+  jmp adjdone
+adj{i}:
+"""
+    return f"""
+  lda_l ${MENUOPEN:06X}
+  bne fsm1
+  jmp fsmclosed
+fsm1:
+  lda_l ${EDGE_H:06X}
+  and #$08
+  beq noup
+  lda_l ${CURSOR:06X}
+  dec_a
+  bne upok
+  lda #${NROWS - 1:02X}
+upok:
+  sta_l ${CURSOR:06X}
+  lda #$01
+  sta_l ${CURSDIRT:06X}
+noup:
+  lda_l ${EDGE_H:06X}
+  and #$04
+  beq nodn
+  lda_l ${CURSOR:06X}
+  inc_a
+  cmp #${NROWS:02X}
+  bne dnok
+  lda #$01
+dnok:
+  sta_l ${CURSOR:06X}
+  lda #$01
+  sta_l ${CURSDIRT:06X}
+nodn:
+  lda_l ${EDGE_H:06X}
+  and #$03
+  bne adjust
+  jmp eat
+adjust:
+{adj}adjdone:
+eat:
+  lda #$00
+  sta $005C
+  sta $005D
+  jmp fsmdone
+fsmclosed:
+  lda_l ${EATLINGER:06X}
+  beq fsmdone
+  dec_a
+  sta_l ${EATLINGER:06X}
+  lda #$00
+  sta $005C
+  sta $005D
+fsmdone:
+"""
+
+
+def _actionable(src_label, ok_label, fail_label, sfx):
+    """A holds an act id: branch to ok if actionable (<=4, 0C, 0D, 0x21), else fail."""
+    return f"""
+  cmp #$05
+  bcc {ok_label}
+  cmp #$0C
+  beq {ok_label}
+  cmp #$0D
+  beq {ok_label}
+  cmp #$21
+  beq {ok_label}
+  jmp {fail_label}
+"""
+
+
+def _reset():
+    """Position reset: guarded on both players actionable + no hitstop; Lua write set."""
+    return f"""
+  lda_l ${RESETREQ:06X}
+  bne rs0
+  jmp rsdone
+rs0:
+  lda #$00
+  sta_l ${RESETREQ:06X}
+  lda $104D
+  bne rsfail
+  lda $10CD
+  bne rsfail
+  lda $1001
+{_actionable("", "rsp2", "rsdone", "r1")}
+rsp2:
+  lda $1081
+{_actionable("", "rsgo", "rsdone", "r2")}
+rsgo:
+  stz $1001
+  stz $1002
+  stz $1004
+  stz $1006
+  stz $1007
+  stz $1081
+  stz $1082
+  stz $1084
+  stz $1086
+  stz $1087
+  lda #$C8
+  sta $1021
+  stz $1022
+  lda #$10
+  sta $10A1
+  lda #$01
+  sta $10A2
+  lda #$00
+  sta_l ${WAKEARMED:06X}
+  sta_l ${OSFRAMES:06X}
+  sta_l ${BDPHASE:06X}
+  sta_l ${TECHPHASE:06X}
+rsfail:
+rsdone:
+"""
+
+
+def _dummy():
+    """Side detect + wakeup arm/fire + injection priority chain (writes $5E/$5F)."""
+    return f"""
+  rep #$20
+  lda $10A1
+  cmp $1021
+  sep #$20
+  bcs sbr
+  lda #$02
+  bra sbw
+sbr:
+  lda #$01
+sbw:
+  sta_l ${SIDEBACK:06X}
+  lda $1081
+  cmp #$19
+  bcc wa1
+  cmp #$21
+  bcc arm
+wa1:
+  cmp #$27
+  bcc wadone
+  cmp #$2A
+  bcs wadone
+arm:
+  lda #$01
+  sta_l ${WAKEARMED:06X}
+wadone:
+  lda_l ${WAKEARMED:06X}
+  beq nofire
+  lda $1081
+{_actionable("", "fire", "nofire", "wf")}
+fire:
+  lda #$00
+  sta_l ${WAKEARMED:06X}
+  lda_l ${SET_WAKE:06X}
+  beq nofire
+  cmp #$01
+  bne wthrow
+  lda #$03
+  sta_l ${OSFRAMES:06X}
+  lda #$40
+  sta_l ${OSHI:06X}
+  lda #$00
+  sta_l ${OSLO:06X}
+  bra nofire
+wthrow:
+  cmp #$02
+  bne wbd
+  lda #$03
+  sta_l ${OSFRAMES:06X}
+  lda_l ${SIDEBACK:06X}
+  eor #$03
+  sta_l ${OSHI:06X}
+  lda #$40
+  sta_l ${OSLO:06X}
+  bra nofire
+wbd:
+  lda #$06
+  sta_l ${BDPHASE:06X}
+nofire:
+  lda_l ${OSFRAMES:06X}
+  beq injbd
+  dec_a
+  sta_l ${OSFRAMES:06X}
+  lda_l ${OSHI:06X}
+  sta $005F
+  lda_l ${OSLO:06X}
+  sta $005E
+  jmp injdone
+injbd:
+  lda_l ${BDPHASE:06X}
+  beq injtech
+  cmp #$05
+  beq bdneu
+  lda_l ${SIDEBACK:06X}
+  sta $005F
+  stz $005E
+  bra bddec
+bdneu:
+  stz $005F
+  stz $005E
+bddec:
+  lda_l ${BDPHASE:06X}
+  dec_a
+  sta_l ${BDPHASE:06X}
+  jmp injdone
+injtech:
+  lda_l ${SET_TECH:06X}
+  beq injguard
+  lda $1081
+  cmp #$1B
+  beq tmash
+  cmp #$1C
+  beq tmash
+  bra injguard
+tmash:
+  lda_l ${TECHPHASE:06X}
+  inc_a
+  sta_l ${TECHPHASE:06X}
+  and #$01
+  beq toff
+  lda #$80
+  sta $005E
+  stz $005F
+  jmp injdone
+toff:
+  stz $005E
+  stz $005F
+  jmp injdone
+injguard:
+  lda_l ${SET_GUARD:06X}
+  beq injpose
+  lda_l ${SIDEBACK:06X}
+  ora #$04
+  sta $005F
+  stz $005E
+  jmp injdone
+injpose:
+  lda_l ${SET_POSE:06X}
+  beq injdone
+  cmp #$01
+  bne pjump
+  lda #$04
+  sta $005F
+  stz $005E
+  bra injdone
+pjump:
+  lda #$08
+  sta $005F
+  stz $005E
+injdone:
+"""
+
+
+def _effects():
+    """HP regen (dummy) + KO refill (both). Constraint chain mirrors patch 10's."""
+    def constrained(act, ok, fail, sfx):
+        return f"""
+  lda ${act:04X}
+  cmp #$0E
+  bcc {fail}
+  cmp #$21
+  bcc {ok}
+  cmp #$23
+  beq {ok}
+  cmp #$27
+  bcc {fail}
+  cmp #$2A
+  bcc {ok}
+  bra {fail}
+"""
+    return f"""
+  lda_l ${SET_REGEN:06X}
+  beq rgshad
+  lda $10C9
+  cmp $10CA
+  bcs rgshad
+  cmp_l ${HPSHAD2:06X}
+  bcs rg1
+  lda #$78
+  sta_l ${REGENT:06X}
+rg1:
+{constrained(0x1081, "rghold", "rgtick", "rg")}
+rghold:
+  lda #$78
+  sta_l ${REGENT:06X}
+  bra rgshad
+rgtick:
+  lda_l ${REGENT:06X}
+  beq rgshad
+  dec_a
+  sta_l ${REGENT:06X}
+  bne rgshad
+  lda $10CA
+  sta $10C9
+rgshad:
+  lda $10C9
+  sta_l ${HPSHAD2:06X}
+  lda_l ${SET_REFILL:06X}
+  bne dorf
+  jmp rfdone
+dorf:
+  lda $10C9
+  bne rfs2
+  lda $1081
+  cmp #$10
+  bcc rfs2
+  cmp #$2A
+  bcs rfs2
+  lda $10CA
+  sta $10C9
+  lda #$01
+  sta_l ${REFILLED2:06X}
+rfs2:
+  lda_l ${REFILLED2:06X}
+  beq rfp1
+  lda $1081
+  cmp #$1E
+  bne rfp1
+  lda #$20
+  sta $1081
+  sta $1084
+  lda #$01
+  sta $1082
+  stz $1086
+  stz $1087
+  lda #$00
+  sta_l ${REFILLED2:06X}
+rfp1:
+  lda $1049
+  bne rfs1
+  lda $1001
+  cmp #$10
+  bcc rfs1
+  cmp #$2A
+  bcs rfs1
+  lda $104A
+  sta $1049
+  lda #$01
+  sta_l ${REFILLED1:06X}
+rfs1:
+  lda_l ${REFILLED1:06X}
+  beq rfdone
+  lda $1001
+  cmp #$1E
+  bne rfdone
+  lda #$20
+  sta $1001
+  sta $1004
+  lda #$01
+  sta $1002
+  stz $1006
+  stz $1007
+  lda #$00
+  sta_l ${REFILLED1:06X}
+rfdone:
+"""
 
 
 def _input_stub(stage):
-    """INPUT stub body (joy_read tail). 8-bit A inside; DBR forced to $00.
-    Computes the gate: VISIBLE = ($8D==4 or ($8D==5 and DMGFLAG)) and $0070==4
-    and $01FA==$80. Off-path clears the volatile block (self-healing)."""
+    body = _gate()
+    if stage != "pipe":
+        body += _edges() + _chord() + _menu_fsm() + _reset() + _dummy() + _effects()
     return f"""
   php
   rep #$30
@@ -89,31 +714,7 @@ def _input_stub(stage):
   lda #$00
   pha
   plb
-  lda $008D
-  cmp #$04
-  beq gmode
-  cmp #$05
-  bne goff
-  lda_l ${DMGFLAG:06X}
-  cmp #$A5
-  beq gmode
-  bra goff
-gmode:
-  lda $0070
-  cmp #$04
-  bne goff
-  lda $01FA
-  cmp #$80
-  bne goff
-  lda #$01
-  sta_l ${VISIBLE:06X}
-  bra gend
-goff:
-  lda #$00
-  sta_l ${VISIBLE:06X}
-  sta_l ${FONTUP:06X}
-  sta_l ${DMGFLAG:06X}
-gend:
+{body}exit:
   plb
   rep #$30
   ply
@@ -121,43 +722,264 @@ gend:
   pla
   plp
 """
-    # builder appends raw: C2 20 A5 5C ; JML $808377
+
+
+# ================= UPL2 stub =================
+
+def _paint_row_block(i, idx, tag):
+    """Emit: set VRAM addr + write the row's 22 words (cursor branch + value switch)."""
+    name, setaddr, vals = MENU[i]
+    out = f"""
+  rep #$20
+  lda #${row_addr(i):04X}
+  sta $2116
+"""
+    if i == 0:  # title: TRAINING centered at offset 7
+        w = [BLANK] * 7 + _words("TRAINING", 8, idx) + [BLANK] * 7
+        for word in w:
+            out += f"  lda #${word:04X}\n  sta $2118\n"
+        out += f"  sep #$20\n  jmp {tag}done\n"
+        return out
+    # offset 0: blank
+    out += f"  lda #${BLANK:04X}\n  sta $2118\n"
+    # offset 1: cursor
+    out += f"""
+  sep #$20
+  lda_l ${CURSOR:06X}
+  cmp #${i:02X}
+  rep #$20
+  beq {tag}cur{i}
+  lda #${BLANK:04X}
+  bra {tag}cw{i}
+{tag}cur{i}:
+  lda #${0x2C00 | (GLYPH_TILE0 + idx['>']):04X}
+{tag}cw{i}:
+  sta $2118
+"""
+    # offset 2: blank; 3-8: name
+    out += f"  lda #${BLANK:04X}\n  sta $2118\n"
+    for word in _words(name, 6, idx):
+        out += f"  lda #${word:04X}\n  sta $2118\n"
+    # offset 9: blank
+    out += f"  lda #${BLANK:04X}\n  sta $2118\n"
+    # offsets 10-17: value switch
+    if setaddr is None:  # RESET row: static value
+        for word in _words(vals[0], 8, idx):
+            out += f"  lda #${word:04X}\n  sta $2118\n"
+    else:
+        # dispatch in 8-bit with rep-before-branch (rep preserves Z), cases run in 16-bit
+        out += f"  sep #$20\n  lda_l ${setaddr:06X}\n"
+        for vi in range(len(vals)):
+            out += f"""  cmp #${vi:02X}
+  rep #$20
+  bne {tag}n{i}_{vi}
+  jmp {tag}c{i}_{vi}
+{tag}n{i}_{vi}:
+  sep #$20
+"""
+        out += f"  rep #$20\n  jmp {tag}c{i}_0\n"   # corrupt value -> render as value 0
+        for vi, v in enumerate(vals):
+            out += f"{tag}c{i}_{vi}:\n"
+            for word in _words(v, 8, idx):
+                out += f"  lda #${word:04X}\n  sta $2118\n"
+            out += f"  jmp {tag}vdn{i}\n"
+        out += f"{tag}vdn{i}:\n"
+    # offsets 18-21: pad blanks
+    for _ in range(4):
+        out += f"  lda #${BLANK:04X}\n  sta $2118\n"
+    out += f"  sep #$20\n  jmp {tag}done\n"
+    return out
 
 
 def _upl2_stub(stage, font_addr, font_bank, font_size, idx):
-    """UPL2 stub body (vblank). Preserves A + flags around all work; replays the
-    displaced beq/sta branch-aware at the end. All VRAM/DMA/TM writes live here."""
     dst = BG3_CHR + GLYPH_TILE0 * 8
-    title = "TRAINING"
-    draw_title = "".join(
-        f"  lda #${tilew(c, idx):04X}\n  sta $2118\n" for c in title)
-    blank_title = "".join("  sta $2118\n" for _ in title)
-    return f"""
-  php
-  pha
-  phx
-  phy
-  sep #$20
+    if stage == "pipe":
+        # (pipe retains the phase-2 smoke behavior: title row while gated)
+        body = f"""
   lda_l ${VISIBLE:06X}
-  cmp_l ${PREVVIS:06X}
-  bne dotrans
-  jmp steady
-dotrans:
-  lda_l ${VISIBLE:06X}
-  sta_l ${PREVVIS:06X}
-  cmp #$01
-  beq turnon
-  lda #${TM_OFF:02X}
-  sta $212C
-  lda #$80
-  sta $2115
+  beq pnotvis
+  lda_l ${FONTUP:06X}
+  bne pfontok
+  jmp dofont
+pfontok:
+pnotvis:
+  jmp tmmgmt
+dofont:
+{_font_dma(font_addr, font_bank, font_size, dst)}
+{_paint_row_block(0, idx, "pp")}
+ppdone:
+  lda #$01
+  sta_l ${UIVIS:06X}
+  jmp tmmgmt
+"""
+        return _upl2_wrap(body)
+
+    # full painter: priority clear > paint > cursorpass > redraw
+    clear_rows = ""
+    for i in range(NROWS):
+        # NB: keep tracker/runtime widths in sync at each label (sep after every block)
+        clear_rows += f"""
+  cmp #${i:02X}
+  bne clr{i}
   rep #$20
-  lda #${TITLE_ROW_ADDR:04X}
+  lda #${row_addr(i):04X}
   sta $2116
+  jmp clrw
+clr{i}:
+  sep #$20
+"""
+    paint_chain = ""
+    for i in range(NROWS):
+        paint_chain += f"""
+  cmp #${i:02X}
+  bne pnt{i}
+  jmp pntb{i}
+pnt{i}:
+"""
+    redraw_chain = ""
+    for i in range(NROWS):
+        redraw_chain += f"""
+  cmp #${i:02X}
+  bne rd{i}
+  jmp pntb{i}
+rd{i}:
+"""
+    wipe_chain = ""
+    for i in range(WIPEROWS):
+        wipe_chain += f"""
+  cmp #${i:02X}
+  bne wp{i}
+  rep #$20
+  lda #${0x1000 + i * 32:04X}
+  sta $2116
+  jmp wipew
+wp{i}:
+  sep #$20
+"""
+    paint_blocks = ""
+    for i in range(NROWS):
+        paint_blocks += f"pntb{i}:\n" + _paint_row_block(i, idx, f"p{i}_") + f"p{i}_done:\n  jmp painted\n"
+    cursor_cells = ""
+    for i in range(1, NROWS):
+        cursor_cells += f"""
+  rep #$20
+  lda #${row_addr(i) + CUR_OFF:04X}
+  sta $2116
+  sep #$20
+  lda_l ${CURSOR:06X}
+  cmp #${i:02X}
+  rep #$20
+  beq cc{i}
   lda #${BLANK:04X}
-{blank_title}  sep #$20
-  jmp steady
-turnon:
+  bra ccw{i}
+cc{i}:
+  lda #${0x2C00 | (GLYPH_TILE0 + idx['>']):04X}
+ccw{i}:
+  sta $2118
+  sep #$20
+"""
+    body = f"""
+  lda_l ${CLEARROW:06X}
+  cmp #$FF
+  bne doclear
+  jmp clrskip
+doclear:
+{clear_rows}  jmp tmmgmt
+clrw:
+  rep #$20
+  lda #${BLANK:04X}
+{"".join("  sta $2118" + chr(10) for _ in range(PANEL_W))}  sep #$20
+  lda_l ${CLEARROW:06X}
+  inc_a
+  cmp #${NROWS:02X}
+  bne clrnx
+  lda #$FF
+clrnx:
+  sta_l ${CLEARROW:06X}
+  jmp tmmgmt
+clrskip:
+  lda_l ${VISIBLE:06X}
+  bne vis1
+  jmp tmmgmt
+vis1:
+  lda_l ${PAINTROW:06X}
+  cmp #$FF
+  bne dopaint
+  jmp nopaint
+dopaint:
+  cmp #$00
+  bne pwipe
+  lda_l ${FONTUP:06X}
+  bne pfok
+  jmp dofont
+pfok:
+  lda #$01
+  sta_l ${PAINTROW:06X}
+  jmp tmmgmt
+pwipe:
+  cmp #${WIPEROWS + 1:02X}
+  bcc dowipe
+  jmp prow
+dowipe:
+  dec_a
+{wipe_chain}  jmp tmmgmt
+wipew:
+  rep #$20
+  lda #${BLANK:04X}
+{"".join("  sta $2118" + chr(10) for _ in range(32))}  sep #$20
+  lda_l ${PAINTROW:06X}
+  inc_a
+  sta_l ${PAINTROW:06X}
+  jmp tmmgmt
+prow:
+  sec
+  sbc #${WIPEROWS + 1:02X}
+{paint_chain}  jmp tmmgmt
+painted:
+  sep #$20
+  lda_l ${PAINTROW:06X}
+  cmp #$FF
+  beq pfromrd
+  inc_a
+  cmp #${WIPEROWS + NROWS + 1:02X}
+  bne pnx
+  lda #$FF
+  sta_l ${PAINTROW:06X}
+  lda #$01
+  sta_l ${UIVIS:06X}
+pfromrd:
+  jmp tmmgmt
+pnx:
+  sta_l ${PAINTROW:06X}
+  jmp tmmgmt
+nopaint:
+  lda_l ${CURSDIRT:06X}
+  bne docurs
+  jmp nocurs
+docurs:
+  lda #$00
+  sta_l ${CURSDIRT:06X}
+{cursor_cells}  jmp tmmgmt
+nocurs:
+  lda_l ${REDRAW_A:06X}
+  cmp #$FF
+  beq nordrw
+  pha
+  lda #$FF
+  sta_l ${REDRAW_A:06X}
+  pla
+{redraw_chain}  jmp tmmgmt
+nordrw:
+  jmp tmmgmt
+dofont:
+{_font_dma(font_addr, font_bank, font_size, dst)}
+  jmp tmmgmt
+{paint_blocks}"""
+    return _upl2_wrap(body)
+
+
+def _font_dma(font_addr, font_bank, font_size, dst):
+    return f"""
   lda #$80
   sta $2115
   lda #$01
@@ -178,16 +1000,32 @@ turnon:
   sta $420B
   lda #$01
   sta_l ${FONTUP:06X}
-  rep #$20
-  lda #${TITLE_ROW_ADDR:04X}
-  sta $2116
-{draw_title}  sep #$20
-steady:
-  lda_l ${VISIBLE:06X}
-  beq notm
+"""
+
+
+def _upl2_wrap(body):
+    return f"""
+  php
+  pha
+  phx
+  phy
+  sep #$20
+{body}tmmgmt:
+  sep #$20
+  lda_l ${UIVIS:06X}
+  cmp_l ${PREVUI:06X}
+  beq tmsteady
+  lda_l ${UIVIS:06X}
+  sta_l ${PREVUI:06X}
+  bne tmsteady
+  lda #${TM_OFF:02X}
+  sta $212C
+tmsteady:
+  lda_l ${UIVIS:06X}
+  beq tmdone
   lda #${TM_ON:02X}
   sta $212C
-notm:
+tmdone:
   rep #$30
   ply
   plx
@@ -201,7 +1039,7 @@ far96:
 """
 
 
-def build(src, out, stage="pipe"):
+def build(src, out, stage="tier1"):
     data = bytearray(open(src, "rb").read())
     while len(data) >= 0x10000 and data[-0x10000:] == bytes(0x10000):
         data = data[:-0x10000]
@@ -218,8 +1056,6 @@ def build(src, out, stage="pipe"):
     bank = 0xC0 + (bankbase >> 16)
 
     font_blob, idx = hudfont.build_font(FONT_LETTERS)
-
-    # bank layout: [font][input stub + raw tail][upl2 stub] -- font first = no forward refs
     font_off = bankbase & 0xFFFF
     inp_off = font_off + len(font_blob)
     inp_body, _ = A.assemble(_input_stub(stage).splitlines(), inp_off, bank)
@@ -230,10 +1066,8 @@ def build(src, out, stage="pipe"):
 
     blob = font_blob + inp_body + inp_tail + upl_body
     data[bankbase:bankbase + len(blob)] = blob
-
     data[INP:INP + 4] = bytes([0x5C, inp_off & 0xFF, (inp_off >> 8) & 0xFF, bank])
     data[UPL2:UPL2 + 4] = bytes([0x5C, upl_off & 0xFF, (upl_off >> 8) & 0xFF, bank])
-    # UPL2_OLD was 5 bytes; the byte at UPL2+4 (0x21) is orphaned, skipped by the jml
 
     data += b"\x00" * ((len(data) + 0x7FFFF) // 0x80000 * 0x80000 - len(data))
     _fix_checksum(data)
@@ -260,7 +1094,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="In-ROM training mode upgrade (patch 11).")
     ap.add_argument("src", nargs="?", default=CLEAN)
     ap.add_argument("out", nargs="?", default="build/sms_trainingplus.sfc")
-    ap.add_argument("--stage", choices=["pipe"], default="pipe")
+    ap.add_argument("--stage", choices=["pipe", "tier1"], default="tier1")
     a = ap.parse_args()
     if a.src == CLEAN:
         assert sha1(open(a.src, "rb").read()).hexdigest() == CLEAN_SHA1, "clean hash mismatch"
