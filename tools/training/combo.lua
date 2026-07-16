@@ -14,18 +14,30 @@ function M.init(ctx)
 
   local FREE = { [CLS.NEUTRAL] = true, [CLS.MOVEMENT] = true, [CLS.BLOCKHOLD] = true }
 
+  local STUNNED = { [CLS.HITSTUN] = true, [CLS.THROWN] = true, [CLS.KNOCKDOWN] = true,
+                    [CLS.TECH] = true }
+
   table.insert(ctx.mod.framedata.on.connect, function(ev)
     if ev.kind == "block" then return end
     local c = combos[ev.defender]
     local prevHP = ctx.prev and ctx.prev.p[ev.defender].hp or ctx.snap.p[ev.defender].hp
-    if not c.active or c.defWasFree then
+    local fresh = (not c.active) or c.defWasFree
+    if fresh then
       -- fresh combo — a hit after the defender had an actionable frame RESTARTS the count
       -- (tagged reset=true so the HUD can show the pressure string wasn't a true combo)
       local reset = c.active and c.defWasFree or false
       c.active = true; c.hits = 0; c.startHP = prevHP; c.reset = reset
       c.freeFrames = 0; c.defWasFree = false
+      c.tight = false; c.tightHits = 0
     end
     c.hits = c.hits + 1
+    -- tight link: a CONTINUING hit that lands with the defender already out of stun on
+    -- the connect frame — zero free frames were recorded, so it landed on their first
+    -- possible exit frame: a non-bufferable 1-frame meaty/link (the Uranus infinite case).
+    if not fresh and ev.kind == "hit" and not STUNNED[ev.defCls] then
+      c.tight = true
+      c.tightHits = (c.tightHits or 0) + 1
+    end
     c.defWasFree = false
     c.freeFrames = 0
     c.lastHitT = ctx.t

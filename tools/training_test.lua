@@ -225,6 +225,9 @@ tests.T4 = (function()
             and "PASS: 2LP>2HP combo = 2 hits TRUE"
             or string.format("FAIL: combo hits=%s reset=%s",
                 tostring(c.hits), tostring(c.reset)))
+        log((c.tight == false)
+            and "PASS: 2LP>2HP chain not tight (all hits in stun)"
+            or "FAIL: 2LP>2HP wrongly flagged tight")
       end
       if t == 110 then hpAt110 = ctx.snap.p[2].hp; sawHit = false; sawBlock = false end
       if t > 110 and t <= 135 then
@@ -243,6 +246,10 @@ tests.T4 = (function()
               and "PASS: seamless meaty continues combo (3 hits, no reset)"
               or string.format("FAIL: combo hits=%s reset=%s after meaty",
                   tostring(c.hits), tostring(c.reset)))
+          log((c.tight == true and c.tightHits == 1)
+              and "PASS: meaty flagged the chain tight (1 non-bufferable link)"
+              or string.format("FAIL: tight=%s tightHits=%s after meaty",
+                  tostring(c.tight), tostring(c.tightHits)))
           phase = "late"; FV = 116
           ctx.anchor.loadreq = T._state
         else

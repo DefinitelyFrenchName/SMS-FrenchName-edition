@@ -40,7 +40,7 @@ function M.run(ROOT, opts)
 
   local MODULES = opts.modules or
     { "gamestate", "input", "recorder", "dummy", "framedata", "combo", "labels", "regen",
-      "hud", "hud_panel", "hud_bar", "hud_pianoroll", "hud_boxes", "menu" }
+      "hud", "hud_panel", "hud_bar", "hud_pianoroll", "hud_boxes", "hud_combo", "menu" }
   for _, name in ipairs(MODULES) do
     local m = dofile(ROOT .. "training/" .. name .. ".lua")
     if m and m.init then m.init(ctx) end
