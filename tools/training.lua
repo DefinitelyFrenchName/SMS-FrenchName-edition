@@ -23,6 +23,20 @@
 --
 -- Architecture: tools/training/*.lua modules share a ctx table (see main.lua); add a
 -- feature by dropping a module file and appending it to MODULES in main.lua.
+--
+-- GUI SMOKE CHECKLIST (visuals can't be screenshot-verified headless — ScriptHud doesn't
+-- composite into takeScreenshot):
+--   [ ] frame meter visible bottom, freezes when idle, G toggles freeze
+--   [ ] meter scale changes via menu (hud scale 1-4) without layout breakage
+--   [ ] piano roll right edge scrolls with your inputs; switches to P2 while recording
+--   [ ] hitboxes align with sprites while walking both directions (8 toggles)
+--   [ ] hold R: you drive the dummy; release: dummy resumes
+--   [ ] Select: record slot -> do a sequence -> Select; T plays it back; wakeup trigger
+--       plays it as a reversal after a knockdown
+--   [ ] Q saves position, E restores it (works repeatedly)
+--   [ ] M menu navigates with W/S/A/D, settings persist across restarts
+--   [ ] labels pop on meaty/punish/counter/throw situations
+-- Headless self-tests (all must pass): see tools/training_test.lua header.
 local ROOT = "/Users/koneko/Developer/SailorMoonS/tools/"
 local main = dofile(ROOT .. "training/main.lua")
 TM = main.run(ROOT, {})

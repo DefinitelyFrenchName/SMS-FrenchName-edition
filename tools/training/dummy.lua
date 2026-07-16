@@ -104,11 +104,11 @@ function M.init(ctx)
       m = mask(C.M_BACK, C.M_DOWN)                     -- down-back blocks everything blockable
     end
 
-    -- 4. pose
+    -- 4. pose ("stand" = NO override, so a second pad / scripted input can drive the dummy)
     if not m then
       if M.pose == "crouch" then m = mask(C.M_DOWN)
       elseif M.pose == "jump" then m = mask(C.M_UP)
-      else m = 0 end
+      else return end
     end
 
     ctx.out[i] = input.padOf(m, onL)

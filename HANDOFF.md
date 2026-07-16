@@ -135,6 +135,24 @@ python3 tools/mkpatch5.py /tmp/s4.sfc     /tmp/s5.sfc         # (patch 6/7 optio
   actionID writes with writer PC, mash-counter (+0x56) writes, sampling instants (exec watch
   on $C1:07D3), optional ROM script-read watch (SCRIPT_LO/HI).
 
+### Training mode (tools/training.lua + tools/training/ package) — pure Lua, no ROM edits
+A modern training mode: **SF6-style frame meter** (per-frame classes both players, segment
+counts, advantage badge, hitstop dimmed, invuln/cancel strips, freeze model), **recordable
+dummy** (4 facing-normalized slots, triggers: manual/loop/wakeup/blockstun/hitstun/random),
+dummy layers (guard/tech-mash/wakeup/pose), **input piano roll**, event labels
+(MEATY/REVERSAL/PUNISH/COUNTER/THROW TECH/THROWN/TRADE), combo counter (reset-aware),
+**hitbox viewer** (live bank-$8A reads, pixel-verified), keyboard menu (M) + pad controls
+(hold R = drive dummy, Select = record). Frame-data conventions: S excludes the first
+active frame (Dustloop; toggle to SF6 display in menu), counts exclude hitstop, advantage
+= neutral-frame delta (oracle-validated: 2LP S4 A5 R4 +6, 2HP S8 A12 R7). GUI: open a match,
+run tools/training.lua in the Script Window (enable file access for slot/settings persistence).
+Headless self-tests: `tools/training_test.lua` (T1/T2/T2H/T3/T4/T5, see its header) — run all
+with the loop in its header; T4 needs a v0.7-family ROM. Architecture: modules share a ctx
+with hook lists; add a feature = one file in tools/training/ + one MODULES entry (main.lua).
+Key API facts probed (tools/probe_*.lua): +0x4D=hitstop countdown / +0x43=connect latch;
+inputPolled precedes exec@$80:8353; getInput is clean if read before setInput; ScriptHud
+size degenerate headless; screenshots don't composite ScriptHud (console surface only).
+
 **Other tools:** `extract_sms_hitboxes.py` → `docs/sms_all_boxes.json` (per-char box tables);
 `tools/Dispel/dispel` disassembler (**build once**: `cc -O2 -o dispel main.c 65816.c` in
 `tools/Dispel/`); `texttiles.py` + `mockup.lua` (title font); `mkpatch3` reuses

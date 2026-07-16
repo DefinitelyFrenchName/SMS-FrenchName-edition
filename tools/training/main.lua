@@ -40,7 +40,7 @@ function M.run(ROOT, opts)
 
   local MODULES = opts.modules or
     { "gamestate", "input", "recorder", "dummy", "framedata", "combo", "labels",
-      "hud", "hud_panel", "hud_bar", "hud_pianoroll", "hud_boxes" }
+      "hud", "hud_panel", "hud_bar", "hud_pianoroll", "hud_boxes", "menu" }
   for _, name in ipairs(MODULES) do
     local m = dofile(ROOT .. "training/" .. name .. ".lua")
     if m and m.init then m.init(ctx) end
@@ -76,6 +76,16 @@ function M.run(ROOT, opts)
   ctx.actions.boxes = function() ctx.ui.hitboxes = not ctx.ui.hitboxes end
   ctx.actions.padSwap = function() ctx.ui.padSwap = not ctx.ui.padSwap end
   ctx.actions.sConv = function() ctx.ui.sConvSF6 = not ctx.ui.sConvSF6 end
+  ctx.actions.reset = function()   -- reset positions mid-screen (trainer.lua parity)
+    local W = ctx.C.WRAM
+    for i, x in ipairs({ 0xC8, 0x0110 }) do
+      local b = ctx.C.BASE[i]
+      emu.write(b + 0x01, 0, W); emu.write(b + 0x02, 0, W)
+      emu.write(b + 0x04, 0, W); emu.write(b + 0x06, 0, W); emu.write(b + 0x07, 0, W)
+      emu.write(b + 0x21, x % 256, W); emu.write(b + 0x22, math.floor(x / 256), W)
+    end
+    for _, fn in ipairs(ctx.hooks.reset) do fn(ctx) end
+  end
 
   -- host-keyboard hotkeys (GUI only; every isKeyPressed errors headless → pcall)
   local keyPrev = {}
