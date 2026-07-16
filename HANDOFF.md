@@ -34,6 +34,7 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 | 9 | Neptune Deep Submerge fireball hitbox tracks sprite (OPTIONAL) | `mkpatch9.py` | `build/sms_neptune_ds.bps` |
 | 10 | In-match combo counter, base game (OPTIONAL) | `mkpatch10.py` | `build/sms_combocounter.bps` |
 | 10b | + status labels GC/MEATY/REVERSAL/PUNISH/TECH (OPTIONAL) | `mkpatch10.py --events labels` | `build/sms_combolabels.bps` |
+| 11 | **In-ROM training mode upgrade** (L+R menu, dummy control, recording, displays; OPTIONAL) | `mkpatch11.py` | `build/sms_trainingplus.bps` |
 
 ### Playable ROMs (all in `build/`; `.sfc` are gitignored, rebuild from BPS)
 - **`SailorMoonS_FrenchName_v0.7_all5.sfc`** — SHA-1 `24aa6b6d…` — **CANONICAL** (patches 1–5).
@@ -43,6 +44,8 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 - `SailorMoonS_FrenchName_v0.7_all5_venustech.sfc` — `3e3cd687…` — canonical + patch 8 (experimental).
 - `SailorMoonS_FrenchName_v1.0_ALLPATCHES.sfc` — `f20f2883…` — **ALL 10 patches** (canonical 1-5 + optional 6-10, labels on); BPS `build/sms_allpatches_v1.0.bps`.
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
+- `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
+- **`SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc`** — `be2cb752…` — **ALL 11 patches** (BPS `build/sms_allpatches_v1.1.bps`, title bumped to v.1.1 as the naked-eye tell).
 
 Each ROM's BPS is `build/sms_full5_v07_canonical.bps` / `sms_full5_truecombo.bps` /
 `sms_full6_v08_dashinvuln.bps` / `sms_full7_pluto5hp.bps` / `sms_full8_venustech.bps` /
@@ -225,6 +228,9 @@ ROM="build/SailorMoonS_FrenchName_v0.7_all5.sfc" tools/run.sh tools/demo_link.lu
 ROM="build/sms_venustech.sfc" tools/run.sh tools/techsweep.lua 500   # → traces/techsweep_out.txt
 # reversal outcome (frame-perfect vs +1 late):
 # edit a react_*.lua or pass REACT_MFV; see react_test.lua header.
+# patch 11 (in-ROM training mode) feature suite + perf:
+ROM="build/sms_trainingplus.sfc" tools/run.sh tools/test_p11_tier1.lua 260   # -> traces/p11_tier1.txt ALL PASS
+ROM="build/sms_trainingplus.sfc" tools/run.sh tools/perf_patch11.lua 200     # -> traces/p11_perf.txt PERF PASS
 # rebuild any BPS and confirm round-trip:
 ./tools/Flips/flips --apply build/sms_full5_v07_canonical.bps "$CLEAN" /tmp/rt.sfc  # sha == 24aa6b6d…
 ```

@@ -1,0 +1,3 @@
+STUB_I = 0xE80190
+STUB_U = 0xE80BBE
+SOAK = true

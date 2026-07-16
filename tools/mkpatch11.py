@@ -1721,7 +1721,7 @@ def build(src, out, stage="tier1"):
         data += b"\x00"
     bank = 0xC0 + (bankbase >> 16)
 
-    font_blob, idx = hudfont.build_font(FONT_LETTERS)
+    font_blob, idx = hudfont.build_font(FONT_LETTERS, color=1)   # white (visible everywhere)
     font_off = bankbase & 0xFFFF
     inp_off = font_off + len(font_blob)
     inp_body, _ = A.assemble(_input_stub(stage).splitlines(), inp_off, bank)
@@ -1741,6 +1741,7 @@ def build(src, out, stage="tier1"):
     print(f"wrote {out} from {src}: stage={stage} bank={bank:#04x} "
           f"font={len(font_blob)}B input={len(inp_body)}B upl2={len(upl_body)}B, "
           f"{len(data):#x} bytes, sha1={sha1(bytes(data)).hexdigest()}")
+    print(f"  stubs: INPUT={bank:02X}{inp_off:04X} UPL2={bank:02X}{upl_off:04X}")
 
 
 def _fix_checksum(data):

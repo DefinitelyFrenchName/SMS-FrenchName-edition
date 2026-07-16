@@ -1035,3 +1035,99 @@ flips --apply build/sms_dashfix.ips <1f-link ROM> <out>
 
 Standalone per-patch write-ups remain at `patch_notes_dashfix.md`, `patch_notes_palettes.md`,
 and `patch_notes_title.md`; this file is the consolidated reference.
+
+---
+
+# Patch 11 (OPTIONAL) — In-ROM training mode upgrade ("Training+")
+
+**Builder:** `tools/mkpatch11.py [src] [out] [--stage pipe|tier1]` (stacks on any patch 1-10 ROM, any order)
+**Standalone BPS:** `build/sms_trainingplus.bps` (clean+11, ROM sha1 `42add705…`)
+**Canonical+11 BPS:** `build/sms_full11_trainingplus.bps` (v0.7 five + 11, sha1 `09106a07…`)
+**Showcase BPS:** `build/sms_allpatches_v1.1.bps` = patches 1-10 + 11, title "FrenchName v.1.1" (sha1 `be2cb752…`)
+
+## What it is
+
+The base game's Practice mode (title menu: down, right → Practice), upgraded **inside the
+ROM** — everything below renders and runs on real hardware, no emulator or Lua needed. The
+Lua training mode (`tools/training/`) remains the precision tool and served as the
+frame-exact oracle for every feature here.
+
+## Pad guide (in a Practice match)
+
+- **L+R** (shoulders, together): open/close the training menu. While open, P1's inputs go
+  to the menu (cursor ↑/↓, value ←/→) and the fighter stands still. Start/Select are eaten
+  while open; when closed, **Start = native movelist, Select = exit** work as always.
+- Menu rows:
+  | Row | Values | Effect |
+  |---|---|---|
+  | POSE | STAND / CROUCH / JUMP | dummy holds the pose (STAND = a P2 pad still works) |
+  | GUARD | OFF / ALL / HIT | ALL = always blocks; HIT = blocks after the first hit/throw |
+  | WAKEUP | OFF / JAB / THROW / DASH | dummy's reversal on wakeup (DASH = 44 backdash) |
+  | TECH | OFF / ON | dummy mashes throw-tech (HK every 2f, the measured optimal rate) |
+  | DAMAGE | OFF / ON | the game's own mode 4↔5 switch: hits always connect; ON makes HP drop |
+  | REGEN | OFF / ON | dummy heals to full 2s after the last hit (needs DAMAGE ON to matter) |
+  | REFILL | OFF / ON | nobody dies: HP refills during the knockdown, normal wakeup, no KO |
+  | RECORD | OFF / ARM | ARM then close: your pad puppets the DUMMY and is recorded (~34s max); L+R stops |
+  | PLAY | OFF / ONCE / LOOP | replay the recording into the dummy on menu close |
+  | SHOW | OFF / ON | live input display (U/D/L/R + LP/LK/HP/HK) + advantage readout (ADV ±N) |
+  | RESET | GO (press ←/→) | both fighters snap to start positions (only when both are neutral) |
+- Settings persist while the console is on (survive rematches; reset on power cycle).
+
+## How it works (RE summary — details in docs/annotations.md "patch 11 RE")
+
+Two JML trampolines, byte-disjoint from patches 1-10 (stacking order never matters):
+- **$80:8373** (joy_read tail, after held words, before edge derivation) → INPUT stub:
+  gate + menu FSM + dummy injection + effects. The dummy is driven by rewriting P2's raw
+  pad words `$5E/$5F` — the game derives press edges itself, the 30Hz latch and the 44
+  recognizer behave exactly as with a real pad (same mechanism as the Lua oracle).
+- **$80:D574** (HUD uploader body, NMI scanline 237) → UPL2 stub: ALL VRAM work (font DMA,
+  BG3 painting, TM management), branch-aware replay of the displaced `beq/sta $2116`.
+
+Key native facts the patch stands on (all probe-verified this session):
+- Mode 4 connects hits but skips only the HP subtraction; poking `$008D=5` enables damage
+  (the DAMAGE row). The attract demo also runs at mode 5, so the gate accepts 5 only
+  with the patch's own flag set. Gate = `$0070==4` (in-match) + `$01FA==0x80` (running).
+- The HUD producer **never runs** in Practice → no HUD/timer natively; **BG3 is the
+  pre-staged movelist layer with TM off** (0x13). The patch paints BG3 freely (wipes rows
+  0-17 before showing, invisible while TM is off), forces TM=0x17 per vblank only while
+  its UI is visible, and the native movelist restages itself on every Start press.
+- All state lives in **$7F:F000+** (bank $7F is untouched by the game in steady-state
+  play; scene loads use $7F:0000-5FFF only). Recording ring at **$7F:E000** via the
+  WMDATA port $2180-83 (game never touches it). Boot's RAM clear re-inits everything.
+- KO prevention: the KO latch reads neither struct HP nor $0800/1 — a refilled dummy
+  still hits act 0x1F. Fix: refill during the KD **and force the engine's own standup
+  act 0x20 at the 0x1E frame** (probe-proven clean recovery).
+- Font: 25 glyphs (patch 10's 16 letters + BDFJKOW + '>' + '-') DMA'd to the free BG3 CHR
+  window 0xC7-0xDF, drawn in **white** (color 1 — patch 10 uses color 3, but the two
+  patches' fonts never coexist: p10 renders only in VS, p11 only in Practice).
+
+## Limitations (documented, by design)
+
+- **ADV is an approximation**: dual frames-since-neutral counters, settle on the later
+  player's first neutral frame; can read ±1 vs the Lua framedata conventions and doesn't
+  handle projectile pressure. The Lua trainer is the precision tool.
+- Recordings store raw pad words — they do **not** mirror when sides swap (use RESET to
+  restore positions before replaying). Movelist/exit stops an active recording.
+- The menu takes ~0.5s to appear (font DMA + 18-row wipe + 12 rows, one item per vblank,
+  invisible until complete).
+
+## Measured performance
+
+`tools/perf_patch11.lua` (+`_cfg`): INPUT stub mean ~500-600 / max 705 cyc; UPL2 mean
+~150-270 / max 691 cyc; vblank span ≤ 4 scanlines (of ~37). Worst combined stub cost
+**3.4% of a 40850-cyc frame** (ceiling 5%). 5000-frame all-features-on soak: state sane,
+no corruption. **VS/story: byte-inert** — NI-1 frame-identity (structs hashed per frame
+over the scripted infinite rep) is byte-identical v0.7 vs v0.7+11.
+
+## Verification (all green, `traces/p11_*.txt`)
+
+- `tools/test_p11_tier1.lua` — 50+ checks across 14 phases on the patched ROM (guard,
+  afterhit, poses, tech-mash w/ mash counter, wakeup jab/dash, regen timing, refill
+  no-KO + recovery, reset, record→puppet→loop-playback E2E, SHOW displays incl. VRAM
+  asserts, full menu UX incl. input eating + movelist protection). ALL PASS on the
+  standalone and on the v1.1 showcase ROM.
+- NI-1 VS frame-identity; NI-3: `demo_link` (patch-1 single MEATY frame 115 intact) and
+  `test_patch10.lua` (counter oracle green) on the v1.1 showcase; both stacking orders
+  with patch 10 build+boot clean.
+- Screenshots: `traces/p11_menu.png` (menu), `traces/p11_demo_show.png` /
+  `p11_demo_adv.png` (input display + ADV 6 vs the oracle's +6 scenario).

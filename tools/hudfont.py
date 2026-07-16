@@ -40,7 +40,7 @@ GLYPHS = {
 COLOR = 3   # 2bpp pixel index for glyph pixels (matches digit outline color)
 
 
-def glyph_2bpp(ch):
+def glyph_2bpp(ch, color=COLOR):
     """Return the 16-byte 2bpp tile for a letter, or all-zero for space/unknown.
     "#" = solid 8x8 backdrop tile in color index 2 (menu panel background)."""
     if ch == "#":
@@ -56,20 +56,23 @@ def glyph_2bpp(ch):
             if b == "1":
                 x = 1 + i              # x offset 1 (leaves left column blank)
                 mask = 1 << (7 - x)
-                if COLOR & 1: p0 |= mask
-                if COLOR & 2: p1 |= mask
+                if color & 1: p0 |= mask
+                if color & 2: p1 |= mask
         out[2 * r] = p0
         out[2 * r + 1] = p1
     return bytes(out)
 
 
-def build_font(letters):
-    """Return (blob, {letter: local_tile_index}) for the given letters, in order."""
+def build_font(letters, color=COLOR):
+    """Return (blob, {letter: local_tile_index}) for the given letters, in order.
+    color: 2bpp pixel index (patch 10 uses the default 3; patch 11 uses 1 = white --
+    the two patches' fonts never coexist on screen: p10 renders only in VS, p11 only
+    in training, so the same tile slots may carry different colors per domain)."""
     blob = bytearray()
     idx = {}
     for i, ch in enumerate(letters):
         idx[ch] = i
-        blob += glyph_2bpp(ch)
+        blob += glyph_2bpp(ch, color)
     return bytes(blob), idx
 
 
