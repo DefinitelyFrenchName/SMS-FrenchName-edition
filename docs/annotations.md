@@ -283,3 +283,16 @@ All `ldy #$imm / jsr $06E5` throw-script call sites in bank $C1 (one per char/th
 Moon $2884/$28AC, Mercury $38EE/$3916/$3926, Mars $4925/$495D/$496D, Jupiter $5A07/$5A3F/$5A67/$5A77,
 Venus $6C53, Uranus $7B59/$7B81 (+specials $7BB1..$7C39), Neptune $8F19/$8F41 (file = 0x10000+addr).
 Tools: tools/techsweep.lua (window/threshold measurement), tools/techfind.lua (instrumentation).
+
+## In-match HUD rendering (patch 10 RE, 2026-07-16)
+| Address | Label | Comment |
+|---|---|---|
+| $C0:D5E8 (file 0x00D5E8) | hud_producer | main-loop HUD tick, **scanline 101, once/frame (0 misses/200f)**: animates displayed HP $0800/$0801 toward struct HP $1049/$10C9, computes bar+timer tiles into WRAM staging $0806-$0815, decrements timer $0802. First bytes `C2 10 E2 20` (rep#$10;sep#$20). |
+| $C0:D56F (file 0x00D56F) | hud_uploader | **NMI/vblank, scanline 237**, called via JSL from NMI ($E0:D4xx): flushes staging entries ($0806/$080A/$080E, each = VRAM addr + tiles) to VRAM port $2116/$2118, zeroes the addr after. First bytes `C2 30 AD 06 08` (rep#$30;lda $0806). |
+| $7E:0800 / $0801 | disp_hp_p1/p2 | displayed HP (drains toward struct HP); written only by hud_producer $C0:D5FD/$D643 |
+| $7E:0802 | timer_bcd | round timer; decremented at $C0:D68D |
+| $7E:0806-$0815 | hud_stage | staging: $0806/$0808 P1-bar (addr,tile), $080A/$080C P2-bar, $080E-$0815 timer (2 digits × top/bottom) |
+| $7E:0816-$08FF | FREE WRAM | HUD page tail, **zero accesses** over probe — patch-10 combo state + staging |
+| digit tiles | 0x2C50+N (top) / 0x2C60+N (bottom) | big 2-tall digits 0-9, palette 0x2C, in BG1 HUD CHR; timer draws them via `adc #$2C50`/`adc #$0010` |
+| HUD tilemap | VRAM word $1000 base | rows 3-4 HP bars, row 5 nameplates, timer at cells $10AF/B0 (top) $10CF/D0 (bottom); **rows 0,1,2,7 and most of row 6 are blank (tile $2000)** — free cells for a combo counter |
+Combo/status counting logic proven in tools/training/{combo,labels}.lua (reads +0x01 act, +0x49 HP; true-chain = defender never actionable between hits). Probes: tools/probe_hudre/hudnmi/upl/ctx/vram.lua.
