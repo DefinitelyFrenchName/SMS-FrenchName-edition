@@ -11,7 +11,9 @@ function M.init(ctx)
 
   local popups = {}     -- {text, color, ttl}
   M.fired = {}
+  M.side = { nil, nil } -- latest label per player, for the under-combo-counter display
   local TTL = 90
+  ctx.ui.labelMode = ctx.ui.labelMode or "both"   -- off | meter | combo | both
 
   local COLORS = {
     MEATY = 0xFF8020, REVERSAL = 0x40C0FF, PUNISH = 0xFF3030, COUNTER = 0xE0E040,
@@ -26,6 +28,10 @@ function M.init(ctx)
     table.insert(popups, 1, { text = full, color = COLORS[text] or C.COL.text, ttl = TTL })
     while #popups > 3 do table.remove(popups) end
     M.fired[#M.fired + 1] = { t = ctx.t, text = full }
+    -- per-side slot (the side already conveys the player, so no P-prefix here)
+    local entry = { text = text, color = COLORS[text] or C.COL.text, ttl = TTL }
+    if who then M.side[who] = entry
+    else M.side[1] = entry; M.side[2] = { text = text, color = entry.color, ttl = TTL } end
   end
   M.fire = fire
 
@@ -58,6 +64,12 @@ function M.init(ctx)
       popups[k].ttl = popups[k].ttl - 1
       if popups[k].ttl <= 0 then table.remove(popups, k) end
     end
+    for i = 1, 2 do
+      if M.side[i] then
+        M.side[i].ttl = M.side[i].ttl - 1
+        if M.side[i].ttl <= 0 then M.side[i] = nil end
+      end
+    end
   end
 
   table.insert(fd.on.moveStart, function(ev)
@@ -67,11 +79,11 @@ function M.init(ctx)
   table.insert(fd.on.connect, function(ev)
     if ev.kind == "throw" then return end       -- thrown/tech labels handle throws
     local defClsAtHit = ev.defCls
-    -- meaty: the attack was already active before this frame AND the defender's constraint
-    -- ended within 2 frames of the connect (covers the same-frame-block case)
-    local m = ev.atkMv
-    local wasActiveEarly = m and m.firstActiveT and m.firstActiveT < ev.t
-    if wasActiveEarly and ev.t - lastConstrained[ev.defender] <= 2 and ev.kind == "hit" then
+    -- meaty = a hit connecting within 2 frames of the defender leaving stun/knockdown.
+    -- Defender-state defines it, NOT hitbox age: the canonical 1-frame meaty (Uranus
+    -- infinite) connects on the attack's FIRST active frame, on the defender's first
+    -- out-of-stun frame (hit beats same-frame block).
+    if ev.kind == "hit" and ev.t - lastConstrained[ev.defender] <= 2 then
       fire("MEATY", ev.attacker)
     end
     if ev.kind == "hit" then
@@ -84,6 +96,8 @@ function M.init(ctx)
   end)
 
   local function draw()
+    local lm = ctx.ui.labelMode
+    if lm ~= "meter" and lm ~= "both" then return end
     local hud = ctx.mod.hud
     if not hud or not hud.show("panel") or #popups == 0 then return end
     local surf = hud.hudSurface()
