@@ -863,10 +863,19 @@ negative lower). Only the hit boxes change — the fireball's hurt/collision box
   head-level hit (it no longer clips targets the ball visually flies under). No damage/startup
   change.
 
-*(A related observation, NOT changed: the fireball's **hurtbox** (its vulnerability, for players
-who try to destroy the fireball) uses the separate hurt table and may share the same
-authored-upward mismatch; left untouched since the request was the hitbox. One-flag follow-up if
-wanted.)*
+## Hurtbox? There isn't one to fix (verified at the disassembly)
+Investigated whether the fireball needs a matching hurtbox fix. It does **not** — projectiles
+have **no functional hurtbox**. The projectile-collision routine `$C0:C352` resolves the
+fireball's hittable/clashable region from its **HIT box** (`$8A:C1F1[objid]`, `+0x40`) — the
+same box used both to strike a player *and* to clash another projectile (branch `C395–C3D2`
+reads both projectiles' hit boxes) — plus the opponent's hurt box (`$8A:C229[char]`, `+0x41`).
+It **never reads the projectile's own `+0x41`**. And the hurt/coll pointer tables are
+roster-only (10 entries each; only the HIT table was extended to 28 for projectiles), so object
+id `0x18` has no hurt/coll table at all — the `+0x41`/`+0x42` values the shared box-writer
+copies from anim data are **vestigial** (never read). Empirically the fireball survives its full
+natural lifetime while the opponent attacks it (not destructible by normals). So patch 9's
+hit-box fix already makes the fireball consistent **both offensively and defensively** — a clash
+now lands at the ball's true position too. No further bytes to change.
 
 ---
 
