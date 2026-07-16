@@ -48,6 +48,7 @@ Everything below assumes the script is running (see `training_install.md`).
 | timer | frozen / running | Round timer freeze (frozen by default) |
 | hp regen | 2s to max / off | Restore the dummy to its character's max HP after 2 s without taking damage (waits until it's actionable and no combo is open); the life bar refills with it |
 | ko reset | on / off | On any KO, instantly reload the position state (`Q`) instead of letting the round end — a baseline is auto-captured at session start if you never saved one |
+| status | both / combo / meter / off | Where event labels (MEATY, REVERSAL, PUNISH…) appear: under the combo counter on the earning player's side, as popups above the frame meter, both, or hidden |
 
 Settings persist to `traces/training_settings.lua` when the menu closes.
 
@@ -101,7 +102,10 @@ that's the number that governs the Uranus infinite, for example).
 - **Advantage** = first-neutral-frame delta (`+` = you recover first), measured only after
   the defender actually reacted, and deferred while any projectile is live.
 
-## Labels (popups above the meter)
+## Labels
+
+Shown as popups above the frame meter and/or under the combo counter on the earning
+player's side (`status` menu row picks the placement; default both).
 
 | Label | Fires when |
 |---|---|

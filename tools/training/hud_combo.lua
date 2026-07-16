@@ -64,6 +64,17 @@ function M.init(ctx)
         end
       end
     end
+    -- status line under the counter anchor (per side; shows even with no combo up)
+    local lm = ctx.ui.labelMode
+    if (lm == "combo" or lm == "both") and ctx.mod.labels then
+      for i = 1, 2 do
+        local st = ctx.mod.labels.side[i]
+        if st and (st.ttl > 20 or st.ttl % 6 < 3) then
+          local sx = (i == 1) and 16 or (240 - #st.text * 6)
+          boldPrint(sx, 76, st.text, st.color)
+        end
+      end
+    end
   end
 
   table.insert(ctx.hooks.frame, step)

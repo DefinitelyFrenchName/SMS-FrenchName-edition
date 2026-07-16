@@ -53,6 +53,8 @@ function M.init(ctx)
                   function(d) ctx.mod.regen.hpRegen = not ctx.mod.regen.hpRegen end },
     { "ko reset", function() return ctx.mod.regen.koReset and "on" or "off" end,
                   function(d) ctx.mod.regen.koReset = not ctx.mod.regen.koReset end },
+    { "status",   function() return ctx.ui.labelMode end,
+                  function(d) ctx.ui.labelMode = cyc({ "both", "combo", "meter", "off" }, ctx.ui.labelMode, d) end },
   }
 
   local function saveSettings()
@@ -60,11 +62,11 @@ function M.init(ctx)
       local f = assert(io.open(SETTINGS, "w"))
       f:write(string.format(
         "return { pose=%q, guard=%q, tech=%s, wakeup=%q, trigger=%q, hudMode=%d, " ..
-        "hudScale=%d, hitboxes=%s, sConvSF6=%s, timerFreeze=%s, hpRegen=%s, koReset=%s }\n",
+        "hudScale=%d, hitboxes=%s, sConvSF6=%s, timerFreeze=%s, hpRegen=%s, koReset=%s, labelMode=%q }\n",
         dm().pose, dm().guard, tostring(dm().tech), dm().wakeup, rec().trigger,
         ctx.ui.hudMode, ctx.cfg.hudScale, tostring(ctx.ui.hitboxes), tostring(ctx.ui.sConvSF6),
         tostring(ctx.mod.regen.timerFreeze), tostring(ctx.mod.regen.hpRegen),
-        tostring(ctx.mod.regen.koReset)))
+        tostring(ctx.mod.regen.koReset), ctx.ui.labelMode))
       f:close()
     end)
   end
@@ -82,6 +84,7 @@ function M.init(ctx)
       if s.timerFreeze ~= nil then ctx.mod.regen.timerFreeze = s.timerFreeze end
       if s.hpRegen ~= nil then ctx.mod.regen.hpRegen = s.hpRegen end
       if s.koReset ~= nil then ctx.mod.regen.koReset = s.koReset end
+      ctx.ui.labelMode = s.labelMode or ctx.ui.labelMode
     end
   end
   loadSettings()

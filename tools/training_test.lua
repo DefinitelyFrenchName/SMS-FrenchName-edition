@@ -250,6 +250,12 @@ tests.T4 = (function()
               and "PASS: meaty flagged the chain tight (1 non-bufferable link)"
               or string.format("FAIL: tight=%s tightHits=%s after meaty",
                   tostring(c.tight), tostring(c.tightHits)))
+          local sawMeaty = false
+          for _, fentry in ipairs(ctx.mod.labels.fired) do
+            if fentry.text == "P1 MEATY" then sawMeaty = true end
+          end
+          log(sawMeaty and "PASS: MEATY label fired on the 1-frame meaty"
+              or "FAIL: MEATY label did not fire")
           phase = "late"; FV = 116
           ctx.anchor.loadreq = T._state
         else
@@ -326,6 +332,12 @@ tests.T5 = (function()
       if phase == "D" and t >= 150 and t <= 226 and t % 8 == 0 then
         log(string.format("DBG t=%d p2act=%02X cls=%s out2=%s", t, ctx.snap.p[2].act,
           ctx.C.CLS_NAME[ctx.snap.p[2].cls or 13], tostring(ctx.out and ctx.out[2] ~= nil)))
+      end
+      if phase == "A" and t == 120 then
+        local st = ctx.mod.labels.side[2]
+        log((st and st.text == "THROW TECH")
+            and "PASS: side status slot holds THROW TECH (under-counter display)"
+            or string.format("FAIL: side[2]=%s", st and st.text or "nil"))
       end
       if t == ((phase == "D") and 230 or 150) then
         local want = ({ A = "P2 THROW TECH", B = "P2 THROWN",
