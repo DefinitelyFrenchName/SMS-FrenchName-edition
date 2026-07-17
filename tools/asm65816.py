@@ -40,8 +40,12 @@ def assemble(lines, org, bank):
             return 3  # absolute
         if mn in ("jml","jmp"):
             return 4 if mn == "jml" else 3
-        if mn in ("lda_l","sta_l","cmp_l"):
-            return 4  # long addressing: opcode + 24-bit address
+        if mn in ("lda_l","sta_l","cmp_l","sbc_l","adc_l","lda_lx"):
+            return 4  # long addressing: opcode + 24-bit address (lda_lx = long,X)
+        if mn in ("lda_y","sta_y","adc_y","cmp_y"):
+            return 3  # absolute,Y
+        if mn == "lsr_a":
+            return 1
         raise ValueError(f"size: unknown {mn} {op}")
 
     def apply_flags(mn, op, m, x):
@@ -78,17 +82,19 @@ def assemble(lines, org, bank):
     def abs_bytes(op):
         v = int(op.replace("$",""), 16)
         return [v & 0xFF, (v >> 8) & 0xFF]
-    SIMPLE = {"php":0x08,"plp":0x28,"phb":0x8B,"plb":0xAB,"pha":0x48,"pla":0x68,
+    SIMPLE = {"php":0x08,"plp":0x28,"phb":0x8B,"plb":0xAB,"pha":0x48,"pla":0x68,"lsr_a":0x4A,
               "phx":0xDA,"plx":0xFA,"phy":0x5A,"ply":0x7A,"rtl":0x6B,"rts":0x60,
               "tax":0xAA,"txa":0x8A,"tay":0xA8,"tya":0x98,"xba":0xEB,"clc":0x18,"sec":0x38,
               "inc_a":0x1A,"dec_a":0x3A,"inx":0xE8,"dex":0xCA,"iny":0xC8,"dey":0x88,"nop":0xEA}
     BR = {"bra":0x80,"bcc":0x90,"bcs":0xB0,"beq":0xF0,"bne":0xD0,"bpl":0x10,"bmi":0x30}
-    LONG = {"lda_l":0xAF,"sta_l":0x8F,"cmp_l":0xCF}   # 24-bit absolute-long, DBR-independent
+    LONG = {"lda_l":0xAF,"sta_l":0x8F,"cmp_l":0xCF,"sbc_l":0xEF,"adc_l":0x6F,"lda_lx":0xBF}   # absolute-long (lda_lx = long,X)
+    ABSY = {"lda_y":0xB9,"sta_y":0x99,"adc_y":0x79,"cmp_y":0xD9}                  # absolute,Y
     # absolute opcodes: (imm, abs)
     OPS = {"lda":(0xA9,0xAD),"sta":(None,0x8D),"cmp":(0xC9,0xCD),"ldx":(0xA2,0xAE),
            "stx":(None,0x8E),"ldy":(0xA0,0xAC),"sty":(None,0x8C),"adc":(0x69,0x6D),
            "sbc":(0xE9,0xED),"and":(0x29,0x2D),"ora":(0x09,0x0D),"eor":(0x49,0x4D),"inc":(None,0xEE),
-           "dec":(None,0xCE),"stz":(None,0x9C),"asl":(None,0x0E),"lsr":(None,0x4E)}
+           "dec":(None,0xCE),"stz":(None,0x9C),"asl":(None,0x0E),"lsr":(None,0x4E),
+           "cpx":(0xE0,0xEC),"cpy":(0xC0,0xCC)}
     for ln in lines:
         s = ln.split(";")[0].strip()
         if not s or s.endswith(":"):
@@ -119,6 +125,9 @@ def assemble(lines, org, bank):
         elif mn in LONG:
             v = int(op.replace("$",""), 16)
             out += bytes([LONG[mn], v & 0xFF, (v >> 8) & 0xFF, (v >> 16) & 0xFF]); pc += 4
+        elif mn in ABSY:
+            v = int(op.replace("$",""), 16)
+            out += bytes([ABSY[mn], v & 0xFF, (v >> 8) & 0xFF]); pc += 3
         elif mn in OPS:
             imm_op, abs_op = OPS[mn]
             if op.startswith("#"):
