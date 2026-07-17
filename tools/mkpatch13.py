@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
-"""Patch 13 (OPTIONAL): "GUTS" — a stacking defense buff earned by completing a taunt.
+"""Patch 13 v3 (OPTIONAL): "GUTS" — completing a taunt NERFS the opponent's specials.
 
-Q-in-3S style: finish the full misfire pratfall uninterrupted (patch 12's L-taunt, or a
-real ochame whiff in A.C.S. play — same animation) and gain one defense level, stacking
-to 3. Damage taken (strikes, projectiles, CHIP, throws, teched throws) is reduced by
---l1/--l2/--l3 percent (default 10/25/45). Levels last until the round ends. No HUD
-indicator (the pratfall is the tell). Works standalone or with patches 11/12.
+Finish the full misfire pratfall uninterrupted (patch 12's L-taunt, or a real ochame
+whiff in A.C.S. play) and gain one guts level, stacking to 3. While you hold levels,
+the OPPONENT's SPECIAL and DESPERATION moves deal --l1/--l2/--l3 percent less damage to
+you (default 20/40/60) — direct hits, projectiles, and chip alike. Normals and throws
+are deliberately untouched. Levels last until the round ends; each player's current
+level shows as a small digit in their top screen corner (blank at 0).
+
+Class discrimination (probe-verified): the attacker's +0x44 attack-class byte — lights
+0x00-0x03, heavies 0x04-0x07, specials >=0x08/0x0C, supers >=0x12; a projectile slot
+carries its own +0x44 (always special-class). The 8 damage-apply sites split into 4
+melee paths (class-check the other fighter) and 4 projectile paths (always special).
+The native ACS stat +0x73 (buff_special) genuinely scales special damage but only
+UPWARD from the VS default of 0 — a nerf below baseline needs these hooks.
 
 Ground truth (probe-verified, docs/annotations.md "patch 13 RE"):
-  * Strike/chip damage applies at 8 IDENTICAL sites in bank $C0 (one per on-hit-table
-    variant): `lda $0049,Y / sec / sbc $00 / sta $0049,Y` — Y = defender struct, damage
-    staged in DP $00, D register = 0. Chip exists for specials and flows through the
-    same sites (blocked normals stage 0). Throws: full at $C1:082F (damage in DP $05),
-    teched at $C1:084D (adds the negated half).
+  * Strike/chip damage applies at 8 IDENTICAL sites in bank $C0: `lda $0049,Y / sec /
+    sbc $00 / sta $0049,Y` — Y = defender struct, damage staged in DP $00, D = 0.
+    Chip flows through the same sites (blocked normals stage 0).
   * Damage has native per-hit VARIANCE (the 16x16 matrix at $C0:D081) — the buff scales
     the final rolled value, exactly as intended.
   * VS round transition signature: both players' HP jump to max AND both acts reset to 0
@@ -50,12 +56,9 @@ assert all(MISFIRE[c] in s for c, s in MISFIRE_SETS.items())
 FSM_HOOK = 0x00837B
 FSM_OLD = bytes.fromhex("8560a55e")      # sta $60 / lda $5E
 FSM_CONT = 0x80837F
-STRIKE_SITES = (0xC09C, 0xC16F, 0xC216, 0xC2C5, 0xC47E, 0xC551, 0xC5F8, 0xC6A7)
+MELEE_SITES = (0xC09C, 0xC16F, 0xC216, 0xC2C5)     # player-vs-player hit/chip variants
+PROJ_SITES = (0xC47E, 0xC551, 0xC5F8, 0xC6A7)      # projectile hit/chip variants
 STRIKE_OLD = bytes.fromhex("b9490038e500")   # lda $0049,Y / sec / sbc $00
-THROWF_SITE = 0x01082F
-THROWF_OLD = bytes.fromhex("b9490038e505")   # lda $0049,Y / sec / sbc $05
-THROWT_SITE = 0x01084D
-THROWT_OLD = bytes.fromhex("a5054a49ff1a18794900")  # lda $05/lsr/eor#FF/inc/clc/adc $0049,Y
 IND_HOOK = 0x00D596                                  # uploader staging-clean exit (every frame, vblank)
 IND_OLD = bytes.fromhex("ad0a08f020")                # lda $080A / beq $D5BB
 IND_CONT_NE = 0x80D59B                               # branch not taken
@@ -229,8 +232,26 @@ exit:
     # builder appends raw: 85 60 A5 5E + JML $80:837F
 
 
-def _level_pick(sfx):
-    """16-bit A/X context. Leaves A = level(0-3) of the defender in Y; passthru if not a player."""
+def _level_pick(sfx, class_gate):
+    """16-bit A/X context. Leaves A = defender's level (nonzero); passthru if not a
+    player, level 0, or (class_gate) the attacker's +0x44 is below special class."""
+    g1 = g2 = ""
+    if class_gate:
+        # defender P1 -> attacker is P2 ($10C4); defender P2 -> attacker is P1 ($1044)
+        g1 = f"""  lda $10C4
+  and #$00FF
+  cmp #$0008
+  bcs cg1{sfx}
+  jmp pass{sfx}
+cg1{sfx}:
+"""
+        g2 = f"""  lda $1044
+  and #$00FF
+  cmp #$0008
+  bcs cg2{sfx}
+  jmp pass{sfx}
+cg2{sfx}:
+"""
     return f"""
   cpy #$1000
   beq lp1{sfx}
@@ -238,10 +259,10 @@ def _level_pick(sfx):
   beq lp2{sfx}
   jmp pass{sfx}
 lp1{sfx}:
-  lda_l ${LV[0]:06X}
+{g1}  lda_l ${LV[0]:06X}
   bra lpd{sfx}
 lp2{sfx}:
-  lda_l ${LV[1]:06X}
+{g2}  lda_l ${LV[1]:06X}
 lpd{sfx}:
   and #$00FF
   bne lpk{sfx}
@@ -281,15 +302,16 @@ dk{sfx}:
 """
 
 
-def _strike_stub(table_long, dmg_dp):
-    """Shared by the 8 strike sites (dmg_dp=0) and the throw-full site (dmg_dp=5)."""
-    sfx = "s" if dmg_dp == 0 else "t"
-    dmg_expr = f"  lda ${dmg_dp:04X}\n  and #$00FF\n"
+def _strike_stub(table_long, class_gate):
+    """Shared scaling stub: class_gate=True for the 4 melee sites (attacker must be
+    special-class), False for the 4 projectile sites (always special)."""
+    sfx = "m" if class_gate else "p"
+    dmg_expr = "  lda $0000\n  and #$00FF\n"
     return f"""
   php
   rep #$30
   phx
-{_level_pick(sfx)}{_scale_core(dmg_expr, sfx, table_long)}  plx
+{_level_pick(sfx, class_gate)}{_scale_core(dmg_expr, sfx, table_long)}  plx
   plp
   lda_y $0049
   sec
@@ -300,36 +322,7 @@ pass{sfx}:
   plp
   lda_y $0049
   sec
-  sbc ${dmg_dp:04X}
-  rtl
-"""
-
-
-def _tech_stub(table_long):
-    dmg_expr = "  lda $0005\n  and #$00FF\n  lsr_a\n"
-    return f"""
-  php
-  rep #$30
-  phx
-{_level_pick("h")}{_scale_core(dmg_expr, "h", table_long)}  plx
-  plp
-  sep #$20
-  lda_l ${SCR8:06X}
-  eor #$FF
-  inc_a
-  clc
-  adc_y $0049
-  rtl
-passh:
-  plx
-  plp
-  sep #$20
-  lda $0005
-  lsr_a
-  eor #$FF
-  inc_a
-  clc
-  adc_y $0049
+  sbc $0000
   rtl
 """
 
@@ -397,10 +390,8 @@ def build(src, out, pcts=(20, 40, 60)):
     while len(data) >= 0x10000 and data[-0x10000:] == bytes(0x10000):
         data = data[:-0x10000]
     assert data[FSM_HOOK:FSM_HOOK + 4] == FSM_OLD, f"fsm hook: {data[FSM_HOOK:FSM_HOOK+4].hex()}"
-    for s in STRIKE_SITES:
+    for s in MELEE_SITES + PROJ_SITES:
         assert data[s:s + 6] == STRIKE_OLD, f"strike site {s:#x}: {data[s:s+6].hex()}"
-    assert data[THROWF_SITE:THROWF_SITE + 6] == THROWF_OLD, "throw-full site"
-    assert data[THROWT_SITE:THROWT_SITE + 10] == THROWT_OLD, "throw-tech site"
     assert data[IND_HOOK:IND_HOOK + 5] == IND_OLD, f"indicator hook: {data[IND_HOOK:IND_HOOK+5].hex()}"
 
     bankbase = (len(data) + 0xFFFF) & ~0xFFFF
@@ -414,25 +405,23 @@ def build(src, out, pcts=(20, 40, 60)):
 
     fsm_body, _ = A.assemble(_fsm_stub().splitlines(), off, bank)
     fsm_tail = FSM_OLD + bytes([0x5C, FSM_CONT & 0xFF, (FSM_CONT >> 8) & 0xFF, FSM_CONT >> 16])
-    strike_off = off + len(fsm_body) + len(fsm_tail)
-    strike_body, _ = A.assemble(_strike_stub(table_long, 0).splitlines(), strike_off, bank)
-    throwf_off = strike_off + len(strike_body)
-    throwf_body, _ = A.assemble(_strike_stub(table_long, 5).splitlines(), throwf_off, bank)
-    throwt_off = throwf_off + len(throwf_body)
-    throwt_body, _ = A.assemble(_tech_stub(table_long).splitlines(), throwt_off, bank)
-    ind_off = throwt_off + len(throwt_body)
+    melee_off = off + len(fsm_body) + len(fsm_tail)
+    melee_body, _ = A.assemble(_strike_stub(table_long, True).splitlines(), melee_off, bank)
+    proj_off = melee_off + len(melee_body)
+    proj_body, _ = A.assemble(_strike_stub(table_long, False).splitlines(), proj_off, bank)
+    ind_off = proj_off + len(proj_body)
     ind_body, _ = A.assemble(_ind_stub().splitlines(), ind_off, bank)
 
-    blob = tables + fsm_body + fsm_tail + strike_body + throwf_body + throwt_body + ind_body
+    blob = tables + fsm_body + fsm_tail + melee_body + proj_body + ind_body
     data[bankbase:bankbase + len(blob)] = blob
 
     def jsl(addr16):
         return bytes([0x22, addr16 & 0xFF, (addr16 >> 8) & 0xFF, bank])
     data[FSM_HOOK:FSM_HOOK + 4] = bytes([0x5C, off & 0xFF, (off >> 8) & 0xFF, bank])
-    for s in STRIKE_SITES:
-        data[s:s + 6] = jsl(strike_off) + b"\xEA\xEA"
-    data[THROWF_SITE:THROWF_SITE + 6] = jsl(throwf_off) + b"\xEA\xEA"
-    data[THROWT_SITE:THROWT_SITE + 10] = jsl(throwt_off) + b"\xEA" * 6
+    for s in MELEE_SITES:
+        data[s:s + 6] = jsl(melee_off) + b"\xEA\xEA"
+    for s in PROJ_SITES:
+        data[s:s + 6] = jsl(proj_off) + b"\xEA\xEA"
     data[IND_HOOK:IND_HOOK + 4] = bytes([0x5C, ind_off & 0xFF, (ind_off >> 8) & 0xFF, bank])
     # IND_OLD was 5 bytes; the byte at IND_HOOK+4 (0x20) is orphaned, skipped by the jml
 
@@ -440,7 +429,7 @@ def build(src, out, pcts=(20, 40, 60)):
     _fix_checksum(data)
     open(out, "wb").write(data)
     print(f"wrote {out} from {src}: pcts={pcts} bank={bank:#04x} fsm={len(fsm_body)}B "
-          f"strike={len(strike_body)}B throwf={len(throwf_body)}B throwt={len(throwt_body)}B ind={len(ind_body)}B, "
+          f"melee={len(melee_body)}B proj={len(proj_body)}B ind={len(ind_body)}B, "
           f"{len(data):#x} bytes, sha1={sha1(bytes(data)).hexdigest()}")
 
 

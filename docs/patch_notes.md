@@ -1193,6 +1193,19 @@ the menu can fire a taunt first — cosmetic.
 # Patch 13 (OPTIONAL) — "Guts": stacking defense buff on taunt completion
 
 **Builder:** `tools/mkpatch13.py [src] [out] [--l1 20 --l2 40 --l3 60]` (stacks on any patch 1-12 ROM, any order)
+**v3 (QA pivot):** Guts no longer boosts general defense — **completing a taunt now
+NERFS the opponent's SPECIAL and DESPERATION damage against you** (20/40/60% per level,
+knobs; direct hits + projectiles + chip; normals and throws deliberately untouched).
+Class check = the attacker's +0x44 attack-class byte (lights 0x00-0x03, heavies
+0x04-0x07, specials >=0x08, supers >=0x12; projectile slots carry their own — the 4
+projectile apply-sites always scale, the 4 melee sites gate on the other fighter's
+class). QA probes also established: the ACS stat **+0x73 (buff_special) genuinely
+scales special damage (8 -> 16 at stat 7) but only upward from the VS floor of 0** —
+the maintainer's leverage-ACS idea validated in mechanism, impossible in direction,
+hence the hook route. And the v2 "throws sometimes unscaled" mystery: Moon, Mars and
+ChibiMoon use per-tick HOLD throws applying damage at a third site **$C1:0D61** the v2
+build never hooked (standard throws $C1:083C = Mercury/Jupiter/Venus/Uranus/Neptune) —
+moot in v3 since throws are out of scope.
 **v2 (QA feedback):** defaults raised to **20/40/60** (the engine's damage variance — jabs
 roll 1-6 — made 10/25 imperceptible on light hits), and a **buff-level indicator** was
 added: each player's current level (1-3) as a small HUD digit at their top corner (BG3

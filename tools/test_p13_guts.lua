@@ -49,7 +49,7 @@ local function p2close(gap)
 end
 
 local function dmgphase(name, level, expect)
-  -- 2HP at census timing: base roll 7
+  -- 2HP (a NORMAL) at fixed timing: base roll 5 -- v3: normals must be IMMUNE at any level
   return { name = name, state = "training_p11.mss", dur = 140,
     tick = function(pt)
       if pt == 5 then wr(0x8D, 5); stwlv = true end
@@ -63,6 +63,22 @@ local function dmgphase(name, level, expect)
     end }
 end
 
+
+local function specialphase(name, level, expect)
+  -- Neptune 214LP direct at fixed timing: base roll 8
+  return { name = name, state = "neptune_vs_jupiter.mss", dur = 110,
+    tick = function(pt)
+      if pt == 6 then setlv(1, 0); setlv(2, level) end
+      if pt == 14 then pulse[0] = { down = true } end
+      if pt == 17 then pulse[0] = { down = true, left = true } end
+      if pt == 20 then pulse[0] = { left = true, y = true } end
+      if pt == 23 then pulse[0] = nil end
+    end,
+    fin = function()
+      local dealt = 0x60 - ram(0x10C9)
+      check(name, dealt == expect, string.format("dealt=%d want=%d lv2=%d", dealt, expect, lv(2)))
+    end }
+end
 local SOLO = {
   { name = "grant-on-completion", state = "training_p11.mss", dur = 200,
     tick = function(pt)
@@ -110,10 +126,14 @@ local SOLO = {
       check("stack-3", saw.l3 == 3, string.format("%d", saw.l3 or -1))
       check("stack-cap", lv(1) == 3, string.format("%d", lv(1)))
     end },
-  dmgphase("dmg-l0-baseline", 0, 5),
-  dmgphase("dmg-l1-20pct", 1, 4),   -- round(5*0.80)=4
-  dmgphase("dmg-l2-40pct", 2, 3),   -- round(5*0.60)=3
-  dmgphase("dmg-l3-60pct", 3, 2),   -- round(5*0.40)=2
+  specialphase("special-l0-baseline", 0, 8),
+  specialphase("special-l1-20pct", 1, 6),   -- round(8*0.80)=6
+  specialphase("special-l2-40pct", 2, 5),   -- round(8*0.60)=5
+  specialphase("special-l3-60pct", 3, 3),   -- round(8*0.40)=3
+  dmgphase("normal-immune-l0", 0, 5),
+  dmgphase("normal-immune-l1", 1, 5),
+  dmgphase("normal-immune-l2", 2, 5),
+  dmgphase("normal-immune-l3", 3, 5),
   { name = "dmg-p1-defender", state = "training_p11.mss", dur = 140,
     tick = function(pt)
       if pt == 5 then wr(0x8D, 5) end
@@ -123,10 +143,9 @@ local SOLO = {
     end,
     fin = function()
       local dealt = 0x60 - ram(0x1049)
-      check("p1-defends-scaled", dealt >= 1 and dealt <= 2, string.format("dealt=%d (base 2LP roll, 45%% cut)", dealt))
-      check("p1-took-something", dealt >= 1)
+      check("p1-normal-full-damage", dealt >= 1, string.format("dealt=%d (normals immune, full roll)", dealt))
     end },
-  { name = "throw-scaled", state = "training_p11.mss", dur = 200,
+  { name = "throw-immune", state = "training_p11.mss", dur = 200,
     tick = function(pt)
       if pt == 5 then wr(0x8D, 5) end
       if pt == 6 then setlv(2, 3) end
@@ -135,9 +154,9 @@ local SOLO = {
     end,
     fin = function()
       local dealt = 0x60 - ram(0x10C9)
-      check("throw-l3", dealt == 10, string.format("dealt=%d want=10 (24*0.40)", dealt))
+      check("throw-immune-l3", dealt == 24, string.format("dealt=%d want=24 (throws untouched)", dealt))
     end },
-  { name = "tech-scaled", state = "training_p11.mss", dur = 260,
+  { name = "tech-immune", state = "training_p11.mss", dur = 260,
     tick = function(pt)
       if pt == 5 then wr(0x8D, 5) end
       if pt == 6 then setlv(2, 3) end
@@ -152,7 +171,7 @@ local SOLO = {
     fin = function()
       check("tech-happened", saw.tech)
       local dealt = 0x60 - ram(0x10C9)
-      check("tech-l3", dealt == 5, string.format("dealt=%d want=5 (12 halved then 60%% cut)", dealt))
+      check("tech-immune-l3", dealt == 12, string.format("dealt=%d want=12 (throws untouched)", dealt))
     end },
   { name = "chip-scaled", state = "neptune_vs_jupiter.mss", dur = 220,
     tick = function(pt)
