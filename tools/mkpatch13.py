@@ -56,6 +56,11 @@ THROWF_SITE = 0x01082F
 THROWF_OLD = bytes.fromhex("b9490038e505")   # lda $0049,Y / sec / sbc $05
 THROWT_SITE = 0x01084D
 THROWT_OLD = bytes.fromhex("a5054a49ff1a18794900")  # lda $05/lsr/eor#FF/inc/clc/adc $0049,Y
+IND_HOOK = 0x00D596                                  # uploader staging-clean exit (every frame, vblank)
+IND_OLD = bytes.fromhex("ad0a08f020")                # lda $080A / beq $D5BB
+IND_CONT_NE = 0x80D59B                               # branch not taken
+IND_CONT_EQ = 0x80D5BB                               # branch taken
+IND_CELL = (0x10E1, 0x10FE)                          # BG3 row 7, col 1 (P1) / col 30 (P2)
 
 # $7F:F800 state block (clear of round-intro scratch and patch 11's E000/F000)
 ST = 0x7FF800
@@ -329,6 +334,55 @@ passh:
 """
 
 
+def _ind_player(p, sfx):
+    cell = IND_CELL[p]
+    return f"""
+  rep #$20
+  lda #${cell:04X}
+  sta $2116
+  sep #$20
+  lda_l ${LV[p]:06X}
+  rep #$20
+  and #$00FF
+  bne iv{sfx}
+  lda #$2000
+  bra iw{sfx}
+iv{sfx}:
+  clc
+  adc #$2C50
+iw{sfx}:
+  sta $2118
+"""
+
+
+def _ind_stub():
+    """Vblank, every frame: draw each player's buff level as a small HUD digit
+    (blank at level 0). Visible in VS immediately; in Practice whenever BG3 is shown
+    (Training+ menu/SHOW). Redrawn per frame, so wipes/restages never leave it stale."""
+    return f"""
+  php
+  pha
+  sep #$20
+  lda $0070
+  cmp #$04
+  beq ind1
+  jmp indout
+ind1:
+  lda #$80
+  sta $2115
+{_ind_player(0, "a")}{_ind_player(1, "b")}  sep #$20
+indout:
+  rep #$20
+  pla
+  plp
+  lda $080A
+  beq indeq
+  jml ${IND_CONT_NE:06X}
+indeq:
+  jml ${IND_CONT_EQ:06X}
+"""
+
+
 def make_tables(pcts):
     blob = bytearray()
     for pct in pcts:
@@ -338,7 +392,7 @@ def make_tables(pcts):
     return bytes(blob)
 
 
-def build(src, out, pcts=(10, 25, 45)):
+def build(src, out, pcts=(20, 40, 60)):
     data = bytearray(open(src, "rb").read())
     while len(data) >= 0x10000 and data[-0x10000:] == bytes(0x10000):
         data = data[:-0x10000]
@@ -347,6 +401,7 @@ def build(src, out, pcts=(10, 25, 45)):
         assert data[s:s + 6] == STRIKE_OLD, f"strike site {s:#x}: {data[s:s+6].hex()}"
     assert data[THROWF_SITE:THROWF_SITE + 6] == THROWF_OLD, "throw-full site"
     assert data[THROWT_SITE:THROWT_SITE + 10] == THROWT_OLD, "throw-tech site"
+    assert data[IND_HOOK:IND_HOOK + 5] == IND_OLD, f"indicator hook: {data[IND_HOOK:IND_HOOK+5].hex()}"
 
     bankbase = (len(data) + 0xFFFF) & ~0xFFFF
     while len(data) < bankbase:
@@ -365,8 +420,10 @@ def build(src, out, pcts=(10, 25, 45)):
     throwf_body, _ = A.assemble(_strike_stub(table_long, 5).splitlines(), throwf_off, bank)
     throwt_off = throwf_off + len(throwf_body)
     throwt_body, _ = A.assemble(_tech_stub(table_long).splitlines(), throwt_off, bank)
+    ind_off = throwt_off + len(throwt_body)
+    ind_body, _ = A.assemble(_ind_stub().splitlines(), ind_off, bank)
 
-    blob = tables + fsm_body + fsm_tail + strike_body + throwf_body + throwt_body
+    blob = tables + fsm_body + fsm_tail + strike_body + throwf_body + throwt_body + ind_body
     data[bankbase:bankbase + len(blob)] = blob
 
     def jsl(addr16):
@@ -376,12 +433,14 @@ def build(src, out, pcts=(10, 25, 45)):
         data[s:s + 6] = jsl(strike_off) + b"\xEA\xEA"
     data[THROWF_SITE:THROWF_SITE + 6] = jsl(throwf_off) + b"\xEA\xEA"
     data[THROWT_SITE:THROWT_SITE + 10] = jsl(throwt_off) + b"\xEA" * 6
+    data[IND_HOOK:IND_HOOK + 4] = bytes([0x5C, ind_off & 0xFF, (ind_off >> 8) & 0xFF, bank])
+    # IND_OLD was 5 bytes; the byte at IND_HOOK+4 (0x20) is orphaned, skipped by the jml
 
     data += b"\x00" * ((len(data) + 0x7FFFF) // 0x80000 * 0x80000 - len(data))
     _fix_checksum(data)
     open(out, "wb").write(data)
     print(f"wrote {out} from {src}: pcts={pcts} bank={bank:#04x} fsm={len(fsm_body)}B "
-          f"strike={len(strike_body)}B throwf={len(throwf_body)}B throwt={len(throwt_body)}B, "
+          f"strike={len(strike_body)}B throwf={len(throwf_body)}B throwt={len(throwt_body)}B ind={len(ind_body)}B, "
           f"{len(data):#x} bytes, sha1={sha1(bytes(data)).hexdigest()}")
 
 
@@ -402,9 +461,9 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Guts: taunt-completion defense buff (patch 13).")
     ap.add_argument("src", nargs="?", default=CLEAN)
     ap.add_argument("out", nargs="?", default="build/sms_tauntbuff.sfc")
-    ap.add_argument("--l1", type=int, default=10, help="level-1 damage reduction percent")
-    ap.add_argument("--l2", type=int, default=25)
-    ap.add_argument("--l3", type=int, default=45)
+    ap.add_argument("--l1", type=int, default=20, help="level-1 damage reduction percent")
+    ap.add_argument("--l2", type=int, default=40)
+    ap.add_argument("--l3", type=int, default=60)
     a = ap.parse_args()
     if a.src == CLEAN:
         assert sha1(open(a.src, "rb").read()).hexdigest() == CLEAN_SHA1, "clean hash mismatch"

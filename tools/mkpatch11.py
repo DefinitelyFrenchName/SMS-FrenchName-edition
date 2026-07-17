@@ -117,6 +117,10 @@ ADVDIRTY = ST + 0x5E
 INPDIRTY = ST + 0x5F
 SHOWPREV_L = ST + 0x60
 SHOWPREV_H = ST + 0x61
+HPSH1 = ST + 0x62       # HP-readout shadows (SHOW display)
+HPSH2 = ST + 0x63
+HPDIRTY = ST + 0x64
+SCRONES = ST + 0x65
 REC_BASE = 0xE000       # WMDATA 16-bit offset within bank $7F ($2183=1)
 REC_MAX = 0x0FFE        # 2047 frames ~ 34s
 
@@ -1286,6 +1290,7 @@ wipew:
   sta_l ${WIPED:06X}
   sta_l ${INPDIRTY:06X}
   sta_l ${ADVDIRTY:06X}
+  sta_l ${HPDIRTY:06X}
 wdone:
   jmp tmmgmt
 prow:
@@ -1307,6 +1312,7 @@ painted:
   sta_l ${WIPED:06X}
   sta_l ${INPDIRTY:06X}
   sta_l ${ADVDIRTY:06X}
+  sta_l ${HPDIRTY:06X}
 pfromrd:
   jmp tmmgmt
 pnx:
@@ -1507,7 +1513,7 @@ wr15:
 dadv:
   lda_l ${ADVDIRTY:06X}
   bne dadv1
-  jmp tmmgmt
+  jmp dhp
 dadv1:
   lda #$00
   sta_l ${ADVDIRTY:06X}
@@ -1528,7 +1534,7 @@ dadv1:
   lda #$2000
   sta $2118
   sep #$20
-  jmp tmmgmt
+  jmp dhp
 advdraw:
   rep #$20
   lda #$1276
@@ -1568,7 +1574,27 @@ sgw:
   adc #$2C60
   sta $2118
   sep #$20
+  jmp dhp
+dhp:
+  lda_l ${HPDIRTY:06X}
+  bne dohp
+  lda $1049
+  cmp_l ${HPSH1:06X}
+  bne dohp
+  lda $10C9
+  cmp_l ${HPSH2:06X}
+  bne dohp
   jmp tmmgmt
+dohp:
+  lda #$00
+  sta_l ${HPDIRTY:06X}
+  lda $1049
+  sta_l ${HPSH1:06X}
+  lda $10C9
+  sta_l ${HPSH2:06X}
+  lda #$80
+  sta $2115
+{_hp_render(0)}{_hp_render(1)}  jmp tmmgmt
 {paint_blocks}"""
     body = (body
             .replace("$WORD_A", f"${0x2C00 | (GLYPH_TILE0 + idx['A']):04X}")
@@ -1582,6 +1608,53 @@ sgw:
             .replace("$WORD_R", f"${0x2C00 | (GLYPH_TILE0 + idx['R']):04X}")
             .replace("$WORD_MINUS", f"${0x2C00 | (GLYPH_TILE0 + idx['-']):04X}"))
     return _upl2_wrap(body)
+
+
+
+def _hp_render(p):
+    hp = 0x1049 if p == 0 else 0x10C9
+    top = 0x1284 if p == 0 else 0x1296
+    bot = 0x12A4 if p == 0 else 0x12B6
+    s = f"h{p}"
+    return f"""
+  rep #$10
+  ldx #$0000
+  sep #$20
+  lda ${hp:04X}
+hpt{s}:
+  cmp #$0A
+  bcc hpd{s}
+  sec
+  sbc #$0A
+  inx
+  bra hpt{s}
+hpd{s}:
+  sta_l ${SCRONES:06X}
+  rep #$20
+  lda #${top:04X}
+  sta $2116
+  txa
+  clc
+  adc #$2C50
+  sta $2118
+  lda_l ${SCRONES:06X}
+  and #$00FF
+  clc
+  adc #$2C50
+  sta $2118
+  lda #${bot:04X}
+  sta $2116
+  txa
+  clc
+  adc #$2C60
+  sta $2118
+  lda_l ${SCRONES:06X}
+  and #$00FF
+  clc
+  adc #$2C60
+  sta $2118
+  sep #$20
+"""
 
 
 def _font_dma(font_addr, font_bank, font_size, dst):
@@ -1659,6 +1732,33 @@ tmoff:
   sta $2118
   sta $2118
   lda #$1284
+  sta $2116
+  lda #${BLANK:04X}
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  sta $2118
+  lda #$12A4
   sta $2116
   lda #${BLANK:04X}
   sta $2118

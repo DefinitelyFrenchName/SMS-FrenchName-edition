@@ -48,7 +48,8 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
 - `SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` — `be2cb752…` — patches 1-11 (BPS `build/sms_allpatches_v1.1.bps`).
-- **`SailorMoonS_FrenchName_v0.11_ALLPATCHES.sfc`** — `be476410…` — **ALL 13 patches, newest test ROM** (BPS `build/sms_allpatches_v0.11.bps`, title "FrenchName v.0.11").
+- **`SailorMoonS_FrenchName_v0.12_ALLPATCHES.sfc`** — `6683215a…` — **ALL 13 patches, newest test ROM** (BPS `build/sms_allpatches_v0.12.bps`, title v.0.12; Guts at 20/40/60 + level indicator, Training+ SHOW HP readout).
+- `SailorMoonS_FrenchName_v0.11_ALLPATCHES.sfc` — `be476410…` — previous QA build (Guts at 10/25/45, no indicator; BPS `build/sms_allpatches_v0.11.bps`).
 - `SailorMoonS_FrenchName_v0.10_ALLPATCHES.sfc` — `f75efa04…` — patches 1-12, the maintainer's mid-QA build (BPS `build/sms_allpatches_v0.10.bps`).
 - `SailorMoonS_FrenchName_v1.2_ALLPATCHES.sfc` — `048bd49f…` — ALL 12 patches (BPS `build/sms_allpatches_v1.2.bps`, title v.1.2).
 

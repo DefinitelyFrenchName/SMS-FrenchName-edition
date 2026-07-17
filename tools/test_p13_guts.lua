@@ -72,6 +72,18 @@ local SOLO = {
     fin = function()
       check("grant-pre-zero", saw.lv0 == 0, string.format("%d", saw.lv0 or -1))
       check("grant-lv1", lv(1) == 1, string.format("lv=%d p1act=%02X", lv(1), ram(0x1001)))
+      local function vword(w) return emu.read(w * 2, emu.memType.snesVideoRam) + 256 * emu.read(w * 2 + 1, emu.memType.snesVideoRam) end
+      check("indicator-p1-digit1", vword(0x10E1) == 0x2C51, string.format("%04X", vword(0x10E1)))
+      check("indicator-p2-blank", vword(0x10FE) == 0x2000, string.format("%04X", vword(0x10FE)))
+    end },
+  { name = "indicator-levels", state = "training_p11.mss", dur = 60,
+    tick = function(pt)
+      if pt == 20 then setlv(1, 3); setlv(2, 2) end
+    end,
+    fin = function()
+      local function vword(w) return emu.read(w * 2, emu.memType.snesVideoRam) + 256 * emu.read(w * 2 + 1, emu.memType.snesVideoRam) end
+      check("indicator-p1-3", vword(0x10E1) == 0x2C53, string.format("%04X", vword(0x10E1)))
+      check("indicator-p2-2", vword(0x10FE) == 0x2C52, string.format("%04X", vword(0x10FE)))
     end },
   { name = "no-grant-on-interrupt", state = "training_p11.mss", dur = 220,
     tick = function(pt)
@@ -99,9 +111,9 @@ local SOLO = {
       check("stack-cap", lv(1) == 3, string.format("%d", lv(1)))
     end },
   dmgphase("dmg-l0-baseline", 0, 5),
-  dmgphase("dmg-l1-10pct", 1, 4),   -- round(5*0.90)=4 (banker)
-  dmgphase("dmg-l2-25pct", 2, 4),   -- round(5*0.75)=4
-  dmgphase("dmg-l3-45pct", 3, 3),   -- round(5*0.55)=3
+  dmgphase("dmg-l1-20pct", 1, 4),   -- round(5*0.80)=4
+  dmgphase("dmg-l2-40pct", 2, 3),   -- round(5*0.60)=3
+  dmgphase("dmg-l3-60pct", 3, 2),   -- round(5*0.40)=2
   { name = "dmg-p1-defender", state = "training_p11.mss", dur = 140,
     tick = function(pt)
       if pt == 5 then wr(0x8D, 5) end
@@ -123,7 +135,7 @@ local SOLO = {
     end,
     fin = function()
       local dealt = 0x60 - ram(0x10C9)
-      check("throw-l3", dealt == 13, string.format("dealt=%d want=13 (24*0.55)", dealt))
+      check("throw-l3", dealt == 10, string.format("dealt=%d want=10 (24*0.40)", dealt))
     end },
   { name = "tech-scaled", state = "training_p11.mss", dur = 260,
     tick = function(pt)
@@ -140,7 +152,7 @@ local SOLO = {
     fin = function()
       check("tech-happened", saw.tech)
       local dealt = 0x60 - ram(0x10C9)
-      check("tech-l3", dealt == 7, string.format("dealt=%d want=7 (12 halved then 45%% cut)", dealt))
+      check("tech-l3", dealt == 5, string.format("dealt=%d want=5 (12 halved then 60%% cut)", dealt))
     end },
   { name = "chip-scaled", state = "neptune_vs_jupiter.mss", dur = 220,
     tick = function(pt)
@@ -160,7 +172,8 @@ local SOLO = {
     tick = function(pt)
       if pt == 6 then setlv(1, 3); setlv(2, 2) end
       if pt == 10 then wr(0x10C9, 0x01); p2close() end
-      if pt >= 14 and pt <= 15 then pulse[0] = { down = true, y = true } elseif pt == 16 then pulse[0] = nil end
+      -- kill with 2HP: even at LV2=2 the scaled heavy still exceeds 1 hp
+      if pt >= 14 and pt <= 15 then pulse[0] = { down = true, x = true } elseif pt == 16 then pulse[0] = nil end
       if pt == 100 then saw.midlv = lv(1) end
       if not saw.resetT and ram(0x1049) == 0x60 and ram(0x10C9) == 0x60
          and ram(0x1001) == 0 and ram(0x1081) == 0 and pt > 120 then saw.resetT = pt end

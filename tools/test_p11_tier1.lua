@@ -206,7 +206,7 @@ local PHASES = {
     fin = function() end },
   { name = "show-display", dur = 280,
     tick = function(pt)
-      if pt == 5 then stw(0x29, 1) end
+      if pt == 5 then stw(0x29, 1); wr(0x8D, 5); stw(0x04, 0xA5) end
       if pt == 10 then p2close() end
       -- hold down+y and check the input display cells (row 19: base word $1264)
       if pt >= 60 and pt <= 70 then pulse[0] = { down = true, y = true } end
@@ -225,6 +225,13 @@ local PHASES = {
       if pt >= 100 and pt <= 101 then pulse[0] = { down = true, y = true } elseif pt == 102 then pulse[0] = nil end
       if pt >= 103 and st(0x5D) ~= 0 and not saw.adv then
         saw.adv = true; saw.sign = st(0x5B); saw.mag = st(0x5C)
+      end
+      if pt == 150 then
+        -- HP readout (SHOW): mode-5 damage happened at ~100; digits must match live hp
+        local hp = ram(0x10C9)
+        local tens, ones = math.floor(hp / 10), hp % 10
+        check("hp-readout-p2", vword(0x1296) == 0x2C50 + tens and vword(0x1297) == 0x2C50 + ones,
+          string.format("hp=%d cells=%04X %04X", hp, vword(0x1296), vword(0x1297)))
       end
       if pt == 200 then
         check("adv-settled", saw.adv)

@@ -53,7 +53,7 @@ and pops in complete. Settings persist across rematches while the console stays 
 | **REFILL** | OFF / ON | Nobody dies. A lethal hit knocks down normally; HP snaps to full during the knockdown and the victim performs a normal wakeup — the KO pose and the frozen post-KO state never happen. Applies to both players. |
 | **RECORD** | OFF / ARM | Set ARM and close the menu: **your pad now puppets the dummy** and everything you do is recorded (up to ~34 s). Press L+R to stop (this also reopens the menu). Opening the movelist or leaving the match also finalizes the recording. |
 | **PLAY** | OFF / ONCE / LOOP | On menu close, the recording plays back into the dummy — once, or looping forever. Great for meaty/okizeme and punish drills. |
-| **SHOW** | OFF / ON | Two live readouts on the lower screen: your **current inputs** (U D L R + LP LK HP HK, lit while held) and an **advantage readout** (`ADV N` / `ADV -N`) that appears for 1.5 s after each exchange settles. |
+| **SHOW** | OFF / ON | Three live readouts on the lower screen: your **current inputs** (U D L R + LP LK HP HK, lit while held), an **advantage readout** (`ADV N` / `ADV -N`, 1.5 s after each exchange), and **both players' HP as numbers** — finally making DAMAGE / REGEN / REFILL (and Guts-buff testing) directly observable in Practice. |
 | **RESET** | GO | Press ←/→ on this row: both fighters snap to round-start positions in neutral. Refused unless both are grounded and actionable (no mid-move teleports). |
 
 ### Reading the ADV number
