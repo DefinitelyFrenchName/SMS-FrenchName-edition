@@ -5,6 +5,12 @@ Fast orientation. **Full operational map: `HANDOFF.md`; engine subsystems:
 
 ## TL;DR
 
+**Patches 11 AND 12 are DONE** on branch `patch11-training-rom`. Patch 12 = taunts on L
+(native per-char misfire pratfalls, the whole ochame mechanic reverse-engineered —
+dispatcher $C1:0B49, records with misfire act at +6, RNG $0090; suites green solo +
+coexist both orders; showcase `build/sms_allpatches_v1.2.bps`, title v.1.2, sha
+`048bd49f…`). "Small advantage for taunting" deliberately deferred.
+
 **Patch 11 (the in-ROM training mode challenge) is DONE** on branch `patch11-training-rom`
 — built, oracle-tested (50+ checks ALL PASS), perf-proven (3.4% worst, VS byte-inert),
 packaged (`build/sms_trainingplus.bps`, showcase `build/sms_allpatches_v1.1.bps`).
