@@ -1192,7 +1192,13 @@ the menu can fire a taunt first — cosmetic.
 
 # Patch 13 (OPTIONAL) — "Guts": stacking defense buff on taunt completion
 
-**Builder:** `tools/mkpatch13.py [src] [out] [--l1 10 --l2 25 --l3 45]` (stacks on any patch 1-12 ROM, any order)
+**Builder:** `tools/mkpatch13.py [src] [out] [--l1 20 --l2 40 --l3 60]` (stacks on any patch 1-12 ROM, any order)
+**v2 (QA feedback):** defaults raised to **20/40/60** (the engine's damage variance — jabs
+roll 1-6 — made 10/25 imperceptible on light hits), and a **buff-level indicator** was
+added: each player's current level (1-3) as a small HUD digit at their top corner (BG3
+row 7, cols 1/30; hook `$80:D596`, the uploader's every-frame exit, redrawn per vblank so
+wipes/restages never leave it stale; blank at level 0; visible in VS always, in Practice
+whenever Training+ shows BG3).
 **Standalone BPS:** `build/sms_tauntbuff.bps` (clean+13, ROM sha1 `04e13428…`)
 **Showcase BPS:** `build/sms_allpatches_v0.11.bps` = patches 1-13, title "FrenchName v.0.11" (sha1 `be476410…`)
 
@@ -1201,7 +1207,7 @@ the menu can fire a taunt first — cosmetic.
 Q-in-3S-style guts: **complete a full taunt pratfall uninterrupted** (patch 12's L-taunt —
 or a genuine ochame whiff in A.C.S. play, same animation) and gain one **defense level,
 stacking to 3** (getting hit out of the taunt grants nothing). Damage you take is reduced
-by **10% / 25% / 45%** per level (build knobs `--l1/--l2/--l3` for tuning), covering
+by **20% / 40% / 60%** per level (build knobs `--l1/--l2/--l3` for tuning), covering
 normal hits, projectiles, **chip damage**, throws, and teched throws, with a floor of 1.
 Levels last **until the round ends**; no on-screen indicator (the ~1.8 s pratfall is the
 tell). Works standalone (real whiffs only) or with patches 11/12.
