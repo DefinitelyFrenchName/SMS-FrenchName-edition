@@ -1133,3 +1133,57 @@ over the scripted infinite rep) is byte-identical v0.7 vs v0.7+11.
   with patch 10 build+boot clean.
 - Screenshots: `traces/p11_menu.png` (menu), `traces/p11_demo_show.png` /
   `p11_demo_adv.png` (input display + ADV 6 vs the oracle's +6 scenario).
+
+---
+
+# Patch 12 (OPTIONAL) — Taunts on the L button
+
+**Builder:** `tools/mkpatch12.py [src] [out]` (stacks on any patch 1-11 ROM, any order)
+**Standalone BPS:** `build/sms_taunt.bps` (clean+12, ROM sha1 `614f318e…`)
+**Showcase BPS:** `build/sms_allpatches_v1.2.bps` = patches 1-12, title "FrenchName v.1.2" (sha1 `048bd49f…`)
+
+## What it is
+
+Press **L** (with R not held) while grounded and actionable, in any match type (VS, vs-COM,
+tournament, story, Practice), and your character performs her **native failed-special
+animation** — the same per-character misfire pratfall the game plays in story mode / A.C.S.
+customization matches when the "ochame" stat makes a special whiff. Fizzle → embarrassed →
+neutral, ~1.8 s, **fully vulnerable the whole time** (a jab interrupts it — that's the
+taunt risk). Both players can taunt. No advantage is granted (a possible later addition).
+
+Special case, kept deliberately: **Jupiter's misfire has a real attack box** (her fizzled
+thunder zaps point-blank) — that is the authentic native animation, so her taunt can hit.
+
+## The RE that made it 1:1 native (docs/annotations.md "patch 12 RE")
+
+The misfire mechanic was fully located: every special's 8-byte record in bank $C1 carries
+its **misfire act at +6**; the dispatcher `$C1:0B49` rolls `threshold[$C1:0AF5 + ($90 &
+15)] < ochame(+0x75)` and, on failure, simply sets the fighter's act to record+6. The
+taunt writes exactly those per-character acts (LP-variants, all 9 harvested live and
+audited): Moon 6A, Mercury 65, Mars 66, Jupiter 63, Venus 5F, Uranus 65, Neptune 66,
+Pluto 62, ChibiMoon 63. The game's RNG byte ($7E:0090) was located as a bonus.
+
+## Mechanics
+
+One 314-byte stub, hook at **$80:8377** (joy_read's edge-derivation; displaced `eor $64 /
+and $5C` raw-spliced back). The L press-edge is computed **statelessly** from the game's
+own held/prev pad words — the patch has **zero WRAM footprint**. Gate: `$0070==4` (in a
+match) and `$01FA==0x80` (running), taunter act ≤ 0x04, no hitstop, R not held. The act
+write is the engine-proven force set (+01/+04=act, +02=1, +06/07=0).
+
+Coexistence with patch 11 (Training+): byte-disjoint hooks — p11's input stub JMLs
+straight into p12's hook, either install order. The **L+R menu chord never taunts** (R
+held blocks it) and the menu's input-eat blocks taunts while it is open. A recorded L
+press replays as a dummy taunt (feature). Quirk: pressing L a beat before R when opening
+the menu can fire a taunt first — cosmetic.
+
+## Verification (all green, `traces/p12_*.txt`)
+
+- Solo suite 13/13 (`tools/test_p12_taunt.lua`, MODE="solo"): both players taunt + recover,
+  chain into 0x2A, edge-only (held L = one taunt), L+R blocked, airborne/hitstun blocked,
+  vulnerability (P2 jab interrupts the taunt), Chibi 0x63 + Pluto 0x62 in VS mode.
+- Coexist suite 5/5 (MODE="coexist") in **both** stacking orders with patch 11.
+- NI-1 VS frame-identity (v0.7 vs v0.7+12, no-L plan, byte-identical); boot→match E2E;
+  both suites + the p11 suite ALL PASS on the v1.2 showcase; BPS round-trips verified.
+- Probes: `tools/probe_p12_{acts,ochame,rec,com}.lua` (act audit + screenshots, the live
+  ochame whiff demo, the record harvest, the CPU-pad L/R check: mode 2 vs-COM = 0 hits).

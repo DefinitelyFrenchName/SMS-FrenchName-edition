@@ -30,6 +30,7 @@ Then: title menu → **down, right** (the menu is a 2-column grid) → **Practic
 | Input | Effect |
 |---|---|
 | **L+R** (both shoulders) | open / close the training menu |
+| **L** alone (patch 12 installed) | taunt — the character's native failed-special pratfall; blocked while the menu is open, and R-held never taunts |
 | **↑ / ↓** (menu open) | move cursor |
 | **← / →** (menu open) | change the value (on RESET: perform the reset) |
 | **Start** (menu closed) | native movelist, untouched |
