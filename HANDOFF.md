@@ -47,7 +47,8 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
 - `SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` — `be2cb752…` — patches 1-11 (BPS `build/sms_allpatches_v1.1.bps`).
-- **`SailorMoonS_FrenchName_v1.2_ALLPATCHES.sfc`** — `048bd49f…` — **ALL 12 patches** (BPS `build/sms_allpatches_v1.2.bps`, title v.1.2).
+- **`SailorMoonS_FrenchName_v0.10_ALLPATCHES.sfc`** — `f75efa04…` — **ALL 12 patches, the maintainer's current test ROM** (BPS `build/sms_allpatches_v0.10.bps`, title "FrenchName v.0.10"). Identical content to v1.2 below except the title tell.
+- `SailorMoonS_FrenchName_v1.2_ALLPATCHES.sfc` — `048bd49f…` — ALL 12 patches (BPS `build/sms_allpatches_v1.2.bps`, title v.1.2).
 
 Each ROM's BPS is `build/sms_full5_v07_canonical.bps` / `sms_full5_truecombo.bps` /
 `sms_full6_v08_dashinvuln.bps` / `sms_full7_pluto5hp.bps` / `sms_full8_venustech.bps` /
