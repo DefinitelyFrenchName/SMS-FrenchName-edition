@@ -229,6 +229,19 @@ drawing only the hit box for ids ≥ 10).
   flags]`, indexed by `(attackID>>1)*4`. These are **GLOBAL / strength-class-indexed — never
   patch hitstun here** (it changes every character's move of that class). Damage scaling matrix
   `$C0:D081` (lookup `$C0:D055`).
+- **Damage application** (patch-13 RE): all strike/chip damage funnels through **8
+  identical apply sites** in bank $C0 (one per on-hit-table variant): `lda $0049,Y / sec /
+  sbc $00 / sta $0049,Y / cmp #$90` — defender struct in Y, final damage staged in **DP
+  $00**, D register = 0. Chip exists for specials (~quarter) and flows through the same
+  sites; blocked normals stage 0. Throw damage applies separately: full at `$C1:082F`
+  (damage in DP $05), teched at `$C1:084D` (adds the negated half). The 16×16 matrix at
+  `$C0:D081` (lookup `$C0:D055`, executed once per landed hit) is a **damage-variance
+  table** — the same move rolls different damage by RNG phase (`$0090`); fixed input
+  timing ⇒ deterministic rolls (why the test suites see stable values).
+- **VS round flow** (patch-13 RE): KO → 0x1F, winner plays victory 0x24, then **both
+  structs re-init on the same frame (HP → max, acts → 0)** — no intro act, and
+  `$0070/$01FA/$008D` never change across the transition. `$080C` increments on a round
+  win.
 - **Hitstop** freezes the attacker's anim tick ≈8 frames on a chained hit (`+0x4D` counts it).
   Frame-data counts *exclude* hitstop frames so on-hit and whiff startup/active/recovery match.
 - **"Hit beats same-frame block."** A hit landing the exact frame the defender first raises
