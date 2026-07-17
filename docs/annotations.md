@@ -331,3 +331,16 @@ tools/hudfont.py (glyphs), tools/test_labels.lua (oracle), tools/perf_patch10.lu
 | Bank $7F | Boot clears all 64K once; scene-load/round-intro uses **$7F:0000-5FFF**; steady-state match traffic ZERO. **$7F:F000-$7FFF = patch-11 state home.** |
 | WRAM $0816-$09FF | Heavily touched in native training (the VS-mode zero-access result does NOT transfer). Do not use for training-mode state. |
 | traces/training_p11.mss | Clean-ROM native training match savestate (Uranus vs Jupiter, mode 4), made by tools/probe_p11_nav.lua. |
+
+## Special-move dispatch & the misfire/ochame mechanic (patch 12 RE, 2026-07-17)
+
+| Addr / fact | Meaning |
+|---|---|
+| $C1:0B49 | **special-move dispatcher**: entered with X = fighter struct, Y = the special's 8-byte record (bank $C1, read via phk/plb). Runs for EVERY recognized special. |
+| special record layout | +0 attackID, +1 variant (0=LP 1=HP), +2/+3 ?, +4/5 ?, **+6 = misfire act ID** (0 = this special can never misfire), +7 strength-ish. Records found at e.g. Neptune $C1:9DF6/9DFD, Chibi $C1:BDF0/BDF7. |
+| the ochame roll | in $C1:0B49: if record+6 ≠ 0 and fighter +0x75 (ochame) ≠ 0: `Y = $90 & 15; if table[$C1:0AF5 + Y] < ochame → MISFIRE`. On misfire: act word $00 |= 0xFF00 (marker), and the ACT SET is simply record+6 via $C1:0224 (`sta $01,X / stz $02,X`). Roll verified live: ochame=0xFF makes ~1/3 of Neptune 214LP whiff into act 0x66. |
+| $7E:0090 | **RNG byte** (low nibble consumed by the misfire roll). |
+| $C1:0AF5 | 16-entry misfire threshold table (indexed by rand&15, compared against ochame). |
+| misfire acts (per char, LP-version = record+6 of the first special) | Moon **0x6A**, Mercury **0x65**, Mars **0x66**, Jupiter **0x63**, Venus **0x5F**, Uranus **0x65**, Neptune **0x66**, Pluto **0x62**, ChibiMoon **0x63** (HP variants = +1; Mars also 0x6C, Venus also 0x65/0x66 on her 2nd special). Chibi's matches the vendor tool's "Chibi 63-64 Misfire" note — cross-validated. |
+| misfire act behavior (forced from standing, all 9 audited) | plays the fizzle anim then chains into 0x2A (embarrassed) then neutral, ~103-113f total, no hitbox — EXCEPT **Jupiter (0x63/0x64): her fizzled thunder has a real attack box** (authentic native behavior; her taunt can hit point-blank). Universal fallbacks: 0x2A = 71f embarrassed; 0x27 = 132f slip→down→standup→embarrassed. |
+| $008D = 2 | **1P-vs-COM match** (new mode value; $0070==4 there too). CPU-driven pads carry no L/R bits (900f watch) — an L-triggered feature needs no mode gate. |
