@@ -354,3 +354,11 @@ tools/hudfont.py (glyphs), tools/test_labels.lua (oracle), tools/perf_patch10.lu
 | throw damage apply | full: `$C1:082F` (`lda $0049,Y / sec / sbc $05` — damage in **DP $05**; cmp #$90 BEFORE sta); teched: `$C1:084D` (`lda $05 / lsr / eor #$FF / inc / clc / adc $0049,Y` = add negated half). Mode-4 skip checks `$8D` just above each. |
 | $C0:D055 / $C0:D081 | executes **once per landed hit**; the 16×16 matrix is (evidence) a **damage-variance table** — identical 2LP dealt 1..6 damage across RNG phases (fixed input timing = deterministic rolls, which is why suites see stable values). ACS stats +0x70/+0x71/+0x48 pokes showed NO effect distinguishable from this variance at damage time. |
 | VS round transition | KO -> defender 0x1F, winner victory act 0x24 (~+300f), then **both structs re-init on the SAME frame: both hp -> max AND both acts -> 0** (that pair is the round-reset signature; no intro act plays). `$0070/$01FA/$008D` unchanged across the whole transition. `$080C` incremented 0->1 on P1's round win (round-win counter candidate; $080D 00->0x60 alongside). |
+
+## Patch 13 v3 addenda (2026-07-17)
+
+| Fact | Detail |
+|---|---|
+| attack-class at +0x44 | lights 0x00-0x03, heavy normals 0x04-0x07, specials 0x08/0x0C, supers/desperations >=0x12; projectile slots carry their own +0x44 (fireball = 0x08). The 8 damage-apply sites split: 0xC09C/0xC16F/0xC216/0xC2C5 = melee paths, 0xC47E/0xC551/0xC5F8/0xC6A7 = projectile paths. DP $02 at apply = hitstun (not a class flag). |
+| ACS +0x73 buff_special | REALLY scales special damage: Neptune 214LP 8 -> 10/14/16 at stat 1/3/7 (values >7 misbehave; boost-only from the VS default 0 — cannot nerf below baseline). +0x74 (secret) showed no effect on a regular special (presumably desperation-only; untested). |
+| third throw-damage site $C1:0D61 | per-tick HOLD throws (Moon 4x5, Mars 12x2, Chibi) drain HP here; standard toss throws use $C1:083C/$C1:085E (Mercury/Jupiter/Venus/Uranus/Neptune). Pluto's grab did not trigger with fwd+HP in the census (unresolved). |
