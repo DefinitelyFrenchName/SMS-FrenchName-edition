@@ -5,6 +5,14 @@ Fast orientation. **Full operational map: `HANDOFF.md`; engine subsystems:
 
 ## TL;DR
 
+**Patches 11, 12 AND 13 are DONE.** Patch 13 = "Guts": complete a taunt uninterrupted ->
+stacking defense buff (3 levels, 10/25/45% via --l1/--l2/--l3, per-round, floor 1, covers
+chip+throws). The whole damage pipeline is now RE'd (8 uniform apply sites, DP $00
+staging, throw sites, the $C0:D081 variance matrix, VS round-transition signature).
+Newest test ROM: `build/sms_allpatches_v0.11.bps` (title v.0.11, sha `be476410…`), all
+three suites green on it. Known cuts: time-over rounds don't reset levels; Training+
+RESET row doesn't clear them.
+
 **Patches 11 AND 12 are DONE** on branch `patch11-training-rom`. Patch 12 = taunts on L
 (native per-char misfire pratfalls, the whole ochame mechanic reverse-engineered —
 dispatcher $C1:0B49, records with misfire act at +6, RNG $0090; suites green solo +

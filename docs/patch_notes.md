@@ -1187,3 +1187,60 @@ the menu can fire a taunt first — cosmetic.
   both suites + the p11 suite ALL PASS on the v1.2 showcase; BPS round-trips verified.
 - Probes: `tools/probe_p12_{acts,ochame,rec,com}.lua` (act audit + screenshots, the live
   ochame whiff demo, the record harvest, the CPU-pad L/R check: mode 2 vs-COM = 0 hits).
+
+---
+
+# Patch 13 (OPTIONAL) — "Guts": stacking defense buff on taunt completion
+
+**Builder:** `tools/mkpatch13.py [src] [out] [--l1 10 --l2 25 --l3 45]` (stacks on any patch 1-12 ROM, any order)
+**Standalone BPS:** `build/sms_tauntbuff.bps` (clean+13, ROM sha1 `04e13428…`)
+**Showcase BPS:** `build/sms_allpatches_v0.11.bps` = patches 1-13, title "FrenchName v.0.11" (sha1 `be476410…`)
+
+## What it is
+
+Q-in-3S-style guts: **complete a full taunt pratfall uninterrupted** (patch 12's L-taunt —
+or a genuine ochame whiff in A.C.S. play, same animation) and gain one **defense level,
+stacking to 3** (getting hit out of the taunt grants nothing). Damage you take is reduced
+by **10% / 25% / 45%** per level (build knobs `--l1/--l2/--l3` for tuning), covering
+normal hits, projectiles, **chip damage**, throws, and teched throws, with a floor of 1.
+Levels last **until the round ends**; no on-screen indicator (the ~1.8 s pratfall is the
+tell). Works standalone (real whiffs only) or with patches 11/12.
+
+## How it works (RE detail in docs/annotations.md "patch 13 RE")
+
+- **Grant FSM** (hook `$80:837B`, third in the joy_read chain after patches 11/12, any
+  install order): per player, idle → in-misfire-act (full per-character act sets from the
+  patch-12 record harvest) → embarrassed (0x2A) → first actionable frame = grant. Any
+  other transition = no grant. Round reset = the probe-found VS signature: a player's HP
+  rising **from exactly 0 to max** while both acts are 0 (immune to Training+'s
+  REGEN/REFILL heals, which never heal from 0 with a neutral act).
+- **Damage scaling**: the engine applies all strike/chip damage through **8 identical
+  6-byte sequences** in bank $C0 (`lda $0049,Y / sec / sbc $00`, defender in Y, damage
+  staged in DP $00) — each is replaced by a `JSL` into **one shared stub** that looks up
+  `table[level][damage]` (3×64-byte build-time tables) and performs the same subtract;
+  `RTL` lands on the original `sta`. Throws get the same treatment at their two apply
+  sites (`$C1:082F` full / `$C1:084D` teched — the tech path scales the halved value).
+  Level 0 is a bit-exact passthrough. Cost: ~60 cycles per hit *landed*, zero otherwise.
+- The engine's native **per-hit damage variance** (the 16×16 matrix at `$C0:D081`, RE'd
+  this session) applies before our scaling — the buff reduces the final rolled value.
+
+## Interactions & limitations
+
+- Jupiter's taunt can still hit (patch 12 behavior); if it connects, the taunt was
+  interrupted-by-engine? No — hitting someone doesn't leave the misfire act, so the grant
+  still lands when the animation finishes. Getting hit *during* it forfeits, as designed.
+- A **time-over** round end does not match the reset signature (nobody's HP was 0) — buff
+  levels would carry into the next round in that rare case. Documented, deliberate cut.
+- In Practice, Training+'s RESET row does not clear levels (positions-only reset); toggle
+  DAMAGE or re-enter the mode to zero them.
+
+## Verification (all green, `traces/p13_*.txt`)
+
+- Solo suite (`tools/test_p13_guts.lua`, misfire acts force-played): grant-on-completion,
+  no-grant-on-interrupt, stack 1→2→3 + cap, **exact per-level damage** on deterministic
+  rolls (strike 5→4/4/3; throw 24→13; tech 12→7; chip 2→1 floor), P1-as-defender, round
+  reset (held mid-round, cleared at round 2).
+- Stack suite on 11+12+13 in **both** install orders: real L-taunt E2E grant, interrupted
+  taunt denied. p11 + p12 suites ALL PASS on the triple stack and on the v0.11 ROM.
+- NI-1 frame-identity **with live hits** (level-0 passthrough bit-exact vs v0.7); boot
+  E2E; BPS round-trips verified.

@@ -36,6 +36,7 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 | 10b | + status labels GC/MEATY/REVERSAL/PUNISH/TECH (OPTIONAL) | `mkpatch10.py --events labels` | `build/sms_combolabels.bps` |
 | 11 | **In-ROM training mode upgrade** (L+R menu, dummy control, recording, displays; OPTIONAL) | `mkpatch11.py` | `build/sms_trainingplus.bps` |
 | 12 | **Taunts on L** (native per-char misfire animations; OPTIONAL) | `mkpatch12.py` | `build/sms_taunt.bps` |
+| 13 | **"Guts"** — stacking defense buff on taunt completion (10/25/45%, per-round; OPTIONAL) | `mkpatch13.py --l1/--l2/--l3` | `build/sms_tauntbuff.bps` |
 
 ### Playable ROMs (all in `build/`; `.sfc` are gitignored, rebuild from BPS)
 - **`SailorMoonS_FrenchName_v0.7_all5.sfc`** — SHA-1 `24aa6b6d…` — **CANONICAL** (patches 1–5).
@@ -47,7 +48,8 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
 - `SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` — `be2cb752…` — patches 1-11 (BPS `build/sms_allpatches_v1.1.bps`).
-- **`SailorMoonS_FrenchName_v0.10_ALLPATCHES.sfc`** — `f75efa04…` — **ALL 12 patches, the maintainer's current test ROM** (BPS `build/sms_allpatches_v0.10.bps`, title "FrenchName v.0.10"). Identical content to v1.2 below except the title tell.
+- **`SailorMoonS_FrenchName_v0.11_ALLPATCHES.sfc`** — `be476410…` — **ALL 13 patches, newest test ROM** (BPS `build/sms_allpatches_v0.11.bps`, title "FrenchName v.0.11").
+- `SailorMoonS_FrenchName_v0.10_ALLPATCHES.sfc` — `f75efa04…` — patches 1-12, the maintainer's mid-QA build (BPS `build/sms_allpatches_v0.10.bps`).
 - `SailorMoonS_FrenchName_v1.2_ALLPATCHES.sfc` — `048bd49f…` — ALL 12 patches (BPS `build/sms_allpatches_v1.2.bps`, title v.1.2).
 
 Each ROM's BPS is `build/sms_full5_v07_canonical.bps` / `sms_full5_truecombo.bps` /
@@ -234,6 +236,8 @@ ROM="build/sms_venustech.sfc" tools/run.sh tools/techsweep.lua 500   # → trace
 # patch 11 (in-ROM training mode) feature suite + perf:
 ROM="build/sms_trainingplus.sfc" tools/run.sh tools/test_p11_tier1.lua 260   # -> traces/p11_tier1.txt ALL PASS
 ROM="build/sms_trainingplus.sfc" tools/run.sh tools/perf_patch11.lua 200     # -> traces/p11_perf.txt PERF PASS
+# patch 13 (guts buff) suites (MODE="solo"/"stack" in cfg):
+ROM="build/sms_tauntbuff.sfc" tools/run.sh tools/test_p13_guts.lua 400
 # patch 12 (taunts) suites:
 ROM="build/sms_taunt.sfc" tools/run.sh tools/test_p12_taunt.lua 200          # MODE="solo" in cfg
 # rebuild any BPS and confirm round-trip:
