@@ -1202,6 +1202,15 @@ only attack-class >= 0x08 moves are nerfed (dash attacks / command normals are n
 specials). Training+ additionally gained a **P1 HP FULL/LOW menu row** (LOW = 0x17,
 under the 0x18 desperation threshold) for desperation testing.
 
+**Known limitation (found 2026-07-18, maintainer QA vindicated):** command-grab
+specials — Uranus SPD 6321478HK (toss 32) and Jupiter SPD 6321478HP (airborne carry,
+5×6 drain) — apply their damage through the throw-toss/tick sites with holder class
+byte 0, indistinguishable from normal throws, so the ≥0x12 gate does NOT scale them:
+**the Guts nerf does not cover command grabs.** The maintainer's original "SPD numbers
+were the same" report was accurate. Covering them would need per-character SPD act-set
+gating (the mkpatch13 `_inset` pattern); left out pending a design decision since
+throws were deliberately exempted.
+
 **v3.3 (wide scaling tables):** the 64×16 damage-matrix discovery (sms_damage_system.md
 §3) revealed the matrix caps at 0x48=72 — above the Guts tables' 64-entry range, so a
 counter-hit desperation (72) was being scaled as if it were 63 (clamped, mildly under-

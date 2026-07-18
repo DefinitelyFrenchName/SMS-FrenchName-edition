@@ -96,8 +96,19 @@ Venus/Neptune c9, Mars c10). Row 48: `72 72 72 72 72 72 72 62 | 48 37 32 28 26 2
 - **Drain ticks** (`$C1:0D54`): 3-4 HP per ~12 frames + a big finisher (Pluto: 11).
   NOT scaled by ACS stats (attacker +0x74 nor defender +0x71 verified), NOT
   counter-boosted, posture-independent. (Patch 13 scales them via its own table hook.)
-- None of these paths respect ACS +0x71 defense either (throw 20→20 at defense 7) —
-  "defense" in this game means the matrix modifier, nothing more.
+- **Command-grab specials use these paths too** (probe: 360-input at 2 frames/step —
+  3f/step is too slow and produces a normal instead): **Uranus SPD** (6321478HK, acts
+  68-71) = a single TOSS 32 through `$C1:082F`; **Jupiter SPD** (6321478HP, acts
+  6E-71) = an airborne CARRY (victim held 72px up) draining 5×6=30 through the tick
+  site. Both apply with holder +0x44 = **0** — indistinguishable from normal throws at
+  the apply site by class byte alone (act-set gating would be needed to treat them
+  differently).
+- None of these paths respect ACS +0x71 defense (throw 20→20, Uranus SPD 32→32,
+  Jupiter SPD 30→30 at defense 7) — "defense" in this game means the matrix modifier,
+  nothing more.
+- **Column-wrap quirk:** the lookup masks `(mod+8)&15` without clamping, so a large
+  right-shift (e.g. defense 7) on an already-weak-rolled hit wraps to the STRONG
+  columns: heavy normal 8 → 23 measured roll-matched. See sms_acs_system.md §1.
 - **Throw tech** (`$C1:084D`): negated half-damage refund path on mash escape.
 
 ## 6. Counter-hit / punish system

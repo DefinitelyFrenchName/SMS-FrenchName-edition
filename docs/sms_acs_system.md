@@ -23,7 +23,7 @@ Six bytes per fighter inside the 0x80-byte player struct (P1 `$7E:1000`, P2 `$7E
 | Offset | P1 addr | P2 addr | Name (vendor) | Measured role |
 |---|---|---|---|---|
 | +0x70 | `$1070` | `$10F0` | buff_attack | owner's **NORMAL** damage boost |
-| +0x71 | `$1071` | `$10F1` | buff_defense | reduces all **matrix-path** damage the owner takes (strikes, projectiles, chip — normals AND specials/desperation strike portions). Does **NOT** reduce throw tosses, throw techs, or hold/desperation drain ticks — those bypass the damage matrix (verified: normal throw 20→20 and Pluto drain ticks 45→45 at defense 7, while the same desperation's opener strike shrank 3→1) |
+| +0x71 | `$1071` | `$10F1` | buff_defense | reduces all **matrix-path** damage the owner takes (strikes, projectiles, chip — normals AND specials/desperation strike portions). Does **NOT** reduce throw tosses, throw techs, hold/desperation drain ticks, or **command-grab specials** — those bypass the damage matrix (verified at defense 7: normal throw 20→20, Pluto drain ticks 45→45 while the same desperation's opener strike shrank 3→1, Uranus SPD toss 32→32, Jupiter SPD carry-drain 30→30) |
 | +0x72 | `$1072` | `$10F2` | buff_health | no live effect; presumed load-time max-HP (unverified) |
 | +0x73 | `$1073` | `$10F3` | buff_special | owner's **SPECIAL** damage boost |
 | +0x74 | `$1074` | `$10F4` | buff_secret | **desperation** damage boost (verified — the desperation's strike component scales 3→5→6 at stat 0/3/7; cinematic drain ticks are NOT stat-scaled) |
@@ -32,6 +32,12 @@ Six bytes per fighter inside the 0x80-byte player struct (P1 `$7E:1000`, P2 `$7E
 - All six are **0 in every normal mode** (VS, Practice, story vs-COM as observed) — 0 is
   the baseline, not "off". They are presumably populated by the A.C.S. customization
   screen (its menu location / mode value is still unmapped, §7).
+- **⚠ Column-wrap hazard:** the column math is `(modifier+8) & 15` with **no clamp**
+  (`and #$000F` at $80:D062). Defense 7 applied to a hit already rolling a weak column
+  (≥9) pushes `mod+8` past 15 and WRAPS to the strong end: a heavy normal measured
+  roll-matched **8 → 23** (column 0-1, the row cap) at defense 7. High defense can
+  catastrophically BACKFIRE on weak hits — treat defense ≤6 as the safe range. (The
+  same wrap explains why stat values >7 measured "weaker than 7" in early sweeps.)
 - Useful working range is **0–7** for the damage stats (values >7 gave nonsense in
   sweeps — e.g. +0x73 at 15/255 produced *lower* damage than 7, consistent with the
   4-bit column arithmetic in §2 wrapping) and **0–5** for ochame (§5).
@@ -119,6 +125,9 @@ fireball base roll = **8**.
 | defender +0x71, fireball | — | 5 | 4 | specials reduced too — defense covers every **matrix** hit |
 | defender +0x71 = 7, normal throw toss | — | — | 20 (=baseline) | **throws NOT reduced** (matrix bypass) |
 | defender +0x71 = 7, Pluto desperation | — | — | opener 3→1, ticks 45→45 | strike portion reduced, **drain ticks immune** |
+| defender +0x71 = 7, Uranus SPD (6321478HK) | — | — | 32 (=baseline) | **command grabs immune** (toss path, thrower +0x44=0) |
+| defender +0x71 = 7, Jupiter SPD (6321478HP) | — | — | 5×6=30 (=baseline) | immune (airborne carry-drain via the tick path) |
+| defender +0x71 = 7, heavy normal (weak roll) | — | — | **8→23 (!)** | **COLUMN WRAP** — see the warning below |
 | attacker +0x73 (special), jab | — | 2 | — | no effect on normals |
 | attacker +0x73, fireball | 10 | 14 | 16 | specials boosted, ≈2× at 7 (row cap) |
 | attacker +0x74 (secret), fireball | — | 8 | 8 | no effect on regular specials |
