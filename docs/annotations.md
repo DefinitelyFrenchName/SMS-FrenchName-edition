@@ -450,3 +450,10 @@ Stats cannot push damage below the row's column-15 floor or above the column-0 c
   to Guts L3 (class gate can't see them) -- byte-identical verified.
 - Column wrap: (mod+8)&15 has no clamp ($80:D062). Defense 7 on a weak-rolled heavy
   (col >= 9) wraps to col 0-1: measured 8 -> 23 roll-matched. Safe defense range <= 6.
+
+### Input recognizers (2026-07-19)
+- SPD/360: set-detector — all 4 cardinals within ~20f, any order, LAST must be up(8),
+  button may follow on neutral (buffered). Diagonals irrelevant. 6248 = minimal SPD.
+- Desperations: strict ordered matcher incl. diagonals (any drop -> normal comes out),
+  trailing extras ok, per-step timeout ~12-15f (Pluto full input works spread over 72f).
+- Uranus normal throw = hold-type (tick path, ~22 total), unlike Neptune/Moon tosses.

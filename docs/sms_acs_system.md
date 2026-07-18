@@ -304,6 +304,36 @@ Per-character notes:
 - Full-HP control runs for all 8 gated characters produced only small stray normal hits
   (8-12) or whiffs — none of the desperation act chains appear above 25% HP.
 
+### 6c. Input recognition: SPDs vs desperations (probe-measured, 2026-07-19)
+
+Two entirely different recognizers coexist (all results single-attempt scripted input,
+`probe_p13f_desp` MOTION/STEPF/NEUTRALBTN):
+
+**SPD / 360 recognizer (Uranus 6321478HK, Jupiter 6321478HP):**
+- **Cardinals-only works: `6248` + button is a valid SPD** (the maintainer's hypothesis,
+  confirmed on both characters). Diagonals are never required.
+- ALL FOUR cardinals are required — every 3-of-4 subset fails (628/648/248/268/468).
+- **Order is free EXCEPT the last direction must be UP**: 6248, 6428, 2468, 2648, 4268
+  all work; 8642 and 8624 (up not last) fail. Practical reading: spin however you like,
+  finish up, press.
+- The button may be pressed on NEUTRAL after completing the circle (the motion buffers)
+  — no need to hold up+button.
+- **Tight window**: works at 2-4 frames/step (whole sequence within ~16-20f), fails at
+  5 f/step. "Any combination of the four directions in a short enough window" is
+  exactly right, plus the end-up constraint.
+
+**Desperation recognizer (all 9 motions):**
+- **Strict ordered sequence, diagonals MANDATORY**: cardinal-stripped versions fail for
+  every character tested (Pluto 6246, Jupiter 2426, Uranus 62426, Neptune 62626,
+  Moon 2624 — all produce a normal instead), and dropping a single diagonal from
+  Pluto's 632146 (62146 or 63246) also fails.
+- Redundant trailing inputs are tolerated (6321466 still fires).
+- **Very lenient timing**: Pluto's fires at 12 frames/step (72f total input!), fails at
+  16 f/step — per-step timeout ≈ 12-15 frames. Jupiter's fine at 8 f/step.
+
+Bonus finding from the sweep: **Uranus's normal throw is a HOLD-type** (back/fwd+HK at
+close range drains ~22 through the tick path), unlike Neptune/Moon's 20-damage tosses.
+
 ## 7. Open unknowns (probe before relying on)
 
 1. **Where/how the ACS screen sets the stats** — the customization UI's menu entry, mode

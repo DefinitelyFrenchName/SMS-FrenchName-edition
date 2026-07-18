@@ -1,8 +1,7 @@
-STATE = "uranus_vs_jupiter.mss"
+STATE = "jupiter_vs_venus_clean.mss"
 PLAYER = 1
-MOTION = "6321478"
-BTN = "a"
-RANGES = { 20 }
-TAG = "P14ONLY-SPD"
-NOLOWHP = true
-STEPF = 2
+MOTION = "2141236"
+BTN = "x"
+RANGES = { 70 }
+TAG = "JUPDESP-F8"
+STEPF = 8
