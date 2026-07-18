@@ -513,7 +513,10 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   (hit at floor height, ~140px out for HP), 12 dmg, hugely plus (wiki +34~+59).
 - Giant Swing 6248P: LP carry act 0x6F 4x6=24 (range 64), HP 0x70 5x6=30 (56).
   LP act was missing from p14 GRAB_ACTS -> fixed v0.19.
-- Double Axel 236K: acts 6B/6C, 3f/5f startup, STATIONARY, spin hurtboxes 44-48 top
-  at -34px vs -76 standing = upper half invulnerable (dodges all measured fireballs).
+- Double Axel 236K: acts 6B/6C, 3f/5f startup, STEERABLE ~±1.5px/f holding 4/6
+  (neutral = stationary), spin hurtboxes 44-48 top at -34px vs -76 standing = upper
+  half invulnerable (dodges all measured fireballs).
+- Supreme Thunder flies at -68px: whiffs ALL crouchers (crouch tops max -60, Mars) —
+  crouch avoids it entirely, verified vs Venus.
 - Power Bomb c.4/6HP: toss 28 techable (air version per wiki; rig got j.HP x3).
 - Lightning Strike chip: wiki 12x3 = our 3x12 blocked measurement, exact convergence.
