@@ -236,8 +236,8 @@ classification, act/a44-at-write logging). "Covered" = scaled by Guts (patch 13 
 | Chibi j.63214HP | air projectile barrage | 6B-6D | **52** | **24** | PROJ ×7 (6-8 each) | yes | yes (proj) |
 
 **Punish/counter-hit damage** (see `sms_damage_system.md` §6 for the full system):
-landing a desperation on an opponent inside their own move's act gives +50-68% on the
-matrix-passing hits — Moon/Mercury/Jupiter 48→72, Mars 32→48, Venus/Neptune 37→62;
+landing a desperation on an opponent inside their own move's act shifts the matrix
+column by exactly −2 (+50-68% at row 48's curvature) on the matrix-passing hits — Moon/Mercury/Jupiter 48→72, Mars 32→48, Venus/Neptune 37→62;
 multi-hit desperations gain almost nothing (first hit only: Pluto 48→50, Chibi 52→54,
 Uranus 67→67 — his 1-damage rush opener sits at the row floor).
 
@@ -316,7 +316,9 @@ Per-character notes:
 3. **+0x72 buff_health** — needs testing at character load, not mid-match.
 4. **+0x76** — unknown byte between secret/ochame block and action_strength.
 5. **The exact modifier-composition code** (where RNG + stats merge into `$00` before
-   `$C0:D055`) and the damage-stat read PCs (§4).
+   the `$D055` lookup) and the damage-stat read PCs (§4). Partially resolved: the matrix
+   READ is `$80:D07B` and the routine executes from bank $80 (see sms_damage_system.md
+   §3) — the composition sits just upstream of $80:D055.
 6. **+0x48 first_hit_defense** — retest with the controlled methodology.
 
 ## 8. Methodology (reuse this)

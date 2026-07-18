@@ -287,18 +287,18 @@ def _scale_core(dmg_expr, sfx, table_long):
   beq t0{sfx}
   cmp #$0001
   beq t1{sfx}
-  lda #$0080
+  lda #$0100
   bra tj{sfx}
 t1{sfx}:
-  lda #$0040
+  lda #$0080
   bra tj{sfx}
 t0{sfx}:
   lda #$0000
 tj{sfx}:
   sta_l ${SCR16:06X}
-{dmg_expr}  cmp #$0040
+{dmg_expr}  cmp #$0080
   bcc dk{sfx}
-  lda #$003F
+  lda #$007F
 dk{sfx}:
   clc
   adc_l ${SCR16:06X}
@@ -442,7 +442,7 @@ indeq:
 def make_tables(pcts):
     blob = bytearray()
     for pct in pcts:
-        for d in range(64):
+        for d in range(128):
             s = round(d * (100 - pct) / 100)
             blob.append(max(1, s) if d >= 1 else 0)
     return bytes(blob)

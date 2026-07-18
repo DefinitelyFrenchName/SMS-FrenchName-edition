@@ -51,7 +51,8 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
 - `SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` — `be2cb752…` — patches 1-11 (BPS `build/sms_allpatches_v1.1.bps`).
-- **`SailorMoonS_FrenchName_v0.16_ALLPATCHES.sfc`** — `cf96aa05…` — **ALL 13 patches, newest test ROM** (BPS `build/sms_allpatches_v0.16.bps`, title v.0.16; Guts v3.2 = Uranus desperation-toss covered; desperation compendium in sms_acs_system.md §6b).
+- **`SailorMoonS_FrenchName_v0.17_ALLPATCHES.sfc`** — `bccb0182…` — **ALL 13 patches, newest test ROM** (BPS `build/sms_allpatches_v0.17.bps`, title v.0.17; Guts v3.3 = 128-entry scaling tables, exact for counter-hit desperations).
+- `SailorMoonS_FrenchName_v0.16_ALLPATCHES.sfc` — `cf96aa05…` — previous build (BPS `build/sms_allpatches_v0.16.bps`).
 - `SailorMoonS_FrenchName_v0.15_ALLPATCHES.sfc` — `30fd7b6e…` — previous build (BPS `build/sms_allpatches_v0.15.bps`).
 - `SailorMoonS_FrenchName_v0.14_ALLPATCHES.sfc` — `4591034a…` — previous build (BPS `build/sms_allpatches_v0.14.bps`).
 - `SailorMoonS_FrenchName_v0.13_ALLPATCHES.sfc` — `e1b03969…` — previous build (BPS `build/sms_allpatches_v0.13.bps`).
@@ -185,6 +186,13 @@ with hook lists; add a feature = one file in tools/training/ + one MODULES entry
 Key API facts probed (tools/probe_*.lua): +0x4D=hitstop countdown / +0x43=connect latch;
 inputPolled precedes exec@$80:8353; getInput is clean if read before setInput; ScriptHud
 size degenerate headless; screenshots don't composite ScriptHud (console surface only).
+
+**Regression suite (run before shipping any build):** `tools/test_regression.lua` —
+auto-detects which patches are in the ROM via PRG-ROM fingerprints, then runs base-game
+engine invariants (deterministic damage, counter-hit −2 columns, posture, throws,
+desperation types, dash distance) plus per-patch nominal+edge tests (incl. cross-patch
+counter-hit×Guts). `ROM=<build> tools/run.sh tools/test_regression.lua 600`; optional
+cfg `EXPECT="clean"|"all"`, `ONLY="pattern"`. Green on clean / v0.7-canonical / v0.17.
 
 **Other tools:** `extract_sms_hitboxes.py` → `docs/sms_all_boxes.json` (per-char box tables);
 `extract_proj_boxes.py` (projectile/object box tables, idx 10–27); `ds_trace.lua` /
