@@ -40,6 +40,7 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 | 11 | **In-ROM training mode upgrade** (L+R menu, dummy control, recording, displays; OPTIONAL) | `mkpatch11.py` | `build/sms_trainingplus.bps` |
 | 12 | **Taunts on L** (native per-char misfire animations; OPTIONAL) | `mkpatch12.py` | `build/sms_taunt.bps` |
 | 13 | **"Guts" v3** — taunt completion nerfs the opponent's SPECIALS/desperations (20/40/60%, per-round, stack 3; OPTIONAL) | `mkpatch13.py --l1/--l2/--l3` | `build/sms_tauntbuff.bps` |
+| 14 | **"Guts Grip"** — Guts levels also nerf COMMAND GRABS (companion to 13, inert without it; `--all-grabs` extends to all throws; OPTIONAL) | `mkpatch14.py --l1/--l2/--l3 [--all-grabs]` | `build/sms_gutsgrip.bps` |
 
 ### Playable ROMs (all in `build/`; `.sfc` are gitignored, rebuild from BPS)
 - **`SailorMoonS_FrenchName_v0.7_all5.sfc`** — SHA-1 `24aa6b6d…` — **CANONICAL** (patches 1–5).
@@ -51,7 +52,8 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
 - `SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` — `be2cb752…` — patches 1-11 (BPS `build/sms_allpatches_v1.1.bps`).
-- **`SailorMoonS_FrenchName_v0.17_ALLPATCHES.sfc`** — `bccb0182…` — **ALL 13 patches, newest test ROM** (BPS `build/sms_allpatches_v0.17.bps`, title v.0.17; Guts v3.3 = 128-entry scaling tables, exact for counter-hit desperations).
+- **`SailorMoonS_FrenchName_v0.18_ALLPATCHES.sfc`** — `86b7f44c…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.18.bps`, title v.0.18; adds patch 14 Guts Grip — command grabs covered).
+- `SailorMoonS_FrenchName_v0.17_ALLPATCHES.sfc` — `bccb0182…` — previous build (BPS `build/sms_allpatches_v0.17.bps`).
 - `SailorMoonS_FrenchName_v0.16_ALLPATCHES.sfc` — `cf96aa05…` — previous build (BPS `build/sms_allpatches_v0.16.bps`).
 - `SailorMoonS_FrenchName_v0.15_ALLPATCHES.sfc` — `30fd7b6e…` — previous build (BPS `build/sms_allpatches_v0.15.bps`).
 - `SailorMoonS_FrenchName_v0.14_ALLPATCHES.sfc` — `4591034a…` — previous build (BPS `build/sms_allpatches_v0.14.bps`).
@@ -194,8 +196,8 @@ desperation types, dash distance) plus per-patch nominal+edge tests (incl. cross
 counter-hit×Guts, p8 tech-window dual-mode, p13 round-reset, the full 9-character
 desperation compendium + crouch edges). `ROM=<build> tools/run.sh
 tools/test_regression.lua 900`; optional cfg `EXPECT="clean"|"all"`, `ONLY="pattern"`.
-Green: v0.17 = 38 tests, clean & v0.7-canonical = 23 each (dual-mode expectations flip
-with detection).
+Green: v0.18 = 42 tests, v0.17 = 39, clean = 25, v0.7-canonical ≈ 25 (dual-mode
+expectations flip with detection; patch-14 tests skip when it is absent).
 
 **Other tools:** `extract_sms_hitboxes.py` → `docs/sms_all_boxes.json` (per-char box tables);
 `extract_proj_boxes.py` (projectile/object box tables, idx 10–27); `ds_trace.lua` /

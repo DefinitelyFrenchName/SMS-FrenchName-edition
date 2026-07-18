@@ -48,6 +48,7 @@ local SIGS = {
   p11 = { { 0x008373, 0x5C }, { 0x008374, 0x90 }, { 0x008375, 0x01 } },
   p12 = { { 0x008377, 0x5C }, { 0x008378, 0x00 }, { 0x008379, 0x00 } },
   p13 = { { 0x00837B, 0x5C }, { 0x00C09C, 0x22 }, { 0x00C09D, 0xC2 } },
+  p14 = { { 0x010835, 0x22 }, { 0x010836, 0x80 }, { 0x010839, 0xB0 }, { 0x010D5A, 0x22 } },
 }
 local MATRIX_ROWS = {
   [0] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
@@ -80,7 +81,8 @@ for _, a in ipairs({ 0x1049, 0x10C9 }) do
       if pc >= 0x80C000 and pc < 0x80C300 then kind = "MELEE"
       elseif pc >= 0x80C300 and pc < 0x80C700 then kind = "PROJ"
       elseif lo >= 0x0D50 and lo <= 0x0D70 then kind = "TICK"
-      elseif lo >= 0x0820 and lo <= 0x0870 then kind = "TOSS" end
+      elseif lo >= 0x0820 and lo <= 0x0870 then kind = "TOSS"
+      elseif pc >= 0xC80000 then kind = "GRAB" end   -- p14 relocates grab stores to its bank
       hits[#hits + 1] = { pt = t - testT0, addr = addr % 0x10000, v = value, pc = pc,
         kind = kind, a1 = ram(0x1044), a2 = ram(0x10C4), act1 = ram(0x1001), act2 = ram(0x1081) }
     end
@@ -141,6 +143,12 @@ local function total()
   return tot, byk
 end
 local function ck(cond, msg) return cond, msg end
+local function grabsum(byk) return (byk.TOSS or 0) + (byk.TICK or 0) + (byk.GRAB or 0) end
+local function grabwrites()
+  local n = 0
+  for _, h in ipairs(hits) do if h.kind == "TICK" or h.kind == "TOSS" or h.kind == "GRAB" then n = n + 1 end end
+  return n
+end
 
 -- ===== test list =====
 -- spec: name, group ("base"|"pN"|"stack"), need = fn()->bool|nil, state, dur,
@@ -202,8 +210,8 @@ add{ name = "base-throw-toss20", group = "base", state = "neptune_vs_jupiter.mss
   end,
   verdict = function()
     local tot, byk = total()
-    return ck(tot == 20 and (byk.TOSS or 0) == 20 and hits[1] and hits[1].a1 == 0,
-      string.format("throw expects TOSS 20 a44=0, got tot=%d toss=%d a44=%02X", tot, byk.TOSS or 0, hits[1] and hits[1].a1 or 255))
+    return ck(tot == 20 and grabsum(byk) == 20 and hits[1] and hits[1].a1 == 0,
+      string.format("throw expects grab-path 20 a44=0, got tot=%d grab=%d a44=%02X", tot, grabsum(byk), hits[1] and hits[1].a1 or 255))
   end }
 
 add{ name = "base-desp-jupiter-strike48", group = "base", state = "jupiter_vs_venus_clean.mss", dur = 150,
@@ -224,8 +232,8 @@ add{ name = "base-desp-uranus-hybrid67", group = "base", state = "uranus_vs_jupi
   end,
   verdict = function()
     local tot, byk = total()
-    return ck(tot == 67 and (byk.TOSS or 0) == 32,
-      string.format("Uranus desperation expects 67 with TOSS 32, got tot=%d toss=%d", tot, byk.TOSS or 0))
+    return ck(tot == 67 and grabsum(byk) == 32,
+      string.format("Uranus desperation expects 67 with toss 32, got tot=%d toss=%d", tot, grabsum(byk)))
   end }
 
 add{ name = "base-desp-pluto-drain48", group = "base", state = "pluto_vs_1.mss", dur = 260,
@@ -235,8 +243,7 @@ add{ name = "base-desp-pluto-drain48", group = "base", state = "pluto_vs_1.mss",
   end,
   verdict = function()
     local tot, byk = total()
-    local ticks = 0
-    for _, h in ipairs(hits) do if h.kind == "TICK" then ticks = ticks + 1 end end
+    local ticks = grabwrites()
     return ck(tot == 48 and ticks >= 10,
       string.format("Pluto desperation expects 48 with >=10 ticks, got tot=%d ticks=%d", tot, ticks))
   end }
@@ -390,7 +397,7 @@ add{ name = "p13-throw-exempt-L3", group = "p13", need = function() return has.p
   end,
   verdict = function()
     local tot, byk = total()
-    return ck(tot == 20 and (byk.TOSS or 0) == 20, "normal throw at L3 must stay 20, got " .. tot)
+    return ck(tot == 20 and grabsum(byk) == 20, "normal throw at L3 must stay 20, got " .. tot)
   end }
 
 add{ name = "p13-uranus-toss-scaled", group = "p13", need = function() return has.p13 end,
@@ -401,8 +408,8 @@ add{ name = "p13-uranus-toss-scaled", group = "p13", need = function() return ha
   end,
   verdict = function()
     local tot, byk = total()
-    return ck(tot == 34 and (byk.TOSS or 0) == 13,
-      string.format("Uranus desperation at L3 expects 34 (toss 13), got %d (toss %d)", tot, byk.TOSS or 0))
+    return ck(tot == 34 and grabsum(byk) == 13,
+      string.format("Uranus desperation at L3 expects 34 (toss 13), got %d (toss %d)", tot, grabsum(byk)))
   end }
 
 add{ name = "p13-pluto-ticks-scaled", group = "p13", need = function() return has.p13 end,
@@ -414,6 +421,28 @@ add{ name = "p13-pluto-ticks-scaled", group = "p13", need = function() return ha
   verdict = function()
     local tot = total()
     return ck(tot == 19, "Pluto desperation at defender L3 expects 19, got " .. tot)
+  end }
+
+add{ name = "p14-spd-uranus-scaled", group = "p14", need = function() return has.p13 and has.p14 end,
+  state = "uranus_vs_jupiter.mss", dur = 200,
+  frame = function(api)
+    if api.pt == 5 then park(1, 20); wr(0x1F800, 0xA5); wr(0x1F802, 3) end
+    motion(api, 1, "6321478", "a", 10, false, 2)
+  end,
+  verdict = function()
+    local tot = total()
+    return ck(tot == 13, "Uranus SPD at defender L3 expects 13 (Guts Grip), got " .. tot)
+  end }
+
+add{ name = "p14-spd-jupiter-scaled", group = "p14", need = function() return has.p13 and has.p14 end,
+  state = "jupiter_vs_venus_clean.mss", dur = 220,
+  frame = function(api)
+    if api.pt == 5 then park(1, 20); wr(0x1F800, 0xA5); wr(0x1F802, 3) end
+    motion(api, 1, "6321478", "x", 10, false, 2)
+  end,
+  verdict = function()
+    local tot = total()
+    return ck(tot == 10 and grabwrites() == 5, string.format("Jupiter SPD at L3 expects 5x2=10, got %d (%d writes)", tot, grabwrites()))
   end }
 
 add{ name = "stack-counterhit-x-guts-72to29", group = "stack", need = function() return has.p12 and has.p13 end,
@@ -488,8 +517,8 @@ add{ name = "base-desp-uranus-crouch51", group = "base", state = "uranus_vs_jupi
   end,
   verdict = function()
     local tot, byk = total()
-    return ck(tot == 51 and (byk.TOSS or 0) == 32,
-      string.format("Uranus desperation vs crouch expects 51 (toss 32, fewer rush hits), got %d (toss %d)", tot, byk.TOSS or 0))
+    return ck(tot == 51 and grabsum(byk) == 32,
+      string.format("Uranus desperation vs crouch expects 51 (toss 32, fewer rush hits), got %d (toss %d)", tot, grabsum(byk)))
   end }
 
 add{ name = "base-desp-mercury-crouch62", group = "base", state = "pluto_vs_2.mss", dur = 150,
@@ -523,8 +552,8 @@ add{ name = "base-spd-uranus-toss32", group = "base", state = "uranus_vs_jupiter
   end,
   verdict = function()
     local tot, byk = total()
-    return ck(tot == 32 and (byk.TOSS or 0) == 32 and hits[1] and hits[1].a1 == 0,
-      string.format("Uranus SPD expects TOSS 32 at class 0, got tot=%d toss=%d", tot, byk.TOSS or 0))
+    return ck(tot == 32 and grabsum(byk) == 32 and hits[1] and hits[1].a1 == 0,
+      string.format("Uranus SPD expects toss 32 at class 0, got tot=%d toss=%d", tot, grabsum(byk)))
   end }
 
 add{ name = "base-spd-jupiter-carry30", group = "base", state = "jupiter_vs_venus_clean.mss", dur = 220,
@@ -534,8 +563,7 @@ add{ name = "base-spd-jupiter-carry30", group = "base", state = "jupiter_vs_venu
   end,
   verdict = function()
     local tot, byk = total()
-    local nticks = 0
-    for _, h in ipairs(hits) do if h.kind == "TICK" then nticks = nticks + 1 end end
+    local nticks = grabwrites()
     return ck(tot == 30 and nticks == 5,
       string.format("Jupiter SPD expects 5 carry ticks = 30, got tot=%d ticks=%d", tot, nticks))
   end }
@@ -632,7 +660,7 @@ emu.addEventCallback(function()
       has[pn] = ok
     end
     local det = {}
-    for i = 1, 13 do det[#det + 1] = "p" .. i .. "=" .. (has["p" .. i] and "Y" or "-") end
+    for i = 1, 14 do det[#det + 1] = "p" .. i .. "=" .. (has["p" .. i] and "Y" or "-") end
     log("detect: " .. table.concat(det, " "))
     local nfail = 0
     for r, exp in pairs(MATRIX_ROWS) do
@@ -644,11 +672,11 @@ emu.addEventCallback(function()
     log(string.format("%s static-matrix-integrity", nfail == 0 and "PASS" or "FAIL"))
     if EXPECT == "clean" then
       local any = false
-      for i = 1, 13 do if has["p" .. i] then any = true end end
+      for i = 1, 14 do if has["p" .. i] then any = true end end
       results[#results + 1] = { name = "static-expect-clean", ok = not any, msg = "patches detected on clean ROM" }
     elseif EXPECT == "all" then
       local all = true
-      for i = 1, 13 do if not has["p" .. i] then all = false end end
+      for i = 1, 14 do if not has["p" .. i] then all = false end end
       results[#results + 1] = { name = "static-expect-all", ok = all, msg = "missing patches on all-patches ROM" }
     end
     phase = "next"

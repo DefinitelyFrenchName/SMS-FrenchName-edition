@@ -1202,14 +1202,13 @@ only attack-class >= 0x08 moves are nerfed (dash attacks / command normals are n
 specials). Training+ additionally gained a **P1 HP FULL/LOW menu row** (LOW = 0x17,
 under the 0x18 desperation threshold) for desperation testing.
 
-**Known limitation (found 2026-07-18, maintainer QA vindicated):** command-grab
-specials — Uranus SPD 6321478HK (toss 32) and Jupiter SPD 6321478HP (airborne carry,
-5×6 drain) — apply their damage through the throw-toss/tick sites with holder class
-byte 0, indistinguishable from normal throws, so the ≥0x12 gate does NOT scale them:
-**the Guts nerf does not cover command grabs.** The maintainer's original "SPD numbers
-were the same" report was accurate. Covering them would need per-character SPD act-set
-gating (the mkpatch13 `_inset` pattern); left out pending a design decision since
-throws were deliberately exempted.
+**Known limitation (found 2026-07-18, maintainer QA vindicated) — closed by patch 14:**
+command-grab specials — Uranus SPD 6321478HK (toss 32) and Jupiter SPD 6321478HP
+(airborne carry, 5×6 drain) — apply their damage through the throw-toss/tick sites with
+holder class byte 0, indistinguishable from normal throws, so the ≥0x12 gate does NOT
+scale them. The maintainer's original "SPD numbers were the same" report was accurate.
+Per the maintainer's direction this is covered by the separate **patch 14 "Guts Grip"**
+(below) rather than another patch-13 revision.
 
 **v3.3 (wide scaling tables):** the 64×16 damage-matrix discovery (sms_damage_system.md
 §3) revealed the matrix caps at 0x48=72 — above the Guts tables' 64-entry range, so a
@@ -1311,3 +1310,46 @@ tell). Works standalone (real whiffs only) or with patches 11/12.
   taunt denied. p11 + p12 suites ALL PASS on the triple stack and on the v0.11 ROM.
 - NI-1 frame-identity **with live hits** (level-0 passthrough bit-exact vs v0.7); boot
   E2E; BPS round-trips verified.
+
+
+---
+
+# Patch 14 — "Guts Grip": Guts levels also nerf command grabs (OPTIONAL, companion to 13)
+
+**Deliverables:** `tools/mkpatch14.py`, `build/sms_gutsgrip.bps` (standalone SHA-1
+`b90b8fd6…`). In v0.18+ all-patches builds.
+
+## What
+While a player holds Guts levels (patch 13's taunt-completion stacks), incoming
+**command-grab** damage is reduced by the same percentages (`--l1/--l2/--l3`, default
+20/40/60). Verified: Uranus SPD 32 → 13 at L3, Jupiter SPD 5×6=30 → 5×2=10 at L3;
+normal throws stay exempt (Neptune toss 20 → 20 at L3); no double-scaling with patch 13
+(Uranus desperation stays 34, Pluto stays 19 at L3). Without patch 13 in the ROM the
+patch is inert (the state magic never appears) — verified byte-identical behavior.
+
+## Why a separate patch
+The maintainer asked for grab coverage as its own patch aligned on the Guts reduction
+(not a patch-13 revision). It reads patch 13's state ($7F:F800 magic, $7F:F801/F802
+levels) READ-ONLY and keeps its own knobs/tables, so the two stack in any order.
+
+## Mechanism (byte-disjoint from patch 13 at the same sites)
+The toss ($C1:082F) and tick ($C1:0D54) apply sites share the 7-byte tail
+`cmp #$90 / bcs death / sta $0049,Y` right AFTER the 6 subtract bytes patch 13 hooks.
+Patch 14 hooks the tail: `jsl stub / bcs death(disp−2) / nop`. The stub recovers
+dmg = hp_before − A (hp not yet stored), gates on magic + victim level + holder
+class < 0x12 (so patch-13-scaled desperations pass through) + the command-grab act
+table, rescales via its own 3×128 tables, and exits through `cmp #$90` with a
+conditional `sta` (which preserves carry) so the relocated `bcs` keeps exact death
+semantics. Scratch $7F:F810-F815 (disjoint from patch 13's F800-F80A).
+
+## Command-grab table & knobs
+`GRAB_ACTS = ((6, 0x71), (4, 0x70))` — Uranus toss act (shared with her desperation
+slam; the class gate disambiguates) and Jupiter carry-tick act. Other characters'
+command grabs can be added once their inputs are identified (send motions!).
+`--all-grabs` switches to nerfing EVERY grab-path damage (normal throws + hold-throw
+ticks included) for those who want throws covered too.
+
+## Verification
+Regression suite (`tools/test_regression.lua`): v0.18 = 42 tests ALL PASS incl.
+p14-spd-uranus-scaled (13), p14-spd-jupiter-scaled (5×2), throw exemption at L3,
+desperation no-double-scaling, base SPD invariants at level 0; clean = 25, v0.17 = 39.
