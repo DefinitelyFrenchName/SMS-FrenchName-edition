@@ -231,6 +231,12 @@ classification, act/a44-at-write logging). "Covered" = scaled by Guts (patch 13 
 | Pluto 632146HP | **cinematic drain grab** | 6A-6C (0x18) | **48** | **49** | MELEE 3 + TICK ×12 (45, finisher 11) | yes | yes (tick v3.1) |
 | Chibi j.63214HP | air projectile barrage | 6B-6D | **52** | **24** | PROJ ×7 (6-8 each) | yes | yes (proj) |
 
+**Punish/counter-hit damage** (see `sms_damage_system.md` §6 for the full system):
+landing a desperation on an opponent inside their own move's act gives +50-68% on the
+matrix-passing hits — Moon/Mercury/Jupiter 48→72, Mars 32→48, Venus/Neptune 37→62;
+multi-hit desperations gain almost nothing (first hit only: Pluto 48→50, Chibi 52→54,
+Uranus 67→67 — his 1-damage rush opener sits at the row floor).
+
 **Posture, not hitbox, selects the damage** (one roll per cell, same rig). The
 crouch-vs-stand differences come from the defender's POSTURE STATE at impact picking a
 different per-move on-hit table (`$C0:CDD5` + variants `CE15…D015`), NOT from which
