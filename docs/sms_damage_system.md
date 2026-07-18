@@ -30,6 +30,16 @@ knockdowns, hold-throw / desperation-grab drain ticks (§5).
 All share the shape `lda $0049,Y / sec / sbc $DP / sta $0049,Y` with Y = victim struct
 (`$1000`/`$1080`), D = 0. Death check `cmp #$90 / bcs` (HP underflow → KO).
 
+**The death rule (verified 2026-07-19): HP 0 is SURVIVABLE — death is underflow, not
+zero.** Chip 1 against a 1-HP defender writes exactly 0 and they fight on (normal
+blockstun, no KO); chip 2 against 1 HP underflows to 0xFF and triggers the full KO
+chain (acts 0x1A→0x1E→0x1F, then a second write zeroes the corpse's HP). Corollaries:
+- **Chip CAN kill** whenever chip > remaining HP (community "no chip kill" is per-move,
+  not per-engine).
+- Moves whose chip floors at 1 (e.g. Pluto's Dimension Dance) can never KO a defender
+  with ≥1 HP — but a 0-HP survivor dies to ANY next hit, chip included (0−1 wraps).
+- A 0-HP-alive state is reachable in real play and the life bar shows empty.
+
 | Site (file) | Path | Damage DP | Notes |
 |---|---|---|---|
 | 0xC09C, 0xC16F, 0xC216, 0xC2C5 | melee strike/chip | `$00` | 4 posture-variant sites (§4) |

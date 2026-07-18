@@ -118,7 +118,7 @@ emu.addEventCallback(function()
     hits = {}; saw = {}
     local php = NOLOWHP and 0x60 or 0x10
     wr(pb + 0x49, php); wr(0x800 + (PLAYER - 1), php)
-    wr(db + 0x49, 0x60); wr(0x800 + (2 - PLAYER), 0x60)
+    wr(db + 0x49, DEFHP or 0x60); wr(0x800 + (2 - PLAYER), DEFHP or 0x60)
     -- park defender at range r (side-aware)
     local px = ram(pb + 0x21) + 256 * ram(pb + 0x22)
     local L = onLeft()

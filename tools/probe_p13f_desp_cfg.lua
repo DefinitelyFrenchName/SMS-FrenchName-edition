@@ -1,8 +1,10 @@
-STATE = "pluto_vs_3.mss"
+STATE = "pluto_vs_1.mss"
 PLAYER = 1
-MOTION = "4444444444444446"
-BTN = "b"
-RANGES = { 40 }
-TAG = "PLU-SSLK-CRBLK"
+MOTION = "454"
+BTN = "y"
+RANGES = { 200 }
+TAG = "PLU-BACKDASH"
 NOLOWHP = true
-DEFBLOCK = "crouch"
+NOBTN = true
+STEPF = 2
+LOGFD = true

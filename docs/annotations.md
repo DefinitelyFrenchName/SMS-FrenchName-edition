@@ -541,3 +541,12 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   pose lowers hurtbox!); crouch-block Mars full hit (true overhead). Patch-7 target.
 - Blockstun/guard-pose taxonomy: crouch-guard pose hurtbox != plain crouch hurtbox,
   per character.
+
+### Death rule + Pluto prose round (2026-07-19)
+- DEATH = HP UNDERFLOW, not zero: chip 1 vs hp 1 -> 0 and ALIVE (normal blockstun);
+  chip 2 vs hp 1 -> 0xFF -> KO chain (dact 1A->1E->1F + corpse-hp zeroing write).
+  Chip kills iff chip > hp. 0-HP survivor dies to any next hit incl. chip 1.
+- DS LP whiffs point-blank too (verified 22px). Pluto backdash: 20f hu=00 invuln
+  (per-char; Uranus 14f), 37px. Wiki 'distance 100' units unknown.
+- c.HP wiki-prose croucher list omits Moon (we hit crouching Moon 14; patch-7 agrees).
+- Act 0x21 observed on hp-poke to 1 (danger/low-hp reaction act?) - unmapped.
