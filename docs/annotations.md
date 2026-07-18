@@ -485,3 +485,11 @@ NOTE: outer-senshi special classes 0x17-0x1B sit INSIDE the >=0x12 band previous
 labeled 'desperations' — the class taxonomy is really 'high specials+desperations'.
 MISFIRE_SETS in mkpatch12/13 was harvest-limited: tables add Moon 0B/0C, Mercury 0E,
 Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
+
+### Uranus movement + 2HK (2026-07-19, LOGFD rig)
+- Forward dash (Shadow Dash, 66): act 0x60 (character-special act space), 14f + 5f skid
+  (act 09), ~149px gross at ~10.6 px/f, dash hurtbox idx 0x4F (vulnerable).
+- Back dash 44: act 0x26 (universal), 14f, -36px, hurt idx 0x00 ALL 14 frames
+  (fully invulnerable) - patch-2/6 fact trace-confirmed.
+- 2HK slide: act 0x59, startup 8f, active hb idx 0x0F ~38f, slide +67-79px, low,
+  knockdown, hurtbox idx 0x39 (low profile) during; dmg rolls 8 (wiki 10).

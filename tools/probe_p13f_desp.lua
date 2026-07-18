@@ -73,6 +73,7 @@ emu.addEventCallback(function()
   end
 end, emu.eventType.inputPolled)
 
+local function posxpb() return ram(pb + 0x21) + 256 * ram(pb + 0x22) end
 local function onLeft()
   local px = ram(pb + 0x21) + 256 * ram(pb + 0x22)
   local dx = ram(db + 0x21) + 256 * ram(db + 0x22)
@@ -135,7 +136,7 @@ emu.addEventCallback(function()
     pulse[PLAYER - 1] = dirpad(MOTION:sub(sd, sd), L)
   elseif ph >= m0 + TOFF and sd == #MOTION + 1 then
     local p = NEUTRALBTN and {} or dirpad(MOTION:sub(#MOTION, #MOTION), L)
-    p[BTN] = true
+    if not NOBTN then p[BTN] = true end
     pulse[PLAYER - 1] = p
   elseif ph >= m0 + TOFF and sd == #MOTION + 2 then
     pulse[PLAYER - 1] = nil
@@ -146,6 +147,17 @@ emu.addEventCallback(function()
       local dy = ram(db + 0x25) + 256 * ram(db + 0x26)
       local ny = (dy + PROJY) % 65536
       wr(sb + 0x25, ny % 256); wr(sb + 0x26, math.floor(ny / 256))
+    end
+  end
+  if LOGFD then
+    local tup = string.format("pact=%02X hb=%02X hu=%02X slot=%02X sx=%04X px=%04X dact=%02X",
+      ram(pb + 1), ram(pb + 0x40), ram(pb + 0x41), ram((PLAYER == 1) and 0x1100 or 0x1180),
+      ram(((PLAYER == 1) and 0x1100 or 0x1180) + 0x21) + 256 * ram(((PLAYER == 1) and 0x1100 or 0x1180) + 0x22),
+      posxpb(), ram(db + 1))
+    if tup ~= saw.fdt then
+      local slim = tup:gsub(" sx=%x+", ""):gsub(" px=%x+", "")
+      if slim ~= (saw.fds or "") then log(string.format("   FD t=%d %s", t, tup)) end
+      saw.fdt = tup; saw.fds = slim
     end
   end
   -- track performer acts + defender grab
