@@ -1,9 +1,8 @@
-STATE = "jupiter_vs_venus_clean.mss"
+STATE = "uranus_vs_jupiter.mss"
 PLAYER = 1
 MOTION = "6321478"
-BTN = "x"
+BTN = "a"
 RANGES = { 20 }
-TAG = "JUPSPD-GUTS3"
+TAG = "P14ONLY-SPD"
 NOLOWHP = true
 STEPF = 2
-POKES = { {addr=0x1F800, val=0xA5}, {addr=0x1F802, val=3} }
