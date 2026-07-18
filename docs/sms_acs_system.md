@@ -63,7 +63,10 @@ C0/D06C  asl x4           ; row * 16
 C0/D070  clc / adc $00    ; + column  -> index into the matrix
 ```
 
-**The matrix** `$C0:D081` (file 0xD081, 256 bytes), rows = base class 0–15, columns 0–15.
+**The matrix** `$C0:D081` (file 0xD081) — **CORRECTION 2026-07-18: 1024 bytes, 64 rows
+× 16 columns** (rows 16-63 continue the same shape, capping at 0x48=72; row 48 is the
+shared single-hit desperation row — see `sms_damage_system.md` §3 for the live-read
+proof and the extended dump). Rows 0-15 shown below; columns 0–15.
 **Column 8 is neutral**; smaller columns = stronger (up to ~2× base at column 0), larger
 = weaker (down to ~¼ base at column 15). One column ≈ ±12%:
 
@@ -127,9 +130,10 @@ as out-of-range, consistent with 4-bit column wrap.)
 - **Ochame** +0x75: read at `$C1:0B69` (inside the special dispatcher, §5). The one
   ACS read with its full code path mapped.
 - The damage-stat reads (+0x70/+0x71/+0x73) happen somewhere between the on-hit table
-  dispatch and the `$C0:D055` lookup — **not yet pinpointed** (find them by read-watching
+  dispatch and the `$D055` lookup — **not yet pinpointed** (find them by read-watching
   `$1070/$1071/$1073` during a hit; they will fire once per landed hit). The lookup
-  itself and the apply sites are fully mapped.
+  itself and the apply sites are fully mapped. NOTE: the lookup routine EXECUTES from
+  bank $80 ($80:D055; matrix read at $80:D07B) — exec-watch $80:D055, not $C0:D055.
 
 ## 5. The ochame / misfire system (fully reverse-engineered)
 

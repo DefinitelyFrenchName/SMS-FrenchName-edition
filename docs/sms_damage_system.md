@@ -55,10 +55,23 @@ per column, ~2× cap, ~¼ floor — matrix dump in `sms_acs_system.md` §2). Kno
 - **Counter-hit ("punish") shift** — see §6. Roughly +2-3 columns.
 - **NOT an input**: which hurtbox (head/body/legs) the attack contacts — §7.
 
-Open question: single-hit desperations deal 32-72 damage, above the dumped 16×16
-matrix's 0x20 maximum — their row source (a higher table, a multiplier, or wider rows)
-is unmapped. The counter-hit shift behaves on them exactly like on normals, so the
-same modifier mechanism feeds whatever table they use.
+**RESOLVED (read-watch, 2026-07-18): the matrix is 64×16, not 16×16** — file
+0xD081-0xD480 (1024 bytes; code resumes ≈0xD4A1). The live reader is the 16-bit load
+at **`$80:D07B`** inside the $D055 lookup routine, which executes from **bank $80**
+(exec-watching $C0:D055 catches nothing — the ROM's low 64K runs at $80:xxxx).
+Verified reads: Jupiter 2HP → row 10 col 7 = 0x0D (13 dealt ✓); Jupiter desperation →
+row 48 col 8 = 0x30 (48 ✓); vs croucher row 48 col 7 = 0x3E (62 ✓); Venus desperation
+row 48 col 9 = 0x25 (37 ✓). **Row 48 is the shared single-hit desperation row**; the
+per-move damage differences are base-COLUMN biases (Jupiter/Mercury/Moon c8,
+Venus/Neptune c9, Mars c10). Row 48: `72 72 72 72 72 72 72 62 | 48 37 32 28 26 24 24
+23` (cap 0x48=72 at c0-c6). This makes the shift arithmetic exact:
+- **Counter-hit = −2 columns** (desperations: c8→c6=72, c9→c7=62, c10→c8=48 all match;
+  normals: Uranus 5HP row 8 rolls c7/c8=10/8 → counters c5/c6=14/12 ✓).
+- **Crouching defender = −1 column** on desperations (c8→c7, c9→c8, c10→c9 ✓). For
+  normals, crouch hits route through a different apply site / on-hit record, so the
+  crouch delta there is per-move record data, not necessarily a pure column shift.
+- Single-hit desperations showed no RNG column jitter across repeated rolls (always
+  the same column), unlike normals — desperation hits appear jitter-exempt.
 
 ## 4. Defender posture selects the on-hit values
 

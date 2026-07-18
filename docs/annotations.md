@@ -429,6 +429,10 @@ Stats cannot push damage below the row's column-15 floor or above the column-0 c
   Neptune 37->62, Uranus 67->67 (rush opener at row floor; rest hit hitstun),
   Pluto 48->50 (opener 3->5; drain ticks immune), Chibi 52->54 (first barrage hit
   8->10). First-hit-only rule: hitstun acts 0x11/0x13 are not counter-eligible.
-- NOTE: single-hit desperation values (32-72) exceed the dumped 16x16 matrix max
-  (0x20) — their row/table source is unmapped (open question).
+- RESOLVED: the damage matrix is 64x16 (file 0xD081-0xD480, cap 0x48=72), not 16x16.
+  Live reader = 16-bit load at $80:D07B (the $D055 routine executes from BANK $80 —
+  exec-watch $80:D055 not $C0:D055). Row 48 = shared single-hit desperation row;
+  per-move base columns: Jup/Merc/Moon c8(48), Venus/Nept c9(37), Mars c10(32).
+  Counter-hit = exactly -2 columns; crouch defender = -1 column (desperations);
+  desperation hits show no RNG column jitter.
 - Consolidated damage reference: docs/sms_damage_system.md.
