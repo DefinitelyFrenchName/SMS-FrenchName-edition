@@ -445,6 +445,17 @@ add{ name = "p14-spd-jupiter-scaled", group = "p14", need = function() return ha
     return ck(tot == 10 and grabwrites() == 5, string.format("Jupiter SPD at L3 expects 5x2=10, got %d (%d writes)", tot, grabwrites()))
   end }
 
+add{ name = "p14-giantswing-lp-scaled", group = "p14", need = function() return has.p13 and has.p14 end,
+  state = "jupiter_vs_venus_clean.mss", dur = 220,
+  frame = function(api)
+    if api.pt == 5 then park(1, 20); wr(0x1F800, 0xA5); wr(0x1F802, 3) end
+    motion(api, 1, "6248", "y", 10, false, 2)
+  end,
+  verdict = function()
+    local tot = total()
+    return ck(tot == 8 and grabwrites() == 4, string.format("Giant Swing LP at L3 expects 4x2=8, got %d (%d writes)", tot, grabwrites()))
+  end }
+
 add{ name = "stack-counterhit-x-guts-72to29", group = "stack", need = function() return has.p12 and has.p13 end,
   state = "jupiter_vs_venus_clean.mss", dur = 150,
   frame = function(api)

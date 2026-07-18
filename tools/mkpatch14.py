@@ -26,9 +26,10 @@ rescales, and exits through cmp #$90 (+ conditional sta, which preserves carry)
 so the relocated inline bcs sees the exact original death semantics.
 
 Command-grab table (probe-verified apply-time acts): Uranus (char 6) toss act 0x71
-(shared with her desperation slam — the class<0x12 gate disambiguates), Jupiter
-(char 4) carry-tick act 0x70. Other characters' command grabs (if any) can be
-added to GRAB_ACTS once their inputs are identified.
+(both SPD strengths AND her desperation slam converge there — the class<0x12 gate
+disambiguates the latter), Jupiter (char 4) carry-tick acts 0x70 (Giant Swing HP,
+5 ticks) and 0x6F (Giant Swing LP, 4 ticks). Other characters' command grabs (if
+any) can be added to GRAB_ACTS once their inputs are identified.
 
 State ABI (patch 13, read-only): $7F:F800 magic 0xA5, $7F:F801/F802 = P1/P2 level.
 Own scratch: $7F:F810-F815 (disjoint from patch 13's F800-F80A).
@@ -58,7 +59,7 @@ SCRS = ST14 + 3    # scaled damage
 SCR16 = ST14 + 4   # 16-bit scratch
 
 # (charID, apply-act) pairs that count as command-grab damage
-GRAB_ACTS = ((6, 0x71), (4, 0x70))
+GRAB_ACTS = ((6, 0x71), (4, 0x70), (4, 0x6F))
 
 
 def make_tables(pcts):

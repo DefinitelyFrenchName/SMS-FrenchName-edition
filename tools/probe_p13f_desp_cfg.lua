@@ -1,8 +1,9 @@
-STATE = "neptune_vs_jupiter.mss"
+STATE = "jupiter_vs_venus_clean.mss"
 PLAYER = 1
-MOTION = "6236236"
-BTN = "x"
-RANGES = { 30 }
-TAG = "DR-BLK-CLOSE"
-NEUTRALBTN = true
-DEFBLOCK = true
+MOTION = "6248"
+BTN = "y"
+RANGES = { 20 }
+TAG = "GSLP-GUTS3-FIX"
+NOLOWHP = true
+STEPF = 2
+POKES = { {addr=0x1F800, val=0xA5}, {addr=0x1F802, val=3} }

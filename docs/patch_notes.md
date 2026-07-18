@@ -1343,8 +1343,10 @@ conditional `sta` (which preserves carry) so the relocated `bcs` keeps exact dea
 semantics. Scratch $7F:F810-F815 (disjoint from patch 13's F800-F80A).
 
 ## Command-grab table & knobs
-`GRAB_ACTS = ((6, 0x71), (4, 0x70))` — Uranus toss act (shared with her desperation
-slam; the class gate disambiguates) and Jupiter carry-tick act. Other characters'
+`GRAB_ACTS = ((6, 0x71), (4, 0x70), (4, 0x6F))` — Uranus toss act (both SPD strengths
+and her desperation slam converge there; the class gate disambiguates) and Jupiter's
+carry-tick acts for Giant Swing HP (0x70, 5 ticks) and LP (0x6F, 4 ticks — the LP gap
+was found while measuring her kit and fixed in v0.19: 24→8 at L3). Other characters'
 command grabs can be added once their inputs are identified (send motions!).
 `--all-grabs` switches to nerfing EVERY grab-path damage (normal throws + hold-throw
 ticks included) for those who want throws covered too.

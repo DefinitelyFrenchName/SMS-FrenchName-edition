@@ -506,3 +506,14 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   0E stand-2nd, 0F crouch-hit... (taxonomy growing).
 - Dragon Rise: deterministic 37 (r48c9) all ranges, chip 9 single; wiki 48 / 12x2
   unreproduced (adjacent columns + unknown second chip) — flagged.
+
+### Jupiter kit (2026-07-19)
+- Supreme Thunder [4]6P: rec idx 12, acts 61/62, charge 25-39f min, proj 13/16, KD.
+- Coconut Cyclone j.632P: rec idx 13, NO hitbox in flight — ground-impact only
+  (hit at floor height, ~140px out for HP), 12 dmg, hugely plus (wiki +34~+59).
+- Giant Swing 6248P: LP carry act 0x6F 4x6=24 (range 64), HP 0x70 5x6=30 (56).
+  LP act was missing from p14 GRAB_ACTS -> fixed v0.19.
+- Double Axel 236K: acts 6B/6C, 3f/5f startup, STATIONARY, spin hurtboxes 44-48 top
+  at -34px vs -76 standing = upper half invulnerable (dodges all measured fireballs).
+- Power Bomb c.4/6HP: toss 28 techable (air version per wiki; rig got j.HP x3).
+- Lightning Strike chip: wiki 12x3 = our 3x12 blocked measurement, exact convergence.
