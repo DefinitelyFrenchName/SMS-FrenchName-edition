@@ -520,3 +520,10 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   crouch avoids it entirely, verified vs Venus.
 - Power Bomb c.4/6HP: toss 28 techable (air version per wiki; rig got j.HP x3).
 - Lightning Strike chip: wiki 12x3 = our 3x12 blocked measurement, exact convergence.
+
+### Fireball guard levels (maintainer QA, 2026-07-19)
+- World Shaking: blocks BOTH standing and crouching (chip 2 each; dact 0C/0D) despite
+  the ground-wave sprite; hits crouchers 9. Mid/any — 'hits low' folk memory refuted.
+- Deep Submerge: arc descends (-62px contact at range 40 -> -30px at 110); Mid at all
+  ranges (stand/crouch block + crouch contact all normal). 32px contact swing, same 8
+  damage = more contact-zone-irrelevance evidence.

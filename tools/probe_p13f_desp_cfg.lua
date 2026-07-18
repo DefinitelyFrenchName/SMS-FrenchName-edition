@@ -1,9 +1,8 @@
-STATE = "jupiter_vs_venus_clean.mss"
+STATE = "neptune_vs_jupiter.mss"
 PLAYER = 1
-MOTION = "4444444444444446"
-BTN = "x"
-RANGES = { 80 }
-TAG = "ST-VS-CROUCH"
+MOTION = "214"
+BTN = "y"
+RANGES = { 110 }
+TAG = "DS-CROUCH-110"
 NOLOWHP = true
-LOGFD = true
 CROUCH = true
