@@ -422,3 +422,13 @@ Stats cannot push damage below the row's column-15 floor or above the column-0 c
   -> C09C-site (write pc 80C0A5), her crouch normals vs standing defender -> C16F-site
   (write pc 80C178), crouch-vs-crouch -> C09C; Moon/Jupiter 5HP -> C16F.
 - Moon 5HP (mirror, moon_vs_moon) deterministic 6 at this rig's fixed timing.
+
+### Desperation punish damage (probe_p13f_desp DTAUNT rig, v0.16 L0)
+- Counter-hit on desperations (defender mid-taunt-act): Moon 48->72, Mercury 48->72,
+  Mars 32->48 (projectile path counters too), Jupiter 48->72, Venus 37->62,
+  Neptune 37->62, Uranus 67->67 (rush opener at row floor; rest hit hitstun),
+  Pluto 48->50 (opener 3->5; drain ticks immune), Chibi 52->54 (first barrage hit
+  8->10). First-hit-only rule: hitstun acts 0x11/0x13 are not counter-eligible.
+- NOTE: single-hit desperation values (32-72) exceed the dumped 16x16 matrix max
+  (0x20) — their row/table source is unmapped (open question).
+- Consolidated damage reference: docs/sms_damage_system.md.

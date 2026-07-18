@@ -95,6 +95,8 @@ emu.addEventCallback(function()
   end
   if DEFJUMP and ph >= DEFJUMP and ph <= DEFJUMP + 2 then pulse[2 - PLAYER] = { up = true }
   elseif DEFJUMP and ph == DEFJUMP + 3 then pulse[2 - PLAYER] = nil end
+  if DTAUNT and ph >= DTAUNT and ph <= DTAUNT + 1 then pulse[2 - PLAYER] = { l = true }
+  elseif DTAUNT and ph == DTAUNT + 2 then pulse[2 - PLAYER] = nil end
   -- defender crouch hold
   if CROUCH and ph >= 6 then pulse[2 - PLAYER + 0] = { down = true } end
   if CROUCH and ph < 6 then pulse[2 - PLAYER + 0] = nil end
