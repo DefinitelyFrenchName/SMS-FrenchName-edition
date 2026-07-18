@@ -263,9 +263,11 @@ drawing only the hit box for ids ≥ 10).
   vs a crouched 2LP startup; Moon 5HP 6 → 9 vs Moon's taunt act, measured at two depths
   into the animation (both 9 — the bonus is flat across the act, startup AND recovery).
   It ENDS when the move chains into the universal recovery act 0x2A: hitting that tail
-  deals plain damage (6). Magnitude ~+33-50%, consistent with a fixed 2-3 column shift
-  of the damage-matrix modifier; the apply site/PC is unchanged, so it is a modifier
-  input, not a separate table. Practical reading: "punishing" a whiffed move is rewarded
+  deals plain damage (6). Magnitude: exactly **−2 damage-matrix columns** (proven by
+  read-watching the matrix at $80:D07B — see docs/sms_damage_system.md §3; the percent
+  effect varies with row curvature, ≈+30-70%); the apply site/PC is unchanged, so it is
+  a modifier input, not a separate table. The matrix itself is 64×16 (file
+  0xD081-0xD480), row 48 = the shared single-hit desperation row. Practical reading: "punishing" a whiffed move is rewarded
   with counter-hit damage only while the victim is still in the move's own act — a late
   punish into the 0x2A tail is normal damage.
 - **No head/body hurtbox damage split** (community folklore tested): levitating the

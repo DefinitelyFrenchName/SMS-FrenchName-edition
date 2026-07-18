@@ -1202,6 +1202,13 @@ only attack-class >= 0x08 moves are nerfed (dash attacks / command normals are n
 specials). Training+ additionally gained a **P1 HP FULL/LOW menu row** (LOW = 0x17,
 under the 0x18 desperation threshold) for desperation testing.
 
+**v3.3 (wide scaling tables):** the 64×16 damage-matrix discovery (sms_damage_system.md
+§3) revealed the matrix caps at 0x48=72 — above the Guts tables' 64-entry range, so a
+counter-hit desperation (72) was being scaled as if it were 63 (clamped, mildly under-
+scaled — never out-of-bounds). v3.3 widens the tables to 3×128 and the clamp to 0x7F:
+every value the engine can produce now scales exactly (72 at L3 = 29, verified by the
+regression suite's cross-patch test).
+
 **v3.2 (Uranus toss coverage + full compendium):** probing all 9 desperations (see
 sms_acs_system.md §6b) found one more bypass: Uranus's desperation is a rush→grab hybrid
 whose 32-damage finisher goes through the throw-toss apply site $C1:082F — the site v3

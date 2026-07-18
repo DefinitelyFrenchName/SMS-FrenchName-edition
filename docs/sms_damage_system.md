@@ -43,8 +43,9 @@ on holder +0x44 ≥ 0x12 so normal throws stay untouched.
 
 ## 3. The modifier — what shifts damage up or down
 
-Final damage = row value shifted by a signed column modifier (column 8 neutral, ~±12%
-per column, ~2× cap, ~¼ floor — matrix dump in `sms_acs_system.md` §2). Known inputs:
+Final damage = MATRIX64[row][8 + modifier] — a 64-row × 16-column table (column 8
+neutral, smaller = stronger, row-dependent cap/floor; rows 0-15 dumped in
+`sms_acs_system.md` §2, high rows in the resolution below). Known inputs:
 
 - **RNG jitter** — `$7E:0090`, frame-evolving, deterministic from reset under fixed
   input timing. THE source of damage variance (same jab rolls 1-6). All comparisons in
@@ -52,7 +53,7 @@ per column, ~2× cap, ~¼ floor — matrix dump in `sms_acs_system.md` §2). Kno
 - **ACS stats** — attacker +0x70 (normals) / +0x73 (specials) / +0x74 (desperation
   strike portion) shift left; defender +0x71 shifts right. Boost-only from the VS
   default of 0. Detail: `sms_acs_system.md` §3.
-- **Counter-hit ("punish") shift** — see §6. Roughly +2-3 columns.
+- **Counter-hit ("punish") shift** — exactly **−2 columns**, see §6 and the resolution below.
 - **NOT an input**: which hurtbox (head/body/legs) the attack contacts — §7.
 
 **RESOLVED (read-watch, 2026-07-18): the matrix is 64×16, not 16×16** — file
