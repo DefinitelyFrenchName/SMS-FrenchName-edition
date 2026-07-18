@@ -255,6 +255,38 @@ drawing only the hit box for ids ≥ 10).
 
 ---
 
+### 6.x Counter-hit bonus, posture tables, and the head/body question (probe_hitzone, 2026-07-18)
+
+- **Counter-hit / punish bonus — EXISTS.** A hit landing while the defender is inside an
+  attack-family act (a normal's act from startup through recovery, a misfire/taunt act)
+  deals extra damage: Uranus 5HP 8/10 → 12/14 vs Jupiter's 5HP startup; 2HP 7/9 → 11/12
+  vs a crouched 2LP startup; Moon 5HP 6 → 9 vs Moon's taunt act, measured at two depths
+  into the animation (both 9 — the bonus is flat across the act, startup AND recovery).
+  It ENDS when the move chains into the universal recovery act 0x2A: hitting that tail
+  deals plain damage (6). Magnitude ~+33-50%, consistent with a fixed 2-3 column shift
+  of the damage-matrix modifier; the apply site/PC is unchanged, so it is a modifier
+  input, not a separate table. Practical reading: "punishing" a whiffed move is rewarded
+  with counter-hit damage only while the victim is still in the move's own act — a late
+  punish into the 0x2A tail is normal damage.
+- **No head/body hurtbox damage split** (community folklore tested): levitating the
+  attacker so the same normal contacts the defender 12/24 px higher (torso → head zone)
+  leaves damage identical on matched RNG rolls (5LP 3 at all three heights; 5HP 8 at
+  both heights that connect). Same result as the desperation projectile-height sweep.
+  The dual values community lists likely come from two REAL mechanisms:
+  1. **Defender-posture on-hit tables**: same move, crouching defender takes more
+     (Uranus 2LP 2/3 → 3/4, 2HP 5/7 → 7/9; desperations Mercury/Jupiter 48 → 62).
+     Prejump counts as crouch; air uses the stand-class value.
+  2. **Proximity normals**: Uranus close-range 5HP is a different act (0x45, 9/12)
+     than far 5HP (0x43, 8/10).
+- The 4 melee apply sites are per-(attack, defender-posture) on-hit table variants, not
+  a single shared path: Uranus standing normals apply at the $C0:C09C site, her
+  crouching normals vs a STANDING defender at $C0:C16F, crouching-vs-crouching back at
+  $C0:C09C; Moon's and Jupiter's 5HP apply at $C0:C16F. (Matches the CDD5/CE15…D015
+  table-variant family.)
+- Attack acts visibly displace hurtboxes: several whiff-punish geometries failed because
+  the whiffing character's act pulled their hurtbox out of an attack's reach that hits
+  them when idle. Damage measurement rigs must log the defender act at impact.
+
 ## 7. Movement and input recognizers
 
 Motion inputs are recognized by per-object state machines in the `+0x5B–0x68` timer/state
