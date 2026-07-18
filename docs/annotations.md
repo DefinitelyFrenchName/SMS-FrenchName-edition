@@ -574,3 +574,15 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   records NOT in the walked windows — location open.
 - Dispel -r arg gotcha: treats ranges oddly (misread our offsets); trust direct
   python byte dumps + hand-decode for short stretches.
+
+### Venus kit (2026-07-19)
+- Crescent Beam 236P: rec 14, acts 5D/5E, 8/10 wiki-exact, -68px flight = whiffs ALL
+  crouchers (like Supreme Thunder).
+- Wink Chain Sword [2]8P: rec 15, acts 63/64, pillar at fixed 32/64px (spawn distance
+  = record byte 2!), MID both guards (chip 2), wiki recovery 3/7 = +30~+34 on block.
+  Rig lesson: DEFBLOCKAT needed (early block-hold walks out of pillar spot).
+- Love-Me Chain 623P: DP-family no-REC, acts 67/68, multi-hit 23/22, no invuln.
+- Throws: Huracanrana c.4/6HP toss 22 techable (airborne carry); Machine Gun Knee
+  c.4/6HK HOLD 5x4=20 untech +41 oki. Hold-throws = all on HK button so far except
+  Mars (HP) and Moon/Chibi (?) - pattern note.
+- Desperation name: Chain Explosive; wiki 48/chip 12x5 vs our 37/9 (flagged).

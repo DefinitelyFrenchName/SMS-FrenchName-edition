@@ -1,7 +1,9 @@
 STATE = "venus_vs_jupiter_clean.mss"
 PLAYER = 1
-MOTION = "4123632"
+MOTION = "222222222222228"
 BTN = "x"
-RANGES = { 70 }
-TAG = "VENUS-DESP-REC"
-LOGREC = true
+RANGES = { 55 }
+TAG = "VEN-WINK-STBLK-LATE"
+NOLOWHP = true
+DEFBLOCK = true
+DEFBLOCKAT = 66
