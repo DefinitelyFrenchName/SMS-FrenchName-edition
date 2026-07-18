@@ -15,7 +15,7 @@ Command grabs (360 recognizer), supers and desperations are recognized separatel
 Known table sizes: Moon 3, Mercury 2, Mars 3, Jupiter 2, Venus 3, Uranus 1, Neptune 1,
 Pluto 1, Chibi 2.
 
-Status: **Uranus, Neptune, Jupiter and Pluto complete**; others pending motions from the maintainer.
+Status: **Uranus, Neptune, Jupiter, Pluto and Mars complete**; others pending motions from the maintainer.
 
 ---
 
@@ -350,13 +350,70 @@ also claims normals cancel into backdash (lights ~−6F, heavies ~+6F) — untes
   character-specific infinite (c.LP c.LP HP > desperation) — this game's OTHER
   documented infinite, cousin to the Uranus one this project began with.
 
+## Mars (charID 3)
+
+### Fire Soul Bird — 41236LP / 41236HP (record idx 0x0F)
+
+| Variant | Act | Damage | Chip | Wiki startup/recovery |
+|---|---|---|---|---|
+| LP | 64 | **10** (wiki 8/10) | 2 | 10 / 36 |
+| HP | 65 | **13** (wiki 10/13) | 2 | 14 / 51 |
+
+- The upward-arc fireball: contact measured at **−65px** height at 70px range (it caught
+  a STANDING defender's head zone on the way up) — an anti-air-capable trajectory, LP/HP
+  arcs differing per the maintainer. Knocks down (wiki /D). Misfire acts 66/67
+  (= her patch-12 taunt).
+
+### Snake Fire — 41236LK / 41236HK (record idx 0x10)
+
+| Variant | Act | Damage | Chip (wiki) | Wiki startup/recovery |
+|---|---|---|---|---|
+| LK | 6A | **10** (wiki exact) | 2 | 11 / 31 |
+| HK | 6B | **12** (wiki exact) | 3 | 13 / 50 |
+
+- Ground-level fireball (contact at floor height), **hard knockdown** as the maintainer
+  said (wiki /D). Misfire acts 6C/6D. A punch/kick fireball PAIR on the same motion —
+  unique so far (41236P = arc, 41236K = ground).
+
+### Fire Heel Drop — 214LK / 214HK (no dispatcher record)
+
+| Variant | Acts | Hits | Damage | Chip on block |
+|---|---|---|---|---|
+| LK | 70→72 | 2 | **8+12 = 20** (wiki exact) | 2+3 |
+| HK | 71→73 | up to 2 (wiki 14, 16 2nd) | ours 18 single (= wiki faceHit) | **3+4 = 7** (wiki exact) |
+
+- Forward-traveling flip kick, **hard knockdown** — but **NOT an overhead**: both
+  standing and crouching guard block it (7 chip either way; wiki guard "Mid" agrees —
+  the maintainer's overhead hunch is refuted by both sources). It double-hits on block
+  (1→2 hits, the familiar phenomenon).
+- Fires no dispatcher record (the DP/360/charge-family recognizer).
+- Class bytes climb to 0x10 on the HK — highest non-desperation melee class seen.
+
+### Throws — two, one of each type
+
+| Throw | Type | Damage | Techable | Air |
+|---|---|---|---|---|
+| **Hundred-Slap Fury** c.4/6HP | HOLD (12 ticks × 2) | **24** (wiki exact) | No | ground only |
+| **Frankensteiner** c.4/6HK | toss | **24** ground / **28 air** (both wiki-exact) | Yes (+11 oki) | **yes — and stronger airborne** |
+
+- Hundred-Slap is THE Mars hold-throw from the patch-13 exemption lore, now named.
+- The air Frankensteiner dealing MORE than grounded (28 vs 24) is confirmed
+  independently by wiki and emulator — first air-stronger throw found.
+
+### Related
+- **Desperation "Mars Snake Flare"** (6321412HK): §6b-6d — projectile 32 (wiki exact),
+  chip 8×N (wiki) = our measured 4×8 blocked. Wiki: startup 19, −31 on block.
+- **Record 0x11 mystery**: her table holds a third record (var-1-only, no misfire act,
+  payload `18 00 00 00`) that matches NO tested move — Heel Drop fires no record at
+  all. Possibly an unused/hidden special. Open.
+
 ---
 
 ## Template for the remaining characters
 
 For each named special: LP/HP variant acts, melee/projectile path, stand/crouch/chip
 damage, misfire acts (cross-check the record tables), Guts coverage, and any recognizer
-quirks. Pending inputs: Moon ×3, Mercury ×2, Mars ×3, Venus ×3,
+quirks. Pending inputs: Moon ×3, Mercury ×2, Venus ×3,
 Chibi ×2 (record idx 0x0A-0x1B). DPs/command grabs are NOT in the record tables, so
 each character may also hide a 623/360-style move the tables can't reveal — ask the
 community list per character. (Neptune's "super" turned out to be her DP; there may be
