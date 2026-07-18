@@ -48,7 +48,8 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
 - `SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` — `be2cb752…` — patches 1-11 (BPS `build/sms_allpatches_v1.1.bps`).
-- **`SailorMoonS_FrenchName_v0.13_ALLPATCHES.sfc`** — `e1b03969…` — **ALL 13 patches, newest test ROM** (BPS `build/sms_allpatches_v0.13.bps`, title v.0.13; Guts v3 = specials-nerf).
+- **`SailorMoonS_FrenchName_v0.14_ALLPATCHES.sfc`** — `4591034a…` — **ALL 13 patches, newest test ROM** (BPS `build/sms_allpatches_v0.14.bps`, title v.0.14; adds the P1 HP FULL/LOW desperation toggle).
+- `SailorMoonS_FrenchName_v0.13_ALLPATCHES.sfc` — `e1b03969…` — previous build (BPS `build/sms_allpatches_v0.13.bps`).
 - `SailorMoonS_FrenchName_v0.12_ALLPATCHES.sfc` — `6683215a…` — previous QA build (Guts v2 general defense buff; BPS `build/sms_allpatches_v0.12.bps`).
 - `SailorMoonS_FrenchName_v0.11_ALLPATCHES.sfc` — `be476410…` — previous QA build (Guts at 10/25/45, no indicator; BPS `build/sms_allpatches_v0.11.bps`).
 - `SailorMoonS_FrenchName_v0.10_ALLPATCHES.sfc` — `f75efa04…` — patches 1-12, the maintainer's mid-QA build (BPS `build/sms_allpatches_v0.10.bps`).

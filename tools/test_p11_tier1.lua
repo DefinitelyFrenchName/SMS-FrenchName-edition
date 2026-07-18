@@ -242,6 +242,20 @@ local PHASES = {
       end
     end,
     fin = function() end },
+  { name = "p1hp-toggle", dur = 400,
+    tick = function(pt)
+      if pt >= 10 and pt <= 12 then pulse[0] = { l = true, r = true } elseif pt == 13 then pulse[0] = nil end
+      -- navigate to row 11 (P1 HP): 10 downs from cursor 1, paced for the 30Hz-safe edges
+      local dn = math.floor((pt - 50) / 12)
+      if pt >= 50 and pt < 170 and (pt - 50) % 12 < 2 and dn < 10 then pulse[0] = { down = true }
+      elseif pt >= 50 and pt < 170 then pulse[0] = nil end
+      if pt >= 180 and pt <= 181 then pulse[0] = { right = true } elseif pt == 182 then pulse[0] = nil end
+      if pt == 200 then check("p1hp-low", ram(0x1049) == 0x17, string.format("hp=%02X cur=%d", ram(0x1049), st(0x06))) end
+      if pt >= 210 and pt <= 211 then pulse[0] = { right = true } elseif pt == 212 then pulse[0] = nil end
+      if pt == 230 then check("p1hp-full", ram(0x1049) == 0x60, string.format("hp=%02X", ram(0x1049))) end
+      if pt >= 240 and pt <= 242 then pulse[0] = { l = true, r = true } elseif pt == 243 then pulse[0] = nil end
+    end,
+    fin = function() end },
   { name = "menu", dur = 300,
     tick = function(pt)
       if pt >= 10 and pt <= 12 then pulse[0] = { l = true, r = true } elseif pt == 13 then pulse[0] = nil end

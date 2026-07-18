@@ -1193,6 +1193,15 @@ the menu can fire a taunt first — cosmetic.
 # Patch 13 (OPTIONAL) — "Guts": stacking defense buff on taunt completion
 
 **Builder:** `tools/mkpatch13.py [src] [out] [--l1 20 --l2 40 --l3 60]` (stacks on any patch 1-12 ROM, any order)
+**QA verification note (v0.14):** the specials-nerf was re-verified end-to-end on the
+maintainer's image with real taunts (fireball 6 baseline -> 2 at L3, identical timing).
+If levels seem inert while using the Lua trainer alongside: the trainer's savestate-based
+resets (position reset, KO auto-reset, slot reloads) restore ALL RAM including $7F —
+**buff levels silently revert with the state; trust the corner digit**. Also remember
+only attack-class >= 0x08 moves are nerfed (dash attacks / command normals are not
+specials). Training+ additionally gained a **P1 HP FULL/LOW menu row** (LOW = 0x17,
+under the 0x18 desperation threshold) for desperation testing.
+
 **v3 (QA pivot):** Guts no longer boosts general defense — **completing a taunt now
 NERFS the opponent's SPECIAL and DESPERATION damage against you** (20/40/60% per level,
 knobs; direct hits + projectiles + chip; normals and throws deliberately untouched).
