@@ -436,3 +436,8 @@ Stats cannot push damage below the row's column-15 floor or above the column-0 c
   Counter-hit = exactly -2 columns; crouch defender = -1 column (desperations);
   desperation hits show no RNG column jitter.
 - Consolidated damage reference: docs/sms_damage_system.md.
+
+### ACS defense scope correction (maintainer review, 2026-07-18)
+- +0x71 buff_defense reduces MATRIX-path damage only. Verified at defense 7:
+  normal throw toss 20 -> 20 (unchanged); Pluto desperation opener 3 -> 1 (reduced)
+  while all 12 drain ticks byte-identical (45). Throw toss/tech/ticks bypass $D055.

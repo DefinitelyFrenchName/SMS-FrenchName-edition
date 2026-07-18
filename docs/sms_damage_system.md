@@ -94,8 +94,10 @@ Venus/Neptune c9, Mars c10). Row 48: `72 72 72 72 72 72 72 62 | 48 37 32 28 26 2
   in our rig), thrower class byte 0 at toss time. Uranus's desperation is the only
   desperation using this path (toss 32 at class 0x18).
 - **Drain ticks** (`$C1:0D54`): 3-4 HP per ~12 frames + a big finisher (Pluto: 11).
-  NOT scaled by ACS stats, NOT counter-boosted, posture-independent. (Patch 13 scales
-  them via its own table hook.)
+  NOT scaled by ACS stats (attacker +0x74 nor defender +0x71 verified), NOT
+  counter-boosted, posture-independent. (Patch 13 scales them via its own table hook.)
+- None of these paths respect ACS +0x71 defense either (throw 20→20 at defense 7) —
+  "defense" in this game means the matrix modifier, nothing more.
 - **Throw tech** (`$C1:084D`): negated half-damage refund path on mash escape.
 
 ## 6. Counter-hit / punish system
