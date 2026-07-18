@@ -203,6 +203,10 @@ our rig. Emulation trusted; flagged.
   in our rig), then 6+P. The strongest plain fireball measured so far (13/16 vs
   Neptune's 8/10) and it KNOCKS DOWN (wiki /D). Our deterministic rolls equal the
   wiki's faceHit column; same matrix rows.
+- **Hits high — CROUCHING AVOIDS IT COMPLETELY** (maintainer's read, verified): the
+  boom flies at −68px and whiffed a crouching Venus outright (no block needed). The
+  patch-7 crouch-hurtbox survey tops out at −60 (Mars), so it geometrically clears
+  ALL nine crouchers. A pure anti-standing/anti-jump tool.
 - Misfire acts 63/64 (= her patch-12 taunt).
 
 ### Coconut Cyclone — j.632LP / j.632HP (air fireball; record idx 0x13)
@@ -234,8 +238,10 @@ our rig. Emulation trusted; flagged.
 | LK | 0x6B | **3f** (= wiki) | 2 connected | 5 (wiki 4/5) | 2×13 cycles |
 | HK | 0x6C | **5f** (= wiki) | 1 connected | 16 (wiki 12/16) | 4×13 cycles |
 
-- **Stationary — confirmed** (position byte never moves during the whole spin; unlike
-  Zangief's walking lariat).
+- **Steerable — the maintainer was right**: neutral spin is stationary, but HOLDING
+  forward or back drifts her ~±1.5 px/f for the whole spin (verified both directions;
+  the earlier "stationary" note was a rig artifact — the stick had been released).
+  A walking lariat in the Zangief tradition after all.
 - **Half-body invincibility — confirmed with geometry**: the spin swaps to dedicated
   hurtboxes (idx 0x44-0x48) whose tops sit at **−34px**, vs −76px standing — the head
   and upper torso are invulnerable for the whole spin. Every fireball flight height

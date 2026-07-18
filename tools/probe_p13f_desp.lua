@@ -154,7 +154,10 @@ emu.addEventCallback(function()
     if not NOBTN then p[BTN] = true end
     pulse[PLAYER - 1] = p
   elseif ph >= m0 + TOFF and sd == #MOTION + 2 then
-    pulse[PLAYER - 1] = nil
+    pulse[PLAYER - 1] = HOLDDIR and dirpad(HOLDDIR, onLeft(PLAYER and nil) == nil and true or onLeft()) or nil
+  end
+  if HOLDDIR and ph >= m0 + TOFF and sd > #MOTION + 2 then
+    pulse[PLAYER - 1] = dirpad(HOLDDIR, onLeft())
   end
   if PROJY then
     local sb = (PLAYER == 1) and 0x1100 or 0x1180
