@@ -363,7 +363,7 @@ tools/hudfont.py (glyphs), tools/test_labels.lua (oracle), tools/perf_patch10.lu
 | ACS +0x73 buff_special | REALLY scales special damage: Neptune 214LP 8 -> 10/14/16 at stat 1/3/7 (values >7 misbehave; boost-only from the VS default 0 — cannot nerf below baseline). +0x74 (secret) showed no effect on a regular special (presumably desperation-only; untested). |
 | third throw-damage site $C1:0D61 | per-tick HOLD throws (Moon 4x5, Mars 12x2, Chibi) drain HP here; standard toss throws use $C1:083C/$C1:085E (Mercury/Jupiter/Venus/Uranus/Neptune). Pluto's grab did not trigger with fwd+HP in the census (unresolved). |
 
-## A.C.S. stat system — decoded (2026-07-18, controlled identical-roll sweeps)
+## A.C.S. stat system — decoded (2026-07-18; **full reference: docs/sms_acs_system.md**)
 
 **CORRECTS the earlier "ACS stats show no damage-time effect" note (patch 13 RE) — that
 sweep was drowned by the damage variance; reload-per-sample methodology shows real effects.**

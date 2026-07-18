@@ -24,6 +24,13 @@ coexist both orders; showcase `build/sms_allpatches_v1.2.bps`, title v.1.2, sha
 packaged (`build/sms_trainingplus.bps`, showcase `build/sms_allpatches_v1.1.bps`).
 Awaiting the maintainer's pad test + merge decision. `main` still has patches 1-10 only.
 
+## New: the A.C.S. system is fully decoded
+
+`docs/sms_acs_system.md` — the six stats and their measured effects, the 16x16 damage
+matrix (column-shift formula, dumped), the ochame misfire mechanic (roll code, threshold
+table, per-char misfire acts), manipulation guidance and open unknowns. Candidate next
+mechanic under discussion: taunts inflicting ochame on the opponent (6-50%% whiff).
+
 ## What patch 11 is
 
 The base game's Practice mode upgraded in-ROM (works on hardware): **L+R opens a menu**
