@@ -527,3 +527,17 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - Deep Submerge: arc descends (-62px contact at range 40 -> -30px at 110); Mid at all
   ranges (stand/crouch block + crouch contact all normal). 32px contact swing, same 8
   damage = more contact-zone-irrelevance evidence.
+
+### Pluto kit (2026-07-19)
+- Dead Scream 41236P: rec idx 19, LP act 60 traveling 12; HP act 61 STATIC ~80px ahead
+  (whiffs <=22px), 14, alive 50f+ (wiki 53 active / 82 recovery).
+- Strict Sweep [4]6K: acts 65->66/67, TRUE overhead both (crouch-guard fails), moves
+  +138px, active-phase hurtboxes -113..-71 = LOWER-half invulnerable (lows whiff).
+  No dispatcher REC (charge moves = non-dispatcher family like DPs/360s... except
+  Supreme Thunder WAS rec idx 12 — so charge != non-dispatcher universally; Strict
+  Sweep specifically fires no REC).
+- Throw c.4/6HK: HOLD-type 5x4=20 (wiki 22), act 5C, untechable. 5th hold-thrower.
+- c.HP: stand-block blocks; plain-crouch Moon hit 14; crouch-BLOCK Moon WHIFFS (guard
+  pose lowers hurtbox!); crouch-block Mars full hit (true overhead). Patch-7 target.
+- Blockstun/guard-pose taxonomy: crouch-guard pose hurtbox != plain crouch hurtbox,
+  per character.

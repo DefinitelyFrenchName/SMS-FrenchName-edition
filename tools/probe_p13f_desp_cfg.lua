@@ -1,8 +1,8 @@
-STATE = "neptune_vs_jupiter.mss"
+STATE = "pluto_vs_3.mss"
 PLAYER = 1
-MOTION = "214"
-BTN = "y"
-RANGES = { 110 }
-TAG = "DS-CROUCH-110"
+MOTION = "4444444444444446"
+BTN = "b"
+RANGES = { 40 }
+TAG = "PLU-SSLK-CRBLK"
 NOLOWHP = true
-CROUCH = true
+DEFBLOCK = "crouch"
