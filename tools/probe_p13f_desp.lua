@@ -46,6 +46,24 @@ emu.addMemoryCallback(function(addr, value)
   end
 end, emu.callbackType.write, dhp, dhp, emu.cpuType.snes, emu.memType.snesWorkRam)
 
+if LOGROW then
+  local nlog = 0
+  emu.addMemoryCallback(function(addr, value)
+    if t and t >= 0 and nlog < 60 then
+      local st = emu.getState()
+      local pc = st["cpu.k"] * 65536 + st["cpu.pc"]
+      local fo = addr % 0x400000
+      local po = pc % 0x400000
+      if fo >= po and fo <= po + 3 then return end
+      if pc == 0x80D4A1 then return end
+      nlog = nlog + 1
+      local m = fo - 0xD081
+      log(string.format("  MATRD t=%d file=%06X (m%d = r%d c%d) v=%02X pc=%06X", t, fo,
+        m, math.floor(m / 16), m % 16, value, pc))
+    end
+  end, emu.callbackType.read, 0xD000, 0xD4FF, emu.cpuType.snes, emu.memType.snesPrgRom)
+end
+
 local pulse = {}
 emu.addEventCallback(function()
   for p = 0, 1 do

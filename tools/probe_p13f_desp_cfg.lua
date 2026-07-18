@@ -1,8 +1,8 @@
-STATE = "pluto_vs_chibi_v07.mss"
-PLAYER = 2
-MOTION = "63214"
+STATE = "venus_vs_jupiter_clean.mss"
+PLAYER = 1
+MOTION = "4123632"
 BTN = "x"
-RANGES = { 50 }
-TAG = "CHIBID-PUNISH"
-AIR = true
-DTAUNT = 40
+RANGES = { 70 }
+TAG = "VENDESP-M4"
+LOGROW = true
+
