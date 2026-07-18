@@ -21,7 +21,7 @@ Neptune 1, Pluto 1, Chibi 1 — plus in-table desperation records for Moon/Mars/
 Chibi (the other five characters' desperation records are not in the walked windows;
 their location is open).
 
-Status: **Uranus, Neptune, Jupiter, Pluto and Mars complete**; others pending motions from the maintainer.
+Status: **Uranus, Neptune, Jupiter, Pluto, Mars and Venus complete**; Moon, Mercury, Chibi pending.
 
 ---
 
@@ -415,14 +415,75 @@ also claims normals cancel into backdash (lights ~−6F, heavies ~+6F) — untes
   no-misfire is the desperation-record signature (Moon 0x0C, Venus 0x16, Chibi 0x1B
   follow the same pattern). Nothing unused after all.
 
+## Venus (charID 5)
+
+### Crescent Beam — 236LP / 236HP (record idx 0x14)
+
+| Variant | Act | Damage | Chip | Wiki startup/recovery |
+|---|---|---|---|---|
+| LP | 5D | **8** (wiki exact) | 2 | 11 / 36 |
+| HP | 5E | **10** (wiki exact) | 2 | 15 / 51 |
+
+- Horizontal beam at **−68px flight height** (same altitude as Supreme Thunder) —
+  **crouching avoids it completely** (verified: zero contact vs a croucher), exactly
+  as the maintainer said. Anti-stander/anti-jumper only. Misfire acts 5F/60.
+
+### Wink Chain Sword — [2]8LP / [2]8HP (charge down-up; record idx 0x15)
+
+| Variant | Act | Damage | Spawn distance | Chip | Wiki recovery / on block |
+|---|---|---|---|---|---|
+| LP | 63 | **8** (wiki 10 col) | **32px** | 2 | **3** / +34~ |
+| HP | 64 | **9** (wiki 12 col) | **64px** | 2-3 | **7** / +30~ |
+
+- A ground-to-sky pillar rising from floor height at a fixed distance — and the
+  button-dependent distance is literally encoded in the record payload (byte 2:
+  LP 0x20 = 32px, HP 0x40 = 64px). The maintainer's description matches the data
+  structure itself.
+- **Guard: Mid confirmed** — both standing and crouching block it for 2 chip (the
+  "might hit low" hypothesis is refuted; wiki Mid agrees). Rig note: the stand-block
+  test needs a DELAYED guard hold — a defender holding back during the charge walks
+  out of the pillar's fixed spot and the move whiffs entirely (which itself documents
+  the pillar's core weakness: it does not track).
+- Wiki's near-zero recovery (3/7 frames) makes it hugely plus on block — a trap/oki
+  pillar, not a projectile duel tool. Misfire acts 65/66 (= her patch-12 taunt).
+
+### Love-Me Chain — 623LP / 623HP (DP family; no dispatcher record)
+
+| Variant | Act | Hits (ours) | Total | Wiki actives / on block |
+|---|---|---|---|---|
+| LP | 67 | 4 × 5-6 | **23** | 4×6 / −15~+1 |
+| HP | 68 | 3 × 6-8 | **22** | 5×6 / −29~−9 |
+
+- The multi-hit chain-whip strike, anti-air per the community; class 0x08, chips
+  1-2 per hit on block, minus on block. No invulnerability observed in the hurtbox
+  trace (unlike Neptune's Splash Edge) — its anti-air value is reach/actives, not
+  invuln.
+
+### Throws — one of each type
+
+| Throw | Type | Damage | Techable | Wiki oki |
+|---|---|---|---|---|
+| **Huracanrana** c.4/6HP | toss (victim carried airborne mid-throw) | **22** (wiki exact) | Yes | +18 on tech |
+| **Machine Gun Knee** c.4/6HK | **HOLD — 5 knees × 4** | **20** (wiki exact) | No | **+41** |
+
+- Machine Gun Knee is the sixth confirmed hold-throw (Moon, Mars-HP, Chibi, Uranus-HK,
+  Pluto-HK, Venus-HK) — the kick-button hold-throw pattern is now clearly the
+  house style.
+
+### Related
+- **Desperation "Chain Explosive"** (4123632HP, record 0x16): §6b-6d — strike 37
+  deterministic in our rig (wiki 48 = the adjacent row-48 column, same story as
+  Neptune's Dragon Rise). Wiki chip 12×5 vs our measured single 9 — unreproduced,
+  flagged like Neptune's.
+
 ---
 
 ## Template for the remaining characters
 
 For each named special: LP/HP variant acts, melee/projectile path, stand/crouch/chip
 damage, misfire acts (cross-check the record tables), Guts coverage, and any recognizer
-quirks. Pending inputs (dispatcher specials): Moon ×2, Mercury ×2, Venus ×2,
-Chibi ×1 — plus whatever DP/charge/360-type moves the tables cannot reveal. DPs/command grabs are NOT in the record tables, so
+quirks. Pending inputs (dispatcher specials): Moon ×2, Mercury ×2, Chibi ×1 — plus
+whatever DP/charge/360-type moves the tables cannot reveal. DPs/command grabs are NOT in the record tables, so
 each character may also hide a 623/360-style move the tables can't reveal — ask the
 community list per character. (Neptune's "super" turned out to be her DP; there may be
 no true supers besides desperations.)
