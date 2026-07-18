@@ -465,3 +465,23 @@ Stats cannot push damage below the row's column-15 floor or above the column-0 c
   rush has LOWS: standing block collapses (66+grab), crouch-block holds (11, no grab).
 - Pluto Dimension Danse = STRIKE-THROW confirmed: blocked (either guard) -> 1 chip,
   grab never triggers (cinematic gated on the opener CONNECTING).
+
+### Special-move record tables — full dump (2026-07-19)
+Per-char misfire-capable specials, bank $C1, 7-byte records
+[attackID/class, variant(0=LP-ish,1=HP-ish), b2-b5 payload, misfire act]. The record+0
+index is GLOBAL and doubles as the move's +0x44 attack class. SPDs, supers and
+desperations are NOT in these tables (separate recognizers); trailing 6-byte 0x31-0x33
+records are a different (universal?) structure, unmapped.
+- Moon    @C1:373E: idx 0A (6A/6B), 0B (6C/6C), 0C var0-only (no misfire)  -> 3 specials
+- Mercury @C1:4778: idx 0E (6B/6C), 0D (65/66)                              -> 2
+- Mars    @C1:5851: idx 0F (66/67), 10 (6C/6D), 11 var1-only (no misfire)   -> 3
+- Jupiter @C1:6AD0: idx 12 (63/64), 13 (69/6A)                              -> 2
+- Venus   @C1:79BD: idx 14 (5F/60), 15 (65/66), 16 var0-only (no misfire)   -> 3
+- Uranus  @C1:8D6A: idx 17 (65/66)                                          -> 1
+- Neptune @C1:9DF6: idx 18 (66/67)                                          -> 1 (Deep Submerge 214P, presumed)
+- Pluto   @C1:AE33: idx 19 (62/63)                                          -> 1
+- Chibi   @C1:BDF0: idx 1A (63/64), 1B var1-only (no misfire)               -> 2
+NOTE: outer-senshi special classes 0x17-0x1B sit INSIDE the >=0x12 band previously
+labeled 'desperations' — the class taxonomy is really 'high specials+desperations'.
+MISFIRE_SETS in mkpatch12/13 was harvest-limited: tables add Moon 0B/0C, Mercury 0E,
+Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
