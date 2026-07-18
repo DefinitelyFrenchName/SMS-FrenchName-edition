@@ -1,10 +1,7 @@
-STATE = "pluto_vs_3.mss"
-PLAYER = 2
-MOTION = "8555556"
-BTN = "a"
-RANGES = { 20 }
-TAG = "MARS-FRANK-AIR"
-NOLOWHP = true
-LOGFD = true
+STATE = "venus_vs_jupiter_clean.mss"
+PLAYER = 1
+MOTION = "4123632"
+BTN = "x"
+RANGES = { 70 }
+TAG = "VENUS-DESP-REC"
 LOGREC = true
-DEFJUMP = 10

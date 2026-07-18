@@ -560,3 +560,17 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - Throws: Hundred-Slap c.4/6HP = hold 12x2=24 untech (the patch-13 lore throw);
   Frankensteiner c.4/6HK toss 24 gnd / 28 AIR (stronger airborne, wiki-exact both).
 - Record 0x11 (var-1, no misfire) matches no move — unused/hidden special? Open.
+
+### Record 0x11 solved: desperation records ARE in the tables (2026-07-19)
+- Single-variant misfire-00 records = DESPERATION records: Mars 0x11 (Snake Flare,
+  fires REC @C1:586D live), Moon 0x0C (@C1:375A), Venus 0x16 (@C1:79D9), Chibi 0x1B
+  presumed. Dispatch template: lda #act / jsr $04DA (act stager) / if $02,X==0:
+  ldy #rec / jsr $0B49 / jmp $0204. Mars's desperation handler C1:583C (act 0x75),
+  reached via branch at C1:5890 (act-machine: lda $01,X / asl / bpl -> 583C).
+- Live special handlers, same template: FSB-LP C1:55F5 (act 64, rec 5851), FSB-HP
+  C1:5626 (act 65, rec 5858), Snake-LK C1:568B (act 6A, rec 585F).
+- Revised dispatcher-special counts: Moon/Mercury/Mars/Jupiter/Venus 2 each,
+  Uranus/Neptune/Pluto/Chibi 1 each. Mercury/Jupiter/Uranus/Neptune/Pluto desperation
+  records NOT in the walked windows — location open.
+- Dispel -r arg gotcha: treats ranges oddly (misread our offsets); trust direct
+  python byte dumps + hand-decode for short stretches.
