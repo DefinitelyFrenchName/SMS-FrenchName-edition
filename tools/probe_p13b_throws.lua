@@ -42,7 +42,8 @@ end, emu.eventType.inputPolled)
 emu.addEventCallback(function()
   if not t or t < 0 then return end
   t = t + 1
-  if t == 2 then wr(0x8D, 5) end     -- ensure damage in case of a Practice-tagged state
+  if t == 2 then wr(0x8D, 5) end
+  if t == 3 and LVPOKE then wr(0x1F800 + LVPOKE, 3) end     -- ensure damage in case of a Practice-tagged state
   local ph = t % 150
   if ph == 10 then
     -- park thrower adjacent (side-aware)

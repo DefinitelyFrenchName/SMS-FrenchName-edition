@@ -26,7 +26,7 @@ Six bytes per fighter inside the 0x80-byte player struct (P1 `$7E:1000`, P2 `$7E
 | +0x71 | `$1071` | `$10F1` | buff_defense | reduces **ALL** damage the owner takes |
 | +0x72 | `$1072` | `$10F2` | buff_health | no live effect; presumed load-time max-HP (unverified) |
 | +0x73 | `$1073` | `$10F3` | buff_special | owner's **SPECIAL** damage boost |
-| +0x74 | `$1074` | `$10F4` | buff_secret | presumed **desperation** damage boost (unverified — see §7) |
+| +0x74 | `$1074` | `$10F4` | buff_secret | **desperation** damage boost (verified — the desperation's strike component scales 3→5→6 at stat 0/3/7; cinematic drain ticks are NOT stat-scaled) |
 | +0x75 | `$1075` | `$10F5` | buff_ochame | special-move **misfire chance** (§5) |
 
 - All six are **0 in every normal mode** (VS, Practice, story vs-COM as observed) — 0 is
@@ -215,9 +215,19 @@ LFSR-ish cluster in round-transition diffs).
 1. **Where/how the ACS screen sets the stats** — the customization UI's menu entry, mode
    value, and its point budget are unmapped (title menu: Story/1Pvs2P/1PvsCom/Tournament/
    Practice/Options — probably inside 1PvsCom or Tournament setup).
-2. **+0x74 buff_secret** — no effect on regular specials; the desperation hypothesis is
-   untested because no scripted motion has triggered a real desperation yet (class
-   ≥0x12). A pad session with Training+'s P1 HP LOW + DAMAGE ON settles it in minutes.
+2. ~~+0x74 buff_secret~~ — **RESOLVED**: boosts desperation damage (strike component
+   only). Desperation motions provided by the maintainer (numpad, HP=X HK=A):
+   Moon 2363214HK · Mercury 632146HK · Mars 6321412HK · Jupiter 2141236HP ·
+   Venus 4123632HP · Uranus 632141236HK · Neptune 236236HP · Pluto 632146HP ·
+   Chibi j.63214HP. Gate: performer HP ≤ 0x18 **or <10 s on the clock** (per the
+   maintainer; the HP path is verified — poke struct hp AND display `$0800`).
+   **Desperation anatomy (Pluto traced end-to-end):** attack-class +0x44 = 0x18
+   (≥0x12 ✓); a *cinematic grab*: initial strike hit through the normal apply sites,
+   then victim act 0x1C (HELD) drained 3-4 HP per ~12 frames through the hold-throw
+   tick site `$C1:0D54-0D6F` (write ≈ $C1:0D61; per-tick damage in DP $05, mode-4
+   gated, hp-underflow death path at $C1:0D63) — ~48 of ~51 total damage is drain.
+   Patch 13 v3.1 hooks the tick site with a holder-class ≥0x12 gate (normal
+   Moon/Mars/Chibi hold-throws pass through untouched, verified byte-identical).
 3. **+0x72 buff_health** — needs testing at character load, not mid-match.
 4. **+0x76** — unknown byte between secret/ochame block and action_strength.
 5. **The exact modifier-composition code** (where RNG + stats merge into `$00` before

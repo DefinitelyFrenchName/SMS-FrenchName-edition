@@ -59,6 +59,10 @@ FSM_CONT = 0x80837F
 MELEE_SITES = (0xC09C, 0xC16F, 0xC216, 0xC2C5)     # player-vs-player hit/chip variants
 PROJ_SITES = (0xC47E, 0xC551, 0xC5F8, 0xC6A7)      # projectile hit/chip variants
 STRIKE_OLD = bytes.fromhex("b9490038e500")   # lda $0049,Y / sec / sbc $00
+# desperation-grab drain ticks (Pluto-style cinematic grabs; also serves Moon/Mars/Chibi
+# hold-throws -- the class gate keeps those untouched): lda $0049,Y / sec / sbc $05
+TICK_SITE = 0x010D54
+TICK_OLD = bytes.fromhex("b9490038e505")
 IND_HOOK = 0x00D596                                  # uploader staging-clean exit (every frame, vblank)
 IND_OLD = bytes.fromhex("ad0a08f020")                # lda $080A / beq $D5BB
 IND_CONT_NE = 0x80D59B                               # branch not taken
@@ -302,6 +306,61 @@ dk{sfx}:
 """
 
 
+def _tick_stub(table_long):
+    """Desperation-grab drain ticks: victim in Y, per-tick damage in DP $05. Scale only
+    when the HOLDER's +0x44 is desperation-class (>=0x12) -- normal hold-throws pass."""
+    g1 = """  lda $10C4
+  and #$00FF
+  cmp #$0012
+  bcs tg1
+  jmp passk
+tg1:
+"""
+    g2 = """  lda $1044
+  and #$00FF
+  cmp #$0012
+  bcs tg2
+  jmp passk
+tg2:
+"""
+    lp = f"""
+  cpy #$1000
+  beq tlp1
+  cpy #$1080
+  beq tlp2
+  jmp passk
+tlp1:
+{g1}  lda_l ${LV[0]:06X}
+  bra tlpd
+tlp2:
+{g2}  lda_l ${LV[1]:06X}
+tlpd:
+  and #$00FF
+  bne tlpk
+  jmp passk
+tlpk:
+"""
+    dmg_expr = "  lda $0005\n  and #$00FF\n"
+    return f"""
+  php
+  rep #$30
+  phx
+{lp}{_scale_core(dmg_expr, "k", table_long)}  plx
+  plp
+  lda_y $0049
+  sec
+  sbc_l ${SCR8:06X}
+  rtl
+passk:
+  plx
+  plp
+  lda_y $0049
+  sec
+  sbc $0005
+  rtl
+"""
+
+
 def _strike_stub(table_long, class_gate):
     """Shared scaling stub: class_gate=True for the 4 melee sites (attacker must be
     special-class), False for the 4 projectile sites (always special)."""
@@ -392,6 +451,7 @@ def build(src, out, pcts=(20, 40, 60)):
     assert data[FSM_HOOK:FSM_HOOK + 4] == FSM_OLD, f"fsm hook: {data[FSM_HOOK:FSM_HOOK+4].hex()}"
     for s in MELEE_SITES + PROJ_SITES:
         assert data[s:s + 6] == STRIKE_OLD, f"strike site {s:#x}: {data[s:s+6].hex()}"
+    assert data[TICK_SITE:TICK_SITE + 6] == TICK_OLD, f"tick site: {data[TICK_SITE:TICK_SITE+6].hex()}"
     assert data[IND_HOOK:IND_HOOK + 5] == IND_OLD, f"indicator hook: {data[IND_HOOK:IND_HOOK+5].hex()}"
 
     bankbase = (len(data) + 0xFFFF) & ~0xFFFF
@@ -409,10 +469,12 @@ def build(src, out, pcts=(20, 40, 60)):
     melee_body, _ = A.assemble(_strike_stub(table_long, True).splitlines(), melee_off, bank)
     proj_off = melee_off + len(melee_body)
     proj_body, _ = A.assemble(_strike_stub(table_long, False).splitlines(), proj_off, bank)
-    ind_off = proj_off + len(proj_body)
+    tick_off = proj_off + len(proj_body)
+    tick_body, _ = A.assemble(_tick_stub(table_long).splitlines(), tick_off, bank)
+    ind_off = tick_off + len(tick_body)
     ind_body, _ = A.assemble(_ind_stub().splitlines(), ind_off, bank)
 
-    blob = tables + fsm_body + fsm_tail + melee_body + proj_body + ind_body
+    blob = tables + fsm_body + fsm_tail + melee_body + proj_body + tick_body + ind_body
     data[bankbase:bankbase + len(blob)] = blob
 
     def jsl(addr16):
@@ -422,6 +484,7 @@ def build(src, out, pcts=(20, 40, 60)):
         data[s:s + 6] = jsl(melee_off) + b"\xEA\xEA"
     for s in PROJ_SITES:
         data[s:s + 6] = jsl(proj_off) + b"\xEA\xEA"
+    data[TICK_SITE:TICK_SITE + 6] = jsl(tick_off) + b"\xEA\xEA"
     data[IND_HOOK:IND_HOOK + 4] = bytes([0x5C, ind_off & 0xFF, (ind_off >> 8) & 0xFF, bank])
     # IND_OLD was 5 bytes; the byte at IND_HOOK+4 (0x20) is orphaned, skipped by the jml
 
@@ -429,7 +492,7 @@ def build(src, out, pcts=(20, 40, 60)):
     _fix_checksum(data)
     open(out, "wb").write(data)
     print(f"wrote {out} from {src}: pcts={pcts} bank={bank:#04x} fsm={len(fsm_body)}B "
-          f"melee={len(melee_body)}B proj={len(proj_body)}B ind={len(ind_body)}B, "
+          f"melee={len(melee_body)}B proj={len(proj_body)}B tick={len(tick_body)}B ind={len(ind_body)}B, "
           f"{len(data):#x} bytes, sha1={sha1(bytes(data)).hexdigest()}")
 
 
