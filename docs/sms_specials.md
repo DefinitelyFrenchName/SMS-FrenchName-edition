@@ -9,11 +9,17 @@ Move names and inputs from the maintainer / Dustloop community wiki
 our own measurements).
 
 **Structural ground truth** (see annotations "Special-move record tables"): each
-character's misfire-capable specials live in a bank-$C1 record table (7-byte records,
-LP/HP variant pairs; record+0 = global index = the move's +0x44 attack class).
-Command grabs (360 recognizer), supers and desperations are recognized separately.
-Known table sizes: Moon 3, Mercury 2, Mars 3, Jupiter 2, Venus 3, Uranus 1, Neptune 1,
-Pluto 1, Chibi 2.
+character's dispatcher moves live in a bank-$C1 record table (7-byte records;
+record+0 = global index). Button-PAIRED records with misfire acts = the misfire-capable
+specials; **single-variant records with misfire 00 = the character's DESPERATION**
+(verified live: Mars's "mystery" record 0x11 is Snake Flare, Moon's 0x0C and Venus's
+0x16 fire on their desperations — dispatched from the act-machine via the
+`lda #act / jsr $04DA / ldy #rec / jsr $0B49` template, e.g. Mars @C1:583C).
+Command grabs (360s), DPs, charge-kicks and some rushing strikes fire NO record.
+Dispatcher-special counts: Moon 2, Mercury 2, Mars 2, Jupiter 2, Venus 2, Uranus 1,
+Neptune 1, Pluto 1, Chibi 1 — plus in-table desperation records for Moon/Mars/Venus/
+Chibi (the other five characters' desperation records are not in the walked windows;
+their location is open).
 
 Status: **Uranus, Neptune, Jupiter, Pluto and Mars complete**; others pending motions from the maintainer.
 
@@ -403,9 +409,11 @@ also claims normals cancel into backdash (lights ~−6F, heavies ~+6F) — untes
 ### Related
 - **Desperation "Mars Snake Flare"** (6321412HK): §6b-6d — projectile 32 (wiki exact),
   chip 8×N (wiki) = our measured 4×8 blocked. Wiki: startup 19, −31 on block.
-- **Record 0x11 mystery**: her table holds a third record (var-1-only, no misfire act,
-  payload `18 00 00 00`) that matches NO tested move — Heel Drop fires no record at
-  all. Possibly an unused/hidden special. Open.
+- **Record 0x11 — mystery SOLVED**: it is Snake Flare's own dispatch record (verified:
+  the desperation fires REC @C1:586D live). The handler at C1:583C stages act 0x75 and
+  dispatches it, reached from the act-machine branch at C1:5890. Single-variant +
+  no-misfire is the desperation-record signature (Moon 0x0C, Venus 0x16, Chibi 0x1B
+  follow the same pattern). Nothing unused after all.
 
 ---
 
@@ -413,8 +421,8 @@ also claims normals cancel into backdash (lights ~−6F, heavies ~+6F) — untes
 
 For each named special: LP/HP variant acts, melee/projectile path, stand/crouch/chip
 damage, misfire acts (cross-check the record tables), Guts coverage, and any recognizer
-quirks. Pending inputs: Moon ×3, Mercury ×2, Venus ×3,
-Chibi ×2 (record idx 0x0A-0x1B). DPs/command grabs are NOT in the record tables, so
+quirks. Pending inputs (dispatcher specials): Moon ×2, Mercury ×2, Venus ×2,
+Chibi ×1 — plus whatever DP/charge/360-type moves the tables cannot reveal. DPs/command grabs are NOT in the record tables, so
 each character may also hide a 623/360-style move the tables can't reveal — ask the
 community list per character. (Neptune's "super" turned out to be her DP; there may be
 no true supers besides desperations.)
