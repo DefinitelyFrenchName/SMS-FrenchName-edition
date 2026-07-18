@@ -550,3 +550,13 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   (per-char; Uranus 14f), 37px. Wiki 'distance 100' units unknown.
 - c.HP wiki-prose croucher list omits Moon (we hit crouching Moon 14; patch-7 agrees).
 - Act 0x21 observed on hp-poke to 1 (danger/low-hp reaction act?) - unmapped.
+
+### Mars kit (2026-07-19)
+- Fire Soul Bird 41236P: rec 0F, acts 64/65, 10/13, rising arc (contact -65px @70).
+- Snake Fire 41236K: rec 10, acts 6A/6B, 10/12 wiki-exact, ground-level, hard KD.
+  P/K fireball pair on one motion.
+- Fire Heel Drop 214K: NO rec; LK acts 70/72 2hits 8+12; HK 71/73 single 18 (class
+  0x10!); MID not overhead (both guards block, chip 7); double-hits on block.
+- Throws: Hundred-Slap c.4/6HP = hold 12x2=24 untech (the patch-13 lore throw);
+  Frankensteiner c.4/6HK toss 24 gnd / 28 AIR (stronger airborne, wiki-exact both).
+- Record 0x11 (var-1, no misfire) matches no move — unused/hidden special? Open.
