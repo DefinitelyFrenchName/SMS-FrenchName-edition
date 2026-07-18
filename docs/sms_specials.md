@@ -282,7 +282,9 @@ multi-hit-on-block phenomenon). Wiki startup 37, −17/D on block.
 - The maintainer's description confirmed in full: HP materializes at a fixed spot ~80px
   ahead and SITS there (slot alive 50f+ in the trace; wiki actives 53) — and therefore
   **whiffs point-blank** (no contact at ≤22px). Huge recovery (82) — a placed zoning
-  tool, not a poke. Multi-chips on block (3×3).
+  tool, not a poke. Multi-chips on block (3×3), hard knockdown per wiki.
+- **LP also whiffs point-blank** (verified at 22px — same spawn offset) and per wiki
+  prose stops just before fullscreen. Never guard-cancel with it up close.
 - Misfire acts 62/63 (= her patch-12 taunt).
 
 ### Strict Sweep — [4]6LK / [4]6HK (charge; TRUE OVERHEAD, forward-moving, low-invulnerable)
@@ -298,7 +300,9 @@ multi-hit-on-block phenomenon). Wiki startup 37, −17/D on block.
   advancing flip kick.
 - **Half-body invulnerability = the LOWER half** (opposite of Jupiter's lariat): during
   the active flip her hurtboxes span only −113..−71px (airborne body), so sweeps and
-  lows whiff clean underneath. Startup boxes are normal-sized.
+  lows whiff clean underneath. Startup boxes are normal-sized. Wiki prose gives the
+  windows: LK 7~28F, HK 24~42F, and notes the HK clears low fireballs (consistent with
+  our geometry) — community nickname "Pole Vault".
 - Misfire: none observed live (charge specials share the record?) — its acts 65-67 sit
   outside the dispatcher path like other charge/DP moves... (records only cover Dead
   Scream; Strict Sweep fires no REC — same non-dispatcher family as DPs/360s.)
@@ -325,11 +329,26 @@ per-posture matrix vs the cast is richer than a plain overhead:
 So "overhead on some of the cast, whiffs on others" is exactly right, with the extra
 twist that guard pose vs plain crouch matters per character. **Patch 7** extends the
 active box downward (h 54→62) to make it hit every croucher except Chibi.
+Wiki-prose gap: their list of crouchers it hits (Mars/Pluto/Neptune/Uranus) omits
+Moon — we hit plain-crouching Moon for 14 live, and the patch-7 box survey agrees.
+
+### Backdash (44) — per-character stats confirmed
+
+Act 0x26 like everyone, but **20 frames fully invulnerable** (hurt idx 0 from t+1
+through the dash; wiki "1~20F strike/projectile/throw invulnerable" matches exactly) vs
+Uranus's 14f — backdash invuln IS per-character. Travel 37px + 5f skid. (Wiki "Move
+Distance: 100" is in unknown units; our 37 game-pixels is the trace value.) Wiki prose
+also claims normals cancel into backdash (lights ~−6F, heavies ~+6F) — untested here.
 
 ### Related
 - **Desperation "Dimension Dance"** (632146HP): `sms_acs_system.md` §6b-6d — the
   blockable strike-throw (1 chip, no grab on block; wiki chip 1 matches). Wiki adds
-  +15~+20 on block.
+  +15~+20 on block, and its "cannot chip kill" is now mechanically explained: chip
+  floors at 1, and the engine's death rule is UNDERFLOW (hp 0 = alive), so a 1-chip
+  move can only ever park a ≥1-HP defender at 0 — see sms_damage_system.md §2.
+  Wiki prose bonus: it whiffs on crouching Chibi AND Venus, giving Pluto a
+  character-specific infinite (c.LP c.LP HP > desperation) — this game's OTHER
+  documented infinite, cousin to the Uranus one this project began with.
 
 ---
 
