@@ -117,11 +117,11 @@ local function dirpad(c, L)
   if back then if L then m.left = true else m.right = true end end
   return m
 end
--- motion driver: from pt0, 3f per step, button on step n+1 (neutral or with last dir)
-local function motion(api, player, mstr, btn, pt0, neutralBtn)
+-- motion driver: from pt0, `stepf` frames per step (default 3), button on step n+1
+local function motion(api, player, mstr, btn, pt0, neutralBtn, stepf)
   local pt = api.pt
   local L = onLeft(player)
-  local sd = math.floor((pt - pt0) / 3) + 1
+  local sd = math.floor((pt - pt0) / (stepf or 3)) + 1
   if pt >= pt0 and sd <= #mstr then
     pulse[player - 1] = dirpad(mstr:sub(sd, sd), L)
   elseif pt >= pt0 and sd == #mstr + 1 then
@@ -514,6 +514,30 @@ add{ name = "base-desp-chibi-crouch24", group = "base", state = "pluto_vs_chibi_
   verdict = function()
     local tot = total()
     return ck(tot == 24, "Chibi air desperation vs crouch expects 24 (hits whiff), got " .. tot)
+  end }
+
+add{ name = "base-spd-uranus-toss32", group = "base", state = "uranus_vs_jupiter.mss", dur = 200,
+  frame = function(api)
+    if api.pt == 5 then park(1, 20) end
+    motion(api, 1, "6321478", "a", 10, false, 2)
+  end,
+  verdict = function()
+    local tot, byk = total()
+    return ck(tot == 32 and (byk.TOSS or 0) == 32 and hits[1] and hits[1].a1 == 0,
+      string.format("Uranus SPD expects TOSS 32 at class 0, got tot=%d toss=%d", tot, byk.TOSS or 0))
+  end }
+
+add{ name = "base-spd-jupiter-carry30", group = "base", state = "jupiter_vs_venus_clean.mss", dur = 220,
+  frame = function(api)
+    if api.pt == 5 then park(1, 20) end
+    motion(api, 1, "6321478", "x", 10, false, 2)
+  end,
+  verdict = function()
+    local tot, byk = total()
+    local nticks = 0
+    for _, h in ipairs(hits) do if h.kind == "TICK" then nticks = nticks + 1 end end
+    return ck(tot == 30 and nticks == 5,
+      string.format("Jupiter SPD expects 5 carry ticks = 30, got tot=%d ticks=%d", tot, nticks))
   end }
 
 add{ name = "base-throwtech-early-mash", group = "base", state = "venus_vs_jupiter_clean.mss", dur = 120,

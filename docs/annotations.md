@@ -441,3 +441,12 @@ Stats cannot push damage below the row's column-15 floor or above the column-0 c
 - +0x71 buff_defense reduces MATRIX-path damage only. Verified at defense 7:
   normal throw toss 20 -> 20 (unchanged); Pluto desperation opener 3 -> 1 (reduced)
   while all 12 drain ticks byte-identical (45). Throw toss/tech/ticks bypass $D055.
+
+### Command-grab specials (SPDs) + column wrap (2026-07-18)
+- Uranus SPD 6321478HK: acts 68/6A/6C/6E/70/71, grab at ~t+2, single TOSS 32 at
+  $C1:082F with thrower +0x44 = 0. Jupiter SPD 6321478HP: acts 6E/70/71, airborne
+  carry (victim y -72px) draining 5 ticks x6 = 30 via $C1:0D54, holder +0x44 = 0.
+  Probe input needs 2f/step (3f -> a normal comes out). Immune to ACS defense 7 and
+  to Guts L3 (class gate can't see them) -- byte-identical verified.
+- Column wrap: (mod+8)&15 has no clamp ($80:D062). Defense 7 on a weak-rolled heavy
+  (col >= 9) wraps to col 0-1: measured 8 -> 23 roll-matched. Safe defense range <= 6.
