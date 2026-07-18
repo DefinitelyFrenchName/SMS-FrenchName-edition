@@ -52,7 +52,8 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
 - `SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` — `be2cb752…` — patches 1-11 (BPS `build/sms_allpatches_v1.1.bps`).
-- **`SailorMoonS_FrenchName_v0.18_ALLPATCHES.sfc`** — `86b7f44c…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.18.bps`, title v.0.18; adds patch 14 Guts Grip — command grabs covered).
+- **`SailorMoonS_FrenchName_v0.19_ALLPATCHES.sfc`** — `53bae682…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.19.bps`, title v.0.19; Guts Grip also covers Jupiter's LP Giant Swing).
+- `SailorMoonS_FrenchName_v0.18_ALLPATCHES.sfc` — `86b7f44c…` — previous build (BPS `build/sms_allpatches_v0.18.bps`).
 - `SailorMoonS_FrenchName_v0.17_ALLPATCHES.sfc` — `bccb0182…` — previous build (BPS `build/sms_allpatches_v0.17.bps`).
 - `SailorMoonS_FrenchName_v0.16_ALLPATCHES.sfc` — `cf96aa05…` — previous build (BPS `build/sms_allpatches_v0.16.bps`).
 - `SailorMoonS_FrenchName_v0.15_ALLPATCHES.sfc` — `30fd7b6e…` — previous build (BPS `build/sms_allpatches_v0.15.bps`).

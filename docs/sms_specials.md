@@ -15,7 +15,7 @@ Command grabs (360 recognizer), supers and desperations are recognized separatel
 Known table sizes: Moon 3, Mercury 2, Mars 3, Jupiter 2, Venus 3, Uranus 1, Neptune 1,
 Pluto 1, Chibi 2.
 
-Status: **Uranus and Neptune complete**; others pending motions from the maintainer.
+Status: **Uranus, Neptune and Jupiter complete**; others pending motions from the maintainer.
 
 ---
 
@@ -190,13 +190,78 @@ range tested (25/35/40/60), chip **9** single. Wiki lists 48 damage / chip 12×2
 disagreement is column sampling again, but the second chip instance never reproduced in
 our rig. Emulation trusted; flagged.
 
+## Jupiter (charID 4)
+
+### Supreme Thunder — [4]6LP / [4]6HP (charge; record idx 0x12)
+
+| Variant | Acts | Damage | Chip (wiki) | Startup (wiki) | Recovery (wiki) | On block (wiki) |
+|---|---|---|---|---|---|---|
+| LP | 61 | **13** (wiki 10/13) | 2 | 13 | 31 | +6~ /D |
+| HP | 62 | **16** (wiki 12/16) | 3 | 16 | 41 | −4~ /D |
+
+- A sonic-boom **charge** input: hold back ~25-39 frames (24f charge fails, 39f works
+  in our rig), then 6+P. The strongest plain fireball measured so far (13/16 vs
+  Neptune's 8/10) and it KNOCKS DOWN (wiki /D). Our deterministic rolls equal the
+  wiki's faceHit column; same matrix rows.
+- Misfire acts 63/64 (= her patch-12 taunt).
+
+### Coconut Cyclone — j.632LP / j.632HP (air fireball; record idx 0x13)
+
+- The maintainer's description is exactly right and trace-confirmed: the falling
+  fireball has **no hitbox in flight** — the hit registers only at GROUND IMPACT
+  (our hit log: contact at floor height ~140px out for HP; whiffs at 30-100px).
+- Measured HP: **12** (wiki 10/12 LP/HP). Wiki: startup 16/19, actives 24/40, chip
+  2×3 / 3×5, and enormous advantage (+34~+59 on block) — a delayed-oki zoning tool.
+- Misfire acts 69/6A.
+
+### Giant Swing — 6248LP / 6248HP (360 command grab; not in the record table)
+
+| Variant | Carry act | Ticks | Damage | Range (wiki) | Guts Grip L3 |
+|---|---|---|---|---|---|
+| LP | **0x6F** | 4×6 | **24** | 64px | **8** (v0.19 fix) |
+| HP | **0x70** | 5×6 | **30** | 56px | 10 |
+
+- Wiki damage matches exactly (24/30); unblockable, untechable, airborne carry
+  (victim held 72px up) draining through the tick site at holder class 0.
+- **Patch-14 gap found here and fixed in v0.19**: the LP version's carry act 0x6F was
+  not in GRAB_ACTS (only HP's 0x70) — LP Giant Swing escaped Guts Grip. Both acts are
+  now gated (verified 24→8, 30→10 at L3). LP trades 6 damage for 8px more range.
+
+### Double Axel — 236LK / 236HK (lariat; separate recognizer, no record)
+
+| Variant | Act | Startup | Hits (ours) | Damage/hit | Wiki actives |
+|---|---|---|---|---|---|
+| LK | 0x6B | **3f** (= wiki) | 2 connected | 5 (wiki 4/5) | 2×13 cycles |
+| HK | 0x6C | **5f** (= wiki) | 1 connected | 16 (wiki 12/16) | 4×13 cycles |
+
+- **Stationary — confirmed** (position byte never moves during the whole spin; unlike
+  Zangief's walking lariat).
+- **Half-body invincibility — confirmed with geometry**: the spin swaps to dedicated
+  hurtboxes (idx 0x44-0x48) whose tops sit at **−34px**, vs −76px standing — the head
+  and upper torso are invulnerable for the whole spin. Every fireball flight height
+  we've measured (−40 to −64px) passes clean over it: it is a fireball-dodging lariat.
+- Wiki: LK is PLUS on block (+1~+23); HK −25~+7 with knockdown; chip 1×13 / 3×13.
+
+### Power Bomb — c.4/6HP throw (ground and, per wiki, air)
+
+- Ground: grab → toss **28** (act 5E), techable, +23 on tech — wiki-exact.
+- Air version: wiki lists j.4/6HP as an identical row (28, techable). Our rig produced
+  j.HP instead at three air timings — air-throw adjacency is finicky; taken on
+  wiki+maintainer authority, unverified locally.
+
+### Lightning Strike (desperation) — cross-check
+
+Ours: single strike 48 (wiki 48 ✓ exact), blocked = 3 hits × 12 chip — **the wiki's
+"12×3" chip matches our block measurement exactly** (a rare full convergence on the
+multi-hit-on-block phenomenon). Wiki startup 37, −17/D on block.
+
 ---
 
 ## Template for the remaining characters
 
 For each named special: LP/HP variant acts, melee/projectile path, stand/crouch/chip
 damage, misfire acts (cross-check the record tables), Guts coverage, and any recognizer
-quirks. Pending inputs: Moon ×3, Mercury ×2, Mars ×3, Jupiter ×2, Venus ×3, Pluto ×1,
+quirks. Pending inputs: Moon ×3, Mercury ×2, Mars ×3, Venus ×3, Pluto ×1,
 Chibi ×2 (record idx 0x0A-0x1B). DPs/command grabs are NOT in the record tables, so
 each character may also hide a 623/360-style move the tables can't reveal — ask the
 community list per character. (Neptune's "super" turned out to be her DP; there may be
