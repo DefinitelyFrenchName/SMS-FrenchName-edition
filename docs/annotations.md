@@ -457,3 +457,11 @@ Stats cannot push damage below the row's column-15 floor or above the column-0 c
 - Desperations: strict ordered matcher incl. diagonals (any drop -> normal comes out),
   trailing extras ok, per-step timeout ~12-15f (Pluto full input works spread over 72f).
 - Uranus normal throw = hold-type (tick path, ~22 total), unlike Neptune/Moon tosses.
+
+### Desperation chip (2026-07-19)
+- Chip = hit/4 floor-1 per connecting hit through the normal matrix sites (blockstun
+  acts 0C/0E at write). Moon desperation = flagged NO-chip (0, write skipped; blockstun
+  t33-164). Multi-hit-on-block: Jupiter 1->3 (36 chip), Mars 1->4 (32 = full). Uranus
+  rush has LOWS: standing block collapses (66+grab), crouch-block holds (11, no grab).
+- Pluto Dimension Danse = STRIKE-THROW confirmed: blocked (either guard) -> 1 chip,
+  grab never triggers (cinematic gated on the opener CONNECTING).

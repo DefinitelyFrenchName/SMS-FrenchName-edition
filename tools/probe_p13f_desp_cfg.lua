@@ -1,7 +1,7 @@
-STATE = "jupiter_vs_venus_clean.mss"
+STATE = "pluto_vs_1.mss"
 PLAYER = 1
-MOTION = "2141236"
+MOTION = "632146"
 BTN = "x"
-RANGES = { 70 }
-TAG = "JUPDESP-F8"
-STEPF = 8
+RANGES = { 60, 40 }
+TAG = "CHIP-PLUTO-CRBLK"
+DEFBLOCK = "crouch"
