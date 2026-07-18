@@ -1202,6 +1202,15 @@ only attack-class >= 0x08 moves are nerfed (dash attacks / command normals are n
 specials). Training+ additionally gained a **P1 HP FULL/LOW menu row** (LOW = 0x17,
 under the 0x18 desperation threshold) for desperation testing.
 
+**v3.1 (desperation coverage):** the maintainer's motion list enabled real desperation
+testing, which exposed the gap they had reported: cinematic-grab desperations (Pluto
+traced fully) deal ~94%% of their damage as HOLD-DRAIN TICKS through the hold-throw tick
+site $C1:0D54 — bypassing the strike hooks. v3.1 adds a JSL thunk there with a
+holder-class >= 0x12 gate: desperation drains scale (Pluto: 48 -> 19 at L3, every tick
+exact incl. the 11-damage finisher -> 4), normal Moon/Mars/Chibi hold-throws verified
+byte-identical. Bonus RE: +0x74 buff_secret = desperation strike-damage boost (3->5->6
+at stat 0/3/7); drain ticks are not stat-scaled.
+
 **v3 (QA pivot):** Guts no longer boosts general defense — **completing a taunt now
 NERFS the opponent's SPECIAL and DESPERATION damage against you** (20/40/60% per level,
 knobs; direct hits + projectiles + chip; normals and throws deliberately untouched).
