@@ -334,6 +334,35 @@ Two entirely different recognizers coexist (all results single-attempt scripted 
 Bonus finding from the sweep: **Uranus's normal throw is a HOLD-type** (back/fwd+HK at
 close range drains ~22 through the tick path), unlike Neptune/Moon's 20-damage tosses.
 
+### 6d. Desperation chip damage (defender blocking; probe-measured, 2026-07-19)
+
+Standing block unless noted; `DEFBLOCK` rig (defender holds away, or away+down).
+Chip flows through the same matrix apply sites (blockstun acts 0x0C/0x0E at the write),
+so ACS defense and the Guts patch scale it like any matrix hit.
+
+| Char | Hit | Chip (blocked) | Notes |
+|---|---|---|---|
+| Moon | 48 | **0** | true zero — defender sat in blockstun t=33→164 with NO hp write (no-chip flag); the engine skips the write entirely |
+| Mercury | 48 | **12** | single |
+| Mars | 32 | **32** (4×8) | the beam MULTI-HITS on block — chip equals full hit damage |
+| Jupiter | 48 | **36** (3×12) | multi-hits on block — 75% of hit damage as chip |
+| Venus | 37 | **9** | chips via her projectile component |
+| Uranus | 67 | stand: **66 + GRAB lands** · crouch: **11, no grab** | the rush contains LOWS — standing guard collapses mid-string and the toss connects; **crouch-block neutralizes it** (~11 chip, no grab) |
+| Neptune | 37 | **9** | single |
+| Pluto | 48 | **1** | **community value confirmed — and the strike-throw reading with it**: blocked (standing OR crouching) = 1 chip and the grab NEVER triggers; the cinematic requires the opening strike to connect. Dimension Danse is a blockable strike-throw, not a command grab |
+| Chibi | 52 | **5** (5×1) | air barrage chips 1 per connecting hit |
+
+**Mechanism notes:**
+- Chip ≈ **hit damage ÷ 4** (floored, min 1) per connecting hit — consistent everywhere
+  except Moon's flagged 0-chip projectile.
+- Blocking can change the HIT COUNT: Jupiter 1→3 hits, Mars 1→4 (active frames
+  re-connecting through blockstun), Chibi 7→5. That's why Mars's blocked desperation
+  chips its FULL hit damage and Jupiter's chips 75% — blocking those two barely helps,
+  while blocking Mercury/Venus/Neptune saves ~75%.
+- Threat summary for players: block Moon free (0); crouch-block Uranus (11 vs 67);
+  never block Mars (32 either way — dodge/jump instead); Pluto must be avoided by
+  position or interrupt, but blocking costs only 1.
+
 ## 7. Open unknowns (probe before relying on)
 
 1. **Where/how the ACS screen sets the stats** — the customization UI's menu entry, mode

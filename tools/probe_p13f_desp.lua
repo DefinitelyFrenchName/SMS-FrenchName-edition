@@ -115,6 +115,13 @@ emu.addEventCallback(function()
   elseif DEFJUMP and ph == DEFJUMP + 3 then pulse[2 - PLAYER] = nil end
   if DTAUNT and ph >= DTAUNT and ph <= DTAUNT + 1 then pulse[2 - PLAYER] = { l = true }
   elseif DTAUNT and ph == DTAUNT + 2 then pulse[2 - PLAYER] = nil end
+  if DEFBLOCK and ph >= 6 then
+    local L = onLeft()   -- performer on left -> defender blocks by holding right... away = same dir as performer->defender? defender holds AWAY from performer
+    local p = {}
+    if L then p.right = true else p.left = true end
+    if DEFBLOCK == "crouch" then p.down = true end
+    pulse[2 - PLAYER] = p
+  end
   -- defender crouch hold
   if CROUCH and ph >= 6 then pulse[2 - PLAYER + 0] = { down = true } end
   if CROUCH and ph < 6 then pulse[2 - PLAYER + 0] = nil end
@@ -148,6 +155,10 @@ emu.addEventCallback(function()
     log(string.format("   act %02X a44=%02X t=%d", a, ram(pb + 0x44), t))
   end
   if ram(db + 1) == 0x1C and not saw.grab then saw.grab = true; log("   defender GRABBED (act 1C) t=" .. t) end
+  if LOGDACT then
+    local da = ram(db + 1)
+    if da ~= saw.pda then log(string.format("   dact %02X->%02X t=%d", saw.pda or 0, da, t)); saw.pda = da end
+  end
   -- end of attempt: report
   if ph == 399 then
     if #hits > 0 then
