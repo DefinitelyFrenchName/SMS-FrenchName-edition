@@ -493,3 +493,16 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   (fully invulnerable) - patch-2/6 fact trace-confirmed.
 - 2HK slide: act 0x59, startup 8f, active hb idx 0x0F ~38f, slide +67-79px, low,
   knockdown, hurtbox idx 0x39 (low profile) during; dmg rolls 8 (wiki 10).
+
+### Neptune kit (2026-07-19)
+- Deep Submerge 214P: acts 62/64 (LP) 63/65 (HP), dmg 8/10 (wiki exact), rec idx 18.
+- Splash Edge 623P: DP, NOT dispatcher-recognized (no REC fires — like SPDs/desps).
+  LP act 68: 3f startup, INVULN (hu=00) frame 1 through actives, 1 hit. HP acts 69->6B:
+  4f, invuln phase 1, 2 hits 11+8; rising phase vulnerable (hu 3C). Resolves the old
+  '236236 super' = sloppy Splash Edge HP.
+- Neck Throw 4/6HP: toss 20 acts 5D-5F, techable, AIR version identical (verified x3).
+- c.HK: 2 hits acts 4A/4B, hit2 OVERHEAD (crouch-block opened, 13 = wiki faceHit —
+  that column = vs-crouch posture value). Blockstun acts: 0C stand, 0D crouch-block,
+  0E stand-2nd, 0F crouch-hit... (taxonomy growing).
+- Dragon Rise: deterministic 37 (r48c9) all ranges, chip 9 single; wiki 48 / 12x2
+  unreproduced (adjacent columns + unknown second chip) — flagged.

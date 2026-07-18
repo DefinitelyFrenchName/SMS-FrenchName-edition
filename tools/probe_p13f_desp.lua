@@ -64,6 +64,21 @@ if LOGROW then
   end, emu.callbackType.read, 0xD000, 0xD4FF, emu.cpuType.snes, emu.memType.snesPrgRom)
 end
 
+if LOGREC then
+  emu.addMemoryCallback(function()
+    if t and t >= 0 then
+      local st = emu.getState()
+      if st["cpu.x"] == ((PLAYER == 1) and 0x1000 or 0x1080) then
+        local y = st["cpu.y"]
+        local b = {}
+        for i = 0, 7 do b[i] = emu.read(0x10000 + y + i, emu.memType.snesPrgRom) end
+        log(string.format("   REC t=%d @C1:%04X = %02X %02X %02X %02X %02X %02X %02X", t, y,
+          b[0], b[1], b[2], b[3], b[4], b[5], b[6]))
+      end
+    end
+  end, emu.callbackType.exec, 0xC10B49, 0xC10B49, emu.cpuType.snes, emu.memType.snesMemory)
+end
+
 local pulse = {}
 emu.addEventCallback(function()
   for p = 0, 1 do
