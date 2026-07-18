@@ -15,7 +15,7 @@ Command grabs (360 recognizer), supers and desperations are recognized separatel
 Known table sizes: Moon 3, Mercury 2, Mars 3, Jupiter 2, Venus 3, Uranus 1, Neptune 1,
 Pluto 1, Chibi 2.
 
-Status: **Uranus, Neptune and Jupiter complete**; others pending motions from the maintainer.
+Status: **Uranus, Neptune, Jupiter and Pluto complete**; others pending motions from the maintainer.
 
 ---
 
@@ -270,13 +270,74 @@ Ours: single strike 48 (wiki 48 ✓ exact), blocked = 3 hits × 12 chip — **th
 "12×3" chip matches our block measurement exactly** (a rare full convergence on the
 multi-hit-on-block phenomenon). Wiki startup 37, −17/D on block.
 
+## Pluto (charID 8)
+
+### Dead Scream — 41236LP / 41236HP (record idx 0x19)
+
+| Variant | Act | Behavior | Damage | Chip (wiki) | Wiki startup/active/recovery |
+|---|---|---|---|---|---|
+| LP | 60 | traveling ground-level fireball (slot id 0x19) | **12** (wiki exact) | 3 | 15 / 26 / 36 |
+| HP | 61 | **STATIC fireball ~80px in front** | **14** (wiki exact) | 3×3 | 21 / **53** / **82** |
+
+- The maintainer's description confirmed in full: HP materializes at a fixed spot ~80px
+  ahead and SITS there (slot alive 50f+ in the trace; wiki actives 53) — and therefore
+  **whiffs point-blank** (no contact at ≤22px). Huge recovery (82) — a placed zoning
+  tool, not a poke. Multi-chips on block (3×3).
+- Misfire acts 62/63 (= her patch-12 taunt).
+
+### Strict Sweep — [4]6LK / [4]6HK (charge; TRUE OVERHEAD, forward-moving, low-invulnerable)
+
+| Variant | Acts | Startup (wiki) | Hits | Damage | vs crouch-guard |
+|---|---|---|---|---|---|
+| LK | 65→66 | 23 | 2 (13+10 ours; wiki 10*10) | 23 | **hits through (10)** |
+| HK | 65→67 | 32 | 2 (wiki 12*12; our lone 16 = spacing) | 16-24 | **hits through (16)** |
+
+- **Overhead confirmed on both strengths** (crouch-blocking defenders take the full
+  hit; wiki guard "High" agrees).
+- **Moves forward ~138px** across the move (position traced) — a charge-released
+  advancing flip kick.
+- **Half-body invulnerability = the LOWER half** (opposite of Jupiter's lariat): during
+  the active flip her hurtboxes span only −113..−71px (airborne body), so sweeps and
+  lows whiff clean underneath. Startup boxes are normal-sized.
+- Misfire: none observed live (charge specials share the record?) — its acts 65-67 sit
+  outside the dispatcher path like other charge/DP moves... (records only cover Dead
+  Scream; Strict Sweep fires no REC — same non-dispatcher family as DPs/360s.)
+
+### Throw — c.4/6HK (her only throw; HOLD-type)
+
+- **Hold-throw**: 5 drain ticks × 4 = **20** in our rig (wiki 22 — tick-roll variance),
+  act 0x5C, untechable (hold-throws always are), +28 oki per wiki. Pluto joins
+  Moon/Mars/Chibi/Uranus-HK in the hold-thrower club.
+
+### c.HP — the "sometimes-overhead" (patch 7's target), now fully decoded
+
+Wiki lists it as guard **High**, 11 damage (our 14 = their faceHit column). The
+per-posture matrix vs the cast is richer than a plain overhead:
+
+| Defender state | Result |
+|---|---|
+| standing block | **blocked** (0 chip) |
+| plain crouch (Moon, tall croucher) | **hit 14** |
+| crouch-BLOCK Moon | **total whiff** — the crouch-guard pose uses a LOWER hurtbox than plain crouch |
+| crouch-BLOCK Mars (tallest crouch) | **full hit 14 — true overhead** |
+| short crouchers (Mercury/Jupiter/Venus/Chibi) | whiffs entirely (patch-7 geometry: box bottom −55 vs crouch tops) |
+
+So "overhead on some of the cast, whiffs on others" is exactly right, with the extra
+twist that guard pose vs plain crouch matters per character. **Patch 7** extends the
+active box downward (h 54→62) to make it hit every croucher except Chibi.
+
+### Related
+- **Desperation "Dimension Dance"** (632146HP): `sms_acs_system.md` §6b-6d — the
+  blockable strike-throw (1 chip, no grab on block; wiki chip 1 matches). Wiki adds
+  +15~+20 on block.
+
 ---
 
 ## Template for the remaining characters
 
 For each named special: LP/HP variant acts, melee/projectile path, stand/crouch/chip
 damage, misfire acts (cross-check the record tables), Guts coverage, and any recognizer
-quirks. Pending inputs: Moon ×3, Mercury ×2, Mars ×3, Venus ×3, Pluto ×1,
+quirks. Pending inputs: Moon ×3, Mercury ×2, Mars ×3, Venus ×3,
 Chibi ×2 (record idx 0x0A-0x1B). DPs/command grabs are NOT in the record tables, so
 each character may also hide a 623/360-style move the tables can't reveal — ask the
 community list per character. (Neptune's "super" turned out to be her DP; there may be
