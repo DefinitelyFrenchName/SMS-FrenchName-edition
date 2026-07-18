@@ -4,6 +4,9 @@
 how to test, what was learned, and the traps. Deep per-patch detail is in
 `docs/patch_notes.md`; **how the engine works, by subsystem, is in
 `docs/sms_engine_internals.md`** (the synthesis — read it to understand or modify the game);
+the A.C.S. stat system in `docs/sms_acs_system.md`; the damage system end-to-end
+(counter-hit/punish, posture tables, apply-site census, desperation compendium data) in
+`docs/sms_damage_system.md`;
 address-level notes in `docs/annotations.md`; the verified ROM map in
 `docs/sms_uranus_rom_map.md`. Persistent findings also live in the memory file
 `uranus-patch-state.md`.
