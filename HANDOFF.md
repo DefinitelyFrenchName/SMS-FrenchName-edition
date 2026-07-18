@@ -191,8 +191,11 @@ size degenerate headless; screenshots don't composite ScriptHud (console surface
 auto-detects which patches are in the ROM via PRG-ROM fingerprints, then runs base-game
 engine invariants (deterministic damage, counter-hit −2 columns, posture, throws,
 desperation types, dash distance) plus per-patch nominal+edge tests (incl. cross-patch
-counter-hit×Guts). `ROM=<build> tools/run.sh tools/test_regression.lua 600`; optional
-cfg `EXPECT="clean"|"all"`, `ONLY="pattern"`. Green on clean / v0.7-canonical / v0.17.
+counter-hit×Guts, p8 tech-window dual-mode, p13 round-reset, the full 9-character
+desperation compendium + crouch edges). `ROM=<build> tools/run.sh
+tools/test_regression.lua 900`; optional cfg `EXPECT="clean"|"all"`, `ONLY="pattern"`.
+Green: v0.17 = 38 tests, clean & v0.7-canonical = 23 each (dual-mode expectations flip
+with detection).
 
 **Other tools:** `extract_sms_hitboxes.py` → `docs/sms_all_boxes.json` (per-char box tables);
 `extract_proj_boxes.py` (projectile/object box tables, idx 10–27); `ds_trace.lua` /
