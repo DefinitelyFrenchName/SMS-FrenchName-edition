@@ -15,7 +15,7 @@ Command grabs (360 recognizer), supers and desperations are recognized separatel
 Known table sizes: Moon 3, Mercury 2, Mars 3, Jupiter 2, Venus 3, Uranus 1, Neptune 1,
 Pluto 1, Chibi 2.
 
-Status: **Uranus complete**; others pending motions from the maintainer.
+Status: **Uranus and Neptune complete**; others pending motions from the maintainer.
 
 ---
 
@@ -132,6 +132,64 @@ Gaps found (emulation trusted):
    minimum some rush hits are lows, so "Mid" is wrong or incomplete on the wiki.
 3. Wiki lists WS chip 3 vs our 2 — chip rolls too (both ≈ hit/4 of adjacent columns).
 
+## Neptune (charID 7)
+
+### Deep Submerge — 214LP / 214HP (record idx 0x18; the patch-9 projectile)
+
+| Variant | Acts | Damage | vs crouch | Chip | Startup (spawn) | Recovery (wiki) | On block (wiki) |
+|---|---|---|---|---|---|---|---|
+| LP | 62 → 64 | **8** | 8 | 1 | ~10f (wiki 12) | 36 | ~+1 |
+| HP | 63 → 65 | **10** | 10 | 1 | ~13f (wiki 16) | 51 | −14~ |
+
+- **Wiki damage matches exactly (8/10)** — the same safe-LP/committal-HP fireball
+  template as Uranus's World Shaking. Chip rolled 1 in our rig (wiki 2 — adjacent
+  columns). Misfire acts 66/67 (= her patch-12 taunt).
+- This is patch 9's object 0x18 (hitbox-tracks-sprite fix).
+
+### Splash Edge — 623LP / 623HP (DP; separate recognizer — NOT in the record table)
+
+| Variant | Acts | Startup | Hits | Damage | Chip | On block (wiki) |
+|---|---|---|---|---|---|---|
+| LP | 68 | **3f** (= wiki) | 1 | **9** (wiki row 12/10) | 2 | −4 /D |
+| HP | 69 → 6B | **4f** (= wiki) | 2 | **11+8 = 19** (wiki 14+8) | 2+2 | −22 /D |
+
+- **Fully INVULNERABLE from frame 1 through the first active window** (hurtbox idx 0x00
+  in the trace) — a true reversal DP. The wiki does not list this; our addition.
+  The HP version's rising second phase (act 0x6B, hitbox 0x0D) is vulnerable (hurt 0x3C).
+- Like the SPDs and desperations, the DP does NOT go through the $C1:0B49 special
+  dispatcher (no record fires) — which is why Neptune's record table has only Deep
+  Submerge, and why the earlier "236236 super" was really a sloppy-input Splash Edge HP
+  (236236 contains 623; that misidentification is now resolved everywhere).
+
+### Neck Throw — 4/6HP, ground AND air (techable)
+
+- Ground: acts 5D-5F, toss **20**, techable (wiki: +16 on tech). **Air version verified
+  identical**: three different air-to-air timings all produced the same acts and the
+  same 20 — confirming the community claim (wiki lists j.4/6HP as an identical row).
+- Neptune has only ONE throw (the maintainer's belief, wiki-confirmed) — unlike
+  Uranus's HK-hold + HP-toss pair.
+
+### c.HK — two hits, second is an OVERHEAD (confirmed)
+
+| Hit | Act | Startup | Damage | Guard |
+|---|---|---|---|---|
+| 1 | 4A (hitbox 0x05) | 9f from act start | rolls 6 (wiki 8) | Mid |
+| 2 | 4B (hitbox 0x18) | +29f | **10** | **High (overhead)** |
+
+Empirical proof: vs a crouch-blocking defender, hit 1 is blocked for 0 chip (crouch-
+blockstun act 0x0D) and **hit 2 connects clean for 13** — exactly the wiki's faceHit
+value, revealing that column as the vs-crouch posture value. vs standing block both
+hits are blocked (0 chip — normals don't chip). Tested vs Jupiter; the "on all
+characters" claim is plausible (act/box driven) but not yet swept per-character.
+
+### Dragon Rise (desperation) — wiki gaps
+
+Our deterministic measurement: **single hit 37** (row 48 col 9, jitter-exempt) at every
+range tested (25/35/40/60), chip **9** single. Wiki lists 48 damage / chip 12×2 — 48,
+62 (faceHit) and 72 (counter) are the adjacent row-48 columns c8/c7/cap, so the damage
+disagreement is column sampling again, but the second chip instance never reproduced in
+our rig. Emulation trusted; flagged.
+
 ---
 
 ## Template for the remaining characters
@@ -139,4 +197,7 @@ Gaps found (emulation trusted):
 For each named special: LP/HP variant acts, melee/projectile path, stand/crouch/chip
 damage, misfire acts (cross-check the record tables), Guts coverage, and any recognizer
 quirks. Pending inputs: Moon ×3, Mercury ×2, Mars ×3, Jupiter ×2, Venus ×3, Pluto ×1,
-Chibi ×2 (record idx 0x0A-0x1B), plus any 236236-style supers besides Neptune's.
+Chibi ×2 (record idx 0x0A-0x1B). DPs/command grabs are NOT in the record tables, so
+each character may also hide a 623/360-style move the tables can't reveal — ask the
+community list per character. (Neptune's "super" turned out to be her DP; there may be
+no true supers besides desperations.)
