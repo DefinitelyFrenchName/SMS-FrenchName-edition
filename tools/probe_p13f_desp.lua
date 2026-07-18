@@ -39,8 +39,10 @@ emu.addMemoryCallback(function(addr, value)
     elseif lo >= 0x0D50 and lo <= 0x0D70 then kind = "TICK"
     elseif lo >= 0x0820 and lo <= 0x0870 then kind = "TOSS"
     end
+    local sb = (PLAYER == 1) and 0x1100 or 0x1180
     hits[#hits + 1] = { t = t, v = value, pc = pc, kind = kind,
-      a1 = ram(0x1044), a2 = ram(0x10C4), act1 = ram(0x1001), act2 = ram(0x1081) }
+      a1 = ram(0x1044), a2 = ram(0x10C4), act1 = ram(0x1001), act2 = ram(0x1081),
+      dy = ram(db + 0x25) + 256 * ram(db + 0x26), sy = ram(sb + 0x25) + 256 * ram(sb + 0x26) }
   end
 end, emu.callbackType.write, dhp, dhp, emu.cpuType.snes, emu.memType.snesWorkRam)
 
@@ -91,6 +93,8 @@ emu.addEventCallback(function()
     if POKES then for _, p in ipairs(POKES) do wr(p.addr, p.val) end end
     log(string.format("-- %s attempt %d range=%d crouch=%s toff=%d", TAG or STATE, attempt, r, tostring(CROUCH or false), TOFF))
   end
+  if DEFJUMP and ph >= DEFJUMP and ph <= DEFJUMP + 2 then pulse[2 - PLAYER] = { up = true }
+  elseif DEFJUMP and ph == DEFJUMP + 3 then pulse[2 - PLAYER] = nil end
   -- defender crouch hold
   if CROUCH and ph >= 6 then pulse[2 - PLAYER + 0] = { down = true } end
   if CROUCH and ph < 6 then pulse[2 - PLAYER + 0] = nil end
@@ -108,6 +112,14 @@ emu.addEventCallback(function()
     pulse[PLAYER - 1] = p
   elseif ph >= m0 + TOFF and sd == #MOTION + 2 then
     pulse[PLAYER - 1] = nil
+  end
+  if PROJY then
+    local sb = (PLAYER == 1) and 0x1100 or 0x1180
+    if ram(sb) ~= 0 then
+      local dy = ram(db + 0x25) + 256 * ram(db + 0x26)
+      local ny = (dy + PROJY) % 65536
+      wr(sb + 0x25, ny % 256); wr(sb + 0x26, math.floor(ny / 256))
+    end
   end
   -- track performer acts + defender grab
   local a = ram(pb + 1)
@@ -127,7 +139,7 @@ emu.addEventCallback(function()
         prev = h.v
         if d > 0 then total = total + d end
         kinds[h.kind] = (kinds[h.kind] or 0) + math.max(d, 0)
-        detail = detail .. string.format(" %s:%d(a44=%02X/%02X act=%02X/%02X)", h.kind, d, h.a1, h.a2, h.act1, h.act2)
+        detail = detail .. string.format(" %s:%d(a44=%02X/%02X act=%02X/%02X)", h.kind, d, h.a1, h.a2, h.act1, h.act2) .. string.format("[t=%d dy=%04X sy=%04X]", h.t, h.dy, h.sy)
       end
       local ks = ""
       for k, v in pairs(kinds) do ks = ks .. string.format(" %s=%d", k, v) end

@@ -404,3 +404,9 @@ Stats cannot push damage below the row's column-15 floor or above the column-0 c
   Crouch-defender damage: strikes UP via the crouch on-hit tables (Merc/Jup 48→62,
   Venus 37→48, Pluto opener 3→4, Neptune 37=), projectiles per-hit unchanged, multi-hit
   moves lose hits (Uranus 67→51, Chibi 52→24). Full table: sms_acs_system.md §6b.
+- Posture-not-hitbox: defender posture state at impact selects the on-hit table variant
+  (CDD5/CE15…D015). Head-box damage bonus REFUTED (Moon's desperation projectile poked
+  to forehead/torso/shin flight heights of a standing defender: 48 at all three; Uranus
+  rush per-hit values identical stand-vs-crouch). Air hits = stand-class value
+  (Merc/Jup 48 on rising defender); PREJUMP (act 0x05) = crouch-class (Venus 48 not 37).
+  Venus desperation has an anti-air projectile-path component (act 0x6A, 37).
