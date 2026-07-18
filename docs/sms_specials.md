@@ -68,6 +68,36 @@ LK trades 8 damage for 8px more range and 4f less whiff recovery.
 - The toss act 0x71 is also the finisher of her desperation (which arrives there at
   class 0x18 and is scaled by patch 13 instead — the class byte disambiguates).
 
+### Shadow Dash — 66 (forward dash; structurally a special move)
+
+The maintainer's framing is confirmed by the act map: the forward dash runs on act
+**0x60**, inside Uranus's character-specific special-act space (her specials/misfire/
+desperation acts occupy 0x61-0x79), while the BACK dash uses the universal act 0x26.
+Her "dash" really is a per-character special move that happens to be motion 66.
+
+| | Act | Duration | Distance | Speed | Hurtbox | Skid |
+|---|---|---|---|---|---|---|
+| Shadow Dash 66 | **0x60** | 14f | ~149px gross / ~143 net | ~10.6 px/f | idx 0x4F (present — NOT invulnerable) | +5f (act 09), 19f total commitment |
+| Back dash 44 | 0x26 (universal) | 14f | −36px | ~2.6 px/f | **idx 0x00 all 14 frames = fully INVULNERABLE** | +5f (act 09) |
+
+- The back-dash full invulnerability is the long-documented patch-2/patch-6 fact,
+  now trace-confirmed frame-by-frame (hurt idx 0 throughout).
+- Shadow Dash is the cancel target of the 2HP infinite — the whole reason this project
+  exists. Patch 1 gates the 2HP-recovery→dash cancel; patch 5 shortens the dash to
+  ~89px (−1/3); patch 6 optionally adds dash i-frames. See docs/patch_notes.md.
+- Wiki lists dash startup 1 — consistent (movement begins on the first act frames).
+
+### 2HK — sliding sweep (command normal, character-specific slide)
+
+| Act | Startup | Active | Slide | Damage | Guard | On hit | Recovery |
+|---|---|---|---|---|---|---|---|
+| **0x59** | 8f (matches wiki) | **~38f** (wiki says 30 — gap) | **+67-79px** forward | rolls 8 (wiki 10 — same matrix row) | Low | **knockdown** (dact 19→1E→wakeup) | ~19f after actives (wiki 14) |
+
+- During the slide her hurtbox switches to idx **0x39** (low-profile posture box) and
+  the hitbox is idx 0x0F for the whole slide — one long active window that travels.
+  It connected from 120px starting range in our rig; treat it as a mid-range
+  knockdown tool, minus on block (wiki −21~+0 depending on distance).
+
 ### Related (documented elsewhere)
 - **Desperation "Destructive Carnival"** (632141236HK, rush→grab hybrid, 67/51, lows
   in the rush): `sms_acs_system.md` §6b-6d. Wiki lists damage 67 (exact match) and
@@ -92,6 +122,8 @@ Strong agreement — several columns independently validate the engine model:
   from input inclusive; we count from act start).
 
 Gaps found (emulation trusted):
+0. **2HK active frames: we measure ~38 (t=22→59), wiki lists 30**; and its listed
+   damage 10 vs our rolled 8 (same row, different columns).
 1. **World Shaking listed damage 12/14 vs our rolled 9/11** — not a contradiction but a
    sampling difference: the value is a matrix roll; the wiki apparently lists a high
    roll, we log the roll at our fixed frame. Range, not a single number.
