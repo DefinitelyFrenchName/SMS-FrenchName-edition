@@ -23,7 +23,7 @@ Six bytes per fighter inside the 0x80-byte player struct (P1 `$7E:1000`, P2 `$7E
 | Offset | P1 addr | P2 addr | Name (vendor) | Measured role |
 |---|---|---|---|---|
 | +0x70 | `$1070` | `$10F0` | buff_attack | owner's **NORMAL** damage boost |
-| +0x71 | `$1071` | `$10F1` | buff_defense | reduces **ALL** damage the owner takes |
+| +0x71 | `$1071` | `$10F1` | buff_defense | reduces all **matrix-path** damage the owner takes (strikes, projectiles, chip — normals AND specials/desperation strike portions). Does **NOT** reduce throw tosses, throw techs, or hold/desperation drain ticks — those bypass the damage matrix (verified: normal throw 20→20 and Pluto drain ticks 45→45 at defense 7, while the same desperation's opener strike shrank 3→1) |
 | +0x72 | `$1072` | `$10F2` | buff_health | no live effect; presumed load-time max-HP (unverified) |
 | +0x73 | `$1073` | `$10F3` | buff_special | owner's **SPECIAL** damage boost |
 | +0x74 | `$1074` | `$10F4` | buff_secret | **desperation** damage boost (verified — the desperation's strike component scales 3→5→6 at stat 0/3/7; cinematic drain ticks are NOT stat-scaled) |
@@ -116,7 +116,9 @@ fireball base roll = **8**.
 | attacker +0x70 (attack), jab | 3 | 3 | 4 | normals boosted, ~+1 column per ~3 stat |
 | attacker +0x70, fireball | — | 8 | 8 | **no effect on specials** |
 | defender +0x71 (defense), jab | 2 | 1 | 1 | normals reduced |
-| defender +0x71, fireball | — | 5 | 4 | **specials reduced too — defense covers everything** |
+| defender +0x71, fireball | — | 5 | 4 | specials reduced too — defense covers every **matrix** hit |
+| defender +0x71 = 7, normal throw toss | — | — | 20 (=baseline) | **throws NOT reduced** (matrix bypass) |
+| defender +0x71 = 7, Pluto desperation | — | — | opener 3→1, ticks 45→45 | strike portion reduced, **drain ticks immune** |
 | attacker +0x73 (special), jab | — | 2 | — | no effect on normals |
 | attacker +0x73, fireball | 10 | 14 | 16 | specials boosted, ≈2× at 7 (row cap) |
 | attacker +0x74 (secret), fireball | — | 8 | 8 | no effect on regular specials |

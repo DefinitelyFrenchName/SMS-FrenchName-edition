@@ -1,8 +1,7 @@
-STATE = "venus_vs_jupiter_clean.mss"
+STATE = "pluto_vs_1.mss"
 PLAYER = 1
-MOTION = "4123632"
+MOTION = "632146"
 BTN = "x"
 RANGES = { 70 }
-TAG = "VENDESP-M4"
-LOGROW = true
-
+TAG = "PLUTODESP-DEF7"
+POKES = { {addr=0x10F1, val=7} }
