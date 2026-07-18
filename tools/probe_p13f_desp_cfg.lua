@@ -1,8 +1,7 @@
-STATE = "pluto_vs_chibi_v07.mss"
-PLAYER = 2
-MOTION = "63214"
+STATE = "venus_vs_jupiter_clean.mss"
+PLAYER = 1
+MOTION = "4123632"
 BTN = "x"
-RANGES = { 50, 30, 80 }
-TAG = "CHIBI-CR"
-CROUCH = true
-AIR = true
+RANGES = { 70 }
+TAG = "VEN-J40"
+DEFJUMP = 40

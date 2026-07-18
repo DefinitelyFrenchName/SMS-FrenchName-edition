@@ -231,13 +231,29 @@ classification, act/a44-at-write logging). "Covered" = scaled by Guts (patch 13 
 | Pluto 632146HP | **cinematic drain grab** | 6A-6C (0x18) | **48** | **49** | MELEE 3 + TICK ×12 (45, finisher 11) | yes | yes (tick v3.1) |
 | Chibi j.63214HP | air projectile barrage | 6B-6D | **52** | **24** | PROJ ×7 (6-8 each) | yes | yes (proj) |
 
-**Crouching-defender pattern** (one roll per cell, same rig): single-hit STRIKES deal
-*more* vs crouchers (Mercury/Jupiter 48→62, Venus 37→48, Pluto's opener 3→4 — the
-engine's separate crouch on-hit table variant, `$C0:CE15…D015` family, at work; Neptune's
-37 is the exception, unchanged). Projectiles are posture-blind per-hit (Moon 48, Mars 32);
-multi-hit moves instead LOSE hits to the shorter crouching hurtbox (Uranus 18→10 rush
-hits = 67→51; Chibi 7→4 barrage hits = 52→24). Pluto's drain ticks are posture-independent
-(45 either way).
+**Posture, not hitbox, selects the damage** (one roll per cell, same rig). The
+crouch-vs-stand differences come from the defender's POSTURE STATE at impact picking a
+different per-move on-hit table (`$C0:CDD5` + variants `CE15…D015`), NOT from which
+hurtbox (body vs head) the attack touches. Evidence:
+
+- Single-hit STRIKES deal *more* vs crouchers (Mercury/Jupiter 48→62, Venus 37→48,
+  Pluto's opener 3→4; Neptune's 37 unchanged — per-move table values, not a multiplier).
+- **Head-box test refuted**: Moon's desperation projectile poked to fly at forehead
+  height (sy = dy−52) vs torso (default, 64px up) vs shins (dy−6) of a STANDING
+  defender — 48 damage at every contact height.
+- If the crouch bump were "the head box moved into the attack path", Uranus's 18 rush
+  hits would also get it vs crouchers; instead their per-hit values are identical
+  stand-vs-crouch (only the hit COUNT drops, 18→10).
+- AIR hits use the stand-class value: Mercury and Jupiter connecting on a rising
+  defender (24-33px up) still deal 48; at full jump apex Jupiter just whiffs.
+- **Prejump counts as crouching**: Venus's strike on a defender in jump squat (act 0x05)
+  deals 48 — her crouch value, not her stand 37.
+- Projectiles are posture-blind per-hit (Moon 48 everywhere, Mars 32); multi-hit moves
+  LOSE hits to the shorter crouching hurtbox (Uranus 18→10 = 67→51; Chibi 7→4 = 52→24);
+  Pluto's drain ticks are posture-independent (45 either way).
+- Bonus: **Venus's desperation has an anti-air component** — vs a defender 64px
+  airborne it connects through the PROJECTILE apply path (act 0x6A instead of the
+  grounded 0x69 melee hit) for the same 37.
 
 Per-character notes:
 
