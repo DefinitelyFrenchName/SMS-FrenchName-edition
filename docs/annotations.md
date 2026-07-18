@@ -362,3 +362,29 @@ tools/hudfont.py (glyphs), tools/test_labels.lua (oracle), tools/perf_patch10.lu
 | attack-class at +0x44 | lights 0x00-0x03, heavy normals 0x04-0x07, specials 0x08/0x0C, supers/desperations >=0x12; projectile slots carry their own +0x44 (fireball = 0x08). The 8 damage-apply sites split: 0xC09C/0xC16F/0xC216/0xC2C5 = melee paths, 0xC47E/0xC551/0xC5F8/0xC6A7 = projectile paths. DP $02 at apply = hitstun (not a class flag). |
 | ACS +0x73 buff_special | REALLY scales special damage: Neptune 214LP 8 -> 10/14/16 at stat 1/3/7 (values >7 misbehave; boost-only from the VS default 0 — cannot nerf below baseline). +0x74 (secret) showed no effect on a regular special (presumably desperation-only; untested). |
 | third throw-damage site $C1:0D61 | per-tick HOLD throws (Moon 4x5, Mars 12x2, Chibi) drain HP here; standard toss throws use $C1:083C/$C1:085E (Mercury/Jupiter/Venus/Uranus/Neptune). Pluto's grab did not trigger with fwd+HP in the census (unresolved). |
+
+## A.C.S. stat system — decoded (2026-07-18, controlled identical-roll sweeps)
+
+**CORRECTS the earlier "ACS stats show no damage-time effect" note (patch 13 RE) — that
+sweep was drowned by the damage variance; reload-per-sample methodology shows real effects.**
+
+| Var | Name | Measured effect |
+|---|---|---|
+| +0x70 | buff_attack | boosts the owner's **NORMAL** damage (jab 2 -> 3 @1-3, 4 @7); no effect on specials |
+| +0x71 | buff_defense | reduces **ALL** damage the owner takes (jab 2 -> 1 @3; fireball 8 -> 5 @3, 4 @7) |
+| +0x72 | buff_health | no live effect on damage taken; presumed load-time max-HP (untested at char load) |
+| +0x73 | buff_special | boosts the owner's **SPECIAL** damage (fireball 8 -> 10/14/16 @1/3/7); no effect on normals; values >7 misbehave |
+| +0x74 | buff_secret | no effect on regular specials (presumed desperation-only; unverified — no scripted desperation trigger yet) |
+| +0x75 | buff_ochame | misfire chance via threshold[$C1:0AF5 + (rand&15)] < ochame |
+| +0x48 | first_hit_defense | from the char manifest; earlier sweep showed nothing above variance (re-test with controlled method pending) |
+
+**The damage formula, unified ($C0:D055/D081):** `final = matrix[base_damage_class][8 + modifier & 15]`
+— the 16x16 matrix at $C0:D081 has rows = base damage (row max ≈ 2x base at col 0,
+decaying to ≈ base/4 at col 15), **column 8 = neutral**, each column ≈ ±12%. The modifier
+mixes the RNG jitter (the per-hit variance) with stat shifts: attacker's +0x70 (normals)
+or +0x73 (specials) shift LEFT (stronger), defender's +0x71 shifts RIGHT (weaker).
+Stats cannot push damage below the row's column-15 floor or above the column-0 cap.
+
+**Ochame threshold table $C1:0AF5** = `00 01 02 02 03 03 04 04 FF FF FF FF FF FF FF FF`
+(indexed rand&15; entry < ochame -> misfire). Effective ochame range **0-5**: rates
+6.25% / 12.5% / 25% / 25% / 37.5% / **50% (cap — half the slots are 0xFF, never-misfire)**.
