@@ -63,6 +63,10 @@ STRIKE_OLD = bytes.fromhex("b9490038e500")   # lda $0049,Y / sec / sbc $00
 # hold-throws -- the class gate keeps those untouched): lda $0049,Y / sec / sbc $05
 TICK_SITE = 0x010D54
 TICK_OLD = bytes.fromhex("b9490038e505")
+# throw-toss apply site $C1:082F -- same displaced bytes and Y/DP-$05 conventions as the
+# tick site, so it shares the tick stub. Normal throws toss with holder +0x44 = 0 and
+# pass untouched; Uranus's desperation tosses at +0x44 = 0x18 and gets scaled (v3.2).
+TOSS_SITE = 0x01082F
 IND_HOOK = 0x00D596                                  # uploader staging-clean exit (every frame, vblank)
 IND_OLD = bytes.fromhex("ad0a08f020")                # lda $080A / beq $D5BB
 IND_CONT_NE = 0x80D59B                               # branch not taken
@@ -452,6 +456,7 @@ def build(src, out, pcts=(20, 40, 60)):
     for s in MELEE_SITES + PROJ_SITES:
         assert data[s:s + 6] == STRIKE_OLD, f"strike site {s:#x}: {data[s:s+6].hex()}"
     assert data[TICK_SITE:TICK_SITE + 6] == TICK_OLD, f"tick site: {data[TICK_SITE:TICK_SITE+6].hex()}"
+    assert data[TOSS_SITE:TOSS_SITE + 6] == TICK_OLD, f"toss site: {data[TOSS_SITE:TOSS_SITE+6].hex()}"
     assert data[IND_HOOK:IND_HOOK + 5] == IND_OLD, f"indicator hook: {data[IND_HOOK:IND_HOOK+5].hex()}"
 
     bankbase = (len(data) + 0xFFFF) & ~0xFFFF
@@ -485,6 +490,7 @@ def build(src, out, pcts=(20, 40, 60)):
     for s in PROJ_SITES:
         data[s:s + 6] = jsl(proj_off) + b"\xEA\xEA"
     data[TICK_SITE:TICK_SITE + 6] = jsl(tick_off) + b"\xEA\xEA"
+    data[TOSS_SITE:TOSS_SITE + 6] = jsl(tick_off) + b"\xEA\xEA"
     data[IND_HOOK:IND_HOOK + 4] = bytes([0x5C, ind_off & 0xFF, (ind_off >> 8) & 0xFF, bank])
     # IND_OLD was 5 bytes; the byte at IND_HOOK+4 (0x20) is orphaned, skipped by the jml
 

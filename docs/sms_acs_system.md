@@ -210,6 +210,54 @@ LFSR-ish cluster in round-transition diffs).
   levels in `$7F:F800`), the per-round reset, the corner-digit indicator, and JSL thunks
   at every damage-apply site — all reusable payload-agnostically.
 
+## 6b. Desperation compendium (all 9 characters, probe-measured)
+
+Motions courtesy of the maintainer (numpad, HP=X button, HK=A button); trigger for the
+gated ones: performer HP <= 0x18 (25%) — poke struct hp AND display `$0800` (the <10 s
+clock alternative is untested). Measured on the clean ROM, defender at 0x60 HP, standing,
+fixed input timing (single roll; Uranus re-rolled at a second timing: identical).
+Probe: `tools/probe_p13f_desp.lua` (side-aware motion driver, per-write path
+classification, act/a44-at-write logging). "Covered" = scaled by Guts (patch 13 v3.2).
+
+| Char (motion) | Type | Acts (+0x44 at hit) | Damage | Paths | HP-gated | Covered |
+|---|---|---|---|---|---|---|
+| Moon 2363214HK | projectile, 1 hit | 6D-70 | **48** | PROJ ×1 | yes | yes (proj) |
+| Mercury 632146HK | strike, 1 hit | …6F (0x12) | **48** | MELEE ×1 | yes | yes (class) |
+| Mars 6321412HK | projectile, 1 hit | 74-75 | **32** | PROJ ×1 | yes | yes (proj) |
+| Jupiter 2141236HP | **strike**, 1 hit | 72-74 (0x14) | **48** | MELEE ×1 | yes | yes (class) |
+| Venus 4123632HP | strike, 1 hit | 69 (0x12) | **37** | MELEE ×1 | yes | yes (class) |
+| Uranus 632141236HK | **rush→grab hybrid** | 71-79 (0x18) | **67** stand / **51** crouch | MELEE ×18 (35) + TOSS 32 | yes | yes (class + toss v3.2) |
+| Neptune 236236HP | strike, 2 hits | 69/6B/6D/6F (0x08, 0x0C) | **19** | MELEE ×2 (11+8) | **no** (see below) | yes (class) |
+| Pluto 632146HP | **cinematic drain grab** | 6A-6C (0x18) | **48** | MELEE 3 + TICK ×12 (45, finisher 11) | yes | yes (tick v3.1) |
+| Chibi j.63214HP | air projectile barrage | 6B-6D | **52** | PROJ ×7 (6-8 each) | yes | yes (proj) |
+
+Per-character notes:
+
+- **Uranus (the user's question: grab or strike?): both.** Acts 72-75 are an ~18-hit
+  autocombo rush (1-2 damage each, one 10-damage launcher near the end), then act 76
+  connects the grab (victim act 0x1C), acts 77-79 the cinematic, and act 0x71 applies a
+  **32-damage TOSS through the throw path `$C1:082F`** — the only desperation using it.
+  All hits carry +0x44 = 0x18 including the toss.
+  - **vs crouching**: per-hit damage is UNCHANGED; the total drops 67→51 because only
+    ~10 of the 18 rush hits connect on the shorter crouching hurtbox (toss still 32).
+    So "no body/head damage difference" is right — posture changes hit COUNT, not values.
+  - Damage is roll-stable: two RNG timings both gave 67 with identical per-hit values.
+  - A field reading of "~34" is consistent with the rush whiffing (range/character
+    hurtbox) and essentially only the 32-toss + a stray hit or two connecting.
+- **Jupiter (the user's other question): pure strike** — one 48-damage melee hit,
+  class 0x14, no grab state at any point.
+- **Neptune — anomaly**: the 236236HP chain (69→6F) comes out IDENTICALLY at full HP
+  (2 hits, 19 damage, classes 0x08/0x0C — special/super class, not >=0x12). Either her
+  listed desperation is simply her ungated super, or her true desperation hides behind a
+  condition our rig didn't hit (the <10 s clock path?). Open question in §7.
+- **Motion-overlap pitfall** (cost us two wrong classifications): Moon's and Neptune's
+  motions end in a direction; pressing the button with that direction held at close
+  range triggers the NORMAL THROW instead (Moon act 5C, Neptune acts 5D-5F, toss 20,
+  +0x44 = 0 at toss — the a44=0 signature is how normal-throw tosses stay exempt from
+  Guts). Press the button on neutral (motion stays buffered) to get the real move.
+- Full-HP control runs for all 8 gated characters produced only small stray normal hits
+  (8-12) or whiffs — none of the desperation act chains appear above 25% HP.
+
 ## 7. Open unknowns (probe before relying on)
 
 1. **Where/how the ACS screen sets the stats** — the customization UI's menu entry, mode
@@ -228,6 +276,9 @@ LFSR-ish cluster in round-transition diffs).
    gated, hp-underflow death path at $C1:0D63) — ~48 of ~51 total damage is drain.
    Patch 13 v3.1 hooks the tick site with a holder-class ≥0x12 gate (normal
    Moon/Mars/Chibi hold-throws pass through untouched, verified byte-identical).
+   **All 9 desperations are now typed and measured — see §6b.** New open sub-questions:
+   Neptune's chain is not HP-gated (ungated super, or a clock-gated true desperation?);
+   the <10 s clock trigger path is untested for everyone.
 3. **+0x72 buff_health** — needs testing at character load, not mid-match.
 4. **+0x76** — unknown byte between secret/ochame block and action_strength.
 5. **The exact modifier-composition code** (where RNG + stats merge into `$00` before

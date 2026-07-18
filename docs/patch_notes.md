@@ -1202,6 +1202,18 @@ only attack-class >= 0x08 moves are nerfed (dash attacks / command normals are n
 specials). Training+ additionally gained a **P1 HP FULL/LOW menu row** (LOW = 0x17,
 under the 0x18 desperation threshold) for desperation testing.
 
+**v3.2 (Uranus toss coverage + full compendium):** probing all 9 desperations (see
+sms_acs_system.md §6b) found one more bypass: Uranus's desperation is a rush→grab hybrid
+whose 32-damage finisher goes through the throw-toss apply site $C1:082F — the site v3
+had deliberately un-hooked. The toss site displaces the same 6 bytes with the same
+Y/DP-$05 conventions as the drain-tick site, so v3.2 re-hooks it with the SAME
+holder-class >= 0x12 stub: Uranus desperation 67 -> 34 at L3 (rush hits and toss 32->13
+all table-exact); normal throws still toss at +0x44 = 0 and pass untouched (Neptune
+normal throw 20 -> 20 at L3, verified). Everything else already covered: Jupiter/
+Mercury/Venus single strikes at class 0x12-0x14, Moon/Mars/Chibi projectile-type through
+the unconditional projectile hooks, Pluto via the v3.1 tick hook. Neptune's listed
+desperation turned out to be her ungated super (still nerfed via its 0x08/0x0C class).
+
 **v3.1 (desperation coverage):** the maintainer's motion list enabled real desperation
 testing, which exposed the gap they had reported: cinematic-grab desperations (Pluto
 traced fully) deal ~94%% of their damage as HOLD-DRAIN TICKS through the hold-throw tick
