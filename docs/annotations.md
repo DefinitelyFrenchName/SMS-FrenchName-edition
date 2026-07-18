@@ -388,3 +388,15 @@ Stats cannot push damage below the row's column-15 floor or above the column-0 c
 **Ochame threshold table $C1:0AF5** = `00 01 02 02 03 03 04 04 FF FF FF FF FF FF FF FF`
 (indexed rand&15; entry < ochame -> misfire). Effective ochame range **0-5**: rates
 6.25% / 12.5% / 25% / 25% / 37.5% / **50% (cap — half the slots are 0xFF, never-misfire)**.
+
+### Throw-toss apply site (patch 13 v3.2)
+- `$C1:082F` (file 0x1082F) — full-throw toss damage apply: `lda $0049,Y / sec / sbc $05`
+  (identical shape+conventions to the tick site $C1:0D54; Y = victim struct, damage DP $05,
+  D=0). Fires once per completed throw; thrower +0x44 at that moment = 0 for every normal
+  throw, 0x18 for Uranus's desperation toss (the only desperation using this path) —
+  the class byte is the discriminator patch 13 v3.2 gates on.
+- Desperation act chains / classes (probe_p13f_desp, clean ROM): Moon 6D-70 (proj 48),
+  Mercury ..6F strike 48 @0x12, Mars 74-75 proj 32, Jupiter 72-74 strike 48 @0x14,
+  Venus 69 strike 37 @0x12, Uranus 71-79 rush(18×1-2,+10)+toss 32 @0x18 = 67 (51 vs
+  crouch: fewer rush hits connect), Neptune 69-6F 2-hit 19 @0x08/0x0C (NOT hp-gated),
+  Pluto 6A-6C strike 3 + 12 drain ticks 45 @0x18, Chibi 6B-6D air proj 7×6-8 = 52.

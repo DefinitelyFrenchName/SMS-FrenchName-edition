@@ -48,7 +48,8 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
 - `SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` — `be2cb752…` — patches 1-11 (BPS `build/sms_allpatches_v1.1.bps`).
-- **`SailorMoonS_FrenchName_v0.15_ALLPATCHES.sfc`** — `30fd7b6e…` — **ALL 13 patches, newest test ROM** (BPS `build/sms_allpatches_v0.15.bps`, title v.0.15; Guts v3.1 = desperation drain-ticks covered).
+- **`SailorMoonS_FrenchName_v0.16_ALLPATCHES.sfc`** — `cf96aa05…` — **ALL 13 patches, newest test ROM** (BPS `build/sms_allpatches_v0.16.bps`, title v.0.16; Guts v3.2 = Uranus desperation-toss covered; desperation compendium in sms_acs_system.md §6b).
+- `SailorMoonS_FrenchName_v0.15_ALLPATCHES.sfc` — `30fd7b6e…` — previous build (BPS `build/sms_allpatches_v0.15.bps`).
 - `SailorMoonS_FrenchName_v0.14_ALLPATCHES.sfc` — `4591034a…` — previous build (BPS `build/sms_allpatches_v0.14.bps`).
 - `SailorMoonS_FrenchName_v0.13_ALLPATCHES.sfc` — `e1b03969…` — previous build (BPS `build/sms_allpatches_v0.13.bps`).
 - `SailorMoonS_FrenchName_v0.12_ALLPATCHES.sfc` — `6683215a…` — previous QA build (Guts v2 general defense buff; BPS `build/sms_allpatches_v0.12.bps`).
