@@ -1211,8 +1211,10 @@ holder-class >= 0x12 stub: Uranus desperation 67 -> 34 at L3 (rush hits and toss
 all table-exact); normal throws still toss at +0x44 = 0 and pass untouched (Neptune
 normal throw 20 -> 20 at L3, verified). Everything else already covered: Jupiter/
 Mercury/Venus single strikes at class 0x12-0x14, Moon/Mars/Chibi projectile-type through
-the unconditional projectile hooks, Pluto via the v3.1 tick hook. Neptune's listed
-desperation turned out to be her ungated super (still nerfed via its 0x08/0x0C class).
+the unconditional projectile hooks, Pluto via the v3.1 tick hook. Neptune's desperation
+(corrected input 6236236HP) is a single HP-gated 37-damage strike at class 0x12 — covered
+by the class gate like Venus/Mercury; the ungated 19-damage chain the first sweep hit was
+her regular super under the wrong input.
 
 **v3.1 (desperation coverage):** the maintainer's motion list enabled real desperation
 testing, which exposed the gap they had reported: cinematic-grab desperations (Pluto

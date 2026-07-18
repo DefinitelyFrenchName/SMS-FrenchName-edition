@@ -398,5 +398,9 @@ Stats cannot push damage below the row's column-15 floor or above the column-0 c
 - Desperation act chains / classes (probe_p13f_desp, clean ROM): Moon 6D-70 (proj 48),
   Mercury ..6F strike 48 @0x12, Mars 74-75 proj 32, Jupiter 72-74 strike 48 @0x14,
   Venus 69 strike 37 @0x12, Uranus 71-79 rush(18×1-2,+10)+toss 32 @0x18 = 67 (51 vs
-  crouch: fewer rush hits connect), Neptune 69-6F 2-hit 19 @0x08/0x0C (NOT hp-gated),
+  crouch: fewer rush hits connect), Neptune (input 6236236HP) 70-73 strike 37 @0x12
+  hp-gated (the 236236 chain 69-6F is her regular ungated super, 19 @0x08/0x0C),
   Pluto 6A-6C strike 3 + 12 drain ticks 45 @0x18, Chibi 6B-6D air proj 7×6-8 = 52.
+  Crouch-defender damage: strikes UP via the crouch on-hit tables (Merc/Jup 48→62,
+  Venus 37→48, Pluto opener 3→4, Neptune 37=), projectiles per-hit unchanged, multi-hit
+  moves lose hits (Uranus 67→51, Chibi 52→24). Full table: sms_acs_system.md §6b.

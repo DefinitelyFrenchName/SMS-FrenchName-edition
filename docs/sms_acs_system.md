@@ -219,17 +219,25 @@ fixed input timing (single roll; Uranus re-rolled at a second timing: identical)
 Probe: `tools/probe_p13f_desp.lua` (side-aware motion driver, per-write path
 classification, act/a44-at-write logging). "Covered" = scaled by Guts (patch 13 v3.2).
 
-| Char (motion) | Type | Acts (+0x44 at hit) | Damage | Paths | HP-gated | Covered |
-|---|---|---|---|---|---|---|
-| Moon 2363214HK | projectile, 1 hit | 6D-70 | **48** | PROJ ×1 | yes | yes (proj) |
-| Mercury 632146HK | strike, 1 hit | …6F (0x12) | **48** | MELEE ×1 | yes | yes (class) |
-| Mars 6321412HK | projectile, 1 hit | 74-75 | **32** | PROJ ×1 | yes | yes (proj) |
-| Jupiter 2141236HP | **strike**, 1 hit | 72-74 (0x14) | **48** | MELEE ×1 | yes | yes (class) |
-| Venus 4123632HP | strike, 1 hit | 69 (0x12) | **37** | MELEE ×1 | yes | yes (class) |
-| Uranus 632141236HK | **rush→grab hybrid** | 71-79 (0x18) | **67** stand / **51** crouch | MELEE ×18 (35) + TOSS 32 | yes | yes (class + toss v3.2) |
-| Neptune 236236HP | strike, 2 hits | 69/6B/6D/6F (0x08, 0x0C) | **19** | MELEE ×2 (11+8) | **no** (see below) | yes (class) |
-| Pluto 632146HP | **cinematic drain grab** | 6A-6C (0x18) | **48** | MELEE 3 + TICK ×12 (45, finisher 11) | yes | yes (tick v3.1) |
-| Chibi j.63214HP | air projectile barrage | 6B-6D | **52** | PROJ ×7 (6-8 each) | yes | yes (proj) |
+| Char (motion) | Type | Acts (+0x44 at hit) | Dmg stand | Dmg crouch | Paths | HP-gated | Covered |
+|---|---|---|---|---|---|---|---|
+| Moon 2363214HK | projectile, 1 hit | 6D-70 | **48** | **48** | PROJ ×1 | yes | yes (proj) |
+| Mercury 632146HK | strike, 1 hit | …6F (0x12) | **48** | **62** | MELEE ×1 | yes | yes (class) |
+| Mars 6321412HK | projectile, 1 hit | 74-75 | **32** | **32** | PROJ ×1 | yes | yes (proj) |
+| Jupiter 2141236HP | **strike**, 1 hit | 72-74 (0x14) | **48** | **62** | MELEE ×1 | yes | yes (class) |
+| Venus 4123632HP | strike, 1 hit | 69 (0x12) | **37** | **48** | MELEE ×1 | yes | yes (class) |
+| Uranus 632141236HK | **rush→grab hybrid** | 71-79 (0x18) | **67** | **51** | MELEE ×18 (35) + TOSS 32 | yes | yes (class + toss v3.2) |
+| Neptune **6236236HP** | strike, 1 hit | 70-73 (0x12) | **37** | **37** | MELEE ×1 | yes | yes (class) |
+| Pluto 632146HP | **cinematic drain grab** | 6A-6C (0x18) | **48** | **49** | MELEE 3 + TICK ×12 (45, finisher 11) | yes | yes (tick v3.1) |
+| Chibi j.63214HP | air projectile barrage | 6B-6D | **52** | **24** | PROJ ×7 (6-8 each) | yes | yes (proj) |
+
+**Crouching-defender pattern** (one roll per cell, same rig): single-hit STRIKES deal
+*more* vs crouchers (Mercury/Jupiter 48→62, Venus 37→48, Pluto's opener 3→4 — the
+engine's separate crouch on-hit table variant, `$C0:CE15…D015` family, at work; Neptune's
+37 is the exception, unchanged). Projectiles are posture-blind per-hit (Moon 48, Mars 32);
+multi-hit moves instead LOSE hits to the shorter crouching hurtbox (Uranus 18→10 rush
+hits = 67→51; Chibi 7→4 barrage hits = 52→24). Pluto's drain ticks are posture-independent
+(45 either way).
 
 Per-character notes:
 
@@ -246,10 +254,11 @@ Per-character notes:
     hurtbox) and essentially only the 32-toss + a stray hit or two connecting.
 - **Jupiter (the user's other question): pure strike** — one 48-damage melee hit,
   class 0x14, no grab state at any point.
-- **Neptune — anomaly**: the 236236HP chain (69→6F) comes out IDENTICALLY at full HP
-  (2 hits, 19 damage, classes 0x08/0x0C — special/super class, not >=0x12). Either her
-  listed desperation is simply her ungated super, or her true desperation hides behind a
-  condition our rig didn't hit (the <10 s clock path?). Open question in §7.
+- **Neptune — resolved (corrected input 6236236HP)**: the first sweep used 236236HP,
+  which is her regular ungated super (chain 69→6F, 2 hits, 19 damage, classes
+  0x08/0x0C, identical at full HP). With the maintainer's corrected **6236236** input
+  her real desperation appears: acts 70-73, class 0x12, single 37-damage strike,
+  properly HP-gated (full-HP control gives a normal instead: acts 42/43, 7 damage).
 - **Motion-overlap pitfall** (cost us two wrong classifications): Moon's and Neptune's
   motions end in a direction; pressing the button with that direction held at close
   range triggers the NORMAL THROW instead (Moon act 5C, Neptune acts 5D-5F, toss 20,
@@ -266,7 +275,7 @@ Per-character notes:
 2. ~~+0x74 buff_secret~~ — **RESOLVED**: boosts desperation damage (strike component
    only). Desperation motions provided by the maintainer (numpad, HP=X HK=A):
    Moon 2363214HK · Mercury 632146HK · Mars 6321412HK · Jupiter 2141236HP ·
-   Venus 4123632HP · Uranus 632141236HK · Neptune 236236HP · Pluto 632146HP ·
+   Venus 4123632HP · Uranus 632141236HK · Neptune 6236236HP · Pluto 632146HP ·
    Chibi j.63214HP. Gate: performer HP ≤ 0x18 **or <10 s on the clock** (per the
    maintainer; the HP path is verified — poke struct hp AND display `$0800`).
    **Desperation anatomy (Pluto traced end-to-end):** attack-class +0x44 = 0x18
@@ -276,9 +285,8 @@ Per-character notes:
    gated, hp-underflow death path at $C1:0D63) — ~48 of ~51 total damage is drain.
    Patch 13 v3.1 hooks the tick site with a holder-class ≥0x12 gate (normal
    Moon/Mars/Chibi hold-throws pass through untouched, verified byte-identical).
-   **All 9 desperations are now typed and measured — see §6b.** New open sub-questions:
-   Neptune's chain is not HP-gated (ungated super, or a clock-gated true desperation?);
-   the <10 s clock trigger path is untested for everyone.
+   **All 9 desperations are now typed and measured — see §6b** (incl. stand-vs-crouch
+   damage). Remaining sub-question: the <10 s clock trigger path is untested for everyone.
 3. **+0x72 buff_health** — needs testing at character load, not mid-match.
 4. **+0x76** — unknown byte between secret/ochame block and action_strength.
 5. **The exact modifier-composition code** (where RNG + stats merge into `$00` before
