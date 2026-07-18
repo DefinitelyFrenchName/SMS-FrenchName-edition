@@ -81,8 +81,9 @@ SET_REFILL = ST + 0x26 # 0 off, 1 on (both players)
 SET_REC = ST + 0x27    # 0 off, 1 armed (consumed at menu close)
 SET_PLAY = ST + 0x28   # 0 off, 1 once, 2 loop
 SET_SHOW = ST + 0x29   # 0 off, 1 on (input + advantage display)
+SET_P1HP = ST + 0x2A   # 0 full, 1 low (0x17 = desperation range, <=0x18)
 SETTINGS = (SET_POSE, SET_GUARD, SET_WAKE, SET_TECH, SET_DMG, SET_REGEN, SET_REFILL,
-            SET_REC, SET_PLAY, SET_SHOW)
+            SET_REC, SET_PLAY, SET_SHOW, SET_P1HP)
 # dummy runtime
 WAKEARMED = ST + 0x30
 OSFRAMES = ST + 0x31
@@ -136,7 +137,7 @@ assert len(FONT_LETTERS) <= 25
 
 # menu geometry: 9 rows on BG3 map rows 4-12, cells cols 3-24 (22 cells/row)
 PANEL_ROW0, PANEL_COL, PANEL_W = 4, 3, 22
-NROWS = 12
+NROWS = 13
 WIPEROWS = 18   # menu-open first blanks BG3 map rows 0-17 full-width (movelist residue)
 # per painted row, offsets within the 22 cells: cursor@1, name@3(6), value@10(8)
 CUR_OFF, NAME_OFF, VAL_OFF = 1, 3, 10
@@ -152,9 +153,10 @@ MENU = [
     ("RECORD", SET_REC,   ["OFF", "ARM"]),                     # 8 (consumed at close)
     ("PLAY",   SET_PLAY,  ["OFF", "ONCE", "LOOP"]),            # 9
     ("SHOW",   SET_SHOW,  ["OFF", "ON"]),                      # 10 (input + adv display)
-    ("RESET",  None,      ["GO"]),                             # 11: action row
+    ("P1 HP",  SET_P1HP,  ["FULL", "LOW"]),                    # 11 (LOW = desperation range)
+    ("RESET",  None,      ["GO"]),                             # 12: action row
 ]
-DMG_ROW, RESET_ROW = 5, 11
+DMG_ROW, RESET_ROW, P1HP_ROW = 5, 12, 11
 
 
 def row_addr(i):
@@ -164,8 +166,13 @@ def row_addr(i):
 def _words(text, width, idx):
     w = []
     for c in text:
-        assert c in idx, f"glyph missing: {c}"
-        w.append(0x2C00 | (GLYPH_TILE0 + idx[c]))
+        if c == " ":
+            w.append(BLANK)
+        elif c.isdigit():
+            w.append(0x2C50 + int(c))     # resident HUD digit tiles (top half)
+        else:
+            assert c in idx, f"glyph missing: {c}"
+            w.append(0x2C00 | (GLYPH_TILE0 + idx[c]))
     return w + [BLANK] * (width - len(w))
 
 
@@ -429,6 +436,18 @@ adj{i}:
             continue
         mx = len(vals) - 1
         dmgfx = ""
+        if i == P1HP_ROW:
+            dmgfx = f"""
+  lda_l ${SET_P1HP:06X}
+  bne p1hplow
+  lda $104A
+  sta $1049
+  bra p1hpfx
+p1hplow:
+  lda #$17
+  sta $1049
+p1hpfx:
+"""
         if i == DMG_ROW:
             dmgfx = f"""
   lda_l ${SET_DMG:06X}
