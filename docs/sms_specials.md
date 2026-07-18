@@ -39,6 +39,10 @@ The HP version trades frame safety for damage and wave speed — it is MINUS on 
 close range (recovery outlasts the hitstun); LP is the safe poke version.
 
 - Posture-blind per-hit (projectile path), like all projectiles measured so far.
+- **Guard: Mid/any (verified)** — despite crawling along the ground, it is blocked
+  successfully by BOTH standing (chip 2, blockstun 0x0C) and crouching guard (chip 2,
+  0x0D); it does reach and hit crouching opponents (9). The "must crouch-block" folk
+  memory does not reproduce; wiki "Mid" agrees with the emulator.
 - Damage rolls with the normal matrix variance (the maintainer has seen 8s; we logged
   9/11 at this rig's fixed frames — same move, different columns).
 - Misfire acts 65 (LP) / 66 (HP) — these are also patch 12's taunt acts for Uranus.
@@ -144,6 +148,11 @@ Gaps found (emulation trusted):
 - **Wiki damage matches exactly (8/10)** — the same safe-LP/committal-HP fireball
   template as Uranus's World Shaking. Chip rolled 1 in our rig (wiki 2 — adjacent
   columns). Misfire acts 66/67 (= her patch-12 taunt).
+- **Descending arc, but Mid at every range (verified)**: contact height measured −62px
+  at 40 range falling to −30px at 110 — yet standing block, crouch block, and crouching
+  contact all behave normally at max range (chip 1 / chip 1 / hit 8). The arc changes
+  where it touches, never the guard requirement — and the 32px contact-height swing
+  with identical damage is another proof that contact zone doesn't affect damage.
 - This is patch 9's object 0x18 (hitbox-tracks-sprite fix).
 
 ### Splash Edge — 623LP / 623HP (DP; separate recognizer — NOT in the record table)
