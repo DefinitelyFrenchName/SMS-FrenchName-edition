@@ -10,10 +10,14 @@
 --     hybrid+toss, Pluto drain grab, Neptune corrected input), dash distance and the
 --     2HP→dash cancel gate (expectations switch on detected p5/p1).
 --   Layer 2 (patch): nominal + edge cases per detected patch — p7 dual-mode (Pluto 5HP
---     vs croucher hits iff patched), p10 combo counter, p11 L+R menu, p12 taunt
---     (nominal, R-held exclusion, act-gate edge), p13 Guts (grant, interrupt, special
---     scaling, throw exemption, Uranus toss, Pluto ticks) and the cross-patch
---     counter-hit×Guts case (72 → 29, exercising the v3.3 128-entry tables).
+--     hits crouching Mercury iff patched; Chibi still whiffs at default height), p8
+--     dual-mode (mash at grab+14 techs iff patched; grab+4 always techs = base), p10
+--     combo counter, p11 L+R menu + P1-HP-LOW navigation, p12 taunt (nominal, R-held
+--     exclusion, act-gate edge), p13 Guts (grant, interrupt, special scaling, throw
+--     exemption, Uranus toss, Pluto ticks, round-reset clears levels) and the
+--     cross-patch counter-hit×Guts case (72 → 29, exercising the v3.3 wide tables).
+--   Base also covers the full 9-character desperation compendium (types + totals) and
+--     three crouch-mechanism edges (Uranus 51 hit-count, Mercury 62 column, Chibi 24).
 --   Values are single-roll deterministic (fixed savestate + fixed input frames).
 --
 -- Config tools/test_regression_cfg.lua (optional):
@@ -422,6 +426,173 @@ add{ name = "stack-counterhit-x-guts-72to29", group = "stack", need = function()
   verdict = function()
     local tot = total()
     return ck(tot == 29, "countered desperation (72) at L3 expects 29 (v3.3 wide tables), got " .. tot)
+  end }
+
+
+add{ name = "base-desp-moon-proj48", group = "base", state = "moon_vs_moon.mss", dur = 160,
+  frame = function(api)
+    if api.pt == 5 then wr(0x1049, 0x10); wr(0x800, 0x10); park(1, 40) end
+    motion(api, 1, "2363214", "a", 10, true)
+  end,
+  verdict = function()
+    local tot, byk = total()
+    return ck(tot == 48 and (byk.PROJ or 0) == 48, string.format("Moon desperation expects PROJ 48, got tot=%d proj=%d", tot, byk.PROJ or 0))
+  end }
+
+add{ name = "base-desp-mercury-strike48", group = "base", state = "pluto_vs_2.mss", dur = 150,
+  frame = function(api)
+    if api.pt == 5 then wr(0x10C9, 0x10); wr(0x801, 0x10); park(2, 70) end
+    motion(api, 2, "632146", "a", 10, false)
+  end,
+  verdict = function()
+    local tot = total()
+    return ck(tot == 48 and #hits == 1, string.format("Mercury desperation expects single 48, got tot=%d n=%d", tot, #hits))
+  end }
+
+add{ name = "base-desp-mars-proj32", group = "base", state = "pluto_vs_3.mss", dur = 150,
+  frame = function(api)
+    if api.pt == 5 then wr(0x10C9, 0x10); wr(0x801, 0x10); park(2, 70) end
+    motion(api, 2, "6321412", "a", 10, false)
+  end,
+  verdict = function()
+    local tot, byk = total()
+    return ck(tot == 32 and (byk.PROJ or 0) == 32, string.format("Mars desperation expects PROJ 32, got tot=%d proj=%d", tot, byk.PROJ or 0))
+  end }
+
+add{ name = "base-desp-venus-strike37", group = "base", state = "venus_vs_jupiter_clean.mss", dur = 150,
+  frame = function(api)
+    if api.pt == 5 then wr(0x1049, 0x10); wr(0x800, 0x10); park(1, 70) end
+    motion(api, 1, "4123632", "x", 10, false)
+  end,
+  verdict = function()
+    local tot = total()
+    return ck(tot == 37 and #hits == 1, string.format("Venus desperation expects single 37, got tot=%d n=%d", tot, #hits))
+  end }
+
+add{ name = "base-desp-chibi-air52", group = "base", state = "pluto_vs_chibi_v07.mss", dur = 220,
+  frame = function(api)
+    if api.pt == 5 then wr(0x10C9, 0x10); wr(0x801, 0x10); park(2, 50) end
+    if api.pt >= 10 and api.pt <= 12 then pulse[1] = { up = true } elseif api.pt == 13 then pulse[1] = nil end
+    if api.pt >= 22 then motion(api, 2, "63214", "x", 22, false) end
+  end,
+  verdict = function()
+    local tot, byk = total()
+    return ck(tot == 52 and (byk.PROJ or 0) == 52, string.format("Chibi air desperation expects PROJ 52, got tot=%d proj=%d", tot, byk.PROJ or 0))
+  end }
+
+add{ name = "base-desp-uranus-crouch51", group = "base", state = "uranus_vs_jupiter.mss", dur = 380,
+  frame = function(api)
+    if api.pt == 5 then wr(0x1049, 0x10); wr(0x800, 0x10); park(1, 70) end
+    if api.pt >= 6 then pulse[1] = { down = true } end
+    motion(api, 1, "632141236", "a", 10, false)
+  end,
+  verdict = function()
+    local tot, byk = total()
+    return ck(tot == 51 and (byk.TOSS or 0) == 32,
+      string.format("Uranus desperation vs crouch expects 51 (toss 32, fewer rush hits), got %d (toss %d)", tot, byk.TOSS or 0))
+  end }
+
+add{ name = "base-desp-mercury-crouch62", group = "base", state = "pluto_vs_2.mss", dur = 150,
+  frame = function(api)
+    if api.pt == 5 then wr(0x10C9, 0x10); wr(0x801, 0x10); park(2, 70) end
+    if api.pt >= 6 then pulse[0] = { down = true } end
+    motion(api, 2, "632146", "a", 10, false)
+  end,
+  verdict = function()
+    local tot = total()
+    return ck(tot == 62, "Mercury desperation vs crouch expects 62 (crouch column shift), got " .. tot)
+  end }
+
+add{ name = "base-desp-chibi-crouch24", group = "base", state = "pluto_vs_chibi_v07.mss", dur = 220,
+  frame = function(api)
+    if api.pt == 5 then wr(0x10C9, 0x10); wr(0x801, 0x10); park(2, 50) end
+    if api.pt >= 6 and api.pt > 13 then pulse[0] = { down = true } end
+    if api.pt >= 6 and api.pt <= 13 then pulse[0] = { down = true } end
+    if api.pt >= 10 and api.pt <= 12 then pulse[1] = { up = true } elseif api.pt == 13 then pulse[1] = nil end
+    if api.pt >= 22 then motion(api, 2, "63214", "x", 22, false) end
+  end,
+  verdict = function()
+    local tot = total()
+    return ck(tot == 24, "Chibi air desperation vs crouch expects 24 (hits whiff), got " .. tot)
+  end }
+
+add{ name = "base-throwtech-early-mash", group = "base", state = "venus_vs_jupiter_clean.mss", dur = 120,
+  frame = function(api)
+    if api.pt == 5 then park(1, 14) end
+    if api.pt >= 14 and api.pt <= 17 then
+      local p = { x = true }; if onLeft(1) then p.right = true else p.left = true end
+      pulse[0] = p
+    elseif api.pt == 18 then pulse[0] = nil end
+    if not api.mem.grabT and ram(0x1081) == 0x1C then api.mem.grabT = api.pt end
+    local g = api.mem.grabT
+    if g and api.pt >= g + 4 and api.pt <= g + 14 then
+      pulse[1] = (api.pt % 2 == 0) and { y = true } or { b = true, a = true }
+    elseif g and api.pt == g + 15 then pulse[1] = nil end
+  end,
+  verdict = function()
+    local ok = #hits == 1 and hits[1].pc % 0x10000 >= 0x850
+    return ck(ok, "early mash (grab+4) expects TECH escape, got " .. (#hits > 0 and string.format("pc=%04X", hits[1].pc % 0x10000) or "no writes"))
+  end }
+
+add{ name = "p8-tech-window-late-mash", group = "p8", need = function() return true end,  -- dual-mode
+  state = "venus_vs_jupiter_clean.mss", dur = 120,
+  frame = function(api)
+    if api.pt == 5 then park(1, 14) end
+    if api.pt >= 14 and api.pt <= 17 then
+      local p = { x = true }; if onLeft(1) then p.right = true else p.left = true end
+      pulse[0] = p
+    elseif api.pt == 18 then pulse[0] = nil end
+    if not api.mem.grabT and ram(0x1081) == 0x1C then api.mem.grabT = api.pt end
+    local g = api.mem.grabT
+    if g and api.pt >= g + 14 and api.pt <= g + 24 then
+      pulse[1] = (api.pt % 2 == 0) and { y = true } or { b = true, a = true }
+    elseif g and api.pt == g + 25 then pulse[1] = nil end
+  end,
+  verdict = function()
+    if #hits ~= 1 then return ck(false, "expected exactly one throw resolution write, got " .. #hits) end
+    local tech = hits[1].pc % 0x10000 >= 0x850
+    if has.p8 then return ck(tech, "p8 present: mash at grab+14 must TECH (13f window), got TOSS")
+    else return ck(not tech, "p8 absent: mash at grab+14 must be too late (6f-ish window), got TECH") end
+  end }
+
+add{ name = "p11-p1hp-low-toggle", group = "p11", need = function() return has.p11 end,
+  state = "training_p11.mss", dur = 220,
+  frame = function(api)
+    if api.pt >= 10 and api.pt <= 12 then pulse[0] = { l = true, r = true } elseif api.pt == 13 then pulse[0] = nil end
+    -- cursor starts at row 1: 10 downs at 12f pace (30Hz-safe edges), then right = LOW
+    local dn = math.floor((api.pt - 50) / 12)
+    if api.pt >= 50 and api.pt < 170 and (api.pt - 50) % 12 < 2 and dn < 10 then pulse[0] = { down = true }
+    elseif api.pt >= 50 and api.pt < 170 then pulse[0] = nil end
+    if api.pt >= 180 and api.pt <= 181 then pulse[0] = { right = true } elseif api.pt == 182 then pulse[0] = nil end
+  end,
+  verdict = function()
+    return ck(ram(0x1049) == 0x17, string.format("P1 HP LOW expects $1049=0x17, got %02X", ram(0x1049)))
+  end }
+
+add{ name = "p13-round-reset-clears-levels", group = "p13", need = function() return has.p13 end,
+  state = "uranus_vs_jupiter.mss", dur = 900,
+  frame = function(api)
+    if api.pt == 5 then
+      park(1, 30)
+      wr(0x10C9, 0x02); wr(0x801, 0x02)
+      wr(0x1F800, 0xA5); wr(0x1F802, 3)
+    end
+    if api.pt >= 26 and api.pt <= 36 then
+      local p = { down = true }; if api.pt >= 30 and api.pt <= 31 then p.x = true end
+      pulse[0] = p
+    elseif api.pt == 37 then pulse[0] = nil end
+    if api.pt > 100 and not api.mem.newRound then
+      if ram(0x10C9) == 0x60 and ram(0x1081) == 0 and ram(0x1001) == 0 then
+        api.mem.newRound = api.pt
+      end
+    end
+    if api.mem.newRound and api.pt == api.mem.newRound + 60 then
+      api.mem.lvAfter = ram(0x1F802)
+    end
+  end,
+  verdict = function(api)
+    return ck(api.mem.newRound and api.mem.lvAfter == 0,
+      string.format("round reset expects LV cleared, newRound=%s lv=%s", tostring(api.mem.newRound), tostring(api.mem.lvAfter)))
   end }
 
 -- ===== runner =====
