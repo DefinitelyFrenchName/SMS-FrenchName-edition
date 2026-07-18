@@ -1,8 +1,8 @@
-STATE = "neptune_vs_jupiter.mss"
-PLAYER = 1
-MOTION = "236236"
+STATE = "pluto_vs_chibi_v07.mss"
+PLAYER = 2
+MOTION = "63214"
 BTN = "x"
-RANGES = { 40 }
-TAG = "NTHROW-L3b"
-NOLOWHP = true
-POKES = { {addr=0x1F800, val=0xA5}, {addr=0x1F802, val=3} }
+RANGES = { 50, 30, 80 }
+TAG = "CHIBI-CR"
+CROUCH = true
+AIR = true
