@@ -410,3 +410,15 @@ Stats cannot push damage below the row's column-15 floor or above the column-0 c
   rush per-hit values identical stand-vs-crouch). Air hits = stand-class value
   (Merc/Jup 48 on rising defender); PREJUMP (act 0x05) = crouch-class (Venus 48 not 37).
   Venus desperation has an anti-air projectile-path component (act 0x6A, 37).
+
+### Counter-hit + hit-zone probes (probe_hitzone.lua)
+- Counter-hit bonus: defender inside an attack/misfire act at impact -> ~+33-50% damage
+  (col shift), flat through startup+recovery of that act; expires at act 0x2A chain.
+  Roll-matched pairs: 8/10->12/14, 7/9->11/12, 6->9 (taunt act 0x6A, depths 15f & 25f).
+- No head/body damage split: ALIFT rig (pin attacker y to ground−N during the swing)
+  moves contact 12/24px up a standing defender -> identical damage, same roll.
+- Uranus proximity 5HP: far act 0x43 dmg 8/10; near act 0x45 dmg 9/12 (range<=34).
+- Melee apply-site selection is per-(attack, defender posture): Uranus standing normals
+  -> C09C-site (write pc 80C0A5), her crouch normals vs standing defender -> C16F-site
+  (write pc 80C178), crouch-vs-crouch -> C09C; Moon/Jupiter 5HP -> C16F.
+- Moon 5HP (mirror, moon_vs_moon) deterministic 6 at this rig's fixed timing.
