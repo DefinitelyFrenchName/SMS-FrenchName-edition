@@ -1,9 +1,8 @@
-STATE = "moon_vs_moon.mss"
+STATE = "neptune_vs_chibi.mss"
 PLAYER = 1
-MOTION = "454214"
+MOTION = "214"
 BTN = "y"
-RANGES = { 60, 90, 40 }
-TAG = "MSHA-BDCAST-GROUNDED"
+RANGES = { 70, 100 }
+TAG = "P9-CHIBI-V19"
 NOLOWHP = true
-STEPF = 2
-LOGFD = true
+CROUCH = true

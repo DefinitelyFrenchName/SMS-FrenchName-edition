@@ -422,6 +422,20 @@ add{ name = "p7-chibi-still-whiffs", group = "p7", need = function() return has.
     return ck(#hits == 0, "p7 default h=62: crouching Chibi must still whiff, got " .. #hits .. " hits")
   end }
 
+add{ name = "p9-ds-tracks-sprite", group = "p9", need = function() return true end,  -- dual-mode
+  state = "neptune_vs_chibi.mss", dur = 90,
+  frame = function(api)
+    if api.pt == 5 then park(1, 70) end
+    if api.pt >= 6 then pulse[1] = { down = true } end
+    motion(api, 1, "214", "y", 10, false)
+  end,
+  verdict = function()
+    if #hits ~= 1 then return ck(false, "expected one DS contact vs crouching Chibi, got " .. #hits) end
+    local t = hits[1].pt
+    if has.p9 then return ck(t <= 38, "p9 present: box tracks ball, must connect early (t<=38), got t=" .. t)
+    else return ck(t >= 41, "p9 absent: floating box connects late (t>=41), got t=" .. t) end
+  end }
+
 add{ name = "p10-combo-counter", group = "p10", need = function() return has.p10 end,
   state = "uranus_vs_jupiter.mss", dur = 90,
   frame = function(api)
@@ -576,6 +590,99 @@ add{ name = "p14-giantswing-lp-scaled", group = "p14", need = function() return 
   verdict = function()
     local tot = total()
     return ck(tot == 8 and grabwrites() == 4, string.format("Giant Swing LP at L3 expects 4x2=8, got %d (%d writes)", tot, grabwrites()))
+  end }
+
+local function fullmode() return FULL == true end
+
+add{ name = "full-desp-jupiter-crouch62", group = "full", need = fullmode, state = "jupiter_vs_venus_clean.mss", dur = 150,
+  frame = function(api)
+    if api.pt == 5 then wr(0x1049, 0x10); wr(0x800, 0x10); park(1, 70) end
+    if api.pt >= 6 then pulse[1] = { down = true } end
+    motion(api, 1, "2141236", "x", 10, false)
+  end,
+  verdict = function() local tot = total() return ck(tot == 62, "Jupiter desperation vs crouch expects 62, got " .. tot) end }
+
+add{ name = "full-desp-venus-crouch48", group = "full", need = fullmode, state = "venus_vs_jupiter_clean.mss", dur = 150,
+  frame = function(api)
+    if api.pt == 5 then wr(0x1049, 0x10); wr(0x800, 0x10); park(1, 70) end
+    if api.pt >= 6 then pulse[1] = { down = true } end
+    motion(api, 1, "4123632", "x", 10, false)
+  end,
+  verdict = function() local tot = total() return ck(tot == 48, "Venus desperation vs crouch expects 48, got " .. tot) end }
+
+add{ name = "full-desp-neptune-crouch37", group = "full", need = fullmode, state = "neptune_vs_jupiter.mss", dur = 150,
+  frame = function(api)
+    if api.pt == 5 then wr(0x1049, 0x10); wr(0x800, 0x10); park(1, 60) end
+    if api.pt >= 6 then pulse[1] = { down = true } end
+    motion(api, 1, "6236236", "x", 10, true)
+  end,
+  verdict = function() local tot = total() return ck(tot == 37, "Neptune desperation vs crouch expects 37, got " .. tot) end }
+
+add{ name = "full-desp-moon-crouch48", group = "full", need = fullmode, state = "moon_vs_moon.mss", dur = 160,
+  frame = function(api)
+    if api.pt == 5 then wr(0x1049, 0x10); wr(0x800, 0x10); park(1, 40) end
+    if api.pt >= 6 then pulse[1] = { down = true } end
+    motion(api, 1, "2363214", "a", 10, true)
+  end,
+  verdict = function() local tot = total() return ck(tot == 48, "Moon desperation vs crouch expects 48, got " .. tot) end }
+
+add{ name = "full-desp-mars-crouch32", group = "full", need = fullmode, state = "pluto_vs_3.mss", dur = 150,
+  frame = function(api)
+    if api.pt == 5 then wr(0x10C9, 0x10); wr(0x801, 0x10); park(2, 70) end
+    if api.pt >= 6 then pulse[0] = { down = true } end
+    motion(api, 2, "6321412", "a", 10, false)
+  end,
+  verdict = function() local tot = total() return ck(tot == 32, "Mars desperation vs crouch expects 32, got " .. tot) end }
+
+add{ name = "full-desp-pluto-crouch49", group = "full", need = fullmode, state = "pluto_vs_1.mss", dur = 260,
+  frame = function(api)
+    if api.pt == 5 then wr(0x1049, 0x10); wr(0x800, 0x10); park(1, 70) end
+    if api.pt >= 6 then pulse[1] = { down = true } end
+    motion(api, 1, "632146", "x", 10, false)
+  end,
+  verdict = function() local tot = total() return ck(tot == 49, "Pluto desperation vs crouch expects 49, got " .. tot) end }
+
+add{ name = "full-chip-pluto-striketthrow1", group = "full", need = fullmode, state = "pluto_vs_1.mss", dur = 200,
+  frame = function(api)
+    if api.pt == 5 then wr(0x1049, 0x10); wr(0x800, 0x10); park(1, 60) end
+    if api.pt >= 6 then
+      local p = {}
+      if onLeft(1) then p.right = true else p.left = true end
+      pulse[1] = p
+    end
+    motion(api, 1, "632146", "x", 10, false)
+  end,
+  verdict = function()
+    local tot = total()
+    return ck(tot == 1 and ram(0x1081) ~= 0x1C, "blocked Dimension Danse expects 1 chip and NO grab, got " .. tot)
+  end }
+
+add{ name = "full-chip-moon-zero", group = "full", need = fullmode, state = "moon_vs_moon.mss", dur = 200,
+  frame = function(api)
+    if api.pt == 5 then wr(0x1049, 0x10); wr(0x800, 0x10); park(1, 40) end
+    if api.pt >= 6 then
+      local p = {}
+      if onLeft(1) then p.right = true else p.left = true end
+      pulse[1] = p
+    end
+    motion(api, 1, "2363214", "a", 10, true)
+  end,
+  verdict = function()
+    return ck(#hits == 0, "blocked Silver Crystal Operation expects ZERO chip writes, got " .. #hits)
+  end }
+
+add{ name = "full-chip-mars-full32", group = "full", need = fullmode, state = "pluto_vs_3.mss", dur = 200,
+  frame = function(api)
+    if api.pt == 5 then wr(0x10C9, 0x10); wr(0x801, 0x10); park(2, 60) end
+    if api.pt >= 6 then
+      local p = {}
+      if onLeft(2) then pulse[0] = { right = true } else pulse[0] = { left = true } end
+    end
+    motion(api, 2, "6321412", "a", 10, false)
+  end,
+  verdict = function()
+    local tot = total()
+    return ck(tot == 32, "blocked Snake Flare expects full 32 chip (4x8), got " .. tot)
   end }
 
 add{ name = "stack-counterhit-x-guts-72to29", group = "stack", need = function() return has.p12 and has.p13 end,
