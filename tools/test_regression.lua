@@ -50,6 +50,13 @@ local SIGS = {
   p13 = { { 0x00837B, 0x5C }, { 0x00C09C, 0x22 }, { 0x00C09D, 0xC2 } },
   p14 = { { 0x010835, 0x22 }, { 0x010836, 0x80 }, { 0x010839, 0xB0 }, { 0x010D5A, 0x22 } },
 }
+-- projectile-desperation dispatcher records (file offsets, 7 bytes each)
+local DESP_RECORDS = {
+  { 0x1375A, "0c000000c0ff00" },  -- Moon
+  { 0x1586D, "11011800000000" },  -- Mars
+  { 0x179D9, "16004000000000" },  -- Venus
+  { 0x1BDFE, "1b011000ecff00" },  -- Chibi
+}
 local MATRIX_ROWS = {
   [0] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
   [10] = { 0x15, 0x15, 0x14, 0x14, 0x13, 0x11, 0x0F, 0x0D, 0x0A, 0x08, 0x07, 0x06, 0x05, 0x05, 0x05, 0x05 },
@@ -272,6 +279,86 @@ add{ name = "base-dash-distance", group = "base", state = "uranus_vs_jupiter.mss
     local d = math.abs((dashMeas.x1 or 0) - (dashMeas.x0 or 0))
     local exp = has.p5 and 89 or 145
     return ck(math.abs(d - exp) <= 4, string.format("dash distance expects ~%d (p5=%s), got %d", exp, tostring(has.p5), d))
+  end }
+
+add{ name = "base-death-chip-survives-at-0", group = "base", state = "neptune_vs_jupiter.mss", dur = 120,
+  frame = function(api)
+    if api.pt == 5 then park(1, 70); wr(0x10C9, 1); wr(0x801, 1) end
+    if api.pt >= 6 then
+      local p = {}
+      if onLeft(1) then p.right = true else p.left = true end
+      pulse[1] = p
+    end
+    motion(api, 1, "214", "y", 10, false)
+    if api.pt > 30 and ram(0x1081) == 0x1F then api.mem.died = true end
+  end,
+  verdict = function(api)
+    return ck(#hits == 1 and hits[1].v == 0 and not api.mem.died,
+      string.format("chip 1 vs 1 HP must leave 0 HP ALIVE, got hp=%s died=%s", hits[1] and hits[1].v, tostring(api.mem.died)))
+  end }
+
+add{ name = "base-death-chip-underflow-kills", group = "base", state = "uranus_vs_jupiter.mss", dur = 200,
+  frame = function(api)
+    if api.pt == 5 then park(1, 70); wr(0x10C9, 1); wr(0x801, 1) end
+    if api.pt >= 6 then
+      local p = {}
+      if onLeft(1) then p.right = true else p.left = true end
+      pulse[1] = p
+    end
+    motion(api, 1, "632", "y", 10, false)
+    if api.pt > 30 and ram(0x1081) == 0x1F then api.mem.died = true end
+  end,
+  verdict = function(api)
+    return ck(api.mem.died == true, "chip 2 vs 1 HP must underflow-KO (act 0x1F), never died")
+  end }
+
+add{ name = "base-gc-gate-immediate", group = "base", state = "neptune_vs_jupiter.mss", dur = 80,
+  frame = function(api)
+    if api.pt == 5 then park(1, 36) end
+    motion(api, 1, "214", "y", 10, false, 2)
+    if api.pt >= 12 and api.pt <= 13 then pulse[1] = { x = true } elseif api.pt == 14 then pulse[1] = nil end
+    local a = ram(0x1001)
+    if (a == 0x0C or a == 0x0D or a == 0x0E or a == 0x0F) and not api.mem.stunAt then api.mem.stunAt = api.pt end
+    if a == 0x62 and not api.mem.fireAt then api.mem.fireAt = api.pt end
+  end,
+  verdict = function(api)
+    local ok = api.mem.stunAt and api.mem.fireAt and (api.mem.fireAt - api.mem.stunAt) <= 4
+    return ck(ok, string.format("GC special must fire <=4f after blockstun (stun=%s fire=%s)", tostring(api.mem.stunAt), tostring(api.mem.fireAt)))
+  end }
+
+add{ name = "base-gc-backdash", group = "base", state = "uranus_vs_jupiter.mss", dur = 90,
+  frame = function(api)
+    if api.pt == 5 then park(1, 36) end
+    if api.pt >= 12 and api.pt <= 13 then pulse[1] = { x = true } elseif api.pt == 14 then pulse[1] = nil end
+    local back = onLeft(1) and "left" or "right"
+    if api.pt >= 6 and api.pt <= 19 then pulse[0] = { [back] = true }
+    elseif api.pt == 20 or api.pt == 21 then pulse[0] = nil
+    elseif api.pt == 22 or api.pt == 23 then pulse[0] = { [back] = true }
+    elseif api.pt == 24 then pulse[0] = nil
+    elseif api.pt == 26 or api.pt == 27 then pulse[0] = { [back] = true }
+    elseif api.pt == 28 then pulse[0] = nil end
+    local a = ram(0x1001)
+    if (a == 0x0C or a == 0x0E) and not api.mem.stun then api.mem.stun = true end
+    if api.mem.stun and a == 0x26 and not api.mem.bd then api.mem.bd = api.pt end
+  end,
+  verdict = function(api)
+    return ck(api.mem.stun and api.mem.bd and api.mem.bd < 45, "backdash must fire out of blockstun (GC), got " .. tostring(api.mem.bd))
+  end }
+
+add{ name = "base-prejump-throw-vulnerable", group = "base", state = "uranus_vs_jupiter.mss", dur = 60,
+  frame = function(api)
+    if api.pt == 5 then park(1, 14) end
+    if api.pt >= 11 and api.pt <= 13 then pulse[1] = { up = true } elseif api.pt == 14 then pulse[1] = nil end
+    if api.pt >= 13 and api.pt <= 16 then
+      local p = { x = true }
+      if onLeft(1) then p.right = true else p.left = true end
+      pulse[0] = p
+    elseif api.pt == 17 then pulse[0] = nil end
+    if ram(0x1081) == 0x05 then api.mem.sawPrejump = true end
+    if api.mem.sawPrejump and ram(0x1081) == 0x1C then api.mem.grabbedFromPrejump = true end
+  end,
+  verdict = function(api)
+    return ck(api.mem.grabbedFromPrejump == true, "ground throw must grab a prejump defender (no throw invuln)")
   end }
 
 -- Layer 2: patch-specific ----------------------------------------------------
@@ -681,6 +768,14 @@ emu.addEventCallback(function()
     end
     results[#results + 1] = { name = "static-matrix-integrity", ok = nfail == 0, msg = nfail .. " byte mismatches" }
     log(string.format("%s static-matrix-integrity", nfail == 0 and "PASS" or "FAIL"))
+    local rfail = 0
+    for _, rec in ipairs(DESP_RECORDS) do
+      for i = 0, 6 do
+        if rom(rec[1] + i) ~= tonumber(rec[2]:sub(i * 2 + 1, i * 2 + 2), 16) then rfail = rfail + 1 end
+      end
+    end
+    results[#results + 1] = { name = "static-desperation-records", ok = rfail == 0, msg = rfail .. " byte mismatches" }
+    log(string.format("%s static-desperation-records", rfail == 0 and "PASS" or "FAIL"))
     if EXPECT == "clean" then
       local any = false
       for i = 1, 14 do if has["p" .. i] then any = true end end

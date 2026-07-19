@@ -697,3 +697,16 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - Throw -1-range-left + air-OK vertical range: below rig precision, wiki-only.
 - Uranus HP throw measured: acts 5B/5C/5D, toss 24 (wiki-exact) — second throw done.
 - Defender pre-contact backdash evades desperations outright (accidental demo).
+
+### T1 closed: dispatcher = projectile system (2026-07-19)
+- Mercury/Jupiter/Uranus/Neptune/Pluto desperations fired with ZERO dispatcher RECs
+  (all five connected, known damage values) -> their records never existed.
+- Unification: $C1:0B49 records = projectile-move parameters (payload b4/b5 =
+  velocity/arc: C0FF arcs, 0000 flat; Wink b2 = spawn distance). Non-projectile
+  specials are pure act-machine. Only projectile specials can misfire.
+- Suite +7 tests: static-desperation-records (4x7 bytes), death-underflow pair
+  (chip1-vs-1hp survives at 0 / chip2 underflow-KOs), gc-gate-immediate (<=4f),
+  gc-backdash, prejump-throw-vulnerable. clean=31, v0.19=49 ALL PASS.
+- prejump-backdash-cancel regression test attempted and DROPPED: the 5f cancel
+  window + 30Hz input-phase makes a scripted 1f-tap test inherently flaky (wrong
+  phase -> back-jump act 0x08). Fact stays verified (manual rig); not suite-locked.
