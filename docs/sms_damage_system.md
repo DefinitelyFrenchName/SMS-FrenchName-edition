@@ -39,6 +39,8 @@ chain (acts 0x1A→0x1E→0x1F, then a second write zeroes the corpse's HP). Cor
 - Moves whose chip floors at 1 (e.g. Pluto's Dimension Dance) can never KO a defender
   with ≥1 HP — but a 0-HP survivor dies to ANY next hit, chip included (0−1 wraps).
 - A 0-HP-alive state is reachable in real play and the life bar shows empty.
+- Independently confirmed by the community: the game-wide Dustloop frame-data page
+  states "You live on 0 health, must be reduced to below 0".
 
 | Site (file) | Path | Damage DP | Notes |
 |---|---|---|---|
