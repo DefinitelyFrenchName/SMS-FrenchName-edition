@@ -722,3 +722,12 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   remaining HP (cannot-kill mechanism — Dimension Dance no-chip-kill etc.).
 - Counter-hit = def+0x18 bit0 -> lda #$FE. Practice mode-4 no-damage exit $CD6A in
   every handler. P1 +0x48 load site 0x883E (char init).
+
+### T3 closed: ACS residuals (2026-07-19)
+- ACS staging: P1 $1D00 block (stats $1D08-0D), P2 $1D10 (stats $1D18-1D); menu writer
+  ~$80:B0BD; loaders $C0:879B (P1) / ~0x8920 (P2).
+- +0x72: MAX HP = 0x60 + 8*health -> $1049 + $104A at load; $104A readers: 0x8A7D
+  (round refill), 0xD77C/0xD7CE (HUD bar scaling), 0xE398.
+- +0x76: per-entity update-vector selector (C1:0010/0026 reads, players from $1D01).
+- +0x48: manifest-sourced at 0x883E (via $E0:0238 ptr), value 1 measured.
+- Projectile spawn copies caster +0x70/+0x73 into slot (C1:0BC0-0BDB).

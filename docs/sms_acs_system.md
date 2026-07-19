@@ -24,7 +24,7 @@ Six bytes per fighter inside the 0x80-byte player struct (P1 `$7E:1000`, P2 `$7E
 |---|---|---|---|---|
 | +0x70 | `$1070` | `$10F0` | buff_attack | owner's **NORMAL** damage boost |
 | +0x71 | `$1071` | `$10F1` | buff_defense | reduces all **matrix-path** damage the owner takes (strikes, projectiles, chip — normals AND specials/desperation strike portions). Does **NOT** reduce throw tosses, throw techs, hold/desperation drain ticks, or **command-grab specials** — those bypass the damage matrix (verified at defense 7: normal throw 20→20, Pluto drain ticks 45→45 while the same desperation's opener strike shrank 3→1, Uranus SPD toss 32→32, Jupiter SPD carry-drain 30→30) |
-| +0x72 | `$1072` | `$10F2` | buff_health | no live effect; presumed load-time max-HP (unverified) |
+| +0x72 | `$1072` | `$10F2` | buff_health | **SOLVED: max HP = 0x60 + 8×health** — applied at char load to $1049 (current) AND $104A (max); rounds refill from $104A ($80:8A7D) and the HUD bar scales from it ($80:D77C/D7CE). Health 7 = 184 HP, nearly double |
 | +0x73 | `$1073` | `$10F3` | buff_special | owner's **SPECIAL** damage boost |
 | +0x74 | `$1074` | `$10F4` | buff_secret | **desperation** damage boost (verified — the desperation's strike component scales 3→5→6 at stat 0/3/7; cinematic drain ticks are NOT stat-scaled) |
 | +0x75 | `$1075` | `$10F5` | buff_ochame | special-move **misfire chance** (§5) |
@@ -41,9 +41,11 @@ Six bytes per fighter inside the 0x80-byte player struct (P1 `$7E:1000`, P2 `$7E
 - Useful working range is **0–7** for the damage stats (values >7 gave nonsense in
   sweeps — e.g. +0x73 at 15/255 produced *lower* damage than 7, consistent with the
   4-bit column arithmetic in §2 wrapping) and **0–5** for ochame (§5).
-- Neighbors, not part of ACS: +0x48 `first_hit_defense` (loaded from the char manifest at
-  `$E0:0238+id*2` by char-load `$C0:879B`; controlled retest pending), +0x76 (unknown),
-  +0x77 action_strength.
+- Neighbors, not part of ACS: +0x48 `first_hit_defense` — **fully solved** (see
+  sms_damage_system.md §3): manifest-loaded (measured 1), grants +1 damage-matrix
+  column until the owner's first hit taken, then cleared; the entire "damage variance".
+  +0x76 — **solved, not ACS**: the per-entity update-vector selector (read every frame
+  at $C1:0010/0026), players get it from $1D01/$1D11. +0x77 action_strength.
 
 ## 2. The damage formula — the 16×16 matrix
 
@@ -150,6 +152,26 @@ as out-of-range, consistent with 4-bit column wrap.)
   `$1070/$1071/$1073` during a hit; they will fire once per landed hit). The lookup
   itself and the apply sites are fully mapped. NOTE: the lookup routine EXECUTES from
   bank $80 ($80:D055; matrix read at $80:D07B) — exec-watch $80:D055, not $C0:D055.
+
+## 4b. Where ACS selections LIVE (the screen question, solved 2026-07-19)
+
+The customization screen stores selections in WRAM staging blocks that the char
+loaders copy into the fighter structs at match start:
+
+| | P1 | P2 |
+|---|---|---|
+| staging block | `$7E:1D00` | `$7E:1D10` |
+| charID | $1D00 | $1D10 |
+| +0x76 update-selector | $1D01 | $1D11 |
+| **ACS stats (atk/def/hp/spc/sec/och)** | **$1D08-$1D0D** | **$1D18-$1D1D** |
+
+Loaders: P1 `$C0:879B` (stat copy at 0x87D6-0x87F1, **max-HP formula at 0x87F2:
+hp = 0x60 + 8×health → $1049/$104A**, manifest +0x48 at 0x883E), P2 analog ~0x8920.
+Menu writer for the stat block sits around `$80:B0BD`. **Practical modding: poke
+$1D08-0D / $1D18-1D before character load and the stats apply through the legit
+pipeline — including max HP.** Bonus decode: projectile spawns copy the caster's
++0x70/+0x73 into the slot struct ($C1:0BC0-0BDB), which is how projectiles carry
+ACS scaling.
 
 ## 5. The ochame / misfire system (fully reverse-engineered)
 
@@ -392,7 +414,8 @@ so ACS defense and the Guts patch scale it like any matrix hit.
    strike/grab ones verifiably fire none. Corollary for ochame: **only projectile
    specials can misfire** (misfire acts live in projectile records). Remaining
    sub-question: the <10 s clock trigger path is untested for everyone.
-3. **+0x72 buff_health** — needs testing at character load, not mid-match.
+3. ~~+0x72 buff_health~~ — SOLVED (max-HP formula, §1/§4b). Original text:
+   **+0x72 buff_health** — needs testing at character load, not mid-match.
 4. **+0x76** — unknown byte between secret/ochame block and action_strength.
 5. **The exact modifier-composition code** (where RNG + stats merge into `$00` before
    the `$D055` lookup) and the damage-stat read PCs (§4). Partially resolved: the matrix
