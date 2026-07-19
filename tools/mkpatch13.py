@@ -413,14 +413,23 @@ iw{sfx}:
 
 def _ind_stub():
     """Vblank, every frame: draw each player's buff level as a small HUD digit
-    (blank at level 0). Visible in VS immediately; in Practice whenever BG3 is shown
-    (Training+ menu/SHOW). Redrawn per frame, so wipes/restages never leave it stale."""
+    (blank at level 0). v3.4: TRAINING-ONLY — gated on game mode $8D in {4,5}
+    (practice with damage off/on) in addition to the in-match flag; in VS/story the
+    indicator never draws (the buff itself still works everywhere). Redrawn per
+    frame, so wipes/restages never leave it stale."""
     return f"""
   php
   pha
   sep #$20
   lda $0070
   cmp #$04
+  beq indm
+  jmp indout
+indm:
+  lda $008D
+  cmp #$04
+  beq ind1
+  cmp #$05
   beq ind1
   jmp indout
 ind1:

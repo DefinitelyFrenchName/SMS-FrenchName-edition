@@ -7,7 +7,7 @@ much. Update THIS file whenever a patch is added, revised, or deprecated.
 All patches are independent stackable BPS files built by `tools/mkpatchN.py`,
 byte-disjoint by design (any install order; regression-guarded by
 `tools/test_regression.lua`, which auto-detects which are present).
-Current all-patches build: **v0.19** (`53bae682…`).
+Current all-patches build: **v0.20** (`9b0ae040…`).
 
 | # | Name | One-liner | Status | Standalone BPS (`build/`) |
 |---|---|---|---|---|
@@ -25,7 +25,7 @@ Current all-patches build: **v0.19** (`53bae682…`).
 | 10b | + status labels | Combo counter + GC/MEATY/REVERSAL/PUNISH/TECH event labels (build flag `--events labels`, same patch slot as 10) | OPTIONAL (variant of 10) | `sms_combolabels.bps` |
 | 11 | Training+ | In-ROM training-mode upgrade: L+R menu, dummy control, recording, HP tools, displays | OPTIONAL | `sms_trainingplus.bps` |
 | 12 | Taunts | Taunt on L using each character's native misfire animation | OPTIONAL | `sms_taunt.bps` |
-| 13 | Guts (v3.3) | Completing a taunt stacks levels (≤3) that shrink the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round) | OPTIONAL | `sms_tauntbuff.bps` |
+| 13 | Guts (v3.3) | Completing a taunt stacks levels (≤3) that shrink the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round); level indicator shows in TRAINING only (v3.4) | OPTIONAL | `sms_tauntbuff.bps` |
 | 14 | Guts Grip | Companion to 13: the same levels also shrink command-grab damage (SPDs/Giant Swing); inert without 13 | OPTIONAL (requires 13 to do anything) | `sms_gutsgrip.bps` |
 
 ## Lifecycle notes
@@ -40,8 +40,7 @@ Current all-patches build: **v0.19** (`53bae682…`).
 - **Deprecation candidates**: 6 (experimental buff that pulls against patch 2; keep
   only if the maintainer decides dash-invuln is wanted after all). 1b retires whenever
   the canonical gate choice is final.
-- **Known pending tweak**: patch 13's corner level-indicator is slated to become
-  training-mode-only "down the line" (maintainer note, unscheduled).
+- ~~Patch 13 indicator → training-only~~ — DONE (v3.4, 2026-07-19).
 - **Pruned (2026-07-19)**: all historical cumulative bundles (`sms_full*`,
   `sms_both`, all-patches BPS < v0.19 and the mislabeled v1.x line) — only the
   per-patch standalone BPS above plus the CURRENT `sms_allpatches_vX.Y.bps` are kept;

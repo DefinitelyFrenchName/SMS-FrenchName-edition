@@ -1,1 +1,1 @@
-MODE = "stack"
+MODE = "solo"
