@@ -39,6 +39,16 @@ input rig (blockstun act 0x0C/0x0E → move act = GC):
 Both GC-able dashes sit at act 0x60 in their characters' special-act space — the
 engine's own data agrees with the behavioral criterion.
 
+**The criterion is grounded-only, because AIR BLOCKING DOES NOT EXIST** (verified with
+a clean natural experiment: the same fireball was blocked the instant the defender
+landed holding back — blockstun 0x0C on the landing frame — and hit them clean when
+contact came airborne). No air block ⇒ no air guard cancel ⇒ airborne moves
+(Swinging Marshmallow, Moon Spiral Heart Attack, Luna P, air throws, double jump)
+cannot be classified by this criterion; their special-vs-command status rests on the
+dispatcher-record and act-space evidence instead. This also formalizes the Chibi
+matchup prose ("Uranus purposely taking air hits" — because blocking Luna P airborne
+is not an option).
+
 Status: **ALL NINE CHARACTERS COMPLETE** (Chibi drafted from wiki + measurements ahead of the maintainer's detail pass — corrections welcome).
 
 ---
@@ -673,8 +683,11 @@ Fire, close Deep Submerge at −30). Low, knockdown, 8 damage (wiki).
   (hold the second back input to buffer). Longest backdash invuln in the game
   (Uranus 14f, Pluto 20f, Chibi 26f).
 - **Double jump j.7/8/9**: a character-specific COMMAND (like Mercury's triangle
-  jump), not a special — hold the direction (no tap needed), available through frame
-  27 of the first jump. Cast-unique with the dive.
+  jump), not a special. **Window measured: ~frame 15 to ~27 of the jump** (act 0x5C).
+  A tap inside the window fires the same frame; HOLDING the direction auto-fires at
+  the window's OPENING — i.e. holding is a buffer to the first legal frame, exactly
+  as the maintainer hypothesized. A tap after frame 27 is eaten (verified, matching
+  the wiki's deadline).
 - 2LK hits low and its recovery is JUMP-CANCELABLE (wiki) — the low→instant-overhead
   blender starter; 2HP is one of the game's few low 2HPs.
 - **2HK is a sliding sweep** (maintainer's read, verified): act 0x58, one traveling

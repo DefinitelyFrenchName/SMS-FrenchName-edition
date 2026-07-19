@@ -1,11 +1,9 @@
-STATE = "jupiter_vs_venus_clean.mss"
+STATE = "uranus_vs_jupiter.mss"
 PLAYER = 1
-MOTION = "44444445656"
+MOTION = "632"
 BTN = "y"
-RANGES = { 36 }
-TAG = "GC-JUPITER-DASH"
+RANGES = { 70 }
+TAG = "AIRBLOCK-TEST"
 NOLOWHP = true
-NOBTN = true
-LOGFD = true
-DBTN = "x"
-DPH = 12
+DEFBLOCK = "upback"
+LOGDACT = true

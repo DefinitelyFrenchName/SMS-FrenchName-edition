@@ -135,11 +135,19 @@ emu.addEventCallback(function()
   if DBTN and DPH and ph >= DPH and ph <= DPH + 1 then pulse[2 - PLAYER] = { [DBTN] = true }
   elseif DBTN and DPH and ph == DPH + 2 then pulse[2 - PLAYER] = nil end
   if DEFBLOCK and ph >= (DEFBLOCKAT or 6) then
-    local L = onLeft()   -- performer on left -> defender blocks by holding right... away = same dir as performer->defender? defender holds AWAY from performer
+    local L = onLeft()
+    if DEFBLOCK == "upback" then
+      local p = {}
+      if L then p.right = true else p.left = true end
+      p.up = true
+      pulse[2 - PLAYER] = p
+      goto defblockdone
+    end   -- performer on left -> defender blocks by holding right... away = same dir as performer->defender? defender holds AWAY from performer
     local p = {}
     if L then p.right = true else p.left = true end
     if DEFBLOCK == "crouch" then p.down = true end
     pulse[2 - PLAYER] = p
+    ::defblockdone::
   end
   -- defender crouch hold
   if CROUCH and ph >= 6 then pulse[2 - PLAYER + 0] = { down = true } end
@@ -176,8 +184,9 @@ emu.addEventCallback(function()
       ram(pb + 1), ram(pb + 0x40), ram(pb + 0x41), ram(sbb),
       ram(sbb + 0x21) + 256 * ram(sbb + 0x22), ram(sbb + 0x25) + 256 * ram(sbb + 0x26),
       posxpb(), ram(db + 1))
+    tup = tup:gsub("px=(%x+)", "px=%1 py=" .. string.format("%04X", ram(pb + 0x25) + 256 * ram(pb + 0x26)))
     if tup ~= saw.fdt then
-      local slim = tup:gsub(" sx=%x+", ""):gsub(" px=%x+", ""):gsub(" sy2=%x+", "")
+      local slim = tup:gsub(" sx=%x+", ""):gsub(" px=%x+", ""):gsub(" sy2=%x+", ""):gsub(" py=%x+", "")
       if slim ~= (saw.fds or "") then log(string.format("   FD t=%d %s", t, tup)) end
       saw.fdt = tup; saw.fds = slim
     end
