@@ -297,6 +297,58 @@ add{ name = "base-firsthit-defense-pair", group = "base", state = "uranus_vs_jup
       hits[1] and (0x60 - hits[1].v), hits[2] and (0x60 - hits[2].v)))
   end }
 
+add{ name = "base-throw-range-asymmetry", group = "base", state = "uranus_vs_jupiter.mss", dur = 280,
+  frame = function(api)
+    -- cycle 1 (facing right, distance 48): must grab; cycle 2 (facing left, 48): must whiff
+    local c2 = api.pt >= 200
+    local base = c2 and 200 or 0
+    local rel = api.pt - base
+    if rel >= 5 and rel <= 16 then
+      local px0 = 0x0100
+      wr(0x1020, 0); wr(0x1021, px0 % 256); wr(0x1022, math.floor(px0 / 256))
+      local dx0 = c2 and (px0 - 48) or (px0 + 48)
+      wr(0x10A0, 0); wr(0x10A1, dx0 % 256); wr(0x10A2, math.floor(dx0 / 256))
+      wr(0x10C9, 0x60); wr(0x801, 0x60)
+    end
+    if rel >= 12 and rel <= 14 then
+      local p = { a = true }
+      if c2 then p.left = true else p.right = true end
+      pulse[0] = p
+    elseif rel == 15 then pulse[0] = nil end
+    if not c2 and rel > 14 and rel < 60 and ram(0x1081) == 0x1C then api.mem.grabR = true end
+    if c2 and rel > 14 and rel < 60 and ram(0x1081) == 0x1C then api.mem.grabL = true end
+  end,
+  verdict = function(api)
+    return ck(api.mem.grabR == true and not api.mem.grabL,
+      string.format("throw range asymmetry: 48px must grab facing right and whiff facing left (R=%s L=%s)", tostring(api.mem.grabR), tostring(api.mem.grabL)))
+  end }
+
+add{ name = "base-airok-throw-vertical-range", group = "base", state = "moon_vs_moon.mss", dur = 280,
+  frame = function(api)
+    -- cycle 1: Rabbit Flip (HK, air-OK) grabs a 24px-levitated target; cycle 2: Headbutt (HP) whiffs an 8px one
+    local c2 = api.pt >= 200
+    local base = c2 and 200 or 0
+    local rel = api.pt - base
+    if rel >= 5 and rel <= 16 then
+      local px0 = 0x0100
+      wr(0x1020, 0); wr(0x1021, px0 % 256); wr(0x1022, math.floor(px0 / 256))
+      local dx0 = px0 + 20
+      wr(0x10A0, 0); wr(0x10A1, dx0 % 256); wr(0x10A2, math.floor(dx0 / 256))
+      local gy = 0xC0 - (c2 and 8 or 24)
+      wr(0x10A4, 0); wr(0x10A5, gy % 256); wr(0x10A6, math.floor(gy / 256))
+      wr(0x10C9, 0x60); wr(0x801, 0x60)
+    end
+    if rel >= 12 and rel <= 14 then
+      pulse[0] = { right = true, [c2 and "x" or "a"] = true }
+    elseif rel == 15 then pulse[0] = nil end
+    if not c2 and rel > 14 and rel < 60 and ram(0x1081) == 0x1C then api.mem.grabFlip = true end
+    if c2 and rel > 14 and rel < 60 and ram(0x1081) == 0x1C then api.mem.grabHead = true end
+  end,
+  verdict = function(api)
+    return ck(api.mem.grabFlip == true and not api.mem.grabHead,
+      string.format("air-OK vertical range: Flip must grab at 24px lift, Headbutt must whiff at 8px (F=%s H=%s)", tostring(api.mem.grabFlip), tostring(api.mem.grabHead)))
+  end }
+
 add{ name = "base-desperation-clock-trigger", group = "base", state = "jupiter_vs_venus_clean.mss", dur = 150,
   frame = function(api)
     if api.pt == 5 then park(1, 70); wr(0x803, 9); wr(0x804, 0) end

@@ -109,9 +109,19 @@ pairs — and nothing else. No janky alternate GC trigger exists.
   is eaten and the jump proceeds). Landing: block after 1f (matches our landing-frame
   block observation), throws on any frame, specials/backdash after 1f, normals from
   the 2nd frame (wiki, consistent with everything observed).
-- Wiki-only, untestable at our rig precision: throws having 1 less range facing left
-  (±1px sits under input walk-drift noise) and the air-OK throws' extra vertical range
-  when grounded. Recorded, unverified.
+- **Throw −1 range facing left: VERIFIED pixel-exact** (frozen-position rig, subpixels
+  zeroed): Uranus HK grabs at exactly 48px facing right / 47px facing left, whiffing
+  one pixel further in each case — the wiki's asymmetry is real engine behavior.
+- **Air-OK throws' vertical envelope QUANTIFIED** (levitated-defender rig): Moon's
+  Rabbit Flip (air-OK) grabs targets raised up to **32-39px**; her Headbutt
+  (ground-only) whiffs at even **2px** of lift — ground-only throws are strictly
+  grounded-target. (The wiki's precise ground-vs-air comparison of the same throw
+  remains unmeasured; this stronger practical split subsumes it.)
+- Attested but rig-limited (documented why): Jupiter's air Power Bomb (six timing/side
+  variants all produced air normals — the air-throw adjacency window eludes scripted
+  timing, unlike Moon/Mars/Mercury's which grabbed first try) and Mercury's triangle
+  jump (needs a true stage corner; position pokes get re-clamped into the camera view,
+  and the max-separation boundary does not trigger the wall jump).
 - **Movement table** (walk speeds ~1.0-3.0 px/f — Mercury fastest at 3.0; per-char
   jump distance 72-115px and duration 42-52f) recorded on the wiki for reference;
   spot-checks consistent with our traces.
