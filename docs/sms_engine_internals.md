@@ -289,6 +289,34 @@ drawing only the hit box for ids ≥ 10).
   the whiffing character's act pulled their hurtbox out of an attack's reach that hits
   them when idle. Damage measurement rigs must log the defender act at impact.
 
+### 6.y Universal & reaction act taxonomy (T4, 2026-07-19)
+
+Universal acts (all characters; 0x2B+ is per-character move space):
+
+| Act | Meaning | Notes |
+|---|---|---|
+| 00/01/02/03/04 | idle / walk fwd / walk back / crouch / crouch-transition | |
+| 05 | prejump | 5f, throw-vulnerable, backdash/special-cancelable |
+| 06 / 08 | jump rise-fall / back-jump | |
+| 09 | landing & dash-skid | 5f |
+| 0C / 0E | standing blockstun pair | **pairs alternate on consecutive hits so the anim re-triggers**; 0C doubles as the proximity-guard pose (passive, not a lock) |
+| 0D / 0F | crouching blockstun pair | crouch-guard pose has its own (lower) hurtbox |
+| 11 / 13 | hitstun pair (stand AND low-altitude air) | alternate like the block pair |
+| 12 | light-hit stun variant | seen from jabs |
+| 15 | crouch hitstun | |
+| 16 | hit-during-forward-dash | observed on Uranus's Shadow Dash |
+| 19 | knockdown spin (slide/sweep hits) | |
+| 1A / 1B | launch/KD reactions (higher hit levels) | 1B seen from class-0x10 hits |
+| 1C / 1D / 1E / 1F / 20 | held / thrown / down / dead / wakeup | the grab-KO chain |
+| **21** | **DANGER entry** | fires when HP drops to **≤ 0x18** (exact boundary verified: 0x18 yes, 0x19 no) — the same threshold that gates desperations |
+| 26 | backdash | invuln per character (14/17/20/26f...) |
+| 2A | post-special recovery tail | not cancelable; counter-hit window ends here |
+
+Reaction dispatch: per-hit-type handler table at `$C1:0E84` (2-byte entries → handlers
+that set knockback velocity and the reaction act) — mapped as an anchor for future
+digs; individual handlers not yet enumerated. Reaction staging at $C1:0E30-0E51 is
+where the 16-bit +0x47/+0x48 clear (first-hit-defense depletion) lives.
+
 ## 7. Movement and input recognizers
 
 Motion inputs are recognized by per-object state machines in the `+0x5B–0x68` timer/state

@@ -297,6 +297,15 @@ add{ name = "base-firsthit-defense-pair", group = "base", state = "uranus_vs_jup
       hits[1] and (0x60 - hits[1].v), hits[2] and (0x60 - hits[2].v)))
   end }
 
+add{ name = "base-danger-threshold-0x18", group = "base", state = "uranus_vs_jupiter.mss", dur = 130,
+  frame = function(api)
+    if api.pt == 5 then wr(0x10C9, 0x18); wr(0x801, 0x18) end
+    if api.pt >= 6 and api.pt <= 12 and ram(0x1081) == 0x21 then api.mem.danger = true end
+  end,
+  verdict = function(api)
+    return ck(api.mem.danger == true, "danger act 0x21 must fire on entering hp<=0x18")
+  end }
+
 add{ name = "base-death-chip-survives-at-0", group = "base", state = "neptune_vs_jupiter.mss", dur = 120,
   frame = function(api)
     if api.pt == 5 then park(1, 70); wr(0x10C9, 1); wr(0x801, 1) end

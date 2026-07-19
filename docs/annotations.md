@@ -731,3 +731,14 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - +0x76: per-entity update-vector selector (C1:0010/0026 reads, players from $1D01).
 - +0x48: manifest-sourced at 0x883E (via $E0:0238 ptr), value 1 measured.
 - Projectile spawn copies caster +0x70/+0x73 into slot (C1:0BC0-0BDB).
+
+### T4 closed: act taxonomy (2026-07-19)
+- 0x21 = DANGER-entry act, threshold hp <= 0x18 EXACT on first entry (0x19 no-fire
+  from fresh state = desperation-gate threshold). SUBTLETY: once danger has been
+  entered, a latch persists after healing above threshold — later hp DROPS re-fire
+  0x21 even to values > 0x18 (0x60->0x19 fired after a prior danger visit). Suite
+  locks only the clean positive (fires at 0x18).
+- Air hit at low altitude -> 0x11 (same as stand); 0x16 = dash-hit specific.
+- Blockstun 0C/0E and hitstun 11/13 are ALTERNATING PAIRS (anim retrigger).
+- Reaction-type handler table @ C1:0E84 (2-byte entries; handlers set knockback +
+  reaction act). Full enumeration deferred.
