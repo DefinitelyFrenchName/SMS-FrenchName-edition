@@ -79,6 +79,13 @@ law, in literal code) and, on three desperation handlers, **damage clamped to th
 defender's remaining HP** (`if hp < dmg then dmg = hp`) — the "cannot kill" mechanism
 behind Dimension Dance's no-chip-kill in code form.
 
+- **THE OURS-VS-WIKI OFFSET, UNIFIED**: every systematic damage difference between
+  this project's tables and Dustloop's (37 vs 48, 9/11 vs 12/14, chip 9 vs 12...) is
+  the d48 state — our rigs measured FRESH defenders (d48=1, +1 column = weaker hits),
+  the wiki measured mid-match (d48=0, the natural state after any hit). Verified:
+  Venus/Neptune desperation chip with d48 poked to 0 reads exactly the wiki's 12.
+  Neither source was wrong; they sampled different states of the same deterministic
+  system. (The wiki's ×2/×5 multi-chip HIT COUNTS remain unreproduced — flagged.)
 - **THERE IS NO RNG IN DAMAGE.** The historical "variance"/"roll" is defender
   **+0x48, the first-hit defense**: loaded 1 at character init, it grants +1 modifier
   column until the defender is first hit, then is cleared — by a 16-bit

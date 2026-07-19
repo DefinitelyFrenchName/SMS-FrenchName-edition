@@ -1,9 +1,9 @@
-STATE = "uranus_vs_jupiter.mss"
+STATE = "moon_vs_moon.mss"
 PLAYER = 1
-MOTION = "5"
-BTN = "x"
-RANGES = { 40 }
-TAG = "T16-AIR4"
+MOTION = "454214"
+BTN = "y"
+RANGES = { 60, 90, 40 }
+TAG = "MSHA-BDCAST-GROUNDED"
 NOLOWHP = true
-LOGDACT = true
-DEFJUMP = 20
+STEPF = 2
+LOGFD = true
