@@ -21,7 +21,7 @@ Neptune 1, Pluto 1, Chibi 1 — plus in-table desperation records for Moon/Mars/
 Chibi (the other five characters' desperation records are not in the walked windows;
 their location is open).
 
-Status: **eight characters complete** — only Chibi Moon pending.
+Status: **ALL NINE CHARACTERS COMPLETE** (Chibi drafted from wiki + measurements ahead of the maintainer's detail pass — corrections welcome).
 
 ---
 
@@ -611,14 +611,66 @@ Fire, close Deep Submerge at −30). Low, knockdown, 8 damage (wiki).
   at all), separated by only a ~6f vulnerable gap. One of the safest desperation
   strikes in the game structurally — the wiki's −55 on block is its only real tax.
 
+## Chibi Moon (charID 9)
+
+*(Drafted from wiki + emulator ahead of the maintainer's detail session; flag anything off.)*
+
+### Pink Sugar Heart Attack — [4]6LP / [4]6HP (charge; record idx 0x1A)
+
+| Variant | Act | Damage | Chip | Wiki startup/recovery |
+|---|---|---|---|---|
+| LP | 61 | **10** (wiki exact) | 2 | 18 / 36 |
+| HP | 62 | **12** (wiki exact) | 2-3 | 23 / 51 |
+
+- Slim, long-hitbox heart beam at −52px; wiki prose is candid that it's her least-used
+  tool (slow LP, chip utility only). Misfire acts 63/64 (= her patch-12 taunt).
+
+### Swinging Marshmallow — j.2LK / j.2HK (air dive; strike family, no record)
+
+| Variant | Act | Damage | Wiki |
+|---|---|---|---|
+| LK | 65 | **8** (wiki exact) | High /D, −19~−10, the close version |
+| HK | 66 | **10** (wiki exact) | High /D, faster fall, whiffs point-blank |
+
+- The butt-dive: **overhead, knockdown**, and as an air special it is
+  **backdash-cancelable** — with her backdash that makes it a fully invincible
+  approach-mixup engine (wiki prose). Unique to her along with the double jump.
+
+### Throw — c.4/6HP (her only throw; HOLD-type)
+
+- **10 rapid ticks × 2 = 20** (act 5A, ~4f cadence — the fastest tick rhythm measured),
+  **untechable**, +13 oki. The wiki's blunt assessment: her most consistent damage.
+  Third and final patch-13-lore hold-thrower confirmed (Moon, Mars, Chibi — all on HP).
+
+### Movement — the real kit
+
+- **Backdash 44: 26 frames fully invulnerable (VERIFIED — hu=00 t+1..t+26), 78px per
+  wiki, vulnerable only on frame 27 — and it self-cancels on frame 26**: Chibi is the
+  only character able to chain backdashes indefinitely while remaining invincible
+  (hold the second back input to buffer). Longest backdash invuln in the game
+  (Uranus 14f, Pluto 20f, Chibi 26f).
+- **Double jump j.7/8/9**: hold the direction (no tap needed), available through frame
+  27 of the first jump. Cast-unique with the dive.
+- 2LK hits low and its recovery is JUMP-CANCELABLE (wiki) — the low→instant-overhead
+  blender starter; 2HP is one of the game's few low 2HPs.
+
+### Related
+- **Desperation "Luna P Attack"** (j.63214HP, record idx 0x1B): §6b-6d — air barrage
+  52 (7×6-8 measured; 24 vs crouchers, first-hit-only counter 54). Wiki mechanics:
+  Luna P bounces a figure-8 anchored to her cast position (vary cast height!), grants
+  a 27f guaranteed action, EATS projectiles in flight, chips 1×N, blockable by either
+  guard, and — as an air move — is backdash-cancelable. The wiki's matchup notes list
+  the counterplays (GC specials, invincible moves threading through).
+
 ---
 
 ## Template for the remaining characters
 
 For each named special: LP/HP variant acts, melee/projectile path, stand/crouch/chip
 damage, misfire acts (cross-check the record tables), Guts coverage, and any recognizer
-quirks. Pending inputs (dispatcher specials): Chibi ×1 — plus whatever off-table
-moves her movelist hides. DPs/command grabs are NOT in the record tables, so
+quirks. **No characters pending — the compendium is complete.** Remaining open items
+live in the per-character sections (wiki gaps, Mercury/Jupiter/Uranus/Neptune/Pluto
+desperation-record locations, triangle-jump and double-jump rig tests). DPs/command grabs are NOT in the record tables, so
 each character may also hide a 623/360-style move the tables can't reveal — ask the
 community list per character. (Neptune's "super" turned out to be her DP; there may be
 no true supers besides desperations.)
