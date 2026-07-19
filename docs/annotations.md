@@ -616,3 +616,13 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - DDT c.4/6HP: toss 24/28-air wiki-exact (3rd air-stronger throw), only throw.
 - Water Bullet: 12f startup invuln + hurtbox-less ACTIVE phase (hb 11/12 with hu=00),
   ~6f vulnerable gap between. Triangle jump wiki-listed (untested).
+
+### Chibi kit (2026-07-19) — compendium COMPLETE
+- PSHA [4]6P: rec 1A, acts 61/62, 10/12 wiki-exact, -52px.
+- Swinging Marshmallow j.2K: no-REC air strike, acts 65/66, 8/10 wiki-exact,
+  overhead+KD, backdash-cancelable.
+- Throw c.4/6HP: HOLD 10x2=20 untech (fastest tick cadence ~4f), only throw.
+- Backdash: 26f hu=00 VERIFIED (longest; Uranus 14/Pluto 20/Chibi 26), self-cancels
+  frame 26 -> infinite invincible chain (unique). Double jump through frame 27.
+- Luna P (rec 1B): figure-8 anchored to cast spot, eats projectiles, 27f guaranteed
+  action, backdash-cancelable (wiki prose).

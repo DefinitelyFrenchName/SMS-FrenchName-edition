@@ -1,7 +1,10 @@
-STATE = "pluto_vs_2.mss"
+STATE = "pluto_vs_chibi_v07.mss"
 PLAYER = 2
-MOTION = "632146"
-BTN = "a"
-RANGES = { 70 }
-TAG = "WATERBULLET-INV"
+MOTION = "454"
+BTN = "y"
+RANGES = { 200 }
+TAG = "CHIBI-BACKDASH"
+NOLOWHP = true
+NOBTN = true
+STEPF = 2
 LOGFD = true
