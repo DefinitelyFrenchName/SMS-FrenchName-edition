@@ -56,6 +56,50 @@ act:
 So the gate checks precisely "in post-contact guard stun" — the two blockstun act
 pairs — and nothing else. No janky alternate GC trigger exists.
 
+**Refinements from the system-wide wiki page (cross-checked 2026-07-19):**
+- The GC gate accepts: any special, any desperation, **the backdash** (VERIFIED — act
+  0x26 fires straight out of blockstun), and "forward dash" — which means exactly the
+  two dash-specials, because **seven of nine characters have NO forward dash at all**
+  (verified: Jupiter's 66 in neutral produces only walking; the wiki movement table's
+  forward-dash column is empty for everyone but Uranus and Moon). This reframes our
+  earlier control test: it wasn't "ordinary dashes can't GC" — ordinary forward dashes
+  don't exist.
+- Timing mechanism (wiki): GC becomes available after **9 frames of blockstop** (the
+  block freeze); inputs during those 9 frames buffer and fire on the 10th.
+- Exception (wiki, untested): Pluto's and Uranus's desperations can be guard-canceled
+  AGAINST after only 1 frame of blockstop.
+- **The GC backdash is an ENHANCED backdash** (our discovery while verifying): it
+  travels ~2-2.5× the neutral backdash at the same duration — Uranus ~83px vs 36
+  neutral, Pluto ~74-90 vs 37, Chibi ~66-97 vs 36 (exact figures muddied by blockstun
+  pushback drift). The wiki's per-character "Backdash Distance" column (76-154) matches
+  the GC-enhanced values, not the neutral ones — **neutral backdash distance is ~36px
+  for every character measured**, while duration and invuln vary per character
+  (Uranus 14f, Moon 17f†, Pluto 20f, Chibi 26f; † wiki, untested). The wiki's Uranus
+  backdash row (154/15f, identical to her forward dash) is a suspected data-entry
+  duplication — our measured GC backdash for her is ~83px.
+
+## System data (from the game-wide wiki page, cross-checked)
+
+- **Death rule: "You live on 0 health, must be reduced to below 0"** — the wiki
+  independently states our underflow discovery. Two sources, one rule.
+- **Throw system**: tech windows BEGIN 6 frames after throw initiation and last a
+  per-character duration — Venus 6f (the outlier patch 8 widens to 13f), Mercury/
+  Neptune 14f, Jupiter 15f, Uranus-HP 18f, Mars-HK/Moon-HK 19f. This semantics
+  reconciles our p8cal mash-boundary measurements EXACTLY (clean Venus: last teching
+  mash-start = grab+12 = the 6+6 edge). **The tech table lists only tosses — its
+  absentees are precisely our hold-throw list**, a full independent cross-validation
+  of the hold/toss taxonomy. Throw ranges 40-64px per throw (SPD LP > HP ranges match
+  our entries); air-OK throws get slightly more vertical range when used grounded;
+  and all throws have 1 LESS range facing left (an engine asymmetry).
+- **Prejump & landing**: universally 5f each; NO throw invulnerability during either
+  (throws legitimately beat jump startup); landing frames allow block after 1f
+  (matches our landing-frame block observation), throws on any frame, backdash/special
+  cancels after 1f, normals only from the 2nd frame; prejump cancels into specials/
+  backdash but never normals.
+- **Movement table** (walk speeds ~1.0-3.0 px/f — Mercury fastest at 3.0; per-char
+  jump distance 72-115px and duration 42-52f) recorded on the wiki for reference;
+  spot-checks consistent with our traces.
+
 **The criterion is grounded-only, because AIR BLOCKING DOES NOT EXIST** (verified with
 a clean natural experiment: the same fireball was blocked the instant the defender
 landed holding back — blockstun 0x0C on the landing frame — and hit them clean when

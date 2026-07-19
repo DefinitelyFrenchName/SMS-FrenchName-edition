@@ -1,10 +1,11 @@
-STATE = "uranus_vs_jupiter.mss"
+STATE = "moon_vs_moon.mss"
 PLAYER = 1
-MOTION = "55555555555555555656"
+MOTION = "44444445656"
 BTN = "y"
-RANGES = { 120 }
-TAG = "GC-2A-TAIL"
+RANGES = { 36 }
+TAG = "GC-HOP-MOON"
 NOLOWHP = true
 NOBTN = true
 LOGFD = true
-LPRESS = 12
+DBTN = "x"
+DPH = 12

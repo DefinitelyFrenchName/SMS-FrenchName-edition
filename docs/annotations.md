@@ -667,3 +667,21 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - Air: no air block -> no air stun -> no air GC; hitstun (only air stun) uncancelable.
   CONCLUSION: GC gate = exactly the post-contact guard-stun acts, nothing else.
 - Probe gained LPRESS (performer L at ph) + DDOWN (attacker holds down) options.
+
+### System-wide wiki cross-check (2026-07-19)
+- Death-underflow rule independently on wiki ('live on 0 health'). Convergence.
+- GC gate (wiki): specials/desperations/backdash/forward-dash after 9f blockstop,
+  buffered to f10. BACKDASH-GC VERIFIED (act 26 from blockstun). Pluto/Uranus
+  desperations GC-able against after 1f blockstop (wiki, untested).
+- ONLY Uranus & Moon have forward dashes (Jupiter 66 = walking, verified). Reframes
+  the earlier GC control test.
+- GC backdash = ENHANCED: ~2-2.5x neutral distance at same duration (Uranus 83 vs 36,
+  Pluto 74-90 vs 37, Chibi 66-97 vs 36; pushback drift muddies exacts). Wiki's
+  backdash-distance column = the GC values; NEUTRAL backdash ~36px universal.
+  Wiki Uranus BD row (154/15f = her fwd dash) = suspected duplication error.
+- Throw tech semantics: window STARTS grab+6f, lasts per-char (Venus 6f outlier =
+  patch 8 target; 14-19f others). Reconciles p8cal boundary (12/14) exactly.
+  Tech-table absentees = our hold-throw list (full taxonomy cross-validation).
+  Throws: -1 range facing left; air-OK throws more vertical range grounded.
+- Prejump/landing 5f universal, no throw invuln, landing blocks after 1f (matches
+  our landing-block observation), specials/backdash cancel prejump+landing after 1f.
