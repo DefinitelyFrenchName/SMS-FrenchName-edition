@@ -131,6 +131,18 @@ emu.addEventCallback(function()
   end
   if DEFJUMP and ph >= DEFJUMP and ph <= DEFJUMP + 2 then pulse[2 - PLAYER] = { up = true }
   elseif DEFJUMP and ph == DEFJUMP + 3 then pulse[2 - PLAYER] = nil end
+  if FREEZEPOS and ph >= 6 and ph <= (FREEZEEND or 20) then
+    local r0 = RANGES[1]
+    local px0 = FREEZEX or 0x0080
+    wr(pb + 0x20, 0); wr(pb + 0x21, px0 % 256); wr(pb + 0x22, math.floor(px0 / 256))
+    local dx0
+    if r0 < 0 then dx0 = px0 + r0 else dx0 = px0 + r0 end
+    wr(db + 0x20, 0); wr(db + 0x21, dx0 % 256); wr(db + 0x22, math.floor(dx0 / 256))
+    if FREEZEY then
+      local gy = 0xC0 - FREEZEY
+      wr(db + 0x24, 0); wr(db + 0x25, gy % 256); wr(db + 0x26, math.floor(gy / 256))
+    end
+  end
   if DTAUNT and ph >= DTAUNT and ph <= DTAUNT + 1 then pulse[2 - PLAYER] = { l = true }
   elseif DTAUNT and ph == DTAUNT + 2 then pulse[2 - PLAYER] = nil end
   if DBTN and DPH and ph >= DPH and ph <= DPH + 1 then pulse[2 - PLAYER] = { [DBTN] = true, down = DDOWN or nil }

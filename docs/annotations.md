@@ -759,3 +759,14 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   3 chip signatures. clean=36 / clean-FULL=46 / v0.19=55.
 - Engine-rule locks (GC gate, backdash-GC, prejump-throw, death-underflow) confirmed
   present since the T1 batch. Community reporting of findings/gaps: maintainer done.
+
+### T6 closed (2026-07-19)
+- Throw asymmetry VERIFIED pixel-exact via FREEZEPOS rig (per-frame position+subpixel
+  pokes): Uranus HK 48px right-facing / 47px left-facing, whiff at +1px each.
+- Vertical grab envelopes: Rabbit Flip (air-OK) 32-39px lift tolerance; Headbutt
+  (ground-only) <2px. FREEZEY rig.
+- Air Power Bomb: 6 attempts -> air normals; adjacency window eludes scripting
+  (asymmetry vs Moon/Mars/Mercury air throws which worked first try) - rig-limited.
+- Triangle jump: position pokes re-clamped into camera view; max-separation boundary
+  is NOT a wall for the wall-jump; true corner needs a legit camera walk - rig-limited.
+- Suite +2: base-throw-range-asymmetry, base-airok-throw-vertical-range.
