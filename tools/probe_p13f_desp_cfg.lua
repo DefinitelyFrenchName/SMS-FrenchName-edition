@@ -1,10 +1,10 @@
-STATE = "pluto_vs_chibi_v07.mss"
-PLAYER = 2
-MOTION = "85555555555555555555555555588"
+STATE = "uranus_vs_jupiter.mss"
+PLAYER = 1
+MOTION = "55555555555555555656"
 BTN = "y"
-RANGES = { 150 }
-TAG = "DJ-T37"
+RANGES = { 120 }
+TAG = "GC-2A-TAIL"
 NOLOWHP = true
 NOBTN = true
-STEPF = 1
 LOGFD = true
+LPRESS = 12
