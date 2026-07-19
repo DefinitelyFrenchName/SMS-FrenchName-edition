@@ -1,9 +1,9 @@
 STATE = "moon_vs_moon.mss"
 PLAYER = 1
-MOTION = "2"
-BTN = "a"
-RANGES = { 40 }
-TAG = "MOON-2HK"
+MOTION = "454214"
+BTN = "y"
+RANGES = { 60 }
+TAG = "MOON-BDHEART2"
 NOLOWHP = true
+STEPF = 2
 LOGFD = true
-

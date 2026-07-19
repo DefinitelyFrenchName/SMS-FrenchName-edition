@@ -597,3 +597,12 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - Dash Jump 66: act 0x60, ~30f, ~200px leap, crosses through opponent.
 - 2HK: hurtbox tops -44/-50 (vs -82) = ducks -68/-56 fireballs; act 59, boxes 2B/2C.
 - Silver Crystal Operation: 48 wiki-exact; wiki chip 12xN CONTRADICTED (we measure 0).
+
+### Moon prose round (2026-07-19)
+- Sonic Cry HP: hu=00 for ~9f startup (t72-80 trace) -> invulnerable reversal ✓.
+- Backdash-cancel VERIFIED: act 26 -> Heart act 65 at +8f, slot 0B spawns at -80px
+  (vs -164 jump cast), backward momentum carried; wiki +28/+8. Backdash self-cancels
+  (17f window, x4 max). Moon-specific cancel system.
+- MSHA HP grows mid-flight (prose); dash-jump 66 buffer ~15f (accident hazard).
+- Mercury fireball community name: 'Bubbles' (from Moon page prose).
+- SCO chip: wiki table 12xN AND prose 'good chip' both contradicted by measured 0.
