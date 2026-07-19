@@ -494,10 +494,16 @@ also claims normals cancel into backdash (lights ~−6F, heavies ~+6F) — untes
   constant Y equal to her altitude at the moment of release (traced at both apex and
   late-jump casts). Casting also **recoils her backward ~40px** — it doubles as an
   air-retreat tool.
-- In our rig it never reached a grounded target (the spawn offset keeps it above
-  standing head height even from low casts); the wiki lists it guard **High**, 8/10
-  damage, +18~ on block (LP) with recovery "until landing" — practical use is air-to-air
-  denial and retreating zoning. Misfire act 6C (both variants share it).
+- In our rig it never reached a grounded target from a jump; the wiki lists it guard
+  **High**, 8/10, +18~ on block (LP), recovery "until landing". Wiki prose: the HP
+  projectile GROWS mid-flight and shoves Moon to screen edge; LP barely recoils.
+- **Backdash-cancel tech (wiki prose, VERIFIED live)**: Moon's backdash cancels into
+  her air specials — traced: backdash act 0x26 (invulnerable) → Heart act at ~8f in,
+  projectile spawning at **−80px** (vs −164 from a jump cast — nearly standing-head
+  height!) while she sails backward. Wiki: ~+28f (LP) / +8f (HP) when done this way —
+  the "bait jump-ins like a DP" tool. Her backdash also self-cancels (17f window, up
+  to 4 chained; input 42144 hold-4 for a reliable double).
+- Misfire act 6C (both variants share it).
 
 ### Sonic Cry — [2]8LP / [2]8HP (charge; strike family, no dispatcher record)
 
@@ -508,8 +514,9 @@ also claims normals cancel into backdash (lights ~−6F, heavies ~+6F) — untes
 
 - Charge time is LONGER than Venus's Wink (a ~45f charge fails, ~55-60f works) —
   charge minimums are per-character.
-- The reversal/anti-air role is the community's; no invulnerability was checked yet
-  (candidate follow-up if it matters for a patch).
+- **Startup-invulnerable reversal confirmed**: hurtbox idx 0x00 for ~9 frames of
+  startup (traced), then active with dedicated boxes 0x37/0x38 — wiki prose "good
+  invincibility" verified.
 
 ### Throws
 
@@ -529,6 +536,9 @@ also claims normals cancel into backdash (lights ~−6F, heavies ~+6F) — untes
   Uranus's Shadow Dash), ~30 frames, **~200px of travel** — the longest movement in the
   game measured so far — and it sails THROUGH the opponent's position (crossup
   potential). Wiki lists it with startup 1.
+- Wiki prose warning worth keeping: the 66 buffer window is ~15 frames, so shimmying
+  in neutral triggers accidental hops — "a move you'll use often whether you mean to
+  or not".
 
 ### 2HK — the fireball-limbo sweep (maintainer's note, quantified)
 
@@ -539,9 +549,12 @@ Fire, close Deep Submerge at −30). Low, knockdown, 8 damage (wiki).
 
 ### Related
 - **Desperation "Silver Crystal Operation"** (2363214HK, record 0x0C): §6b-6d —
-  projectile 48 (wiki exact). **Wiki gap: they list chip 12×N; we measured ZERO chip**
-  (the defender sat 130f in blockstun with no HP writes — the engine's one flagged
-  no-chip projectile). Emulation trusted.
+  projectile 48 (wiki exact). **Wiki gap: their table lists chip 12×N and their prose
+  says "good chip damage"; we measured ZERO chip** (130f of blockstun, no HP writes —
+  the engine's one flagged no-chip projectile). Emulation trusted; worth a community
+  correction. Wiki prose adds: highly invulnerable through the fall as a reversal, and
+  the shrinking pillar shields her from projectiles while falling (it can no longer
+  hit, but hitting HER requires a late, well-timed shot or a disjointed normal).
 
 ---
 
