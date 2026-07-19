@@ -42,5 +42,11 @@ Current all-patches build: **v0.19** (`53bae682…`).
   the canonical gate choice is final.
 - **Known pending tweak**: patch 13's corner level-indicator is slated to become
   training-mode-only "down the line" (maintainer note, unscheduled).
+- **Pruned (2026-07-19)**: all historical cumulative bundles (`sms_full*`,
+  `sms_both`, all-patches BPS < v0.19 and the mislabeled v1.x line) — only the
+  per-patch standalone BPS above plus the CURRENT `sms_allpatches_vX.Y.bps` are kept;
+  any bundle is rebuildable by chaining the standalones (order-free). Locally kept
+  .sfc: the current ALLPATCHES ROM, `…v0.7_all5.sfc` (the non-interference test
+  baseline), and the per-patch standalones the test suites load.
 - Per-patch deep detail (mechanism, changed bytes, verification, version history):
   `docs/patch_notes.md`. Build commands & ROM inventory: `HANDOFF.md`.
