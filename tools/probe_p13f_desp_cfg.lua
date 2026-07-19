@@ -1,9 +1,7 @@
-STATE = "moon_vs_moon.mss"
-PLAYER = 1
-MOTION = "454214"
-BTN = "y"
-RANGES = { 60 }
-TAG = "MOON-BDHEART2"
-NOLOWHP = true
-STEPF = 2
+STATE = "pluto_vs_2.mss"
+PLAYER = 2
+MOTION = "632146"
+BTN = "a"
+RANGES = { 70 }
+TAG = "WATERBULLET-INV"
 LOGFD = true

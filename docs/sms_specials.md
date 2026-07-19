@@ -21,7 +21,7 @@ Neptune 1, Pluto 1, Chibi 1 — plus in-table desperation records for Moon/Mars/
 Chibi (the other five characters' desperation records are not in the walked windows;
 their location is open).
 
-Status: **Uranus, Neptune, Jupiter, Pluto, Mars, Venus and Moon complete**; Mercury and Chibi pending.
+Status: **eight characters complete** — only Chibi Moon pending.
 
 ---
 
@@ -556,14 +556,69 @@ Fire, close Deep Submerge at −30). Low, knockdown, 8 damage (wiki).
   the shrinking pillar shields her from projectiles while falling (it can no longer
   hit, but hitting HER requires a late, well-timed shot or a disjointed normal).
 
+## Mercury (charID 2)
+
+### Bubble Spray — [4]6LP / [4]6HP (charge; record idx 0x0D)
+
+| Variant | Damage | Chip | Wiki startup/recovery | Notes |
+|---|---|---|---|---|
+| LP | **8** (wiki exact) | 2 | 12 / 31 | VERY slow bubble (~1.7 px/f — 40f to cross 70px) |
+| HP | **10** (wiki exact) | 2 | 16 / 41 | faster |
+
+- Horizontal at −56px (clips crouchers), Mid. The community's "Bubbles" — the slow LP
+  float is the setplay tool. Misfire acts 65/66 (= her patch-12 taunt).
+
+### Mercury Aqua Mirage — **2369LP / 2369HP** (record idx 0x0E)
+
+| Variant | Act | Damage | Chip | Wiki startup/recovery |
+|---|---|---|---|---|
+| LP | 69 | **12** (wiki exact) | 3 | 8 / 36 |
+| HP | 6A | **14** (wiki exact) | 3 | 12 / 49 |
+
+- **Input corrected via wiki: 2369 (quarter-circle ending UP-FORWARD), not 236** — the
+  9 is mandatory; plain 236P produces a normal (verified exhaustively). Fitting for a
+  sharp upward fireball: it rises from floor height (contact at −1px close in). Her
+  STRONGEST fireball (12/14 beats Bubble's 8/10) with fast startup. Misfire 6B/6C.
+
+### Reverse Break Step — 623LK / 623HK (no dispatcher record)
+
+| Variant | Act | Hits | Wiki | Chip (wiki) |
+|---|---|---|---|---|
+| LK | 5F | ours 2×4 (wiki up to 4×9) | −7~+1 | 1×7 |
+| HK | 60 | ours single 12 (wiki actives 4,3×13,4) | −22/D | **3×15** |
+
+- **The invulnerability question settled: it HAS real invuln** — hurtbox absent for
+  ~12 frames from act start THROUGH the first active frames (traced), then dedicated
+  spin hurtboxes for the long tail. "Little, maybe none" undersold it; it's a genuine
+  reversal layer, though the extended spin is exposed. The HK's 3×15 chip makes it a
+  corner chip machine per the wiki.
+
+### DDT — c.4/6HP (her only throw; ground and air)
+
+- Toss **24** ground / **28 air** — both wiki-exact; the air-stronger pattern's third
+  member (Mars Frankensteiner, Moon Rabbit Flip). Techable, with a wiki quirk: the
+  thrower is briefly invincible on the opponent's tech (−6 but safe).
+
+### Triangle Jump — 7/9 near a wall (wiki-listed movement)
+
+- Chun-Li-style wall jump, 8f recovery per the wiki table. Not rig-tested (movement
+  tech; noted on maintainer + wiki authority).
+
+### Related
+- **Desperation "Water Bullet"** (632146HK): §6b-6d — strike 48 (wiki exact). The
+  maintainer's "has some invincibility" verified and then some: **12f startup invuln
+  AND a fully hurtbox-less ACTIVE phase** (hitboxes 0x11/0x12 cycling with no hurtbox
+  at all), separated by only a ~6f vulnerable gap. One of the safest desperation
+  strikes in the game structurally — the wiki's −55 on block is its only real tax.
+
 ---
 
 ## Template for the remaining characters
 
 For each named special: LP/HP variant acts, melee/projectile path, stand/crouch/chip
 damage, misfire acts (cross-check the record tables), Guts coverage, and any recognizer
-quirks. Pending inputs (dispatcher specials): Mercury ×2, Chibi ×1 — plus whatever
-DP/charge/360-type moves the tables cannot reveal. DPs/command grabs are NOT in the record tables, so
+quirks. Pending inputs (dispatcher specials): Chibi ×1 — plus whatever off-table
+moves her movelist hides. DPs/command grabs are NOT in the record tables, so
 each character may also hide a 623/360-style move the tables can't reveal — ask the
 community list per character. (Neptune's "super" turned out to be her DP; there may be
 no true supers besides desperations.)
