@@ -649,10 +649,27 @@ Fire, close Deep Submerge at −30). Low, knockdown, 8 damage (wiki).
   only character able to chain backdashes indefinitely while remaining invincible
   (hold the second back input to buffer). Longest backdash invuln in the game
   (Uranus 14f, Pluto 20f, Chibi 26f).
-- **Double jump j.7/8/9**: hold the direction (no tap needed), available through frame
+- **Double jump j.7/8/9**: a character-specific COMMAND (like Mercury's triangle
+  jump), not a special — hold the direction (no tap needed), available through frame
   27 of the first jump. Cast-unique with the dive.
 - 2LK hits low and its recovery is JUMP-CANCELABLE (wiki) — the low→instant-overhead
   blender starter; 2HP is one of the game's few low 2HPs.
+- **2HK is a sliding sweep** (maintainer's read, verified): act 0x58, one traveling
+  active window of ~40 frames (hitbox 0x0E) carrying her **~102px forward** — longer
+  than Uranus's slide (67-79px). 9 damage wiki-exact, low, knockdown.
+
+### 5LP — the double-play quirk (maintainer's hypothesis, CONFIRMED)
+
+The fastest normal in the game (2f startup, wiki) really does **play twice**: the move
+runs act 0x40 with an active hitbox window (t+1..t+3), then chains into act 0x41 and
+puts the SAME hitbox out again (t+17..t+21) — animation and hitbox both, on hit and on
+whiff alike. Damage applies only once in practice (2), because the first hit's stun
+covers the second window — but the second window is a REAL hitbox, so against an
+opponent who walks into range between windows it could in principle connect alone.
+Extra jank: the second hitbox OUTLIVES the move — it stays active for ~2 frames after
+her act returns to neutral (hb=01 with act 0x00 in the trace). Tiny range and 2 damage
+keep it a curiosity, exactly as the maintainer said — but it is now a frame-documented
+engine oddity.
 
 ### Related
 - **Desperation "Luna P Attack"** (j.63214HP, record idx 0x1B): §6b-6d — air barrage

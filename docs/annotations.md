@@ -626,3 +626,11 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   frame 26 -> infinite invincible chain (unique). Double jump through frame 27.
 - Luna P (rec 1B): figure-8 anchored to cast spot, eats projectiles, 27f guaranteed
   action, backdash-cancelable (wiki prose).
+
+### Chibi extras (maintainer round 2, 2026-07-19)
+- 2HK slide: act 0x58, hb 0x0E ~40f traveling active, ~102px (longest slide; Uranus
+  67-79px), 9 dmg wiki-exact, low/KD.
+- 5LP DOUBLE-PLAY quirk CONFIRMED: act 0x40 (hb window t+1..3) chains to act 0x41 with
+  the SAME hitbox out again (t+17..21), on hit AND whiff; damage once (hitstun covers
+  window 2, but window 2 is a real hitbox); second hitbox persists ~2f into act 0x00
+  (outlives the move). Programming-mishap class finding.
