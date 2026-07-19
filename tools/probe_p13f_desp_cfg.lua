@@ -1,9 +1,10 @@
-STATE = "uranus_vs_jupiter.mss"
-PLAYER = 1
-MOTION = "632"
+STATE = "pluto_vs_chibi_v07.mss"
+PLAYER = 2
+MOTION = "85555555555555555555555555588"
 BTN = "y"
-RANGES = { 70 }
-TAG = "AIRBLOCK-TEST"
+RANGES = { 150 }
+TAG = "DJ-T37"
 NOLOWHP = true
-DEFBLOCK = "upback"
-LOGDACT = true
+NOBTN = true
+STEPF = 1
+LOGFD = true
