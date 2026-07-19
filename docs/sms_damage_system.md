@@ -56,17 +56,42 @@ on holder +0x44 ≥ 0x12 so normal throws stay untouched.
 ## 3. The modifier — what shifts damage up or down
 
 Final damage = MATRIX64[row][8 + modifier] — a 64-row × 16-column table (column 8
-neutral, smaller = stronger, row-dependent cap/floor; rows 0-15 dumped in
-`sms_acs_system.md` §2, high rows in the resolution below). Known inputs:
+neutral, smaller = stronger; rows 0-15 dumped in `sms_acs_system.md` §2).
 
-- **RNG jitter** — `$7E:0090`, frame-evolving, deterministic from reset under fixed
-  input timing. THE source of damage variance (same jab rolls 1-6). All comparisons in
-  this doc are roll-matched: same savestate + same landing frame = same roll.
-- **ACS stats** — attacker +0x70 (normals) / +0x73 (specials) / +0x74 (desperation
-  strike portion) shift left; defender +0x71 shifts right. Boost-only from the VS
-  default of 0. Detail: `sms_acs_system.md` §3.
-- **Counter-hit ("punish") shift** — exactly **−2 columns**, see §6 and the resolution below.
-- **NOT an input**: which hurtbox (head/body/legs) the attack contacts — §7.
+**THE MODIFIER, FULLY DISASSEMBLED (2026-07-19 — supersedes every "RNG jitter" claim):**
+the composition code is 11 near-identical handlers at file 0xCAED-0xCD6D, template:
+
+```
+if $8D == 4 -> no-damage exit ($CD6A)          ; practice mode
+mod  = (defender+0x18 bit0) ? -2 : 0           ; COUNTER-HIT FLAG (the -2 columns)
+mod += defender+0x48                            ; FIRST-HIT DEFENSE (see below)
+mod += defender+0x71                            ; ACS defense
+mod -= attacker stat                            ; $70 normals / $73 specials / $74 desperations
+mod -= 1                                        ; (present in the dec_a handler variants)
+row  = attacker+0x45
+jsr/jmp $D055                                   ; damage = MATRIX[row][(mod+8)&15]
+```
+
+Verified numerically live (Uranus 5HP: d48=1 → mod 0 → row8 col8 = 8; d48=0 → −1 →
+col7 = 10). Handler flavors: 3 stats × dec/no-dec `jmp` HIT handlers, plus 5 `jsr`
+tail handlers — the tails implement **chip = damage>>2, floor 1** (our measured chip
+law, in literal code) and, on three desperation handlers, **damage clamped to the
+defender's remaining HP** (`if hp < dmg then dmg = hp`) — the "cannot kill" mechanism
+behind Dimension Dance's no-chip-kill in code form.
+
+- **THERE IS NO RNG IN DAMAGE.** The historical "variance"/"roll" is defender
+  **+0x48, the first-hit defense**: loaded 1 at character init, it grants +1 modifier
+  column until the defender is first hit, then is cleared — by a 16-bit
+  `stz $47,X` at `$C1:0E51` that zeroes hitstun-staging +0x47 AND +0x48 together (a
+  two-byte side effect). Every "roll pair" ever measured (ours and the wiki's
+  damage|faceHit columns) is exactly d48=1 vs d48=0 — two adjacent matrix columns.
+  Damage is fully deterministic.
+- **Counter-hit** = defender +0x18 bit0 (set during attack-family acts): literal
+  `lda #$FE` = −2 columns.
+- **ACS stats** — attacker +0x70/+0x73/+0x74 chosen PER HANDLER (this is where
+  +0x74 = desperation-only is decided); defender +0x71 added.
+- **NOT inputs**: hurtbox contact zone (§7), and $7E:0090 (the RNG is real but feeds
+  other systems — ochame rolls — not damage).
 
 **RESOLVED (read-watch, 2026-07-18): the matrix is 64×16, not 16×16** — file
 0xD081-0xD480 (1024 bytes; code resumes ≈0xD4A1). The live reader is the 16-bit load

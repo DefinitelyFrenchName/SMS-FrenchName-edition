@@ -1,7 +1,5 @@
-STATE = "moon_vs_moon.mss"
+STATE = "uranus_vs_jupiter.mss"
 PLAYER = 1
 BTN = "x"
 RANGE = 40
-TAG = "M5HP-TAUNT30"
-DBTN = "l"
-DPH = 30
+TAG = "MODPROBE-5HP"

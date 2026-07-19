@@ -710,3 +710,15 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - prejump-backdash-cancel regression test attempted and DROPPED: the 5f cancel
   window + 30Hz input-phase makes a scripted 1f-tap test inherently flaky (wrong
   phase -> back-jump act 0x08). Fact stays verified (manual rig); not suite-locked.
+
+### T2 closed: modifier composition disassembled (2026-07-19)
+- 11 handlers 0xCAED-0xCD6D (6 jmp hit + 5 jsr tail), template: practice-4 bypass ->
+  mod = counter(-2 if def+0x18 bit0) + def+0x48 + def+0x71 - att($70/$73/$74)
+  [- 1 in dec_a variants]; row = att+0x45; -> $D055.
+- NO RNG IN DAMAGE. def+0x48 = first-hit defense (init 1, cleared on first hit by
+  16-bit stz $47,X at $C1:0E51 — zeroes +0x47/+0x48 together). All 'roll pairs' =
+  d48 1 vs 0. Wiki damage|faceHit columns = the same pair.
+- jsr tails: chip = dmg>>2 floor 1 (in code); 3 desperation tails CLAMP damage to
+  remaining HP (cannot-kill mechanism — Dimension Dance no-chip-kill etc.).
+- Counter-hit = def+0x18 bit0 -> lda #$FE. Practice mode-4 no-damage exit $CD6A in
+  every handler. P1 +0x48 load site 0x883E (char init).

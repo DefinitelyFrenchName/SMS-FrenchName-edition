@@ -95,6 +95,11 @@ row 14: 1D 1D 1C 1B 1A 18 15 12 | 0E 0B 09 08 08 07 07 07
 row 15: 20 1F 1E 1D 1C 1A 17 14 | 0F 0C 0A 09 08 08 07 07
 ```
 
+**SUPERSEDED (2026-07-19): the modifier is fully disassembled — see
+`sms_damage_system.md` §3.** There is NO RNG in damage: the "variance" is defender
++0x48 (first-hit defense, 1 until first hit taken then cleared at $C1:0E51). The
+paragraph below is kept as historical record of the inference stage:
+
 The **modifier** mixes (mechanism inferred from measurements; exact combination code not
 yet disassembled):
 - a per-hit **RNG jitter** — the source of this game's damage variance (the same jab rolls

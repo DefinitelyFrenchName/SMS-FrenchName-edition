@@ -27,11 +27,18 @@ end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.sn
 emu.addMemoryCallback(function(addr, value)
   if t and t >= 0 then
     local st = emu.getState()
+    log(string.format("  W48 t=%d ->%02X pc=%06X", t, value, st["cpu.k"] * 65536 + st["cpu.pc"]))
+  end
+end, emu.callbackType.write, 0x10C8, 0x10C8, emu.cpuType.snes, emu.memType.snesWorkRam)
+
+emu.addMemoryCallback(function(addr, value)
+  if t and t >= 0 then
+    local st = emu.getState()
     local pc = st["cpu.k"] * 65536 + st["cpu.pc"]
     local d = ram(db + 0x49) - value
-    log(string.format("  HIT t=%d dmg=%d ->%02X pc=%06X aact=%02X dact=%02X ay=%04X dy=%04X",
+    log(string.format("  HIT t=%d dmg=%d ->%02X pc=%06X aact=%02X dact=%02X a45=%02X d48=%02X d18=%02X mod00=%02X",
       t, 0x60 - value, value, pc, ram(ab + 1), ram(db + 1),
-      ram(ab + 0x25) + 256 * ram(ab + 0x26), ram(db + 0x25) + 256 * ram(db + 0x26)))
+      ram(ab + 0x45), ram(db + 0x48), ram(db + 0x18), ram(0)))
   end
 end, emu.callbackType.write, dhp, dhp, emu.cpuType.snes, emu.memType.snesWorkRam)
 
