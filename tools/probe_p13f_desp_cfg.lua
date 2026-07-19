@@ -1,11 +1,10 @@
-STATE = "moon_vs_moon.mss"
+STATE = "uranus_vs_jupiter.mss"
 PLAYER = 1
-MOTION = "44444445656"
+MOTION = "8"
 BTN = "y"
-RANGES = { 36 }
-TAG = "GC-HOP-MOON"
+RANGES = { 200 }
+TAG = "PREJUMP-NORMAL"
+NOBTN = false
 NOLOWHP = true
-NOBTN = true
 LOGFD = true
-DBTN = "x"
-DPH = 12
+STEPF = 1

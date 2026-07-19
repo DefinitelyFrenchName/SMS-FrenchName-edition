@@ -123,7 +123,8 @@ emu.addEventCallback(function()
     -- park defender at range r (side-aware)
     local px = ram(pb + 0x21) + 256 * ram(pb + 0x22)
     local L = onLeft()
-    local nx = L and (px + r) or (px - r)
+    local nx
+    if r < 0 then nx = px + r else nx = L and (px + r) or (px - r) end
     wr(db + 0x21, nx % 256); wr(db + 0x22, math.floor(nx / 256))
     if POKES then for _, p in ipairs(POKES) do wr(p.addr, p.val) end end
     log(string.format("-- %s attempt %d range=%d crouch=%s toff=%d", TAG or STATE, attempt, r, tostring(CROUCH or false), TOFF))
@@ -194,6 +195,21 @@ emu.addEventCallback(function()
   end
   if LPRESS and ph >= LPRESS and ph <= LPRESS + 1 then pulse[PLAYER - 1] = { l = true }
   elseif LPRESS and ph == LPRESS + 2 then pulse[PLAYER - 1] = nil end
+  if DMOTION then
+    local dsf = DSTEPF or 3
+    local dm0 = DM0 or 10
+    local dL = not onLeft()
+    local dsd = math.floor((ph - dm0) / dsf) + 1
+    if ph >= dm0 and dsd <= #DMOTION then
+      pulse[2 - PLAYER] = dirpad(DMOTION:sub(dsd, dsd), dL)
+    elseif ph >= dm0 and dsd == #DMOTION + 1 then
+      local p = dirpad(DMOTION:sub(#DMOTION, #DMOTION), dL)
+      if DBTN2 then p[DBTN2] = true end
+      pulse[2 - PLAYER] = p
+    elseif ph >= dm0 and dsd == #DMOTION + 2 then
+      pulse[2 - PLAYER] = nil
+    end
+  end
   -- track performer acts + defender grab
   local a = ram(pb + 1)
   if a >= 0x2B and not saw[a] then
