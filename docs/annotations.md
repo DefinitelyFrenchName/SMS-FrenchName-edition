@@ -606,3 +606,13 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - MSHA HP grows mid-flight (prose); dash-jump 66 buffer ~15f (accident hazard).
 - Mercury fireball community name: 'Bubbles' (from Moon page prose).
 - SCO chip: wiki table 12xN AND prose 'good chip' both contradicted by measured 0.
+
+### Mercury kit (2026-07-19)
+- Bubble Spray [4]6P: rec 0D, 8/10 wiki-exact, -56px, LP ~1.7px/f slow float.
+- Aqua Mirage 2369P (NOT 236 — the 9 is mandatory, exhaustively verified): rec 0E,
+  acts 69/6A, 12/14 wiki-exact, rises from floor.
+- Reverse Break Step 623K: no-REC, acts 5F/60, ~12f invuln THROUGH first active
+  (maintainer's 'maybe none' corrected), HK chip 3x15.
+- DDT c.4/6HP: toss 24/28-air wiki-exact (3rd air-stronger throw), only throw.
+- Water Bullet: 12f startup invuln + hurtbox-less ACTIVE phase (hb 11/12 with hu=00),
+  ~6f vulnerable gap between. Triangle jump wiki-listed (untested).
