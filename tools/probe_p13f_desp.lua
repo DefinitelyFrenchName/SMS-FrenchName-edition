@@ -43,6 +43,7 @@ emu.addMemoryCallback(function(addr, value)
     hits[#hits + 1] = { t = t, v = value, pc = pc, kind = kind,
       a1 = ram(0x1044), a2 = ram(0x10C4), act1 = ram(0x1001), act2 = ram(0x1081),
       dy = ram(db + 0x25) + 256 * ram(db + 0x26), sy = ram(sb + 0x25) + 256 * ram(sb + 0x26) }
+
   end
 end, emu.callbackType.write, dhp, dhp, emu.cpuType.snes, emu.memType.snesWorkRam)
 
@@ -142,7 +143,7 @@ emu.addEventCallback(function()
   if CROUCH and ph >= 6 then pulse[2 - PLAYER + 0] = { down = true } end
   if CROUCH and ph < 6 then pulse[2 - PLAYER + 0] = nil end
   -- AIR: jump at ph 10, motion from ph 22 (airborne)
-  local m0 = AIR and 22 or 10
+  local m0 = AIR and (AIRM0 or 22) or 10
   local L = onLeft()
   if AIR and ph >= 10 + TOFF and ph <= 12 + TOFF then pulse[PLAYER - 1] = { up = true } end
   local sf = STEPF or 3
@@ -168,12 +169,13 @@ emu.addEventCallback(function()
     end
   end
   if LOGFD then
-    local tup = string.format("pact=%02X hb=%02X hu=%02X slot=%02X sx=%04X px=%04X dact=%02X",
-      ram(pb + 1), ram(pb + 0x40), ram(pb + 0x41), ram((PLAYER == 1) and 0x1100 or 0x1180),
-      ram(((PLAYER == 1) and 0x1100 or 0x1180) + 0x21) + 256 * ram(((PLAYER == 1) and 0x1100 or 0x1180) + 0x22),
+    local sbb = (PLAYER == 1) and 0x1100 or 0x1180
+    local tup = string.format("pact=%02X hb=%02X hu=%02X slot=%02X sx=%04X sy2=%04X px=%04X dact=%02X",
+      ram(pb + 1), ram(pb + 0x40), ram(pb + 0x41), ram(sbb),
+      ram(sbb + 0x21) + 256 * ram(sbb + 0x22), ram(sbb + 0x25) + 256 * ram(sbb + 0x26),
       posxpb(), ram(db + 1))
     if tup ~= saw.fdt then
-      local slim = tup:gsub(" sx=%x+", ""):gsub(" px=%x+", "")
+      local slim = tup:gsub(" sx=%x+", ""):gsub(" px=%x+", ""):gsub(" sy2=%x+", "")
       if slim ~= (saw.fds or "") then log(string.format("   FD t=%d %s", t, tup)) end
       saw.fdt = tup; saw.fds = slim
     end
