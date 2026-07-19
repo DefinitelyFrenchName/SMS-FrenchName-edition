@@ -634,3 +634,12 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   the SAME hitbox out again (t+17..21), on hit AND whiff; damage once (hitstun covers
   window 2, but window 2 is a real hitbox); second hitbox persists ~2f into act 0x00
   (outlives the move). Programming-mishap class finding.
+
+### Guard-cancel criterion tests (2026-07-19)
+- GC rig: P1 holds back, P2 (DBTN/DPH in p13f probe now) heavies P1 into blockstun,
+  P1 inputs the tool mid-stun. GC = blockstun act 0C/0E -> move act directly.
+- Uranus Shadow Dash: 0E -> 0x60 at input completion mid-stun = GC-ABLE -> SPECIAL.
+- Moon Dash Jump: same, GC-ABLE -> SPECIAL (wiki prose confirmed).
+- Jupiter ordinary forward dash (control): input eaten, stun runs full -> NOT special.
+- Criterion (maintainer): GC-able <=> special. Both GC dashes are act 0x60 in
+  char-special act space - structure and behavior agree.

@@ -1,9 +1,11 @@
-STATE = "pluto_vs_chibi_v07.mss"
-PLAYER = 2
-MOTION = "5"
+STATE = "jupiter_vs_venus_clean.mss"
+PLAYER = 1
+MOTION = "44444445656"
 BTN = "y"
-RANGES = { 200 }
-TAG = "CHIBI-5LP-WHIFF"
+RANGES = { 36 }
+TAG = "GC-JUPITER-DASH"
 NOLOWHP = true
+NOBTN = true
 LOGFD = true
-
+DBTN = "x"
+DPH = 12

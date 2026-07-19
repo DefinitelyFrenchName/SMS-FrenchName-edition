@@ -21,6 +21,24 @@ Neptune 1, Pluto 1, Chibi 1 — plus in-table desperation records for Moon/Mars/
 Chibi (the other five characters' desperation records are not in the walked windows;
 their location is open).
 
+**Movement classification — the guard-cancel criterion (maintainer's rule, verified):**
+a movement tool is a SPECIAL iff it can be guard-canceled into (performed directly out
+of blockstun); otherwise it is a command/universal movement. Tested with a block-then-
+input rig (blockstun act 0x0C/0x0E → move act = GC):
+
+| Tool | GC test | Classification |
+|---|---|---|
+| Uranus Shadow Dash 66 (act 0x60) | **cancels blockstun** (verified) | **SPECIAL** |
+| Moon Dash Jump 66 (act 0x60) | **cancels blockstun** (verified) | **SPECIAL** |
+| Ordinary forward dash (Jupiter control) | input eaten, stun runs full | universal movement |
+| Backdash 44 (act 0x26) | not GC-able (Chibi prose: backdash is her escape INSTEAD of GC) | universal movement |
+| Mercury Triangle Jump (wall 7/9) | untested (wall-dependent); her listed GC option is HP Bubble, not this | command movement (presumed) |
+| Chibi Double Jump j.7/8/9 | air-only, GC n/a | command movement |
+| Slides (Uranus/Chibi 2HK), Neptune c.HK etc. | normals | command normals |
+
+Both GC-able dashes sit at act 0x60 in their characters' special-act space — the
+engine's own data agrees with the behavioral criterion.
+
 Status: **ALL NINE CHARACTERS COMPLETE** (Chibi drafted from wiki + measurements ahead of the maintainer's detail pass — corrections welcome).
 
 ---
@@ -80,10 +98,12 @@ LK trades 8 damage for 8px more range and 4f less whiff recovery.
 
 ### Shadow Dash — 66 (forward dash; structurally a special move)
 
-The maintainer's framing is confirmed by the act map: the forward dash runs on act
-**0x60**, inside Uranus's character-specific special-act space (her specials/misfire/
-desperation acts occupy 0x61-0x79), while the BACK dash uses the universal act 0x26.
-Her "dash" really is a per-character special move that happens to be motion 66.
+The maintainer's framing is confirmed twice over: structurally, the forward dash runs
+on act **0x60** inside Uranus's character-specific special-act space (0x61-0x79 = her
+specials/desperation) while the back dash uses universal act 0x26; and behaviorally,
+**it GUARD-CANCELS (verified)** — input 66 during blockstun and the dash comes out
+mid-stun (the Chibi wiki's "reversal forward dash" counterplay). By the maintainer's
+criterion (GC-able ⇔ special), Shadow Dash is a full special move.
 
 | | Act | Duration | Distance | Speed | Hurtbox | Skid |
 |---|---|---|---|---|---|---|
@@ -367,8 +387,8 @@ also claims normals cancel into backdash (lights ~−6F, heavies ~+6F) — untes
 
 - The upward-arc fireball: contact measured at **−65px** height at 70px range (it caught
   a STANDING defender's head zone on the way up) — an anti-air-capable trajectory, LP/HP
-  arcs differing per the maintainer. Knocks down (wiki /D). Misfire acts 66/67
-  (= her patch-12 taunt).
+  arcs differing per the maintainer. Knocks down (wiki /D). Community nickname "Birds"
+  (the Chibi matchup prose: "GC HP Bird"). Misfire acts 66/67 (= her patch-12 taunt).
 
 ### Snake Fire — 41236LK / 41236HK (record idx 0x10)
 
@@ -536,6 +556,9 @@ also claims normals cancel into backdash (lights ~−6F, heavies ~+6F) — untes
   Uranus's Shadow Dash), ~30 frames, **~200px of travel** — the longest movement in the
   game measured so far — and it sails THROUGH the opponent's position (crossup
   potential). Wiki lists it with startup 1.
+- **It GUARD-CANCELS (verified)** — the hop comes out directly from blockstun, exactly
+  as the wiki prose claimed — making it a SPECIAL by the maintainer's criterion, and
+  her premier defensive option ("GC forward hop into whatever").
 - Wiki prose warning worth keeping: the 66 buffer window is ~15 frames, so shimmying
   in neutral triggers accidental hops — "a move you'll use often whether you mean to
   or not".
@@ -670,6 +693,14 @@ Extra jank: the second hitbox OUTLIVES the move — it stays active for ~2 frame
 her act returns to neutral (hb=01 with act 0x00 in the trace). Tiny range and 2 damage
 keep it a curiosity, exactly as the maintainer said — but it is now a frame-documented
 engine oddity.
+
+### Cross-validation note
+
+The Chibi overview's counterplay list name-checks moves across the cast — Uranus's
+"reversal forward dash" (= the GC Shadow Dash, verified), Mercury's "GC HP Bubble",
+Jupiter's "Coconut" eating a Luna P hit, Mars's "Birds" (Fire Soul Bird), Moon's "GC
+forward hop" (verified) — every one maps onto a compendium entry, a nice independent
+consistency check of the whole document.
 
 ### Related
 - **Desperation "Luna P Attack"** (j.63214HP, record idx 0x1B): §6b-6d — air barrage

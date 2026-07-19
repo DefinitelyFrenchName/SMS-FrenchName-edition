@@ -132,6 +132,8 @@ emu.addEventCallback(function()
   elseif DEFJUMP and ph == DEFJUMP + 3 then pulse[2 - PLAYER] = nil end
   if DTAUNT and ph >= DTAUNT and ph <= DTAUNT + 1 then pulse[2 - PLAYER] = { l = true }
   elseif DTAUNT and ph == DTAUNT + 2 then pulse[2 - PLAYER] = nil end
+  if DBTN and DPH and ph >= DPH and ph <= DPH + 1 then pulse[2 - PLAYER] = { [DBTN] = true }
+  elseif DBTN and DPH and ph == DPH + 2 then pulse[2 - PLAYER] = nil end
   if DEFBLOCK and ph >= (DEFBLOCKAT or 6) then
     local L = onLeft()   -- performer on left -> defender blocks by holding right... away = same dir as performer->defender? defender holds AWAY from performer
     local p = {}
