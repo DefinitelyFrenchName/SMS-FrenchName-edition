@@ -685,3 +685,15 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   Throws: -1 range facing left; air-OK throws more vertical range grounded.
 - Prejump/landing 5f universal, no throw invuln, landing blocks after 1f (matches
   our landing-block observation), specials/backdash cancel prejump+landing after 1f.
+
+### Wiki-facts verification round (2026-07-19)
+- GC gate: <=3f (Neptune 214-prebuffered fired contact+3). Wiki '9f blockstop,
+  buffer to f10' REFUTED. Backdash-GC floor +5 = tap-tap input mechanics, and
+  both edges must be fresh (<15f apart) — stale held-back breaks the double-tap.
+- GC out of blocked Pluto desperation: works (+9, input-limited); '1f exception'
+  subsumed by the immediate gate.
+- Prejump: throw-vulnerable VERIFIED (act 05 grabbed frame 2); backdash-cancel
+  VERIFIED (05->26 grounded); normal-cancel refuted-as-designed (button eaten).
+- Throw -1-range-left + air-OK vertical range: below rig precision, wiki-only.
+- Uranus HP throw measured: acts 5B/5C/5D, toss 24 (wiki-exact) — second throw done.
+- Defender pre-contact backdash evades desperations outright (accidental demo).

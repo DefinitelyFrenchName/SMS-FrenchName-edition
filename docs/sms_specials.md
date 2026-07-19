@@ -64,10 +64,18 @@ pairs — and nothing else. No janky alternate GC trigger exists.
   forward-dash column is empty for everyone but Uranus and Moon). This reframes our
   earlier control test: it wasn't "ordinary dashes can't GC" — ordinary forward dashes
   don't exist.
-- Timing mechanism (wiki): GC becomes available after **9 frames of blockstop** (the
-  block freeze); inputs during those 9 frames buffer and fire on the 10th.
-- Exception (wiki, untested): Pluto's and Uranus's desperations can be guard-canceled
-  AGAINST after only 1 frame of blockstop.
+- **Timing: the wiki's 9-frame blockstop gate does NOT reproduce — the gate is ≤3
+  frames, effectively immediate** (verified: Neptune with 214 prebuffered and the
+  button pressed post-contact fired Deep Submerge 3 frames after block contact; GC
+  backdashes fire at input completion, as early as contact+5, which is the tap-tap
+  input floor). Emulator trusted over the wiki here.
+- The desperation "1f exception" (wiki) is therefore subsumed: with an immediate gate
+  for everything, it is indistinguishable in practice. The practical claim verified:
+  **GC out of a blocked Pluto desperation works** (backdash fired 9f after the blocked
+  opener, input-limited — you eat 1 chip and are already canceling).
+- **GC-backdash execution tech** (found the hard way): the double-tap needs both back
+  EDGES within the ~15f buffer — holding back long before the cancel breaks it (the
+  stale hold counts as the first edge). Release and re-tap fresh: 5-4-5-4.
 - **The GC backdash is an ENHANCED backdash** (our discovery while verifying): it
   travels ~2-2.5× the neutral backdash at the same duration — Uranus ~83px vs 36
   neutral, Pluto ~74-90 vs 37, Chibi ~66-97 vs 36 (exact figures muddied by blockstun
@@ -91,11 +99,16 @@ pairs — and nothing else. No janky alternate GC trigger exists.
   of the hold/toss taxonomy. Throw ranges 40-64px per throw (SPD LP > HP ranges match
   our entries); air-OK throws get slightly more vertical range when used grounded;
   and all throws have 1 LESS range facing left (an engine asymmetry).
-- **Prejump & landing**: universally 5f each; NO throw invulnerability during either
-  (throws legitimately beat jump startup); landing frames allow block after 1f
-  (matches our landing-frame block observation), throws on any frame, backdash/special
-  cancels after 1f, normals only from the 2nd frame; prejump cancels into specials/
-  backdash but never normals.
+- **Prejump & landing**: universally 5f each (confirmed in every jump trace); **no
+  throw invulnerability — VERIFIED** (a ground throw grabbed the defender on prejump
+  frame 2, act 05 → 1C); **backdash cancels prejump — VERIFIED** (act 05 → 26 without
+  ever leaving the ground); **normals cannot cancel prejump — VERIFIED** (the button
+  is eaten and the jump proceeds). Landing: block after 1f (matches our landing-frame
+  block observation), throws on any frame, specials/backdash after 1f, normals from
+  the 2nd frame (wiki, consistent with everything observed).
+- Wiki-only, untestable at our rig precision: throws having 1 less range facing left
+  (±1px sits under input walk-drift noise) and the air-OK throws' extra vertical range
+  when grounded. Recorded, unverified.
 - **Movement table** (walk speeds ~1.0-3.0 px/f — Mercury fastest at 3.0; per-char
   jump distance 72-115px and duration 42-52f) recorded on the wiki for reference;
   spot-checks consistent with our traces.
@@ -204,9 +217,9 @@ criterion (GC-able ⇔ special), Shadow Dash is a full special move.
   in the rush): `sms_acs_system.md` §6b-6d. Wiki lists damage 67 (exact match) and
   chip 1xN (matches), but guard "Mid" — our crouch-vs-stand block results (11 no-grab
   vs 66+grab) contradict that; see the gap list below.
-- **Throws** (wiki cross-check): 4/6HK = the hold-throw, 22, not techable — matches our
-  tick-path measurement exactly; 4/6HP = a 24-damage TECHABLE toss (+28 on tech). So
-  Uranus has TWO normal throws; our earlier "her throw is hold-type" covered the HK one.
+- **Throws** (wiki cross-check, both now measured): 4/6HK = the hold-throw, 22,
+  untechable (tick path); 4/6HP = a 24-damage TECHABLE toss, acts 5B→5D (measured
+  during the prejump-throw test; +28 on tech per wiki). Two throws, one of each type.
 
 ### Wiki cross-check (Dustloop SMS/Uranus/Frame_Data; fetched 2026-07-19)
 
