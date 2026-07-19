@@ -8,18 +8,21 @@ Move names and inputs from the maintainer / Dustloop community wiki
 (https://www.dustloop.com/w/SMS — Cloudflare-blocked for our fetcher; values below are
 our own measurements).
 
-**Structural ground truth** (see annotations "Special-move record tables"): each
-character's dispatcher moves live in a bank-$C1 record table (7-byte records;
-record+0 = global index). Button-PAIRED records with misfire acts = the misfire-capable
-specials; **single-variant records with misfire 00 = the character's DESPERATION**
-(verified live: Mars's "mystery" record 0x11 is Snake Flare, Moon's 0x0C and Venus's
-0x16 fire on their desperations — dispatched from the act-machine via the
-`lda #act / jsr $04DA / ldy #rec / jsr $0B49` template, e.g. Mars @C1:583C).
-Command grabs (360s), DPs, charge-kicks and some rushing strikes fire NO record.
-Dispatcher-special counts: Moon 2, Mercury 2, Mars 2, Jupiter 2, Venus 2, Uranus 1,
-Neptune 1, Pluto 1, Chibi 1 — plus in-table desperation records for Moon/Mars/Venus/
-Chibi (the other five characters' desperation records are not in the walked windows;
-their location is open).
+**Structural ground truth — the dispatcher is the PROJECTILE system** (resolved
+2026-07-19): the bank-$C1 record tables (7-byte records, record+0 = global index)
+describe exactly the moves that SPAWN PROJECTILES — the record payload carries the
+projectile parameters (velocity/arc bytes, e.g. C0FF = upward arc, 0000 = flat; Wink's
+spawn-distance byte). Everything else — DPs, 360 grabs, charge kicks, lariats, rushing
+strikes — never touches `$C1:0B49` and lives purely in the act machine.
+Desperations follow the same rule: the four with projectile components have in-table
+records (Moon 0x0C, Mars 0x11, Venus 0x16 — hers has the anti-air projectile part —
+Chibi 0x1B), and the five pure strike/grab desperations (Mercury, Jupiter, Uranus,
+Neptune, Pluto) fire NO record — verified live, all five connecting with zero
+dispatcher hits. The "missing records" question is closed: they never existed.
+Corollary: **only projectile specials can misfire** (misfire acts live in the records),
+so the ochame stat and the patch-12 taunts are structurally projectile-special-only.
+Dispatcher (projectile) special counts: Moon 2, Mercury 2, Mars 2, Jupiter 2, Venus 2,
+Uranus 1, Neptune 1, Pluto 1, Chibi 1.
 
 **Movement classification — the guard-cancel criterion (maintainer's rule, verified):**
 a movement tool is a SPECIAL iff it can be guard-canceled into (performed directly out

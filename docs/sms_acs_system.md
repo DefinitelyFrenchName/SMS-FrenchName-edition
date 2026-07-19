@@ -382,7 +382,11 @@ so ACS defense and the Guts patch scale it like any matrix hit.
    Patch 13 v3.1 hooks the tick site with a holder-class ≥0x12 gate (normal
    Moon/Mars/Chibi hold-throws pass through untouched, verified byte-identical).
    **All 9 desperations are now typed and measured — see §6b** (incl. stand-vs-crouch
-   damage). Remaining sub-question: the <10 s clock trigger path is untested for everyone.
+   damage). Desperation record question CLOSED: the dispatcher is the projectile
+   system — only the four projectile-component desperations have records; the five
+   strike/grab ones verifiably fire none. Corollary for ochame: **only projectile
+   specials can misfire** (misfire acts live in projectile records). Remaining
+   sub-question: the <10 s clock trigger path is untested for everyone.
 3. **+0x72 buff_health** — needs testing at character load, not mid-match.
 4. **+0x76** — unknown byte between secret/ochame block and action_strength.
 5. **The exact modifier-composition code** (where RNG + stats merge into `$00` before

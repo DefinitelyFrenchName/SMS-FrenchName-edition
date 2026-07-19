@@ -1,10 +1,8 @@
-STATE = "uranus_vs_jupiter.mss"
+STATE = "pluto_vs_1.mss"
 PLAYER = 1
-MOTION = "8"
-BTN = "y"
-RANGES = { 200 }
-TAG = "PREJUMP-NORMAL"
-NOBTN = false
-NOLOWHP = true
-LOGFD = true
-STEPF = 1
+MOTION = "632146"
+BTN = "x"
+RANGES = { 70 }
+TAG = "REC-PLUTO"
+LOGREC = true
+

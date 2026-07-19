@@ -201,8 +201,10 @@ desperation types, dash distance) plus per-patch nominal+edge tests (incl. cross
 counter-hit×Guts, p8 tech-window dual-mode, p13 round-reset, the full 9-character
 desperation compendium + crouch edges). `ROM=<build> tools/run.sh
 tools/test_regression.lua 900`; optional cfg `EXPECT="clean"|"all"`, `ONLY="pattern"`.
-Green: v0.18 = 42 tests, v0.17 = 39, clean = 25, v0.7-canonical ≈ 25 (dual-mode
-expectations flip with detection; patch-14 tests skip when it is absent).
+Green: v0.19 = 49 tests, clean = 31 (dual-mode expectations flip with detection;
+patch tests skip when absent). Includes engine-rule locks: death-underflow pair,
+GC-gate-immediate, backdash-GC, prejump throw-vulnerability, desperation-record and
+matrix statics.
 
 **Other tools:** `extract_sms_hitboxes.py` → `docs/sms_all_boxes.json` (per-char box tables);
 `extract_proj_boxes.py` (projectile/object box tables, idx 10–27); `ds_trace.lua` /
