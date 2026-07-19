@@ -683,11 +683,17 @@ Fire, close Deep Submerge at −30). Low, knockdown, 8 damage (wiki).
   (hold the second back input to buffer). Longest backdash invuln in the game
   (Uranus 14f, Pluto 20f, Chibi 26f).
 - **Double jump j.7/8/9**: a character-specific COMMAND (like Mercury's triangle
-  jump), not a special. **Window measured: ~frame 15 to ~27 of the jump** (act 0x5C).
-  A tap inside the window fires the same frame; HOLDING the direction auto-fires at
-  the window's OPENING — i.e. holding is a buffer to the first legal frame, exactly
-  as the maintainer hypothesized. A tap after frame 27 is eaten (verified, matching
-  the wiki's deadline).
+  jump), not a special. **Window measured precisely: inputs accepted frames ~20-26
+  after the jump input, firing through frame 27** (act 0x5C; the t=36 tap fires, the
+  t=37 tap is eaten — the wiki's "frame 27" is the last FIRE frame). A tap inside the
+  window fires the same frame; HOLDING auto-fires at the window's opening (buffer to
+  first legal frame, as the maintainer hypothesized).
+- **Early vs late activation height: essentially IDENTICAL** — the legal window sits
+  entirely on the first jump's apex plateau (fire heights 92-95px across the whole
+  window), and the second jump adds a fixed ~86px arc, so the peak varies only
+  177-180px. What early-vs-late actually changes is TIMING: the latest fire peaks ~6
+  frames later and lands ~6 frames later than the earliest — the choice is a mixup/
+  spacing rhythm tool, not a height tool.
 - 2LK hits low and its recovery is JUMP-CANCELABLE (wiki) — the low→instant-overhead
   blender starter; 2HP is one of the game's few low 2HPs.
 - **2HK is a sliding sweep** (maintainer's read, verified): act 0x58, one traveling

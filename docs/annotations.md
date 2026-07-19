@@ -650,3 +650,10 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - NO AIR BLOCKING: same WS wave blocked on the landing frame (dact 0C at t=59, back
   held) and HIT clean when contact was airborne (dact 13). Blocking is grounded-only
   -> air GC impossible -> GC criterion applies to grounded tools only.
+
+### Double-jump window precision + height (2026-07-19)
+- Input window: taps accepted up to t=36 (fires t=37); t=37 eaten. Hold fires t=31.
+  Wiki 'frame 27' = last fire frame from jump input (t=11).
+- Height: fire heights 92-95px (apex plateau spans the whole window); DJ adds fixed
+  ~86px arc -> peaks 177-180px (3px spread = negligible). Early-vs-late shifts peak
+  and landing ~6f later - a timing tool, not a height tool.
