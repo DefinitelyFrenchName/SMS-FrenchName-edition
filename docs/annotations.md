@@ -643,3 +643,10 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - Jupiter ordinary forward dash (control): input eaten, stun runs full -> NOT special.
 - Criterion (maintainer): GC-able <=> special. Both GC dashes are act 0x60 in
   char-special act space - structure and behavior agree.
+
+### Double jump window + air-block nonexistence (2026-07-19)
+- Chibi DJ: act 0x5C, legal window ~15-27f of jump; tap fires same-frame in window;
+  HOLD auto-fires at window opening (= buffer-to-first-legal-frame); post-27 tap eaten.
+- NO AIR BLOCKING: same WS wave blocked on the landing frame (dact 0C at t=59, back
+  held) and HIT clean when contact was airborne (dact 13). Blocking is grounded-only
+  -> air GC impossible -> GC criterion applies to grounded tools only.
