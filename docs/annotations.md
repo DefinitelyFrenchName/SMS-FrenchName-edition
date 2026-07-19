@@ -657,3 +657,13 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - Height: fire heights 92-95px (apex plateau spans the whole window); DJ adds fixed
   ~86px arc -> peaks 177-180px (3px spread = negligible). Early-vs-late shifts peak
   and landing ~6f later - a timing tool, not a height tool.
+
+### GC-gate jank search (maintainer brainstorm, 2026-07-19) — gate is CLEAN
+- Crouch blockstun 0D/0F/0E: GC-able (Shadow Dash fired mid-chain) — both postures OK.
+- Hitstun 13: not cancelable. 0x2A tail: not cancelable (71f taunt tail, input eaten).
+- Proximity pose 0C (pre-contact): NOT a lock — drops to act 00 on stick release even
+  with threat active; nothing to cancel. Dashing out of it ate the punch -> act 0x16
+  observed = hit-out-of-forward-dash reaction (new act ID).
+- Air: no air block -> no air stun -> no air GC; hitstun (only air stun) uncancelable.
+  CONCLUSION: GC gate = exactly the post-contact guard-stun acts, nothing else.
+- Probe gained LPRESS (performer L at ph) + DDOWN (attacker holds down) options.

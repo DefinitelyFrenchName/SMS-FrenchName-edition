@@ -39,6 +39,23 @@ input rig (blockstun act 0x0C/0x0E → move act = GC):
 Both GC-able dashes sit at act 0x60 in their characters' special-act space — the
 engine's own data agrees with the behavioral criterion.
 
+**The GC gate was adversarially probed for jank (maintainer's brainstorm) — and it
+holds clean.** Findings from the block-then-input rig pointed at every stun-adjacent
+act:
+- **Crouch blockstun (0x0D/0x0F/0x0E chain): GC-ABLE** — Shadow Dash cancels crouch
+  guard stun exactly like standing stun. Both guard postures accept cancels
+  (completeness, not jank).
+- **Hitstun (0x13): NOT cancelable** — input eaten, stun runs full.
+- **The 0x2A recovery tail: NOT cancelable** — 71 frames of taunt tail, special input
+  mid-way eaten entirely.
+- **The proximity-guard pose is NOT a lock** — it drops to neutral the instant back is
+  released, even with the threatening attack still active; there is no stun to cancel,
+  so no free-cancel exploit exists. (The test also caught a new act: 0x16, the
+  hit-out-of-forward-dash reaction — dashing out of the pose straight into the active
+  punch.)
+So the gate checks precisely "in post-contact guard stun" — the two blockstun act
+pairs — and nothing else. No janky alternate GC trigger exists.
+
 **The criterion is grounded-only, because AIR BLOCKING DOES NOT EXIST** (verified with
 a clean natural experiment: the same fireball was blocked the instant the defender
 landed holding back — blockstun 0x0C on the landing frame — and hit them clean when

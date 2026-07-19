@@ -132,7 +132,8 @@ emu.addEventCallback(function()
   elseif DEFJUMP and ph == DEFJUMP + 3 then pulse[2 - PLAYER] = nil end
   if DTAUNT and ph >= DTAUNT and ph <= DTAUNT + 1 then pulse[2 - PLAYER] = { l = true }
   elseif DTAUNT and ph == DTAUNT + 2 then pulse[2 - PLAYER] = nil end
-  if DBTN and DPH and ph >= DPH and ph <= DPH + 1 then pulse[2 - PLAYER] = { [DBTN] = true }
+  if DBTN and DPH and ph >= DPH and ph <= DPH + 1 then pulse[2 - PLAYER] = { [DBTN] = true, down = DDOWN or nil }
+  elseif DBTN and DPH and ph >= DPH - 4 and ph < DPH and DDOWN then pulse[2 - PLAYER] = { down = true }
   elseif DBTN and DPH and ph == DPH + 2 then pulse[2 - PLAYER] = nil end
   if DEFBLOCK and ph >= (DEFBLOCKAT or 6) then
     local L = onLeft()
@@ -191,6 +192,8 @@ emu.addEventCallback(function()
       saw.fdt = tup; saw.fds = slim
     end
   end
+  if LPRESS and ph >= LPRESS and ph <= LPRESS + 1 then pulse[PLAYER - 1] = { l = true }
+  elseif LPRESS and ph == LPRESS + 2 then pulse[PLAYER - 1] = nil end
   -- track performer acts + defender grab
   local a = ram(pb + 1)
   if a >= 0x2B and not saw[a] then
