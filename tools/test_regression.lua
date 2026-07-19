@@ -297,6 +297,16 @@ add{ name = "base-firsthit-defense-pair", group = "base", state = "uranus_vs_jup
       hits[1] and (0x60 - hits[1].v), hits[2] and (0x60 - hits[2].v)))
   end }
 
+add{ name = "base-desperation-clock-trigger", group = "base", state = "jupiter_vs_venus_clean.mss", dur = 150,
+  frame = function(api)
+    if api.pt == 5 then park(1, 70); wr(0x803, 9); wr(0x804, 0) end
+    motion(api, 1, "2141236", "x", 10, false)
+  end,
+  verdict = function()
+    local tot = total()
+    return ck(tot == 48, "full-HP desperation must fire with clock <10s (timer poke), got " .. tot)
+  end }
+
 add{ name = "base-danger-threshold-0x18", group = "base", state = "uranus_vs_jupiter.mss", dur = 130,
   frame = function(api)
     if api.pt == 5 then wr(0x10C9, 0x18); wr(0x801, 0x18) end

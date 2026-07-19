@@ -601,9 +601,12 @@ also claims normals cancel into backdash (lights ~−6F, heavies ~+6F) — untes
   constant Y equal to her altitude at the moment of release (traced at both apex and
   late-jump casts). Casting also **recoils her backward ~40px** — it doubles as an
   air-retreat tool.
-- In our rig it never reached a grounded target from a jump; the wiki lists it guard
-  **High**, 8/10, +18~ on block (LP), recovery "until landing". Wiki prose: the HP
-  projectile GROWS mid-flight and shoves Moon to screen edge; LP barely recoils.
+- **It CAN hit grounded opponents — via the backdash-cast only** (verified: PROJ hit
+  on a standing target at −80px shot altitude; every jump-cast altitude flies over
+  heads). The wiki's guard "High" listing is thus real but reachable in practice only
+  through the backdash-cancel delivery. Wiki: 8/10, +18~ on block (LP), recovery
+  "until landing"; prose: the HP projectile GROWS mid-flight and shoves Moon to
+  screen edge; LP barely recoils.
 - **Backdash-cancel tech (wiki prose, VERIFIED live)**: Moon's backdash cancels into
   her air specials — traced: backdash act 0x26 (invulnerable) → Heart act at ~8f in,
   projectile spawning at **−80px** (vs −164 from a jump cast — nearly standing-head

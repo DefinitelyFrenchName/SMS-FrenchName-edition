@@ -742,3 +742,12 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - Blockstun 0C/0E and hitstun 11/13 are ALTERNATING PAIRS (anim retrigger).
 - Reaction-type handler table @ C1:0E84 (2-byte entries; handlers set knockback +
   reaction act). Full enumeration deferred.
+
+### T5 closed (2026-07-19)
+- Clock trigger VERIFIED: timer $7E:0802 (frame) /0803 (ones) /0804 (tens); poke
+  9s -> full-HP desperation fires (Jupiter 48). Gate = hp<=0x18 OR clock<10s.
+- Wiki-vs-ours damage offset UNIFIED: all systematic diffs = d48 state (ours fresh=1,
+  wiki depleted=0). Venus/Neptune chip at d48=0 = 12 = wiki-exact. Multi-chip COUNTS
+  (x2/x5) still unreproduced - flagged.
+- MSHA hits GROUNDED standing targets via backdash-cast (-80px shot alt); jump casts
+  always overfly. Wiki 'High' explained.
