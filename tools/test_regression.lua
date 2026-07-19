@@ -559,6 +559,18 @@ add{ name = "p13-pluto-ticks-scaled", group = "p13", need = function() return ha
     return ck(tot == 19, "Pluto desperation at defender L3 expects 19, got " .. tot)
   end }
 
+add{ name = "p13-indicator-vs-hidden", group = "p13", need = function() return has.p13 end,
+  state = "uranus_vs_jupiter.mss", dur = 60,
+  frame = function(api)
+    if api.pt == 5 then wr(0x1F800, 0xA5); wr(0x1F801, 3); wr(0x1F802, 2) end
+  end,
+  verdict = function()
+    local function vword(w) return emu.read(w * 2, emu.memType.snesVideoRam) + 256 * emu.read(w * 2 + 1, emu.memType.snesVideoRam) end
+    local a, b = vword(0x10E1), vword(0x10FE)
+    local drew = (a >= 0x2C50 and a <= 0x2C59) or (b >= 0x2C50 and b <= 0x2C59)
+    return ck(not drew, string.format("v3.4: indicator must NOT draw in VS even at levels (cells %04X/%04X)", a, b))
+  end }
+
 add{ name = "p14-spd-uranus-scaled", group = "p14", need = function() return has.p13 and has.p14 end,
   state = "uranus_vs_jupiter.mss", dur = 200,
   frame = function(api)

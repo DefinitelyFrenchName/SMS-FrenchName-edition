@@ -1210,6 +1210,13 @@ scale them. The maintainer's original "SPD numbers were the same" report was acc
 Per the maintainer's direction this is covered by the separate **patch 14 "Guts Grip"**
 (below) rather than another patch-13 revision.
 
+**v3.4 (training-only indicator — maintainer's standing request):** the corner
+level-indicator now draws ONLY in training mode (game mode $8D in {4,5} = practice
+with damage off/on, in addition to the in-match flag); in VS/story it never renders.
+The buff itself is unchanged everywhere. Attract mode technically passes the gate but
+levels are always 0 there (blank). Suite: indicator phases (training state) unchanged
++ new p13-indicator-vs-hidden negative lock in the regression suite.
+
 **v3.3 (wide scaling tables):** the 64×16 damage-matrix discovery (sms_damage_system.md
 §3) revealed the matrix caps at 0x48=72 — above the Guts tables' 64-entry range, so a
 counter-hit desperation (72) was being scaled as if it were 63 (clamped, mildly under-

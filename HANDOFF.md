@@ -56,7 +56,7 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
 - `SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` — `be2cb752…` — patches 1-11 (BPS `build/sms_allpatches_v1.1.bps`).
-- **`SailorMoonS_FrenchName_v0.19_ALLPATCHES.sfc`** — `53bae682…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.19.bps`, title v.0.19; Guts Grip also covers Jupiter's LP Giant Swing).
+- **`SailorMoonS_FrenchName_v0.20_ALLPATCHES.sfc`** — `9b0ae040…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.20.bps`, title v.0.20; Guts v3.4 = level indicator training-only).
 - `SailorMoonS_FrenchName_v0.18_ALLPATCHES.sfc` — `86b7f44c…` — previous build (BPS `build/sms_allpatches_v0.18.bps`).
 - `SailorMoonS_FrenchName_v0.17_ALLPATCHES.sfc` — `bccb0182…` — previous build (BPS `build/sms_allpatches_v0.17.bps`).
 - `SailorMoonS_FrenchName_v0.16_ALLPATCHES.sfc` — `cf96aa05…` — previous build (BPS `build/sms_allpatches_v0.16.bps`).
@@ -201,7 +201,7 @@ desperation types, dash distance) plus per-patch nominal+edge tests (incl. cross
 counter-hit×Guts, p8 tech-window dual-mode, p13 round-reset, the full 9-character
 desperation compendium + crouch edges). `ROM=<build> tools/run.sh
 tools/test_regression.lua 900`; optional cfg `EXPECT="clean"|"all"`, `ONLY="pattern"`.
-Green: v0.19 = 55 tests, clean = 36, clean+FULL = 46 (dual-mode expectations flip
+Green: v0.20 = 56 tests, clean = 36, clean+FULL = 46 (dual-mode expectations flip
 with detection; patch tests skip when absent). Engine-rule locks: death-underflow
 pair, GC-gate-immediate, backdash-GC, prejump throw-vulnerability, danger threshold,
 clock desperation trigger, first-hit-defense pair; statics for matrix, desperation
