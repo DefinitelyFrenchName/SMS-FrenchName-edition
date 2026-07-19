@@ -46,6 +46,7 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 | 14 | **"Guts Grip"** — Guts levels also nerf COMMAND GRABS (companion to 13, inert without it; `--all-grabs` extends to all throws; OPTIONAL) | `mkpatch14.py --l1/--l2/--l3 [--all-grabs]` | `build/sms_gutsgrip.bps` |
 
 ### Playable ROMs (all in `build/`; `.sfc` are gitignored, rebuild from BPS)
+> **2026-07-19 prune:** historical bundles and superseded all-patches BPS/ROMs were deleted (see docs/patch_index.md); rows below describing them are historical record. Kept: per-patch standalone BPS, current all-patches BPS/ROM, and `…v0.7_all5.sfc` (NI-test baseline).
 - **`SailorMoonS_FrenchName_v0.7_all5.sfc`** — SHA-1 `24aa6b6d…` — **CANONICAL** (patches 1–5).
 - `SailorMoonS_FrenchName_v0.6_all5_truecombo.sfc` — `c96c89fb…` — N=5 true-combo alternative.
 - `SailorMoonS_FrenchName_v0.8_all5_dashinvuln.sfc` — `979db260…` — canonical + patch 6 (experimental).
