@@ -57,6 +57,8 @@ local DESP_RECORDS = {
   { 0x179D9, "16004000000000" },  -- Venus
   { 0x1BDFE, "1b011000ecff00" },  -- Chibi
 }
+local MOD_HANDLERS_OFF = 0xCAED
+local MOD_HANDLERS_HEX = "c210e220a58dc904d0034c6acda688a4226400b918002901f004a9fe8500b948001879710038f5703a1865008500b5454c55d0c210e220a58dc904d0034c6acda688a4226400b918002901f004a9fe8500b948001879710038f5733a1865008500b5454c55d0c210e220a58dc904d0034c6acda688a4226400b918002901f004a9fe8500b948001879710038f5743a1865008500b5454c55d0c210e220a58dc904d0034c6acda688a4226400b918002901f004a9fe8500b948001879710038f5701865008500b5454c55d0c210e220a58dc904d0034c6acda688a4226400b918002901f004a9fe8500b948001879710038f5731865008500b5454c55d0c210e220a58dc904d0034c6acda688a4226400b918002901f004a9fe8500b948001879710038f5741865008500b5454c55d0c210e220a688a422640060c210e220a58dc904d0034c6acda688a4226400b918002901f004a9fe8500b948001879710038f5731865008500b5452055d0e220a5004a4ad002a901850060c210e220a58dc904d0034c6acda688a4226400b918002901f004a9fe8500b948001879710038f5741865008500b5452055d0e220a5004a4ad002a901850060c210e220a58dc904d0034c6acda688a4226400b918002901f004a9fe8500b948001879710038f5743a1865008500b5452055d0e220b94900c500b002850060c210e220a58dc904d0034c6acda688a4226400b918002901f004a9fe8500b948001879710038f5741865008500b5452055d0e220b94900c500b002850060c210e220a58dc904d0034c6acda688a4226400b918002901f004a9fe8500b948001879710038f5741865008500b5452055d0e220a5004a4ad002a9018500b94900c500b002850060c210e2"
 local MATRIX_ROWS = {
   [0] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
   [10] = { 0x15, 0x15, 0x14, 0x14, 0x13, 0x11, 0x0F, 0x0D, 0x0A, 0x08, 0x07, 0x06, 0x05, 0x05, 0x05, 0x05 },
@@ -279,6 +281,18 @@ add{ name = "base-dash-distance", group = "base", state = "uranus_vs_jupiter.mss
     local d = math.abs((dashMeas.x1 or 0) - (dashMeas.x0 or 0))
     local exp = has.p5 and 89 or 145
     return ck(math.abs(d - exp) <= 4, string.format("dash distance expects ~%d (p5=%s), got %d", exp, tostring(has.p5), d))
+  end }
+
+add{ name = "base-firsthit-defense-pair", group = "base", state = "uranus_vs_jupiter.mss", dur = 280,
+  frame = function(api)
+    if api.pt == 5 or api.pt == 205 then park(1, 40) end
+    if (api.pt >= 30 and api.pt <= 31) or (api.pt >= 230 and api.pt <= 231) then pulse[0] = { x = true }
+    elseif api.pt == 32 or api.pt == 232 then pulse[0] = nil end
+  end,
+  verdict = function()
+    local ok = #hits == 2 and (0x60 - hits[1].v) == 8 and (0x60 - hits[2].v) == 10
+    return ck(ok, string.format("first-hit defense: same move must deal 8 then 10 (d48 1->0), got %s/%s",
+      hits[1] and (0x60 - hits[1].v), hits[2] and (0x60 - hits[2].v)))
   end }
 
 add{ name = "base-death-chip-survives-at-0", group = "base", state = "neptune_vs_jupiter.mss", dur = 120,
@@ -776,6 +790,12 @@ emu.addEventCallback(function()
     end
     results[#results + 1] = { name = "static-desperation-records", ok = rfail == 0, msg = rfail .. " byte mismatches" }
     log(string.format("%s static-desperation-records", rfail == 0 and "PASS" or "FAIL"))
+    local hfail = 0
+    for i = 0, #MOD_HANDLERS_HEX / 2 - 1 do
+      if rom(MOD_HANDLERS_OFF + i) ~= tonumber(MOD_HANDLERS_HEX:sub(i * 2 + 1, i * 2 + 2), 16) then hfail = hfail + 1 end
+    end
+    results[#results + 1] = { name = "static-modifier-handlers", ok = hfail == 0, msg = hfail .. " byte mismatches" }
+    log(string.format("%s static-modifier-handlers", hfail == 0 and "PASS" or "FAIL"))
     if EXPECT == "clean" then
       local any = false
       for i = 1, 14 do if has["p" .. i] then any = true end end
