@@ -751,3 +751,11 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   (x2/x5) still unreproduced - flagged.
 - MSHA hits GROUNDED standing targets via backdash-cast (-80px shot alt); jump casts
   always overfly. Wiki 'High' explained.
+
+### Housekeeping round (2026-07-19)
+- p9 behavioral test added (dual-mode): DS vs crouching Chibi hit-frame t=35 patched
+  vs t=43 vanilla (the box-tracks-ball fix, 8f earlier + higher contact).
+- Suite FULL mode implemented (FULL=true): 6 remaining desperation-crouch checks +
+  3 chip signatures. clean=36 / clean-FULL=46 / v0.19=55.
+- Engine-rule locks (GC gate, backdash-GC, prejump-throw, death-underflow) confirmed
+  present since the T1 batch. Community reporting of findings/gaps: maintainer done.

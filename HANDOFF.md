@@ -201,10 +201,14 @@ desperation types, dash distance) plus per-patch nominal+edge tests (incl. cross
 counter-hit×Guts, p8 tech-window dual-mode, p13 round-reset, the full 9-character
 desperation compendium + crouch edges). `ROM=<build> tools/run.sh
 tools/test_regression.lua 900`; optional cfg `EXPECT="clean"|"all"`, `ONLY="pattern"`.
-Green: v0.19 = 49 tests, clean = 31 (dual-mode expectations flip with detection;
-patch tests skip when absent). Includes engine-rule locks: death-underflow pair,
-GC-gate-immediate, backdash-GC, prejump throw-vulnerability, desperation-record and
-matrix statics.
+Green: v0.19 = 55 tests, clean = 36, clean+FULL = 46 (dual-mode expectations flip
+with detection; patch tests skip when absent). Engine-rule locks: death-underflow
+pair, GC-gate-immediate, backdash-GC, prejump throw-vulnerability, danger threshold,
+clock desperation trigger, first-hit-defense pair; statics for matrix, desperation
+records, modifier handlers, char-loader. `FULL = true` in the cfg adds the
+whole-roster desperation crouch sweep + chip signatures (Pluto strike-throw 1,
+Moon zero-chip, Mars full-chip). Patch 9 now has a BEHAVIORAL dual-mode test
+(DS vs crouching Chibi connects t<=38 patched / t>=41 vanilla).
 
 **Other tools:** `extract_sms_hitboxes.py` → `docs/sms_all_boxes.json` (per-char box tables);
 `extract_proj_boxes.py` (projectile/object box tables, idx 10–27); `ds_trace.lua` /
