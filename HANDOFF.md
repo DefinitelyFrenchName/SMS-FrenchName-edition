@@ -23,6 +23,9 @@ Playable roster (charID): 1 Moon, 2 Mercury, 3 Mars, 4 Jupiter, 5 Venus, 6 Uranu
 
 Ten patches, all built and verified in-emulator. The **canonical** shipping build is **v0.7**.
 
+> One-page registry with status/lifecycle (deprecation candidates, exclusivity,
+> dependencies): **docs/patch_index.md** — keep it updated when patches change.
+
 | # | Patch | Builder | Standalone BPS |
 |---|---|---|---|
 | 1 | **Infinite → 1-frame meaty (CANONICAL)** | `mkpatch.py 0x04` | `build/sms_uranus_infinite_1f.bps` |
