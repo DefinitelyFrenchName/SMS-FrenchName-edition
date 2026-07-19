@@ -21,7 +21,7 @@ Neptune 1, Pluto 1, Chibi 1 — plus in-table desperation records for Moon/Mars/
 Chibi (the other five characters' desperation records are not in the walked windows;
 their location is open).
 
-Status: **Uranus, Neptune, Jupiter, Pluto, Mars and Venus complete**; Moon, Mercury, Chibi pending.
+Status: **Uranus, Neptune, Jupiter, Pluto, Mars, Venus and Moon complete**; Mercury and Chibi pending.
 
 ---
 
@@ -476,14 +476,81 @@ also claims normals cancel into backdash (lights ~−6F, heavies ~+6F) — untes
   Neptune's Dragon Rise). Wiki chip 12×5 vs our measured single 9 — unreproduced,
   flagged like Neptune's.
 
+## Moon (charID 1)
+
+### Moon Tiara Action — 236LP / 236HP (record idx 0x0A)
+
+| Variant | Act | Damage | Chip | Wiki startup/recovery/on-block |
+|---|---|---|---|---|
+| LP | 63 | **10** (wiki exact) | 2 | 11 / 31 / +6~ |
+| HP | 64 | **12** (wiki exact) | 3 | 15 / 46 / −9~ |
+
+- Flies at **−56px** — low enough to clip crouchers, and **Mid confirmed** (crouch-block
+  chips 3; the maintainer's read was right). Misfire acts 6A/6B (= her patch-12 taunt).
+
+### Moon Spiral Heart Attack — j.214LP / j.214HP (record idx 0x0B)
+
+- **Horizontal confirmed — at whatever height Moon casts it**: the slot flies at
+  constant Y equal to her altitude at the moment of release (traced at both apex and
+  late-jump casts). Casting also **recoils her backward ~40px** — it doubles as an
+  air-retreat tool.
+- In our rig it never reached a grounded target (the spawn offset keeps it above
+  standing head height even from low casts); the wiki lists it guard **High**, 8/10
+  damage, +18~ on block (LP) with recovery "until landing" — practical use is air-to-air
+  denial and retreating zoning. Misfire act 6C (both variants share it).
+
+### Sonic Cry — [2]8LP / [2]8HP (charge; strike family, no dispatcher record)
+
+| Variant | Act | Hits | Wiki | Notes |
+|---|---|---|---|---|
+| LP | 68 | 3×6=18 connected (wiki up to 6×7) | startup 16, ~−5 | multi-hit riser |
+| HP | 69 | single 12 connected (wiki 12 + up to ×23!) | startup 10, **−44/D** | the commitment version |
+
+- Charge time is LONGER than Venus's Wink (a ~45f charge fails, ~55-60f works) —
+  charge minimums are per-character.
+- The reversal/anti-air role is the community's; no invulnerability was checked yet
+  (candidate follow-up if it matters for a patch).
+
+### Throws
+
+| Throw | Type | Damage | Techable | Wiki oki |
+|---|---|---|---|---|
+| **Headbutt** c.4/6HP | **HOLD — 4 headbutts × 5** | **20** (wiki exact) | No | **+41** |
+| **Rabbit Flip** c.4/6HK | toss (flip carry) | **20** ground / **24 air** (wiki) | Yes | +11 on tech |
+
+- Headbutt is the patch-13-lore Moon hold-throw, now named. Rabbit Flip's air version
+  is stronger (24 vs 20), matching the Mars Frankensteiner pattern.
+- Hold-throw button pattern refined: inner senshi hold on HP (Moon, Mars), outers on HK
+  (Uranus, Pluto, Venus... Venus is inner-adjacent but holds on HK — pattern imperfect).
+
+### Dash Jump — 66 (character-specific movement, act 0x60)
+
+- Her "forward dash" is a **leaping hop**: act 0x60 (character-special act space, like
+  Uranus's Shadow Dash), ~30 frames, **~200px of travel** — the longest movement in the
+  game measured so far — and it sails THROUGH the opponent's position (crossup
+  potential). Wiki lists it with startup 1.
+
+### 2HK — the fireball-limbo sweep (maintainer's note, quantified)
+
+During 2HK (act 0x59) her hurtboxes drop to tops of **−44/−50px** vs −82 standing:
+she ducks clean under Supreme Thunder and Crescent Beam (−68 flight), and even her own
+Tiara altitude (−56) — losing only to ground-level projectiles (World Shaking, Snake
+Fire, close Deep Submerge at −30). Low, knockdown, 8 damage (wiki).
+
+### Related
+- **Desperation "Silver Crystal Operation"** (2363214HK, record 0x0C): §6b-6d —
+  projectile 48 (wiki exact). **Wiki gap: they list chip 12×N; we measured ZERO chip**
+  (the defender sat 130f in blockstun with no HP writes — the engine's one flagged
+  no-chip projectile). Emulation trusted.
+
 ---
 
 ## Template for the remaining characters
 
 For each named special: LP/HP variant acts, melee/projectile path, stand/crouch/chip
 damage, misfire acts (cross-check the record tables), Guts coverage, and any recognizer
-quirks. Pending inputs (dispatcher specials): Moon ×2, Mercury ×2, Chibi ×1 — plus
-whatever DP/charge/360-type moves the tables cannot reveal. DPs/command grabs are NOT in the record tables, so
+quirks. Pending inputs (dispatcher specials): Mercury ×2, Chibi ×1 — plus whatever
+DP/charge/360-type moves the tables cannot reveal. DPs/command grabs are NOT in the record tables, so
 each character may also hide a 623/360-style move the tables can't reveal — ask the
 community list per character. (Neptune's "super" turned out to be her DP; there may be
 no true supers besides desperations.)

@@ -1,9 +1,9 @@
-STATE = "venus_vs_jupiter_clean.mss"
+STATE = "moon_vs_moon.mss"
 PLAYER = 1
-MOTION = "222222222222228"
-BTN = "x"
-RANGES = { 55 }
-TAG = "VEN-WINK-STBLK-LATE"
+MOTION = "2"
+BTN = "a"
+RANGES = { 40 }
+TAG = "MOON-2HK"
 NOLOWHP = true
-DEFBLOCK = true
-DEFBLOCKAT = 66
+LOGFD = true
+

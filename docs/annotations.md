@@ -586,3 +586,14 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   c.4/6HK HOLD 5x4=20 untech +41 oki. Hold-throws = all on HK button so far except
   Mars (HP) and Moon/Chibi (?) - pattern note.
 - Desperation name: Chain Explosive; wiki 48/chip 12x5 vs our 37/9 (flagged).
+
+### Moon kit (2026-07-19)
+- MTA 236P: rec 0A, acts 63/64, 10/12 wiki-exact, -56px flight, Mid.
+- MSHA j.214P: rec 0B, HORIZONTAL at cast height (slot y = her y at release),
+  ~40px backward recoil on cast; never reached grounded in rig; wiki High 8/10.
+- Sonic Cry [2]8P: no-REC strike, acts 68/69, LP multi 3x6+, HP 12(x23 wiki);
+  charge minimum LONGER than Venus's (per-char charge times).
+- Throws: Headbutt c.4/6HP HOLD 4x5=20 untech +41; Rabbit Flip c.4/6HK toss 20/24 air.
+- Dash Jump 66: act 0x60, ~30f, ~200px leap, crosses through opponent.
+- 2HK: hurtbox tops -44/-50 (vs -82) = ducks -68/-56 fireballs; act 59, boxes 2B/2C.
+- Silver Crystal Operation: 48 wiki-exact; wiki chip 12xN CONTRADICTED (we measure 0).
