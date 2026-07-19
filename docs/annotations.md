@@ -770,3 +770,15 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - Triangle jump: position pokes re-clamped into camera view; max-separation boundary
   is NOT a wall for the wall-jump; true corner needs a legit camera walk - rig-limited.
 - Suite +2: base-throw-range-asymmetry, base-airok-throw-vertical-range.
+
+### RE residuals closed (2026-07-19)
+- Reaction table C1:0E85 FULLY ENUMERATED: 3 posture sub-tables x 13 levels; handler
+  template +0x3A pushback | +0x32/34 launch | +0x46 flag 0x20/0xA0 | act via $10A9.
+  New acts: 0x10, 0x14 (in-table, unobserved), 0x27 (misfire trip), 0x0A (turnaround).
+- Danger check $C1:0AA9: lda #$18/cmp $49,X/bmi/act 0x21 (neutral-entry call).
+- Shared ochame roll $C1:0AB9: RNG $90 & 0x0F -> table $0AF5 vs +0x75 -> act 0x27 +
+  flag 0xA0. The combat RNG consumer.
+- Multi-chip x2/x5 = CORNER values, reproduced via FREEZEDEF (Venus 5x12, Neptune 2x12).
+- d48 per-character: Jupiter 1, Neptune 2 (verified via 6-vs-8 first hit); others
+  ambiguous in mid-match saves. Players' +0x76 uniformly 0.
+- Ochame-inflicting-taunt idea: REJECTED by maintainer (net negative for enjoyment).

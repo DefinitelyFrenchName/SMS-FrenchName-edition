@@ -349,6 +349,23 @@ add{ name = "base-airok-throw-vertical-range", group = "base", state = "moon_vs_
       string.format("air-OK vertical range: Flip must grab at 24px lift, Headbutt must whiff at 8px (F=%s H=%s)", tostring(api.mem.grabFlip), tostring(api.mem.grabHead)))
   end }
 
+add{ name = "base-corner-chip-multiplier", group = "base", state = "venus_vs_jupiter_clean.mss", dur = 150,
+  frame = function(api)
+    if api.pt == 5 then wr(0x1049, 0x10); wr(0x800, 0x10); park(1, 45); wr(0x10C8, 0) end
+    if api.pt >= 6 then
+      local p = {}
+      if onLeft(1) then p.right = true else p.left = true end
+      pulse[1] = p
+      local px = posx(0x1000)
+      setx(0x1080, px + 45); wr(0x10A0, 0)
+    end
+    motion(api, 1, "4123632", "x", 10, false)
+  end,
+  verdict = function()
+    local tot = total()
+    return ck(tot == 60 and #hits == 5, string.format("frozen-defender (corner) blocked Chain Explosive expects 5x12=60, got %d in %d hits", tot, #hits))
+  end }
+
 add{ name = "base-desperation-clock-trigger", group = "base", state = "jupiter_vs_venus_clean.mss", dur = 150,
   frame = function(api)
     if api.pt == 5 then park(1, 70); wr(0x803, 9); wr(0x804, 0) end

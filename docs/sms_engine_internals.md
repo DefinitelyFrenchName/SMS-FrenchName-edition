@@ -312,10 +312,27 @@ Universal acts (all characters; 0x2B+ is per-character move space):
 | 26 | backdash | invuln per character (14/17/20/26f...) |
 | 2A | post-special recovery tail | not cancelable; counter-hit window ends here |
 
-Reaction dispatch: per-hit-type handler table at `$C1:0E84` (2-byte entries → handlers
-that set knockback velocity and the reaction act) — mapped as an anchor for future
-digs; individual handlers not yet enumerated. Reaction staging at $C1:0E30-0E51 is
-where the 16-bit +0x47/+0x48 clear (first-hit-defense depletion) lives.
+**Reaction dispatch — FULLY ENUMERATED (2026-07-19):** the table at `$C1:0E85` is
+three posture sub-tables (STAND / CROUCH / AIR+DASH) × 13 hit-levels of handler
+pointers. Every handler follows one template: set pushback velocity (+0x3A) for
+ground stuns or X/Y launch velocities (+0x32/+0x34) for knockdowns, set the hit-type
+flag +0x46 (0x20 ground / 0xA0 launch-air), then stage the reaction act via $10A9
+(which also runs the pair alternation). Level→act maps:
+- STAND: block-heavy 0x0E (vel 0x29) / block-light 0x0E (vel 0x24) / 0x10 / 0x12 /
+  0x11 / 0x13 / ... / launches 0x19, 0x1B, 0x1A / two dizzy-style handlers (+0x78
+  timers 0x19/0x21 frames).
+- CROUCH: 0x0F blocks, then 0x14, 0x15 stuns, shared launch tail.
+- AIR/DASH: mostly 0x1B launches and **0x16** (×4 slots) — why dash hits show 0x16:
+  the dash counts as air posture.
+Acts 0x10 and 0x14 exist in the tables but were never observed live (rare levels).
+Reaction staging at $C1:0E30-0E51 holds the 16-bit +0x47/+0x48 clear (first-hit-
+defense depletion).
+
+**Danger check**: `$C1:0AA9` = `lda #$18 / cmp $49,X / bmi skip / lda #$21 /
+jmp $0224` — called on neutral-entry; the exact ≤0x18 boundary in five instructions.
+**Shared ochame roll**: `$C1:0AB9` — `lda $90 / and #$0F` → threshold table `$0AF5`
+vs the +0x75 stat → on misfire sets flag 0xA0 and stages act **0x27** (the misfire
+trip — the RNG's actual consumer in combat code). Act 0x0A = turn-around (observed).
 
 ## 7. Movement and input recognizers
 

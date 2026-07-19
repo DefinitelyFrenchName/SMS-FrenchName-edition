@@ -80,6 +80,18 @@ if LOGREC then
   end, emu.callbackType.exec, 0xC10B49, 0xC10B49, emu.cpuType.snes, emu.memType.snesMemory)
 end
 
+if LOGW21 then
+  emu.addMemoryCallback(function(addr, value)
+    if t and t >= 0 and value == 0x21 then
+      local st = emu.getState()
+      local sp = st["cpu.sp"]
+      local r1 = emu.read(sp + 1, emu.memType.snesWorkRam) + 256 * emu.read(sp + 2, emu.memType.snesWorkRam)
+      local r2 = emu.read(sp + 3, emu.memType.snesWorkRam) + 256 * emu.read(sp + 4, emu.memType.snesWorkRam)
+      log(string.format("   W21 t=%d pc=%06X ret1=%04X ret2=%04X", t, st["cpu.k"] * 65536 + st["cpu.pc"], r1, r2))
+    end
+  end, emu.callbackType.write, 0x1081, 0x1081, emu.cpuType.snes, emu.memType.snesWorkRam)
+end
+
 local pulse = {}
 emu.addEventCallback(function()
   for p = 0, 1 do
@@ -131,6 +143,12 @@ emu.addEventCallback(function()
   end
   if DEFJUMP and ph >= DEFJUMP and ph <= DEFJUMP + 2 then pulse[2 - PLAYER] = { up = true }
   elseif DEFJUMP and ph == DEFJUMP + 3 then pulse[2 - PLAYER] = nil end
+  if FREEZEDEF and ph >= 6 and ph <= (FREEZEEND or 200) then
+    local r0 = RANGES[1]
+    local px0 = ram(pb + 0x21) + 256 * ram(pb + 0x22)
+    local dx0 = px0 + r0
+    wr(db + 0x20, 0); wr(db + 0x21, dx0 % 256); wr(db + 0x22, math.floor(dx0 / 256))
+  end
   if FREEZEPOS and ph >= 6 and ph <= (FREEZEEND or 20) then
     local r0 = RANGES[1]
     local px0 = FREEZEX or 0x0080
@@ -221,6 +239,10 @@ emu.addEventCallback(function()
     elseif ph >= dm0 and dsd == #DMOTION + 2 then
       pulse[2 - PLAYER] = nil
     end
+  end
+  if LOGCENSUS and t == 8 then
+    log(string.format("   CENSUS p1: id=%02X d48=%02X u76=%02X | p2: id=%02X d48=%02X u76=%02X",
+      ram(0x1000), ram(0x1048), ram(0x1076), ram(0x1080), ram(0x10C8), ram(0x10F6)))
   end
   -- track performer acts + defender grab
   local a = ram(pb + 1)
