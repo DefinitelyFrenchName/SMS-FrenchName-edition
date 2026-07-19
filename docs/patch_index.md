@@ -9,24 +9,24 @@ byte-disjoint by design (any install order; regression-guarded by
 `tools/test_regression.lua`, which auto-detects which are present).
 Current all-patches build: **v0.19** (`53bae682…`).
 
-| # | Name | One-liner | Status |
-|---|---|---|---|
-| **1** | 1f-link (meaty) | Uranus infinite → 1-frame meaty link (gate 0x04, N=6): one exact press connects, escapable by reversal/jump — the project's founding patch | **CANONICAL** |
-| 1b | 1f-link (true combo) | Alternative gate 0x05 (N=5): the one frame is a true combo instead of a meaty | ALTERNATE (pick 1 *or* 1b, never both) |
-| **2** | No reversal-dash invuln | Removes the invincibility of Uranus's guard-cancel ("reversal") Shadow Dash | CANONICAL |
-| **3** | Palettes + header | Big Zam extended color palettes + "FrenchName" internal header | CANONICAL (cosmetic) |
-| **4** | Title subtitle | Title-screen version text (doubles as the naked-eye build tell, e.g. "v.0.19") | CANONICAL (cosmetic) |
-| **5** | Dash distance | Uranus forward-dash distance −1/3 (~145 → ~89px) | CANONICAL |
-| 6 | Dash i-frames | Uranus forward dash gains ~6 strike-invuln frames mid-move | EXPERIMENTAL — tension with patch 2's nerf intent; deprecation candidate |
-| 7 | Pluto 5HP vs crouchers | Extends c.HP's active box down so the semi-overhead hits every croucher except Chibi | OPTIONAL |
-| 8 | Venus throw tech | Venus 6HP throw mash-escape window 6f → 13f (standard-ish) | OPTIONAL |
-| 9 | Neptune fireball fix | Deep Submerge hitbox tracks the descending sprite (was stuck at head level) | OPTIONAL (bugfix-flavored) |
-| 10 | Combo counter | Live in-match combo counter rendered by the base game (no overlay) | OPTIONAL |
-| 10b | + status labels | Combo counter + GC/MEATY/REVERSAL/PUNISH/TECH event labels (build flag `--events labels`, same patch slot as 10) | OPTIONAL (variant of 10) |
-| 11 | Training+ | In-ROM training-mode upgrade: L+R menu, dummy control, recording, HP tools, displays | OPTIONAL |
-| 12 | Taunts | Taunt on L using each character's native misfire animation | OPTIONAL |
-| 13 | Guts (v3.3) | Completing a taunt stacks levels (≤3) that shrink the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round) | OPTIONAL |
-| 14 | Guts Grip | Companion to 13: the same levels also shrink command-grab damage (SPDs/Giant Swing); inert without 13 | OPTIONAL (requires 13 to do anything) |
+| # | Name | One-liner | Status | Standalone BPS (`build/`) |
+|---|---|---|---|---|
+| **1** | 1f-link (meaty) | Uranus infinite → 1-frame meaty link (gate 0x04, N=6): one exact press connects, escapable by reversal/jump — the project's founding patch | **CANONICAL** | `sms_uranus_infinite_1f.bps` |
+| 1b | 1f-link (true combo) | Alternative gate 0x05 (N=5): the one frame is a true combo instead of a meaty | ALTERNATE (pick 1 *or* 1b, never both) | `sms_uranus_infinite_1f_truecombo.bps` |
+| **2** | No reversal-dash invuln | Removes the invincibility of Uranus's guard-cancel ("reversal") Shadow Dash | CANONICAL | `sms_dashfix.bps` |
+| **3** | Palettes + header | Big Zam extended color palettes + "FrenchName" internal header | CANONICAL (cosmetic) | `sms_palettes.bps` |
+| **4** | Title subtitle | Title-screen version text (doubles as the naked-eye build tell, e.g. "v.0.19") | CANONICAL (cosmetic) | `sms_title.bps` |
+| **5** | Dash distance | Uranus forward-dash distance −1/3 (~145 → ~89px) | CANONICAL | `sms_dashdist.bps` |
+| 6 | Dash i-frames | Uranus forward dash gains ~6 strike-invuln frames mid-move | EXPERIMENTAL — tension with patch 2's nerf intent; deprecation candidate | `sms_dashinvuln.bps` |
+| 7 | Pluto 5HP vs crouchers | Extends c.HP's active box down so the semi-overhead hits every croucher except Chibi | OPTIONAL | `sms_pluto5hp.bps` |
+| 8 | Venus throw tech | Venus 6HP throw mash-escape window 6f → 13f (standard-ish) | OPTIONAL | `sms_venustech.bps` |
+| 9 | Neptune fireball fix | Deep Submerge hitbox tracks the descending sprite (was stuck at head level) | OPTIONAL (bugfix-flavored) | `sms_neptune_ds.bps` |
+| 10 | Combo counter | Live in-match combo counter rendered by the base game (no overlay) | OPTIONAL | `sms_combocounter.bps` |
+| 10b | + status labels | Combo counter + GC/MEATY/REVERSAL/PUNISH/TECH event labels (build flag `--events labels`, same patch slot as 10) | OPTIONAL (variant of 10) | `sms_combolabels.bps` |
+| 11 | Training+ | In-ROM training-mode upgrade: L+R menu, dummy control, recording, HP tools, displays | OPTIONAL | `sms_trainingplus.bps` |
+| 12 | Taunts | Taunt on L using each character's native misfire animation | OPTIONAL | `sms_taunt.bps` |
+| 13 | Guts (v3.3) | Completing a taunt stacks levels (≤3) that shrink the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round) | OPTIONAL | `sms_tauntbuff.bps` |
+| 14 | Guts Grip | Companion to 13: the same levels also shrink command-grab damage (SPDs/Giant Swing); inert without 13 | OPTIONAL (requires 13 to do anything) | `sms_gutsgrip.bps` |
 
 ## Lifecycle notes
 
