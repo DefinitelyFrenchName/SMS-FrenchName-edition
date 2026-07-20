@@ -19,9 +19,13 @@ Playable roster (charID): 1 Moon, 2 Mercury, 3 Mars, 4 Jupiter, 5 Venus, 6 Uranu
 
 ---
 
-## 1. Current state (2026-07-16) — everything green
+## 1. Current state (2026-07-20) — all green, ONE open field report
 
-Ten patches, all built and verified in-emulator. The **canonical** shipping build is **v0.7**.
+Sixteen patch entries (14 patches + 2 variants), all built and suite-verified. The
+**canonical** shipping build is **v0.7**; the newest all-patches test ROM is **v0.21**.
+**OPEN:** maintainer reports L+R doesn't open the p11 training menu on their all-patches
+setup — NOT reproduced in-emulator on the delivered v0.21 image (see §8 and
+`docs/NEXT_SESSION.md` for the investigation state and the questions awaiting answers).
 
 > One-page registry with status/lifecycle (deprecation candidates, exclusivity,
 > dependencies): **docs/patch_index.md** — keep it updated when patches change.
@@ -235,6 +239,16 @@ Submerge fireball demos.
 
 - **Mesen `setInput` port is the 3rd arg**, not the 2nd (a Mesen bug discards param 2):
   `emu.setInput(buttons, 0, port)` — port 0 = P1, 1 = P2. Writing `(tbl, 1)` silently drives P1.
+- **NEVER build a bundle by chaining standalone BPS files** (an old patch_index note
+  wrongly blessed this): every bank-appending standalone (4, 10/10b, 11, 12, 13, 14) is
+  diffed against CLEAN and targets the SAME first-free bank $E8 — chained application
+  (needs checksum override) makes each patch overwrite the previous one's code bank while
+  the old hooks still jump there (classic casualty: p11's L+R stub → menu dead). Custom
+  combos: chain the `mkpatchN.py` builders (each re-detects the next free bank), diff once.
+- **`probe_p11_nav.lua` stalls at Practice char-select on current builds** (P1 must also
+  confirm the DUMMY's char — P2's pad is inert in Practice; the old step list mashes P2)
+  and its `sf>600` fallback then **saves a non-match state over `traces/training_p11.mss`**
+  (tracked — restore with git if clobbered). `probe_p11_lr.lua` has the fixed autopilot.
 - **Savestate ROM-tag:** the Mesen **GUI refuses** a savestate whose embedded ROM doesn't match
   the open ROM; the **headless testrunner is permissive** and loads anything. So any GUI demo
   that `emu.loadSavestate`s a file needs a state tagged to that exact build. Regenerate one by
@@ -301,4 +315,16 @@ vendor/   sms-training-mode (RAM map + palette patcher)
   canonical.
 - If folding experiments into canonical, bump the title version (`mkpatch4.py --text`) for a
   naked-eye A/B tell — the maintainer is a pad tester who values on-screen version + ROM hashes.
-- No open bugs. All shipped behavior is measured, not inferred.
+- **OPEN (2026-07-20): "L+R doesn't open the training menu" field report** on the
+  all-patches ROM. Not reproduced on the delivered v0.21 image across: fresh-boot
+  Practice entry, L/R press skews 0-10f, movelist Start toggles, random power-on RAM,
+  damage-on(mode 5)+KO; menu WRAM state toggles AND renders (screenshot-identical to
+  pre-change build); BPS round-trips byte-exact; suite 59/59. Probes:
+  `tools/probe_p11_lr.lua` (fresh-boot autopilot + skew attempts),
+  `tools/probe_p11_ko_lr.lua` (mode-5 KO storyline). Gate recap: `$8D∈{4,5(+DMGFLAG
+  $7F:F004==A5)} && $0070==4 && $01FA==0x80`. **Prime suspect:** ROM assembled by
+  chaining standalone BPS (see gotcha in §5 — clobbers bank $E8, kills exactly the p11
+  stub). **Waiting on maintainer:** (1) which file was tested (delivered .sfc / bundle
+  BPS applied / chained standalones), (2) emulator or console+flashcart, (3) exact repro
+  (dead from match start vs after KO/Start/Select; Practice, not VS).
+- Other shipped behavior: measured, no open bugs.

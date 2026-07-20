@@ -1,71 +1,82 @@
-# Next-session handoff — 2026-07-17
+# Next-session handoff — 2026-07-20
 
-Fast orientation. **Full operational map: `HANDOFF.md`; engine subsystems:
-`docs/sms_engine_internals.md`; per-patch detail: `docs/patch_notes.md`.**
+Fast orientation. **Full operational map: `HANDOFF.md`; patch registry:
+`docs/patch_index.md`; engine subsystems: `docs/sms_engine_internals.md`; per-patch
+detail: `docs/patch_notes.md`.**
 
-## TL;DR
+## THE open item — resume here
 
-**Patches 11, 12 AND 13 are DONE.** Patch 13 = "Guts": complete a taunt uninterrupted ->
-stacking defense buff (3 levels, 10/25/45% via --l1/--l2/--l3, per-round, floor 1, covers
-chip+throws). The whole damage pipeline is now RE'd (8 uniform apply sites, DP $00
-staging, throw sites, the $C0:D081 variance matrix, VS round-transition signature).
-Newest test ROM: `build/sms_allpatches_v0.11.bps` (title v.0.11, sha `be476410…`), all
-three suites green on it. Known cuts: time-over rounds don't reset levels; Training+
-RESET row doesn't clear them.
+**Maintainer field report: "I can't use L+R anymore for in-game training mode" on the
+all-patches ROM. NOT reproduced; waiting on their answers.** Investigated 2026-07-20
+(commit `1a5963d`, annotations "L+R training-menu report investigated"): on the
+delivered v0.21 image (`62ffb174…`) the menu opens in EVERY tested scenario — fresh-boot
+Practice entry, L/R press skew 0/2/6/10f, movelist Start open/close, random power-on
+RAM, damage-on (mode 5) + KO; the menu also RENDERS (screenshot-identical to the
+pre-change build); the bundle BPS round-trips byte-exact; suite 59/59 on it.
+Gate recap: `$8D∈{4, 5(+DMGFLAG $7F:F004==0xA5)}` && `$0070==4` && `$01FA==0x80`.
 
-**Patches 11 AND 12 are DONE** on branch `patch11-training-rom`. Patch 12 = taunts on L
-(native per-char misfire pratfalls, the whole ochame mechanic reverse-engineered —
-dispatcher $C1:0B49, records with misfire act at +6, RNG $0090; suites green solo +
-coexist both orders; showcase `build/sms_allpatches_v1.2.bps`, title v.1.2, sha
-`048bd49f…`). "Small advantage for taunting" deliberately deferred.
+**Prime suspect:** a ROM assembled by chaining standalone BPS files — a since-corrected
+patch_index note wrongly blessed that; ALL bank-appending standalones (4, 10/10b, 11,
+12, 13, 14) target the same first-free bank **$E8** (verified byte-level), so chained
+application clobbers earlier patches' code banks and the classic casualty is exactly
+p11's L+R stub. See the new gotcha in HANDOFF §5.
 
-**Patch 11 (the in-ROM training mode challenge) is DONE** on branch `patch11-training-rom`
-— built, oracle-tested (50+ checks ALL PASS), perf-proven (3.4% worst, VS byte-inert),
-packaged (`build/sms_trainingplus.bps`, showcase `build/sms_allpatches_v1.1.bps`).
-Awaiting the maintainer's pad test + merge decision. `main` still has patches 1-10 only.
+**Questions pending with the maintainer** (asked at end of session):
+1. Which file did they test — delivered `v0.21_ALLPATCHES.sfc`, the bundle
+   `sms_allpatches_v0.21.bps` applied to clean, or a chained-standalones build?
+2. Emulator or console/flashcart (which)?
+3. Exact repro: L+R dead from the very start of a Practice match, or only after
+   something (KO / Start / Select / mode change)? Practice, not VS (VS never had L+R)?
 
-## New: the A.C.S. system is fully decoded
+Tools built for this: `tools/probe_p11_lr.lua` (fresh-boot Practice autopilot — NOTE it
+fixes a real trap: P1 must also confirm the dummy's char, P2's pad is inert; plus L+R
+skew attempts, movelist preambles, menu screenshot) and `tools/probe_p11_ko_lr.lua`
+(mode-5 damage-on + KO, L+R after). Old `probe_p11_nav.lua` stalls at char-select on
+current builds and can clobber `traces/training_p11.mss` with a non-match state
+(tracked file — restore with git).
 
-`docs/sms_acs_system.md` — the six stats and their measured effects, the 16x16 damage
-matrix (column-shift formula, dumped), the ochame misfire mechanic (roll code, threshold
-table, per-char misfire acts), manipulation guidance and open unknowns. Candidate next
-mechanic under discussion: taunts inflicting ochame on the opponent (6-50%% whiff).
+## What shipped this session (2026-07-20)
 
-## What patch 11 is
+**MEATY status label removed everywhere** (commit `e9c1976`) — pad testing showed it
+felt strange-to-detrimental. Removed from BOTH the Lua overlay
+(`tools/training/labels.lua`) and patch 10b (`mkpatch10.py`: label id 4 retired, ids
+1/2/3/5 stable; M/Y glyphs dropped). GC/REVERSAL/PUNISH/TECH (+Lua-only THROWN/TRADE)
+remain. The meaty *detection rule* stays documented in `sms_engine_internals.md`.
+- New all-patches build **v0.21** (`62ffb174…`, title tell "v.0.21"); byte-diff vs
+  v0.20 confined to p10 bank + title tiles + hook target + checksum. v0.20 bundle pruned.
+- `training_test.lua` T4 now asserts the label does NOT fire on the frame-perfect
+  infinite; `test_labels_cfg.lua` is now a committed PUNISH scenario (the old untracked
+  debug cfg sampled outside the 48f TTL and could never pass).
+- Suites after change: **v0.21 = 59 ALL PASS, clean = 41 ALL PASS**, T4/T5/T8 PASS,
+  in-ROM label oracle PASS.
 
-The base game's Practice mode upgraded in-ROM (works on hardware): **L+R opens a menu**
-(BG3-rendered) with POSE / GUARD(off/all/afterhit) / WAKEUP(jab/throw/44-dash) / TECH-mash
-/ DAMAGE (the native mode-4↔5 hp switch) / REGEN / REFILL(no-KO) / RECORD+PLAY (34s input
-recording into a $7F:E000 WMDATA ring, puppet-record) / SHOW (live input display + ADV ±N)
-/ RESET. Dummy driven by rewriting P2's pad words at the joy_read tail ($80:8373 hook) —
-the Lua trainer's mechanism, in 65816. Second hook $80:D574 (vblank) does all VRAM/TM work.
-Native Start=movelist / Select=exit preserved. See `docs/trainingplus.md` (dedicated guide) and `docs/patch_notes.md` Patch 11 for the
-pad guide, the RE facts (mode 4/5 semantics, dead HUD producer, BG3=movelist layer,
-TM management, KO-latch standup trick, bank-$7F state) and the full verification list.
+The maintainer had announced "two new tasks"; the second was never stated (the L+R
+report arrived instead). **Ask about it if they don't bring it up.**
 
-## For the maintainer (pad checklist)
+## Current state in one breath
 
-1. Apply `build/sms_allpatches_v1.1.bps` to the clean ROM (or rebuild:
-   `python3 tools/mkpatch11.py <src> <out>` stacks on anything).
-2. Title should read "FrenchName v.1.1". Enter Practice (menu: down, right, start).
-3. L+R → menu (≈0.5s). Feel: navigation, value edits, DAMAGE on → hits drain HP,
-   REFILL keeps everyone alive, RECORD/ARM → close → puppet the dummy → L+R → PLAY LOOP.
-4. Start (movelist) and Select (exit) must behave exactly as vanilla, menu closed.
-5. VS / story modes must feel identical to v1.0 (they are byte-identical per frame).
+14 patches + 2 variants, registry with status/lifecycle in `docs/patch_index.md`.
+Canonical = 1+2+3+4+5 (v0.7, `24aa6b6d…`). Newest all-patches test ROM v0.21.
+Regression suite `tools/test_regression.lua` (fingerprint auto-detection, statics,
+base-engine locks, per-patch behavioral tests, FULL mode): 59/59 on v0.21, 41/41 clean.
+The RE campaign is CLOSED — damage pipeline, ACS, reaction dispatch, danger/ochame,
+input recognizers, GC system, throws, specials compendium (`docs/sms_specials.md`) all
+decoded and regression-locked. Ochame-inflicting taunt: REJECTED by maintainer.
 
-## Open threads
+## Open threads (unchanged backlog)
 
-- **Merge decision**: fold `patch11-training-rom` into main? (Everything committed there;
-  docs/annotations "patch 11 RE" section documents all new engine facts.)
-- Recording doesn't mirror on side swap (documented); facing-relative encode is the one
-  known enhancement candidate, needs a bit-swap layer at record+playback.
-- ADV readout is ±1-approximate vs Lua framedata conventions (documented, by design).
-- Old open threads (fold experiments into canonical, Neptune act-0x02 gap, dash retune)
-  unchanged from 2026-07-16.
+- Maintainer decisions: patch 6 deprecation, patch 1 vs 1b final gate, Guts knob feel,
+  whether p14 `--all-grabs` ever ships. Their side: pad-test v0.21 (indicator
+  training-only + MEATY-gone tells).
+- Parked trivia: full per-char d48 census (needs boot-fresh rounds; Jupiter=1 Neptune=2
+  verified), +0x76 slot meanings, unobserved acts (0x07/0x10/0x14), dizzy handler
+  details, ground-vs-air same-throw vertical wiki comparison.
+- Rig-limited attested: Jupiter air Power Bomb, Mercury triangle jump.
+- Housekeeping nit: CLAUDE.md status banner still describes the 10-patch era.
 
 ## Session hygiene
 
-Unchanged (commit per finding, pull-rebase before push, .sfc gitignored — rebuild from
-BPS, shared headless-harness scratch files). Patch-11 test entry points:
-`tools/test_p11_tier1.lua` (suite), `tools/perf_patch11.lua` (+`_cfg`), probes
-`tools/probe_p11_*.lua`, savestate `traces/training_p11.mss` (clean-ROM Practice match).
+Commit per finding; `git stash -q && git pull --rebase -q && git push -q &&
+git stash pop -q` around pushes; `.sfc` gitignored (rebuild from BPS), bundle BPS =
+current only; never patch in place; all claims emulator-verified
+(`ROM=<build> tools/run.sh <script> <timeout>`); temp files in `$CLAUDE_JOB_DIR/tmp`.
