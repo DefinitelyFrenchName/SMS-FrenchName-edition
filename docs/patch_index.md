@@ -43,9 +43,17 @@ Current all-patches build: **v0.21** (`62ffb174…`).
 - ~~Patch 13 indicator → training-only~~ — DONE (v3.4, 2026-07-19).
 - **Pruned (2026-07-19)**: all historical cumulative bundles (`sms_full*`,
   `sms_both`, all-patches BPS < v0.19 and the mislabeled v1.x line) — only the
-  per-patch standalone BPS above plus the CURRENT `sms_allpatches_vX.Y.bps` are kept;
-  any bundle is rebuildable by chaining the standalones (order-free). Locally kept
-  .sfc: the current ALLPATCHES ROM, `…v0.7_all5.sfc` (the non-interference test
-  baseline), and the per-patch standalones the test suites load.
+  per-patch standalone BPS above plus the CURRENT `sms_allpatches_vX.Y.bps` are kept.
+  Locally kept .sfc: the current ALLPATCHES ROM, `…v0.7_all5.sfc` (the
+  non-interference test baseline), and the per-patch standalones the test suites load.
+- ⚠️ **Do NOT build a bundle by chaining standalone BPS files** (2026-07-20 correction —
+  an earlier note here claimed order-free chaining; that was WRONG). Every
+  bank-appending standalone (4, 10/10b, 11, 12, 13, 14) was diffed against the CLEAN
+  ROM, so they ALL place their code in the same first-free bank ($E8): applied in
+  sequence (which requires overriding the BPS source-checksum error), each one
+  **overwrites the previous one's code bank** while the previous hooks still jump
+  there — e.g. patch 11's L+R menu silently dies, or the game crashes. Custom
+  combinations must be rebuilt by chaining the `mkpatchN.py` builders (each re-detects
+  the next free bank), then diffing once against clean.
 - Per-patch deep detail (mechanism, changed bytes, verification, version history):
   `docs/patch_notes.md`. Build commands & ROM inventory: `HANDOFF.md`.
