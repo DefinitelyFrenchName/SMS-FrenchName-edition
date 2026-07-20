@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compact 2bpp HUD glyph font for patch-10 status labels (GC/MEATY/REVERSAL/PUNISH/TECH).
+"""Compact 2bpp HUD glyph font for patch-10 status labels (GC/REVERSAL/PUNISH/TECH).
 
 BG3 in this game is 2bpp (mode 1), CHR base word 0x5000. Each glyph is an 8x8 tile packed
 2bpp (16 bytes: per row, byte0=plane0, byte1=plane1). We draw 5x7 uppercase letters in

@@ -782,3 +782,20 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
 - d48 per-character: Jupiter 1, Neptune 2 (verified via 6-vs-8 first hit); others
   ambiguous in mid-match saves. Players' +0x76 uniformly 0.
 - Ochame-inflicting-taunt idea: REJECTED by maintainer (net negative for enjoyment).
+
+### MEATY label removed (2026-07-20)
+- Pad-test verdict: the MEATY status label read as noise/backseat-coaching in live play
+  (at best strange, at times detrimental) -> removed from BOTH surfaces:
+  - Lua overlay: tools/training/labels.lua (COLORS entry, lastConstrained tracker, the
+    on.connect fire); training_test T4 flipped to a NEGATIVE check (no label on the
+    frame-perfect infinite) - PASS.
+  - Patch 10b: mkpatch10.py LABELS id 4 retired (ids 1/2/3/5 stable), detection block
+    excised from the producer stub, M/Y glyphs drop from the font. Rebuilt
+    sms_combolabels.bps; v0.21 ALLPATCHES chain diff vs v0.20 confined to the p10 bank,
+    title tiles, hook target bytes + checksum (verified byte-level).
+- The meaty DETECTION RULE (hit <=2f after defender left constraint) stays documented in
+  sms_engine_internals.md - it's engine knowledge, only the display is gone.
+- tools/test_labels_cfg.lua rewritten as a committed PUNISH scenario (the old untracked
+  debug cfg sampled t=300-301, far outside the 48f label TTL - could never pass).
+- Suites: v0.21 = 59 ALL PASS, clean = 41 ALL PASS, T4/T5/T8 PASS, in-ROM PUNISH
+  oracle PASS (ROM=yes Lua=yes).

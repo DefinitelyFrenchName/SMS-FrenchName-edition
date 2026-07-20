@@ -7,7 +7,7 @@ much. Update THIS file whenever a patch is added, revised, or deprecated.
 All patches are independent stackable BPS files built by `tools/mkpatchN.py`,
 byte-disjoint by design (any install order; regression-guarded by
 `tools/test_regression.lua`, which auto-detects which are present).
-Current all-patches build: **v0.20** (`9b0ae040…`).
+Current all-patches build: **v0.21** (`62ffb174…`).
 
 | # | Name | One-liner | Status | Standalone BPS (`build/`) |
 |---|---|---|---|---|
@@ -22,7 +22,7 @@ Current all-patches build: **v0.20** (`9b0ae040…`).
 | 8 | Venus throw tech | Venus 6HP throw mash-escape window 6f → 13f (standard-ish) | OPTIONAL | `sms_venustech.bps` |
 | 9 | Neptune fireball fix | Deep Submerge hitbox tracks the descending sprite (was stuck at head level) | OPTIONAL (bugfix-flavored) | `sms_neptune_ds.bps` |
 | 10 | Combo counter | Live in-match combo counter rendered by the base game (no overlay) | OPTIONAL | `sms_combocounter.bps` |
-| 10b | + status labels | Combo counter + GC/MEATY/REVERSAL/PUNISH/TECH event labels (build flag `--events labels`, same patch slot as 10) | OPTIONAL (variant of 10) | `sms_combolabels.bps` |
+| 10b | + status labels | Combo counter + GC/REVERSAL/PUNISH/TECH event labels (build flag `--events labels`, same patch slot as 10; MEATY label removed 2026-07-20 on player feedback) | OPTIONAL (variant of 10) | `sms_combolabels.bps` |
 | 11 | Training+ | In-ROM training-mode upgrade: L+R menu, dummy control, recording, HP tools, displays | OPTIONAL | `sms_trainingplus.bps` |
 | 12 | Taunts | Taunt on L using each character's native misfire animation | OPTIONAL | `sms_taunt.bps` |
 | 13 | Guts (v3.3) | Completing a taunt stacks levels (≤3) that shrink the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round); level indicator shows in TRAINING only (v3.4) | OPTIONAL | `sms_tauntbuff.bps` |
