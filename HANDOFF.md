@@ -39,7 +39,7 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 | 8 | Venus 6HP throw tech window 6f→13f (OPTIONAL) | `mkpatch8.py` | `build/sms_venustech.bps` |
 | 9 | Neptune Deep Submerge fireball hitbox tracks sprite (OPTIONAL) | `mkpatch9.py` | `build/sms_neptune_ds.bps` |
 | 10 | In-match combo counter, base game (OPTIONAL) | `mkpatch10.py` | `build/sms_combocounter.bps` |
-| 10b | + status labels GC/MEATY/REVERSAL/PUNISH/TECH (OPTIONAL) | `mkpatch10.py --events labels` | `build/sms_combolabels.bps` |
+| 10b | + status labels GC/REVERSAL/PUNISH/TECH (OPTIONAL; MEATY label removed 2026-07-20) | `mkpatch10.py --events labels` | `build/sms_combolabels.bps` |
 | 11 | **In-ROM training mode upgrade** (L+R menu, dummy control, recording, displays; OPTIONAL) | `mkpatch11.py` | `build/sms_trainingplus.bps` |
 | 12 | **Taunts on L** (native per-char misfire animations; OPTIONAL) | `mkpatch12.py` | `build/sms_taunt.bps` |
 | 13 | **"Guts" v3** — taunt completion nerfs the opponent's SPECIALS/desperations (20/40/60%, per-round, stack 3; OPTIONAL) | `mkpatch13.py --l1/--l2/--l3` | `build/sms_tauntbuff.bps` |
@@ -56,7 +56,8 @@ Ten patches, all built and verified in-emulator. The **canonical** shipping buil
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
 - `SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` — `be2cb752…` — patches 1-11 (BPS `build/sms_allpatches_v1.1.bps`).
-- **`SailorMoonS_FrenchName_v0.20_ALLPATCHES.sfc`** — `9b0ae040…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.20.bps`, title v.0.20; Guts v3.4 = level indicator training-only).
+- **`SailorMoonS_FrenchName_v0.21_ALLPATCHES.sfc`** — `62ffb174…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.21.bps`, title v.0.21; MEATY status label removed from patch 10b).
+- `SailorMoonS_FrenchName_v0.20_ALLPATCHES.sfc` — `9b0ae040…` — previous build (BPS `build/sms_allpatches_v0.20.bps`; Guts v3.4 = level indicator training-only).
 - `SailorMoonS_FrenchName_v0.18_ALLPATCHES.sfc` — `86b7f44c…` — previous build (BPS `build/sms_allpatches_v0.18.bps`).
 - `SailorMoonS_FrenchName_v0.17_ALLPATCHES.sfc` — `bccb0182…` — previous build (BPS `build/sms_allpatches_v0.17.bps`).
 - `SailorMoonS_FrenchName_v0.16_ALLPATCHES.sfc` — `cf96aa05…` — previous build (BPS `build/sms_allpatches_v0.16.bps`).
@@ -201,7 +202,7 @@ desperation types, dash distance) plus per-patch nominal+edge tests (incl. cross
 counter-hit×Guts, p8 tech-window dual-mode, p13 round-reset, the full 9-character
 desperation compendium + crouch edges). `ROM=<build> tools/run.sh
 tools/test_regression.lua 900`; optional cfg `EXPECT="clean"|"all"`, `ONLY="pattern"`.
-Green: v0.20 = 56 tests, clean = 36, clean+FULL = 46 (dual-mode expectations flip
+Green: v0.21 = 59 tests, clean = 41, clean+FULL ≈ 50 (dual-mode expectations flip
 with detection; patch tests skip when absent). Engine-rule locks: death-underflow
 pair, GC-gate-immediate, backdash-GC, prejump throw-vulnerability, danger threshold,
 clock desperation trigger, first-hit-defense pair; statics for matrix, desperation

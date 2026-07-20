@@ -250,12 +250,13 @@ tests.T4 = (function()
               and "PASS: meaty flagged the chain tight (1 non-bufferable link)"
               or string.format("FAIL: tight=%s tightHits=%s after meaty",
                   tostring(c.tight), tostring(c.tightHits)))
+          -- (MEATY label removed 2026-07-20 — verify no stale label fires on the meaty)
           local sawMeaty = false
           for _, fentry in ipairs(ctx.mod.labels.fired) do
-            if fentry.text == "P1 MEATY" then sawMeaty = true end
+            if fentry.text:find("MEATY") then sawMeaty = true end
           end
-          log(sawMeaty and "PASS: MEATY label fired on the 1-frame meaty"
-              or "FAIL: MEATY label did not fire")
+          log((not sawMeaty) and "PASS: no MEATY label (removed) on the 1-frame meaty"
+              or "FAIL: MEATY label fired but was removed")
           phase = "late"; FV = 116
           ctx.anchor.loadreq = T._state
         else

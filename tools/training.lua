@@ -12,7 +12,7 @@
 --   * Move summary line: "P1 2LP S4 A5 R4 T13 hit +6 (c+12)" — S counts frames before the
 --     first active frame (Dustloop convention; press F to toggle SF6-style S+1). c+N =
 --     advantage if you cancel the recovery (this game's links live there).
---   * Status panels, input piano roll, event labels (MEATY/REVERSAL/PUNISH/...), combo
+--   * Status panels, input piano roll, event labels (GC/REVERSAL/PUNISH/...), combo
 --     counter, hitbox viewer, recordable dummy — see keymap below (features arrive in
 --     phases; run headless tests via tools/training_test.lua).
 --
@@ -35,7 +35,7 @@
 --       plays it as a reversal after a knockdown
 --   [ ] Q saves position, E restores it (works repeatedly)
 --   [ ] M menu navigates with W/S/A/D, settings persist across restarts
---   [ ] labels pop on meaty/punish/counter/throw situations
+--   [ ] labels pop on GC/punish/reversal/throw situations (MEATY label removed 2026-07-20)
 -- Headless self-tests (all must pass): see tools/training_test.lua header.
 local ROOT = "/Users/koneko/Developer/SailorMoonS/tools/"
 local main = dofile(ROOT .. "training/main.lua")

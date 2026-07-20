@@ -959,10 +959,18 @@ its own scratch + free VRAM cells).
 
 ## Status labels (`--events labels`)
 
-Adds on-screen text under each attacker for the training-mode events — **GC, MEATY, REVERSAL,
+Adds on-screen text under each attacker for the training-mode events — **GC, REVERSAL,
 PUNISH, TECH** (THROW TECH shortened to TECH) — rendered by the base game. Same two hooks as
 the counter (extended stubs); detection mirrors `tools/training/labels.lua` and is validated
 against it as the oracle.
+
+> **2026-07-20 — MEATY label removed** (from BOTH this patch and the Lua overlay): pad
+> testing showed it felt at best very strange to players and at times detrimental in live
+> play. Label id 4 is retired (ids 1/2/3/5 kept stable), the M/Y glyphs drop out of the
+> font, and the detection block is gone from the stub; the meaty *detection rule* itself
+> (hit ≤2f after the defender left constraint) remains documented in
+> `sms_engine_internals.md` as engine knowledge. `training_test.lua` T4 now asserts the
+> label does NOT fire on the frame-perfect infinite.
 
 - **Glyphs:** the in-match nameplate font is matchup-dependent (**G appears in no character's
   name**), so a compact 2bpp uppercase font (`tools/hudfont.py`, the ~16 letters the label set
@@ -972,12 +980,13 @@ against it as the oracle.
   disjoint from the counter's cells.
 - **Detection** (in the producer stub, no new hooks): per-player `prevAct`, constraint-recency
   (any / hard), a 3-state move-phase, and an HP shadow. GC = attack act with prevAct in
-  blockstun; REVERSAL = attack ≤2f after leaving hard constraint; MEATY = hit ≤2f after the
-  defender left constraint; PUNISH = hit while the defender is in its own move's recovery
-  (move-phase active-seen, hitbox gone); TECH = act→0x23. Priority TECH>GC>REVERSAL>PUNISH>MEATY.
+  blockstun; REVERSAL = attack ≤2f after leaving hard constraint; PUNISH = hit while the
+  defender is in its own move's recovery (move-phase active-seen, hitbox gone);
+  TECH = act→0x23. Priority TECH>GC>REVERSAL>PUNISH.
 - **Verification:** each label fires iff the Lua fires it, across scripted scenarios — GC (Mars
-  fireball out of blocked 2HP), MEATY (frame-perfect infinite), TECH (throw mash), REVERSAL
-  (wakeup jab), PUNISH (hit during 2HP recovery). `tools/test_labels.lua` + scenario cfgs.
+  fireball out of blocked 2HP), TECH (throw mash), REVERSAL (wakeup jab), PUNISH (hit during
+  2HP recovery). `tools/test_labels.lua` + scenario cfgs; the frame-perfect infinite is the
+  MEATY *negative* scenario (no label) since 2026-07-20.
 
 ### Performance (labels build) — the measured lag answer
 `tools/perf_patch10.lua` over the heavy scenario (infinite rep + labels firing):
@@ -996,7 +1005,7 @@ there is **no noticeable lag** — the definitive test is frame-identity, not th
 ## Knob (labels)
 | Knob | Flag | Default | Effect |
 |---|---|---|---|
-| Status labels | `mkpatch10.py --events` | `off` | `labels` = also show GC/MEATY/REVERSAL/PUNISH/TECH text |
+| Status labels | `mkpatch10.py --events` | `off` | `labels` = also show GC/REVERSAL/PUNISH/TECH text |
 
 Standalone `build/sms_combolabels.bps` (SHA-1 `bf5ba9f9…`), combined
 `build/sms_full10_combolabels.bps` (ROM `…_v0.7_all5_combolabels.sfc`). Same two hooks as the

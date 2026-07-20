@@ -60,10 +60,12 @@ LBL_CELL = (0x10E5, 0x10F2)       # LEFT $10E5-$10EC (col5), RIGHT $10F2-$10F9 (
 BLANK = 0x2000
 BG3_CHR = 0x5000                  # BG3 CHR base (word); glyph tiles start at slot 0xC7
 GLYPH_TILE0 = 0xC7
-LABELS = {1: "GC", 2: "REVERSAL", 3: "PUNISH", 4: "MEATY", 5: "TECH"}
+# id 4 was MEATY — removed 2026-07-20 on player feedback (felt like noise in live play);
+# ids kept stable so GC/REVERSAL/PUNISH/TECH bytes and tests are unchanged.
+LABELS = {1: "GC", 2: "REVERSAL", 3: "PUNISH", 5: "TECH"}
 LABEL_TTL = 48
 # id sets for constraint tests
-HARD = "hitstun/KD/thrown"        # 0x10-0x20, 0x27-0x29 (hard constraint, for REVERSAL/MEATY)
+HARD = "hitstun/KD/thrown"        # 0x10-0x20, 0x27-0x29 (hard constraint, for REVERSAL)
 
 
 def _defender_logic(hp, act, st, sfx):
@@ -319,14 +321,8 @@ def _label_detect(p, sfx):
   lda ${dhp:04X}
   cmp ${dst + 4:04X}
   bcs nohit{sfx}
-  ; MEATY (prio low): defender left constraint <=2 frames ago
-  lda ${dst + 1:04X}
-  cmp #$03
-  bcs chkpun{sfx}
-  lda #$04
-  sta ${st + 5:04X}
-chkpun{sfx}:
-  ; PUNISH (higher): defender in recovery of its own move (phase==2 && hitbox==0)
+  ; (MEATY, formerly id 4 here at lowest prio, removed 2026-07-20)
+  ; PUNISH: defender in recovery of its own move (phase==2 && hitbox==0)
   lda ${dst + 3:04X}
   cmp #$02
   bne nohit{sfx}
@@ -692,7 +688,7 @@ if __name__ == "__main__":
                          "'all' = every match (default 0,1,4,5 = VS + training)")
     ap.add_argument("--events", choices=["off", "labels"], default="off",
                     help="off = combo counter only (default); labels = also show "
-                         "GC/MEATY/REVERSAL/PUNISH/TECH status text")
+                         "GC/REVERSAL/PUNISH/TECH status text")
     a = ap.parse_args()
     if a.src == CLEAN:
         assert sha1(open(a.src, "rb").read()).hexdigest() == CLEAN_SHA1, "clean hash mismatch"

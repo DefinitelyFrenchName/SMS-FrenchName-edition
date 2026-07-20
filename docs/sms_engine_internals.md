@@ -516,9 +516,11 @@ B=LK A=HK.
   in this game (the Uranus infinite lives there).
 - **Event labels** (all computable from act transitions + HP deltas): GC = attack act with
   previous act in blockstun (0x0E/0F); REVERSAL = attack ≤2f after leaving hard constraint;
-  MEATY = hit ≤2f after the defender left constraint; PUNISH = hit while the defender is in its
-  own move's recovery (move-phase active-seen, hitbox gone); TECH = act→0x23. No counter-hit
-  system exists in this engine (a "COUNTER" label would be informational only).
+  PUNISH = hit while the defender is in its own move's recovery (move-phase active-seen,
+  hitbox gone); TECH = act→0x23. No counter-hit system exists in this engine (a "COUNTER"
+  label would be informational only). A MEATY label (hit ≤2f after the defender left
+  constraint) shipped through v0.20 and was removed 2026-07-20 on player feedback — the
+  detection rule stays valid engine knowledge.
 
 The reference implementations are `tools/training/framedata.lua`, `combo.lua`, `labels.lua`;
 patch 10 transliterates the same logic into 65816 and is validated *against* the Lua as oracle.

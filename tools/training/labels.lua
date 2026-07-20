@@ -1,4 +1,6 @@
--- labels.lua — event popups: GC / MEATY / REVERSAL / PUNISH / THROW TECH / THROWN / TRADE.
+-- labels.lua — event popups: GC / REVERSAL / PUNISH / THROW TECH / THROWN / TRADE.
+-- (A MEATY label existed through v0.20; removed 2026-07-20 on player feedback — it read
+-- as noise/backseat-coaching in live play. The meaty *timing* facts live in patch_notes.)
 -- All derived from framedata events + class history; drawn above the frame meter and/or
 -- under the combo counter (ctx.ui.labelMode). M.fired collects {t, text} for tests.
 --
@@ -22,7 +24,7 @@ function M.init(ctx)
   ctx.ui.labelMode = ctx.ui.labelMode or "both"   -- off | meter | combo | both
 
   local COLORS = {
-    MEATY = 0xFF8020, REVERSAL = 0x40C0FF, PUNISH = 0xFF3030, GC = 0x40FF80,
+    REVERSAL = 0x40C0FF, PUNISH = 0xFF3030, GC = 0x40FF80,
     ["THROW TECH"] = 0x40C0B0, THROWN = 0xA040C8, TRADE = 0xC0C0C0,
   }
 
@@ -44,7 +46,6 @@ function M.init(ctx)
   -- per-player constraint tracking (last frame the player was in a constrained class);
   -- blockstun tracked separately: exits into a move are GC, hard-constraint exits REVERSAL
   local HARD = { [CLS.HITSTUN] = true, [CLS.KNOCKDOWN] = true, [CLS.THROWN] = true }
-  local lastConstrained = { -99, -99 }   -- any constraint incl. blockstun (meaty window)
   local lastHard = { -99, -99 }
   local lastBlockstun = { -99, -99 }
 
@@ -53,8 +54,8 @@ function M.init(ctx)
     if not s then return end
     for i = 1, 2 do
       local cls = s.p[i].cls
-      if HARD[cls] then lastHard[i] = ctx.t; lastConstrained[i] = ctx.t end
-      if cls == CLS.BLOCKSTUN then lastBlockstun[i] = ctx.t; lastConstrained[i] = ctx.t end
+      if HARD[cls] then lastHard[i] = ctx.t end
+      if cls == CLS.BLOCKSTUN then lastBlockstun[i] = ctx.t end
       -- throw tech / thrown transitions
       local prev = ctx.prev and ctx.prev.p[i]
       if prev then
@@ -90,13 +91,6 @@ function M.init(ctx)
   table.insert(fd.on.connect, function(ev)
     if ev.kind == "throw" then return end       -- thrown/tech labels handle throws
     local defClsAtHit = ev.defCls
-    -- meaty = a hit connecting within 2 frames of the defender leaving stun/knockdown.
-    -- Defender-state defines it, NOT hitbox age: the canonical 1-frame meaty (Uranus
-    -- infinite) connects on the attack's FIRST active frame, on the defender's first
-    -- out-of-stun frame (hit beats same-frame block).
-    if ev.kind == "hit" and ev.t - lastConstrained[ev.defender] <= 2 then
-      fire("MEATY", ev.attacker)
-    end
     if ev.kind == "hit" then
       if defClsAtHit == CLS.RECOVERY or defClsAtHit == CLS.RECOVERY_C then
         fire("PUNISH", ev.attacker)
@@ -126,7 +120,7 @@ function M.init(ctx)
   table.insert(ctx.hooks.draw, draw)
   table.insert(ctx.hooks.reset, function()
     popups = {}; M.side = { nil, nil }; lastText = nil
-    lastConstrained = { -99, -99 }; lastHard = { -99, -99 }; lastBlockstun = { -99, -99 }
+    lastHard = { -99, -99 }; lastBlockstun = { -99, -99 }
   end)
 end
 
