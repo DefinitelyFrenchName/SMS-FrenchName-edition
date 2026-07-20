@@ -799,3 +799,21 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   debug cfg sampled t=300-301, far outside the 48f label TTL - could never pass).
 - Suites: v0.21 = 59 ALL PASS, clean = 41 ALL PASS, T4/T5/T8 PASS, in-ROM PUNISH
   oracle PASS (ROM=yes Lua=yes).
+
+### L+R training-menu report investigated (2026-07-20)
+- User report: L+R no longer opens the p11 menu on the all-patches ROM. NOT reproduced
+  on the delivered v0.21 image (62ffb174): fresh-boot Practice entry, L/R press skews
+  0/2/6/10f, movelist open/close, random power-on RAM, and damage-on(mode 5)+KO all
+  toggle the menu (probe_p11_lr.lua, probe_p11_ko_lr.lua; menu renders identical to the
+  pre-change build, screenshot-compared). BPS round-trips byte-exact. Gate recap:
+  $8D in {4,5(+DMGFLAG A5)} && $0070==4 && $01FA==0x80.
+- REAL defect found while investigating: patch_index claimed bundles are "rebuildable
+  by chaining the standalones (order-free)" - FALSE. All bank-appending standalones
+  (4,10,11,12,13,14) target the same first-free bank $E8 (verified: every one's only
+  expanded-bank payload is $E8), so chained BPS application (checksum override needed)
+  clobbers earlier patches' code banks - killing e.g. exactly the p11 L+R stub.
+  patch_index corrected; custom combos must chain the mkpatchN.py builders.
+- probe_p11_lr autopilot note: Practice char-select needs P1 to ALSO confirm the
+  dummy's char (P2 pad inert); the old probe_p11_nav step list stalls there on
+  current builds and its sf>600 fallback saves a NON-match state (it clobbered
+  traces/training_p11.mss once - restored from git; re-save a fresh one if needed).
