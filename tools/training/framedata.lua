@@ -162,11 +162,14 @@ function M.init(ctx)
         if not frz then m.A = m.A + 1; m.curPhase.a = m.curPhase.a + 1 end
         return CLS.ACTIVE, inv, frz, canc
       end
-      if not m.seenActive then
+      -- projectile specials never go active on the BODY (the hitbox lives on the
+      -- projectile slot), so a return to a neutral act must close the move even with
+      -- seenActive false — otherwise the instance (and the STARTUP class) sticks forever
+      if not m.seenActive and not C.isNeutralAct(a) then
         if not frz then m.S = m.S + 1 end
         return CLS.STARTUP, inv, frz, canc
       end
-      -- post-active
+      -- post-active (or neutral reached without an active phase)
       if C.isNeutralAct(a) then
         endMove(i, "done")
         -- fall through to neutral below

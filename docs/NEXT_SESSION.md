@@ -1,41 +1,36 @@
-# Next-session handoff — 2026-07-20
+# Next-session handoff — 2026-07-21
 
 Fast orientation. **Full operational map: `HANDOFF.md`; patch registry:
 `docs/patch_index.md`; engine subsystems: `docs/sms_engine_internals.md`; per-patch
 detail: `docs/patch_notes.md`.**
 
-## THE open item — resume here
+## Status — no open items
 
-**Maintainer field report: "I can't use L+R anymore for in-game training mode" on the
-all-patches ROM. NOT reproduced; waiting on their answers.** Investigated 2026-07-20
-(commit `1a5963d`, annotations "L+R training-menu report investigated"): on the
-delivered v0.21 image (`62ffb174…`) the menu opens in EVERY tested scenario — fresh-boot
-Practice entry, L/R press skew 0/2/6/10f, movelist Start open/close, random power-on
-RAM, damage-on (mode 5) + KO; the menu also RENDERS (screenshot-identical to the
-pre-change build); the bundle BPS round-trips byte-exact; suite 59/59 on it.
-Gate recap: `$8D∈{4, 5(+DMGFLAG $7F:F004==0xA5)}` && `$0070==4` && `$01FA==0x80`.
+**The L+R field report is RESOLVED (2026-07-21):** maintainer confirms L+R opens the
+training menu as intended on the latest patches, and the taunt + Guts pipeline
+(specials/desperation damage reduction, Q-style) works as intended. The 2026-07-20
+investigation (commit `1a5963d`) stands as reference: the delivered v0.21 image was
+always clean; the chained-standalone-BPS gotcha (HANDOFF §5) remains the documented trap.
 
-**Prime suspect:** a ROM assembled by chaining standalone BPS files — a since-corrected
-patch_index note wrongly blessed that; ALL bank-appending standalones (4, 10/10b, 11,
-12, 13, 14) target the same first-free bank **$E8** (verified byte-level), so chained
-application clobbers earlier patches' code banks and the classic casualty is exactly
-p11's L+R stub. See the new gotcha in HANDOFF §5.
+## What shipped this session (2026-07-21)
 
-**Questions pending with the maintainer** (asked at end of session):
-1. Which file did they test — delivered `v0.21_ALLPATCHES.sfc`, the bundle
-   `sms_allpatches_v0.21.bps` applied to clean, or a chained-standalones build?
-2. Emulator or console/flashcart (which)?
-3. Exact repro: L+R dead from the very start of a Practice match, or only after
-   something (KO / Start / Select / mode change)? Practice, not VS (VS never had L+R)?
+**Lua training-mode HP-regen bug fixed** (maintainer field report: "life refill only
+occurs after a normal hit; special move damage does not trigger refill after 2s").
+Root cause was NOT the HP<max trigger: for **projectile specials** the attacker's BODY
+never gets an active hitbox (the box lives on the projectile slot $1100), so
+`framedata.lua`'s move machine never saw an active phase and every move-end path
+required `seenActive` — the attacker stayed classified STARTUP forever after e.g. Deep
+Submerge; `combo.lua`'s close gate treats attacker STARTUP as a live threat, so
+`combo[2].active` stuck true, and `regen.lua` gates the refill on no-open-combo. A later
+normal unstuck it (its real hitbox completed the move machine) — exactly the reported
+symptom. **Fix:** one guard in `tools/training/framedata.lua` classify(): a return to a
+neutral act now closes the move even with `seenActive == false`. Verified: refill fires
+120f after a DS hit (probe `tools/probe_regen_special.lua`, repro + fix traces in
+`traces/probe_regen_special.txt`); new regression **T10** in `tools/training_test.lua`
+(DS hit → P1 reclassifies NEUTRAL → combo closes → refill; PASS on clean AND v0.21);
+full self-test suite T1–T10 green (T1/T2/T2H/T3/T5/T6/T7 on clean, T4/T8/T9 on v0.7).
 
-Tools built for this: `tools/probe_p11_lr.lua` (fresh-boot Practice autopilot — NOTE it
-fixes a real trap: P1 must also confirm the dummy's char, P2's pad is inert; plus L+R
-skew attempts, movelist preambles, menu screenshot) and `tools/probe_p11_ko_lr.lua`
-(mode-5 damage-on + KO, L+R after). Old `probe_p11_nav.lua` stalls at char-select on
-current builds and can clobber `traces/training_p11.mss` with a non-match state
-(tracked file — restore with git).
-
-## What shipped this session (2026-07-20)
+## Previous session (2026-07-20)
 
 **MEATY status label removed everywhere** (commit `e9c1976`) — pad testing showed it
 felt strange-to-detrimental. Removed from BOTH the Lua overlay
