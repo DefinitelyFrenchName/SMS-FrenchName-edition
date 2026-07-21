@@ -19,13 +19,15 @@ Playable roster (charID): 1 Moon, 2 Mercury, 3 Mars, 4 Jupiter, 5 Venus, 6 Uranu
 
 ---
 
-## 1. Current state (2026-07-20) — all green, ONE open field report
+## 1. Current state (2026-07-21) — all green, no open items
 
 Sixteen patch entries (14 patches + 2 variants), all built and suite-verified. The
 **canonical** shipping build is **v0.7**; the newest all-patches test ROM is **v0.21**.
-**OPEN:** maintainer reports L+R doesn't open the p11 training menu on their all-patches
-setup — NOT reproduced in-emulator on the delivered v0.21 image (see §8 and
-`docs/NEXT_SESSION.md` for the investigation state and the questions awaiting answers).
+The 2026-07-20 "L+R doesn't open the p11 menu" field report is **RESOLVED** — maintainer
+confirms L+R, taunts, and the Guts specials/desperation nerf all work as intended on the
+latest patches. 2026-07-21: fixed a Lua training-mode bug where HP regen never fired
+after projectile-special damage (framedata move machine stuck; see §4 and
+`docs/NEXT_SESSION.md`).
 
 > One-page registry with status/lifecycle (deprecation candidates, exclusivity,
 > dependencies): **docs/patch_index.md** — keep it updated when patches change.
@@ -192,8 +194,12 @@ dummy layers (guard/tech-mash/wakeup/pose), **input piano roll**, event labels
 active frame (Dustloop; toggle to SF6 display in menu), counts exclude hitstop, advantage
 = neutral-frame delta (oracle-validated: 2LP S4 A5 R4 +6, 2HP S8 A12 R7). GUI: open a match,
 run tools/training.lua in the Script Window (enable file access for slot/settings persistence).
-Headless self-tests: `tools/training_test.lua` (T1/T2/T2H/T3/T4/T5, see its header) — run all
-with the loop in its header; T4 needs a v0.7-family ROM. Architecture: modules share a ctx
+Headless self-tests: `tools/training_test.lua` (T1–T10, see its header) — T1/T2/T2H/T3/
+T5/T6/T7/T10 run on the clean ROM, T4/T8/T9 need a v0.7-family ROM (T10 also passes on
+v0.21). T10 locks the 2026-07-21 fix: projectile specials (body never goes active — the
+hitbox lives on the projectile slot) must still close their framedata move instance at
+neutral, else the attacker sticks in STARTUP, the combo never closes, and HP regen never
+fires ("refill only after a normal hit" field report; fix in framedata.lua classify()). Architecture: modules share a ctx
 with hook lists; add a feature = one file in tools/training/ + one MODULES entry (main.lua).
 Key API facts probed (tools/probe_*.lua): +0x4D=hitstop countdown / +0x43=connect latch;
 inputPolled precedes exec@$80:8353; getInput is clean if read before setInput; ScriptHud
@@ -315,16 +321,10 @@ vendor/   sms-training-mode (RAM map + palette patcher)
   canonical.
 - If folding experiments into canonical, bump the title version (`mkpatch4.py --text`) for a
   naked-eye A/B tell — the maintainer is a pad tester who values on-screen version + ROM hashes.
-- **OPEN (2026-07-20): "L+R doesn't open the training menu" field report** on the
-  all-patches ROM. Not reproduced on the delivered v0.21 image across: fresh-boot
-  Practice entry, L/R press skews 0-10f, movelist Start toggles, random power-on RAM,
-  damage-on(mode 5)+KO; menu WRAM state toggles AND renders (screenshot-identical to
-  pre-change build); BPS round-trips byte-exact; suite 59/59. Probes:
-  `tools/probe_p11_lr.lua` (fresh-boot autopilot + skew attempts),
-  `tools/probe_p11_ko_lr.lua` (mode-5 KO storyline). Gate recap: `$8D∈{4,5(+DMGFLAG
-  $7F:F004==A5)} && $0070==4 && $01FA==0x80`. **Prime suspect:** ROM assembled by
-  chaining standalone BPS (see gotcha in §5 — clobbers bank $E8, kills exactly the p11
-  stub). **Waiting on maintainer:** (1) which file was tested (delivered .sfc / bundle
-  BPS applied / chained standalones), (2) emulator or console+flashcart, (3) exact repro
-  (dead from match start vs after KO/Start/Select; Practice, not VS).
+- **RESOLVED (2026-07-21): the "L+R doesn't open the training menu" field report** —
+  maintainer confirms L+R works as intended on the latest patches (taunts + Guts
+  Q-style specials/desperation nerf also confirmed working). The 2026-07-20
+  investigation (probes `tools/probe_p11_lr.lua` / `tools/probe_p11_ko_lr.lua`, gate
+  recap `$8D∈{4,5(+DMGFLAG $7F:F004==A5)} && $0070==4 && $01FA==0x80`) stands as
+  reference; the chained-standalone-BPS trap remains documented in §5.
 - Other shipped behavior: measured, no open bugs.

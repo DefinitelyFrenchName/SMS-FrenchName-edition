@@ -484,6 +484,35 @@ tests.T9 = {
   },
 }
 
+-- T10: regen after a PROJECTILE special (field report 2026-07-21: "life refill only after
+-- a normal hit"). Neptune 214LP Deep Submerge hits standing Jupiter ~t=46; the attacker's
+-- BODY never goes active (hitbox lives on the projectile slot), which used to leave the
+-- framedata move instance open (P1 stuck STARTUP) -> combo[2] never closed -> regen gated
+-- off forever. Asserts: hit lands, P1 reclassifies NEUTRAL, combo closes, HP refills at
+-- ~120f after the hit. Works on clean and patched families (state loads permissively).
+tests.T10 = {
+  STATE = "neptune_vs_jupiter.mss",
+  PLAN1 = { [8] = { down = true }, [11] = { down = true, left = true },
+            [14] = { left = true, y = true }, [17] = {} },
+  DONE = 185,
+  CHECKS = {
+    { t = 50, fn = function(ctx)
+        local q = ctx.snap.p[2]
+        return q.hp < q.maxhp and ctx.combo[2].active,
+               string.format("t50 p2hp=%02X/%02X comboActive=%s (want hit + open combo)",
+                             q.hp, q.maxhp, tostring(ctx.combo[2].active)) end },
+    { t = 120, fn = function(ctx)
+        local p = ctx.snap.p[1]
+        return p.cls == ctx.C.CLS.NEUTRAL and not ctx.combo[2].active,
+               string.format("t120 p1cls=%s comboActive=%s (want NEUTRAL + closed combo)",
+                             ctx.C.CLS_NAME[p.cls], tostring(ctx.combo[2].active)) end },
+    { t = 175, fn = function(ctx)
+        local q = ctx.snap.p[2]
+        return q.hp == q.maxhp,
+               string.format("t175 p2hp=%02X/%02X (want refilled)", q.hp, q.maxhp) end },
+  },
+}
+
 -- ---------- harness ----------
 local T = tests[TEST]
 if not T then error("unknown TEST " .. tostring(TEST)) end
