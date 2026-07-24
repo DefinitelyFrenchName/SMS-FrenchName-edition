@@ -75,9 +75,9 @@ after projectile-special damage (framedata move machine stuck; see §4 and
 - `SailorMoonS_FrenchName_v0.10_ALLPATCHES.sfc` — `f75efa04…` — patches 1-12, the maintainer's mid-QA build (BPS `build/sms_allpatches_v0.10.bps`).
 - `SailorMoonS_FrenchName_v1.2_ALLPATCHES.sfc` — `048bd49f…` — ALL 12 patches (BPS `build/sms_allpatches_v1.2.bps`, title v.1.2).
 
-Each ROM's BPS is `build/sms_full5_v07_canonical.bps` / `sms_full5_truecombo.bps` /
-`sms_full6_v08_dashinvuln.bps` / `sms_full7_pluto5hp.bps` / `sms_full8_venustech.bps` /
-`sms_full9_neptuneds.bps`.
+The historical cumulative BPS these rows name (`sms_full*`, the v1.x line, all-patches
+< v0.19) were deleted in the 2026-07-19 prune — rebuild any lineage by chaining the
+`mkpatchN.py` builders (§2). Kept BPS: the per-patch standalones + `sms_allpatches_v0.21.bps`.
 
 ---
 
@@ -293,8 +293,8 @@ ROM="build/sms_trainingplus.sfc" tools/run.sh tools/perf_patch11.lua 200     # -
 ROM="build/sms_tauntbuff.sfc" tools/run.sh tools/test_p13_guts.lua 400
 # patch 12 (taunts) suites:
 ROM="build/sms_taunt.sfc" tools/run.sh tools/test_p12_taunt.lua 200          # MODE="solo" in cfg
-# rebuild any BPS and confirm round-trip:
-./tools/Flips/flips --apply build/sms_full5_v07_canonical.bps "$CLEAN" /tmp/rt.sfc  # sha == 24aa6b6d…
+# rebuild any BPS and confirm round-trip (current bundle):
+./tools/Flips/flips --apply build/sms_allpatches_v0.21.bps "$CLEAN" /tmp/rt.sfc  # sha == 62ffb174…
 ```
 
 ---

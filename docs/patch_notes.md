@@ -4,9 +4,12 @@ Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),
 clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c` (HiROM+FastROM, headerless,
 file offset = SNES addr & 0x3FFFFF).
 
-This document covers nine independent patches (1–5 gameplay/cosmetic, 6–9 optional/
-experimental). Each is a separate stackable BPS built by its own `tools/mkpatchN.py`; their
-edits are byte-disjoint, so they combine cleanly. **New here? Read `HANDOFF.md` first** — it is
+This document covers **fourteen independent patches plus two variants** (1–5 the canonical
+gameplay/cosmetic core, 6–14 optional; 1b and 10b are variants of 1 and 10). Each is a
+separate stackable BPS built by its own `tools/mkpatchN.py`; their edits are byte-disjoint,
+so they combine cleanly — but **never combine by chaining standalone BPS files** (bank-$E8
+clobber; see "Applying" below and `HANDOFF.md` §5). One-page registry with
+status/lifecycle: `docs/patch_index.md`. **New here? Read `HANDOFF.md` first** — it is
 the operational map (current state, deliverables, tooling, findings, gotchas).
 
 ## Deliverables & how they stack
@@ -24,8 +27,22 @@ the operational map (current state, deliverables, tooling, findings, gotchas).
 | 8. Venus throw tech **(OPTIONAL)** | Venus 6HP throw mash-escape window 6f → 13f (standard-ish; Jupiter=15f) | `tools/mkpatch8.py` | `build/sms_venustech.bps` | `63ce0748…` |
 | 9. Neptune fireball **(OPTIONAL)** | Deep Submerge fireball hitbox tracks the descending sprite (was stuck at head level) | `tools/mkpatch9.py` | `build/sms_neptune_ds.bps` | `d5ee12a3…` |
 | 10. In-match combo counter **(OPTIONAL)** | Live combo-hit counter rendered by the base game under each attacker's bar (no overlay needed) | `tools/mkpatch10.py` | `build/sms_combocounter.bps` | `ccdd1510…` |
+| 10b. + status labels **(variant of 10)** | Counter + GC/REVERSAL/PUNISH/TECH event text (MEATY label removed 2026-07-20) | `tools/mkpatch10.py --events labels` | `build/sms_combolabels.bps` | `bf5ba9f9…` |
+| 11. Training+ **(OPTIONAL)** | In-ROM training-mode upgrade: L+R menu, dummy control (pose/guard/wakeup/tech), recording+playback, damage/regen/refill, input+ADV display | `tools/mkpatch11.py` | `build/sms_trainingplus.bps` | `42add705…` |
+| 12. Taunts **(OPTIONAL)** | Taunt on L: each character's native misfire ("ochame") pratfall, fully vulnerable | `tools/mkpatch12.py` | `build/sms_taunt.bps` | `614f318e…` |
+| 13. Guts **(OPTIONAL)** | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py` | `build/sms_tauntbuff.bps` | `04e13428…` |
+| 14. Guts Grip **(OPTIONAL, companion to 13)** | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py` | `build/sms_gutsgrip.bps` | `b90b8fd6…` |
 
 Combined builds:
+
+> **Current bundle:** `build/sms_allpatches_v0.21.bps` — clean → ALL 14 patches (10 as 10b,
+> labels on), title tell "v.0.21", ROM `build/SailorMoonS_FrenchName_v0.21_ALLPATCHES.sfc`
+> (SHA-1 `62ffb174…`). **2026-07-19 prune:** the historical cumulative bundles listed below
+> (`sms_both`, `sms_full*`, the v1.x line, all-patches < v0.19) were deleted from `build/`
+> (see `docs/patch_index.md`); the entries are kept as historical record of what each
+> lineage contained. Custom combinations are rebuilt by chaining the `mkpatchN.py` builders
+> (HANDOFF §2), never by chaining standalone BPS.
+
 - `build/sms_both.bps` — clean → patch 1 + 2 (stacked SHA-1 `5ae720fe…`)
 - `build/sms_full.bps` — clean → patches 1 + 2 + 3 (SHA-1 `eb7b86f8…`)
 - `build/sms_full4.bps` — clean → patches 1 + 2 + 3 + 4 (SHA-1 `51c397cb…`)
@@ -71,6 +88,22 @@ Edit-region map (why they're disjoint):
 - Patch 8: one byte `0x16C70` (bank $C1 Venus throw-hold script data).
 - Patch 9: four bytes `0xAFD5D/65/6D/75` (bank $8A Deep Submerge fireball hit table `$8A:FD51`,
   object-id 0x18 — exclusive; disjoint from every character/projectile table).
+- Patch 10/10b: bank-$C0 hooks `0x0D5E8` (HUD producer) + `0x0D56F` (NMI uploader), stubs in
+  an appended bank; WRAM `$0816-$08FF` (unused HUD page tail).
+- Patch 11: bank-$80 hook `0x08373` (joy_read tail) + `0x0D574` (uploader body), stubs in an
+  appended bank; state `$7F:F000+`, recording ring `$7F:E000`.
+- Patch 12: bank-$80 hook `0x08377` (edge derivation), stub in an appended bank; zero WRAM.
+- Patch 13: bank-$80 hook `0x0837B` (third in the joy_read chain) + indicator hook `0x0D596`,
+  8 strike/chip apply sites in bank $C0 (`0xC09C/C16F/C216/C2C5` melee, `0xC47E/C551/C5F8/
+  C6A7` projectile), throw sites `0x1082F` (toss) + `0x10D54` (drain tick), stubs in an
+  appended bank; state `$7F:F800-F80A`.
+- Patch 14: the 7-byte **tails** of the same toss/tick sites (`0x10835` / `0x10D5A` — right
+  after patch 13's 6 subtract bytes, byte-disjoint), stub in an appended bank; scratch
+  `$7F:F810-F815`, reads patch 13's state read-only.
+
+Note: every bank-appending patch (4, 10/10b, 11, 12, 13, 14) auto-detects the **next free
+bank** at build time — that's why builders chain cleanly while standalone BPS files (all
+diffed vs clean, all targeting $E8) must never be chained.
 
 ## Tunable parameters (the knobs)
 
@@ -87,8 +120,14 @@ one patch (or re-run the whole chain) after changing a knob; all stack.
 | **Pluto 5HP reach (opt.)** | `mkpatch7.py … --h <n>` | `62` | New active-box height: `54` = vanilla (whiffs crouchers), **`62` = hits all crouchers except Chibi**, `64` = all incl. Chibi. Byte `0xAF0DE`. |
 | **Venus tech window (opt.)** | `mkpatch8.py … --extra <n>` | `1` | Extra sampling steps on the throw-hold script: `0` = vanilla 6f, **`1` = 13f (default)**, `2` = 19f, `3` = 24f (whole hold). Standard throws ≈ 15f (Jupiter). Bytes `0x16C70/78/80`. |
 | **Neptune fireball box (opt.)** | `mkpatch9.py … --yoff <n>` | `-11` | `y_off` of the 4 active hit boxes vs the projectile origin (ball ≈ origin ±11): **`-11` = centred on the ball (tracks the descent)**; more negative biases higher, less negative lower. `-27`/`-60` = vanilla (floats at head level). Bytes `0xAFD5D/65/6D/75`. |
+| **Combo counter (opt.)** | `mkpatch10.py … --min-hits <n> --ttl <f> --modes <list>` | `2` / `72` / `0,1,4,5` | Counter appears from N hits; lingers `ttl` frames after the last hit; shows only when `$008D` is in `modes` (`all` = every match). |
+| **Status labels (opt.)** | `mkpatch10.py … --events labels` | `off` | Also render GC/REVERSAL/PUNISH/TECH text (patch 10b). MEATY label removed 2026-07-20. |
+| **Guts reduction (opt.)** | `mkpatch13.py … --l1 <pct> --l2 <pct> --l3 <pct>` | `20/40/60` | % damage reduction per Guts level vs specials/desperations (build-time 3×128 tables). |
+| **Guts Grip reduction (opt.)** | `mkpatch14.py … --l1/--l2/--l3`, `--all-grabs` | `20/40/60` / off | Same per-level % vs command grabs; `--all-grabs` extends to EVERY grab path (normal throws + hold ticks). Keep the percentages aligned with patch 13. |
 
-Patches 2 (dashfix) and 3 (palettes) have no knobs — they're single-purpose. Example
+Patches 2 (dashfix), 3 (palettes), 11 (Training+ — all settings live in its in-game menu;
+`--stage` is a dev/debug flag) and 12 (taunts) have no balance knobs — they're
+single-purpose. Example
 retune: `python3 tools/mkpatch.py 0x05 build/n5.sfc` (true-combo gate), or
 `python3 tools/mkpatch6.py "<clean>" build/tight.sfc --lo 6 --hi 9` (tighter i-frame window).
 
@@ -1015,35 +1054,47 @@ counter (`0x0D56F`, `0x0D5E8`) — byte-disjoint from patches 1–9.
 
 # Applying (summary)
 
+Every standalone BPS applies to the **clean ROM** (SHA-1 `bc0e29ee…`). Pick ONE per slot:
+
 ```
-# individual
-flips --apply build/sms_uranus_infinite_1f.bps <clean ROM> <out>   # patch 1
+# individual (each onto the clean ROM)
+flips --apply build/sms_uranus_infinite_1f.bps <clean ROM> <out>   # patch 1  (or _truecombo for 1b)
 flips --apply build/sms_dashfix.bps            <clean ROM> <out>   # patch 2
 flips --apply build/sms_palettes.bps           <clean ROM> <out>   # patch 3
 flips --apply build/sms_title.bps              <clean ROM> <out>   # patch 4
 flips --apply build/sms_dashdist.bps           <clean ROM> <out>   # patch 5
-flips --apply build/sms_dashinvuln.bps         <clean ROM> <out>   # patch 6 (optional)
-flips --apply build/sms_pluto5hp.bps           <clean ROM> <out>   # patch 7 (optional)
-flips --apply build/sms_venustech.bps          <clean ROM> <out>   # patch 8 (optional)
-flips --apply build/sms_neptune_ds.bps         <clean ROM> <out>   # patch 9 (optional)
-flips --apply build/sms_combocounter.bps       <clean ROM> <out>   # patch 10 (optional)
+flips --apply build/sms_dashinvuln.bps         <clean ROM> <out>   # patch 6  (optional)
+flips --apply build/sms_pluto5hp.bps           <clean ROM> <out>   # patch 7  (optional)
+flips --apply build/sms_venustech.bps          <clean ROM> <out>   # patch 8  (optional)
+flips --apply build/sms_neptune_ds.bps         <clean ROM> <out>   # patch 9  (optional)
+flips --apply build/sms_combocounter.bps       <clean ROM> <out>   # patch 10 (optional; or sms_combolabels.bps for 10b)
+flips --apply build/sms_trainingplus.bps       <clean ROM> <out>   # patch 11 (optional)
+flips --apply build/sms_taunt.bps              <clean ROM> <out>   # patch 12 (optional)
+flips --apply build/sms_tauntbuff.bps          <clean ROM> <out>   # patch 13 (optional)
+flips --apply build/sms_gutsgrip.bps           <clean ROM> <out>   # patch 14 (optional; inert without 13)
 
-# combined
-flips --apply build/sms_both.bps  <clean ROM> <out>   # patches 1 + 2
-flips --apply build/sms_full.bps  <clean ROM> <out>   # patches 1 + 2 + 3
-flips --apply build/sms_full4.bps <clean ROM> <out>   # patches 1 + 2 + 3 + 4
-flips --apply build/sms_full5.bps <clean ROM> <out>   # patches 1 + 2 + 3 + 4 + 5
-flips --apply build/sms_full6_v08_dashinvuln.bps <clean ROM> <out>  # canonical + patch 6
-flips --apply build/sms_full7_pluto5hp.bps       <clean ROM> <out>  # canonical + patch 7
-flips --apply build/sms_full8_venustech.bps      <clean ROM> <out>  # canonical + patch 8
-flips --apply build/sms_full9_neptuneds.bps      <clean ROM> <out>  # canonical + patch 9
+# everything at once (the current bundle)
+flips --apply build/sms_allpatches_v0.21.bps   <clean ROM> <out>   # ALL 14 patches (10b labels on)
 
-# stacking IPS onto an already-patched ROM (checksum-free variants)
+# stacking IPS onto an already-patched ROM — ONLY the fixed-address patches ship .ips
+# (1/1b, 2, 6: no appended bank, checksum-free, safe to stack):
 flips --apply build/sms_dashfix.ips <1f-link ROM> <out>
 ```
 
-Standalone per-patch write-ups remain at `patch_notes_dashfix.md`, `patch_notes_palettes.md`,
-and `patch_notes_title.md`; this file is the consolidated reference.
+> ⚠️ **NEVER build a combination by applying standalone BPS files in sequence.** Every
+> bank-appending standalone (4, 10/10b, 11, 12, 13, 14) is diffed against CLEAN and places
+> its code in the same first-free bank ($E8) — chained application (which already requires
+> overriding the source-checksum error) makes each patch overwrite the previous one's code
+> bank while the old hooks still jump there (crash, or silently dead features — e.g.
+> patch 11's L+R menu). **Custom combinations = chain the `mkpatchN.py` builders** (each
+> re-detects the next free bank), then diff once against clean (HANDOFF §2).
+
+Historical cumulative bundles (`sms_both`, `sms_full*`, the v1.x line) were pruned from
+`build/` on 2026-07-19 — where a per-patch section below names one as its "showcase"/
+"combined" deliverable, read it as historical record; the current bundle is
+`sms_allpatches_v0.21.bps`. Standalone per-patch write-ups remain at
+`patch_notes_dashfix.md`, `patch_notes_palettes.md`, and `patch_notes_title.md`; this file
+is the consolidated reference.
 
 ---
 

@@ -1,8 +1,9 @@
 # CLAUDE.md — SMS Uranus infinite patch
 
-> **STATUS (2026-07-16): the original objective is DONE and the project has grown well beyond it
-> (10 patches, tooling, full verification). Before doing anything, read `HANDOFF.md` (operational
-> map) and `docs/patch_notes.md` (per-patch detail). The sections below are the original brief,
+> **STATUS (2026-07-24): the original objective is DONE and the project has grown well beyond it
+> (14 patches + 2 variants — balance, training mode, taunts/Guts — tooling, full verification).
+> Before doing anything, read `HANDOFF.md` (operational map), `docs/patch_index.md` (registry),
+> and `docs/patch_notes.md` (per-patch detail). The sections below are the original brief,
 > kept for history.**
 
 ## Objective (REVISED 2026-07-10 — supersedes the 2LP wording below)

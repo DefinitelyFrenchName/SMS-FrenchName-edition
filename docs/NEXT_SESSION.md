@@ -64,7 +64,9 @@ decoded and regression-locked. Ochame-inflicting taunt: REJECTED by maintainer.
   verified), +0x76 slot meanings, unobserved acts (0x07/0x10/0x14), dizzy handler
   details, ground-vs-air same-throw vertical wiki comparison.
 - Rig-limited attested: Jupiter air Power Bomb, Mercury triangle jump.
-- Housekeeping nit: CLAUDE.md status banner still describes the 10-patch era.
+- ~~Housekeeping nit: CLAUDE.md status banner still describes the 10-patch era~~ —
+  DONE 2026-07-24 (banner updated; patch_notes.md front matter/knobs/applying brought
+  up to the 14-patch era, pruned-bundle references corrected in HANDOFF §1/§6).
 
 ## Session hygiene
 
