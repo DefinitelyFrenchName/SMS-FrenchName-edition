@@ -16,8 +16,8 @@ the operational map (current state, deliverables, tooling, findings, gotchas).
 | 1. 1f-link **(CANONICAL)** | Uranus infinite → **1-frame meaty** (N=6): exactly one press connects, and it's an unblockable-by-block meaty (escapable by invincible reversal / jump) | `tools/mkpatch.py 0x04` | `build/sms_uranus_infinite_1f.bps` (+`.ips`) | `c773d99a…` |
 | 1b. 1f-link (true combo) | **Alternative to patch 1** — true unblockable 1-frame combo (N=5); wider (2-frame connect: combo@0 + meaty@+1) | `tools/mkpatch.py 0x05` | `build/sms_uranus_infinite_1f_truecombo.bps` (+`.ips`) | `8966c119…` |
 | 2. Dash-fix | Remove reversal-dash invincibility | `tools/mkpatch2.py` | `build/sms_dashfix.bps` (+`.ips`) | `07d760fe…` |
-| 3. Palettes | Big Zam extended colors + "FrenchName" header | `tools/mkpatch3.py` | `build/sms_palettes.bps` | `291f6474…` |
-| 4. Title | Title subtitle → "FrenchName ver. 0.4" | `tools/mkpatch4.py` | `build/sms_title.bps` | `e5dce7d5…` |
+| 3. Palettes | Sprint / Big Zam extended character colors ( + "FrenchName" rom header for easy rom ID) | `tools/mkpatch3.py` | `build/sms_palettes.bps` | `291f6474…` |
+| 4. Title | Title subtitle → "FrenchName ver. X.Y" | `tools/mkpatch4.py` | `build/sms_title.bps` | `e5dce7d5…` |
 | 5. Dash dist | Cut Uranus forward-dash distance ~1/3 | `tools/mkpatch5.py` | `build/sms_dashdist.bps` | `99acb686…` |
 | 6. Dash i-frames **(OPTIONAL)** | Uranus forward dash gains ~6 strike-invuln frames mid-move | `tools/mkpatch6.py` | `build/sms_dashinvuln.bps` (+`.ips`) | `34c5d458…` |
 | 7. Pluto 5HP **(OPTIONAL)** | Pluto 5HP hitbox extended down to hit crouchers (all but Chibi) | `tools/mkpatch7.py` | `build/sms_pluto5hp.bps` | `fc757936…` |
@@ -450,7 +450,7 @@ identical to Moon's dash and every attack.
 
 ---
 
-# Patch 3 — Extended palettes (Big Zam extraction) + "FrenchName" header
+# Patch 3 — Extended palettes from Sprint (Big Zam extraction) + "FrenchName" header
 
 Patched (palettes only) SHA-1 `291f6474cc0470dde388b73e8aba8bf0bf2d44de`; full (all three)
 `eb7b86f8f4196281e7144deeb77b96430d458e03`. Output ROMs are 3 MB.
@@ -913,9 +913,9 @@ The in-match HUD is a staging-buffer design: a **main-loop producer `$C0:D5E8`**
   state + digit tiles into the **unused HUD page tail `$0816-$08FF`**;
 - **flush** (uploader hook): pushes the staged digit tile words to free tilemap cells in
   vblank.
-Big digit tiles 0-9 already exist in the HUD CHR (`0x2C50+N` top, `0x2C60+N` bottom — the
-timer's tiles), and HUD tilemap rows 6-7 are blank, so **no graphics are added** — the patch
-is pure code + WRAM. Full RE map in `docs/annotations.md` ("In-match HUD rendering").
+  Big digit tiles 0-9 already exist in the HUD CHR (`0x2C50+N` top, `0x2C60+N` bottom — the
+  timer's tiles), and HUD tilemap rows 6-7 are blank, so **no graphics are added** — the patch
+  is pure code + WRAM. Full RE map in `docs/annotations.md` ("In-match HUD rendering").
 
 ## Changed bytes (2 hooks + header/checksum; appended bank for the stubs)
 

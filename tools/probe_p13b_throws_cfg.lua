@@ -1,2 +1,3 @@
-STATE = "pluto_vs_chibi_v07.mss"
-PLAYER = 2
+STATE = "moon_vs_moon.mss"
+PLAYER = 1
+LVPOKE = 2

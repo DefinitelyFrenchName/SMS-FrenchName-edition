@@ -1,1 +1,1 @@
-MODE = "coexist"
+MODE = "solo"
