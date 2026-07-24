@@ -307,7 +307,6 @@ docs/     patch_notes.md, annotations.md, sms_uranus_rom_map.md, sms_all_boxes.j
 tools/    mkpatch*.py, all test/demo .lua, run.sh, coltest, texttiles, Dispel/, Mesen.app, Flips/
 traces/   savestates (.mss) + trace outputs (gitignored; key states force-added)
 build/    patched .sfc (gitignored) + .bps/.ips patches (tracked)
-mockups/  title-screen mockups
 vendor/   sms-training-mode (RAM map + palette patcher)
 ```
 
