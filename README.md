@@ -1,11 +1,7 @@
 # SMS Sailor Moon S balance/feature patch project
 
-Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),
-clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c` (HiROM+FastROM, headerless,
-file offset = SNES addr & 0x3FFFFF).
 
-
-## This work would have required orders of magnitude more effort without the remarkable findings and incredible tooling by the community, especially Moonlight Fight Society and especially Sprint: they have been for years the true heroes keeping the dream alive. 
+### This work would have required orders of magnitude more effort without the remarkable findings and incredible tooling by the community, especially Moonlight Fight Society and especially Sprint: they have been for years the true heroes keeping the dream alive. 
 
 Important: this is a work in progress to offer options to reintroduce Brad in the roster and correct (arguably minor) bugs.
 The point is NOT to rebalance the game: it is broken in all the best ways.
@@ -15,14 +11,18 @@ The extra features like in-game training mode extension, combo counter and statu
 The project also includes an extensive Mesen training script developed for my specific needs. While it may be adapted for others, it does not aim at replacing existing community training scripts
 
 Some of the memory analysis, all the decisions and a disgusting amount of testing was made by me. However all the assembly heavy lifting and the vast majority of lua scripting was done by Claude. 
-Everything implemented relies on a suite of in-emulator end-to-end tests. The AI does it's share via automated tests built on actual use and conversely the AI double checks my test findings, be them positive or negative. Any patch listed as not fully tested has been tested using the automated test suite but the extent of human double-checks does not reach my quality bar... yet.
 
-
+Everything implemented relies on a suite of in-emulator end-to-end tests. The AI does it's share via automated tests built on actual use and conversely the AI double checks my test findings, be them positive or negative. 
+Any patch listed as not fully tested has been tested using the automated test suite but the extent of human double-checks does not reach my quality bar... yet.
 
 
 ## Deliverables & how they stack
 
-| Patch                                         | What                                                         | Builder                              | Standalone BPS                                         | Patched SHA-1 |
+Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),
+clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c` (HiROM+FastROM, headerless,
+file offset = SNES addr & 0x3FFFFF).
+
+| Patch **(located in build/ )**                                    | What                                                         | Builder                              | Standalone BPS                                         | Patched SHA-1 |
 | --------------------------------------------- | ------------------------------------------------------------ | ------------------------------------ | ------------------------------------------------------ | ------------- |
 | 1. 1f-meaty **(not true link)**                    | Uranus infinite → **1-frame meaty** (N=6): exactly one press connects, and it's an unblockable-by-block meaty (escapable by invincible reversal / jump) | `tools/mkpatch.py 0x04`              | `build/sms_uranus_infinite_1f.bps` (+`.ips`)           | `c773d99a…`   |
 | 1b. 1f-link **(true combo, use 1 OR 1b)**                      | **Alternative to patch 1** — true unblockable 1-frame combo (N=5); wider (2-frame connect: combo@0 + meaty@+1) | `tools/mkpatch.py 0x05`              | `build/sms_uranus_infinite_1f_truecombo.bps` (+`.ips`) | `8966c119…`   |
