@@ -1,4 +1,4 @@
-# patch_notes_palettes.md — Extended palettes (Big Zam extraction) + "FrenchName" title
+# patch_notes_palettes.md — Extended palettes from Moonlight Fight Society (Big Zam extraction) + "FrenchName" title
 
 Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),
 clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`.

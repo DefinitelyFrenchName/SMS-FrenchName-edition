@@ -45,9 +45,6 @@ remain. The meaty *detection rule* stays documented in `sms_engine_internals.md`
 - Suites after change: **v0.21 = 59 ALL PASS, clean = 41 ALL PASS**, T4/T5/T8 PASS,
   in-ROM label oracle PASS.
 
-The maintainer had announced "two new tasks"; the second was never stated (the L+R
-report arrived instead). **Ask about it if they don't bring it up.**
-
 ## Current state in one breath
 
 14 patches + 2 variants, registry with status/lifecycle in `docs/patch_index.md`.

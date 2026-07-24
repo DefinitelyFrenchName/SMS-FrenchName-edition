@@ -14,7 +14,7 @@ local function ram(a) return emu.read(a, WRAM) end
 local function wr(a, v) emu.write(a, v, WRAM) end
 
 local t, needLoad = -1, true
-local STATE = (SCEN == "vsproj") and "neptune_vs_jupiter.mss" or "training_p11.mss"
+local STATE = (SCEN == "uranus") and "uranus_vs_jupiter.mss" or ((SCEN == "vsproj") and "neptune_vs_jupiter.mss" or "training_p11.mss")
 emu.addMemoryCallback(function()
   if needLoad then
     local f = assert(io.open(TRACE .. STATE, "rb"))
@@ -54,7 +54,31 @@ emu.addEventCallback(function()
     local tt = tlist[i]
     if t >= tt and t <= tt + 2 then pulse[1] = { l = true } elseif t == tt + 3 then pulse[1] = nil end
   end
-  if SCEN == "vsproj" then
+  if SCEN == "uranus" then
+    -- P1 Uranus: qcf+Y then qcb+Y then hcf+Y volleys from t=650 (find World Shaking)
+    local seqs = {
+      { 650, { {down=true},{down=true,right=true},{right=true},{right=true,y=true} } },
+      { 780, { {down=true},{down=true,left=true},{left=true},{left=true,y=true} } },
+      { 910, { {left=true},{down=true,left=true},{down=true},{down=true,right=true},{right=true},{right=true,y=true} } },
+      { 1040, { {right=true},{down=true,right=true},{down=true},{down=true,left=true},{left=true},{left=true,y=true} } },
+    }
+    if t == 645 then log(string.format("pre-special LV2=%d p2hp=%02X p1act=%02X", ram(0x1F802), ram(0x10C9), ram(0x1001))) end
+    for _, sq in ipairs(seqs) do
+      for i, d in ipairs(sq[2]) do
+        if t == sq[1] + i * 3 then pulse[0] = d end
+      end
+      if t == sq[1] + (#sq[2] + 1) * 3 then pulse[0] = nil end
+    end
+    if t >= 650 and ram(0x1001) >= 0x2B and not _seenacts then _seenacts = {} end
+    if _seenacts and ram(0x1001) >= 0x2B and not _seenacts[ram(0x1001)] then
+      _seenacts[ram(0x1001)] = true
+      log(string.format("  p1 special act %02X a44=%02X j1=%02X", ram(0x1001), ram(0x1044), ram(0x1144)))
+    end
+    if t == 1200 then
+      log(string.format("VERDICT uranus: p2hp=%02X totaldealt=%d LV2=%d", ram(0x10C9), 0x60 - ram(0x10C9), ram(0x1F802)))
+      emu.stop(0)
+    end
+  elseif SCEN == "vsproj" then
     -- P1 Neptune 214LP at t=650
     if t == 650 then log(string.format("pre-special LV2=%d p2hp=%02X", ram(0x1F802), ram(0x10C9))) end
     if t == 654 then pulse[0] = { down = true } end

@@ -1,2 +1,2 @@
-SCEN = "vsproj"
-TAUNTS = 0
+SCEN = "uranus"
+TAUNTS = 3

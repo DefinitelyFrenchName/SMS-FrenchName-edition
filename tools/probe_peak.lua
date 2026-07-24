@@ -1,0 +1,38 @@
+local ROOT = "/Users/koneko/Developer/SailorMoonS/tools/"
+local TRACE = "/Users/koneko/Developer/SailorMoonS/tools/../traces/"
+local C0 = dofile(ROOT .. "training/const.lua")
+local FALSE = C0.FALSE_PAD
+local WRAM = emu.memType.snesWorkRam
+local FV=115
+local function plan(t)
+  local kf={ {10,{down=true}},{60,{down=true,y=true}},{62,{down=true}},{77,{down=true,x=true}},{80,{down=true}},
+             {95,{}},{97,{right=true}},{98,{}},{99,{right=true}},{101,{}},{FV,{down=true,y=true}},{FV+2,{down=true}} }
+  local best={}; for _,e in ipairs(kf) do if e[1]<=t then best=e[2] end end
+  local o={}; for k,v in pairs(FALSE) do o[k]=v end; for k,v in pairs(best) do o[k]=v end; return o
+end
+local t, needLoad = -1, true
+local log=io.open(TRACE.."probe_peak.txt","w")
+local shotDone=false
+emu.addMemoryCallback(function()
+  if needLoad then local f=io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb"); if not f then return end
+    emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
+end, emu.callbackType.exec, 0x808353,0x808353, emu.cpuType.snes, emu.memType.snesMemory)
+emu.addEventCallback(function()
+  if t<0 then emu.setInput(FALSE,0,0); emu.setInput(FALSE,0,1); return end
+  emu.setInput(FALSE,0,1); emu.setInput(plan(t),0,0)
+end, emu.eventType.inputPolled)
+emu.addEventCallback(function()
+  if t<0 then return end
+  if t==5 then emu.write(0x1021,0xE8,WRAM) end
+  if t>=100 and t<=135 then
+    local h=emu.read(0x08B0,WRAM)
+    log:write(string.format("t=%d hits=%d shown=%d\n",t,h,emu.read(0x08B3,WRAM))); log:flush()
+    if t>=126 and t<=130 then log:write(string.format("  stgL: %02X%02X %02X%02X %02X%02X %02X%02X dirty=%02X\n", emu.read(0x08D2,WRAM),emu.read(0x08D1,WRAM), emu.read(0x08D4,WRAM),emu.read(0x08D3,WRAM), emu.read(0x08D6,WRAM),emu.read(0x08D5,WRAM), emu.read(0x08D8,WRAM),emu.read(0x08D7,WRAM), emu.read(0x08D0,WRAM))) end
+    if t==128 and not shotDone then
+      local f=io.open(TRACE.."cc_peak_shot.png","wb"); f:write(emu.takeScreenshot()); f:close(); shotDone=true
+    end
+  end
+  if t==140 then log:close(); emu.stop(0) end
+  t=t+1
+end, emu.eventType.endFrame)
+print("probe_peak loaded")
