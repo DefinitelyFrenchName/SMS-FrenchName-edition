@@ -34,9 +34,14 @@ file offset = SNES addr & 0x3FFFFF).
 | 7. Pluto 5HP                   | Pluto 5HP hitbox extended down to hit crouchers (all but Chibi) | `tools/mkpatch7.py`                  | `build/sms_pluto5hp.bps`                               | `fc757936…`   |
 | 8. Venus throw tech             | Venus 6HP throw mash-escape window 6f → 13f (standard-ish; Jupiter=15f) | `tools/mkpatch8.py`                  | `build/sms_venustech.bps`                              | `63ce0748…`   |
 | 9. Neptune fireball           | Deep Submerge fireball hitbox tracks the descending sprite (was stuck at head level) | `tools/mkpatch9.py`                  | `build/sms_neptune_ds.bps`                             | `d5ee12a3…`   |
-| 10. In-match combo counter     | Live combo-hit counter rendered by the base game under each attacker's bar (no overlay needed) | `tools/mkpatch10.py`                 | `build/sms_combocounter.bps`                           | `ccdd1510…`   |
-| 10b. + status labels      | Counter + GC/REVERSAL/PUNISH/TECH event text (MEATY label removed 2026-07-20) | `tools/mkpatch10.py --events labels` | `build/sms_combolabels.bps`                            | `bf5ba9f9…`   |
+| 10. In-match combo counter     | Live combo-hit counter rendered by the base game under each attacker's bar (no overlay needed; 2026-07-25 fix: now also shows vs the CPU) | `tools/mkpatch10.py`                 | `build/sms_combocounter.bps`                           | `b819f3d4…`   |
+| 10b. + status labels      | Counter + GC/REVERSAL/PUNISH/TECH event text (MEATY label removed 2026-07-20; 2026-07-25 fix: labels now expire correctly) | `tools/mkpatch10.py --events labels` | `build/sms_combolabels.bps`                            | `38faf40c…`   |
 | 11. Training+  **(not fully tested)**                 | In-ROM training-mode upgrade: L+R menu, dummy control (pose/guard/wakeup/tech), recording+playback, damage/regen/refill, input+ADV display | `tools/mkpatch11.py`                 | `build/sms_trainingplus.bps`                           | `42add705…`   |
 | 12. Taunts                      | Taunt on L: each character's native misfire ("ochame") pratfall, fully vulnerable | `tools/mkpatch12.py`                 | `build/sms_taunt.bps`                                  | `614f318e…`   |
 | 13. Guts (Q-style taunts)          | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py`                 | `build/sms_tauntbuff.bps`                              | `04e13428…`   |
 | 14. Guts Grip **(companion to 13)** | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py`                 | `build/sms_gutsgrip.bps`                               | `b90b8fd6…`   |
+
+Combined builds (each applies to the clean ROM): `build/sms_allpatches_v0.22.bps` — all 14
+patches (10 as 10b), ROM SHA-1 `52bc7e38…`, title tell "v.0.22"; `build/sms_reference_v1.bps`
+— the **REF v.1** reference combination 1b+2+3+4+5+7+8+9+12+13+14 (true-combo gate, no
+counter/training patches), ROM SHA-1 `bd1104ee…`, title tell "FrenchName REF v.1".

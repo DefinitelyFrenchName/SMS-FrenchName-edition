@@ -35,9 +35,11 @@ the operational map (current state, deliverables, tooling, findings, gotchas).
 
 Combined builds:
 
-> **Current bundle:** `build/sms_allpatches_v0.21.bps` — clean → ALL 14 patches (10 as 10b,
-> labels on), title tell "v.0.21", ROM `build/SailorMoonS_FrenchName_v0.21_ALLPATCHES.sfc`
-> (SHA-1 `62ffb174…`). **2026-07-19 prune:** the historical cumulative bundles listed below
+> **Current bundle:** `build/sms_allpatches_v0.22.bps` — clean → ALL 14 patches (10 as 10b,
+> labels on), title tell "v.0.22", ROM `build/SailorMoonS_FrenchName_v0.22_ALLPATCHES.sfc`
+> (SHA-1 `52bc7e38…`, 2026-07-25 p10 counter/label fixes). Also current:
+> `build/sms_reference_v1.bps` — **REF v.1** = 1b+2+3+4+5+7+8+9+12+13+14, title
+> "FrenchName REF v.1", ROM `bd1104ee…`. **2026-07-19 prune:** the historical cumulative bundles listed below
 > (`sms_both`, `sms_full*`, the v1.x line, all-patches < v0.19) were deleted from `build/`
 > (see `docs/patch_index.md`); the entries are kept as historical record of what each
 > lineage contained. Custom combinations are rebuilt by chaining the `mkpatchN.py` builders
@@ -120,7 +122,7 @@ one patch (or re-run the whole chain) after changing a knob; all stack.
 | **Pluto 5HP reach (opt.)** | `mkpatch7.py … --h <n>` | `62` | New active-box height: `54` = vanilla (whiffs crouchers), **`62` = hits all crouchers except Chibi**, `64` = all incl. Chibi. Byte `0xAF0DE`. |
 | **Venus tech window (opt.)** | `mkpatch8.py … --extra <n>` | `1` | Extra sampling steps on the throw-hold script: `0` = vanilla 6f, **`1` = 13f (default)**, `2` = 19f, `3` = 24f (whole hold). Standard throws ≈ 15f (Jupiter). Bytes `0x16C70/78/80`. |
 | **Neptune fireball box (opt.)** | `mkpatch9.py … --yoff <n>` | `-11` | `y_off` of the 4 active hit boxes vs the projectile origin (ball ≈ origin ±11): **`-11` = centred on the ball (tracks the descent)**; more negative biases higher, less negative lower. `-27`/`-60` = vanilla (floats at head level). Bytes `0xAFD5D/65/6D/75`. |
-| **Combo counter (opt.)** | `mkpatch10.py … --min-hits <n> --ttl <f> --modes <list>` | `2` / `72` / `0,1,4,5` | Counter appears from N hits; lingers `ttl` frames after the last hit; shows only when `$008D` is in `modes` (`all` = every match). |
+| **Combo counter (opt.)** | `mkpatch10.py … --min-hits <n> --ttl <f> --modes <list>` | `2` / `72` / `0,1,2,4,5` | Counter appears from N hits; lingers `ttl` frames after the last hit; shows only when `$008D` is in `modes` (`all` = every match). |
 | **Status labels (opt.)** | `mkpatch10.py … --events labels` | `off` | Also render GC/REVERSAL/PUNISH/TECH text (patch 10b). MEATY label removed 2026-07-20. |
 | **Guts reduction (opt.)** | `mkpatch13.py … --l1 <pct> --l2 <pct> --l3 <pct>` | `20/40/60` | % damage reduction per Guts level vs specials/desperations (build-time 3×128 tables). |
 | **Guts Grip reduction (opt.)** | `mkpatch14.py … --l1/--l2/--l3`, `--all-grabs` | `20/40/60` / off | Same per-level % vs command grabs; `--all-grabs` extends to EVERY grab path (normal throws + hold ticks). Keep the percentages aligned with patch 13. |
@@ -930,10 +932,31 @@ now lands at the ball's true position too. No further bytes to change.
 # Patch 10 — in-match combo counter (base game) (OPTIONAL / experimental)
 
 **Deliverables:** `tools/mkpatch10.py`, `build/sms_combocounter.bps` (standalone, patched
-SHA-1 `ccdd1510…`), `build/sms_full10_combo.bps` (canonical v0.7 + this, ROM
-`build/SailorMoonS_FrenchName_v0.7_all5_combo.sfc`, SHA-1 `b0d5500f…`). Answers the
-feasibility question "can the training-mode combo counter live in the ROM?" — **yes**, and
-the measured cost is negligible.
+SHA-1 `b819f3d4…` since the 2026-07-25 fixes; historical pre-fix `ccdd1510…`),
+`build/sms_full10_combo.bps` (canonical v0.7 + this, ROM
+`build/SailorMoonS_FrenchName_v0.7_all5_combo.sfc`, SHA-1 `b0d5500f…`, historical). Answers
+the feasibility question "can the training-mode combo counter live in the ROM?" — **yes**,
+and the measured cost is negligible.
+
+> **2026-07-25 — two field-reported bugs fixed** (maintainer: "counter never appears,
+> labels never disappear"; both root-caused in-emulator, `tools/probe_p10_vs.lua`):
+> 1. **Stuck labels (10b):** in `_label_render` the expiry branch tested a stale Z flag
+>    (`sta` sets no flags after the `cmp shown`), so the labelId==0 blank path was
+>    unreachable — on TTL expiry the same glyphs were re-staged forever. Latent since v1;
+>    masked while the (removed 2026-07-20) MEATY label churned labelId every few hits.
+>    Fixed with a `cmp #$00` re-test; A/B verified (pre-fix: PUNISH drawn @84 never blanks;
+>    fixed: blanks @131 = 47f TTL). `test_labels.lua` now has a VRAM expiry oracle.
+> 2. **Counter dead vs the CPU:** the mode gate excluded `$008D`=2 (1P-vs-COM) — the mode
+>    most play happens in. Default `--modes` is now `0,1,2,4,5`; A/B verified mid-combo
+>    (mode poked to 2: pre-fix counter zeroed, fixed counter live).
+>
+> Also verified: the counter pipeline is **healthy in 2P VS** (mode 1) on old and new
+> builds — WRAM→staging→VRAM all fire on a true chain (probe + new regression VRAM
+> oracle). And the counter **cannot show in practice/training** ($008D 4/5): the HUD
+> producer `$C0:D5E8` this patch hooks never executes there (`probe_p10_practice.lua`,
+> 0 execs/300f) — architectural hook-site limit; the gate's 4/5 entries are inert. The
+> in-ROM p11 training mode and the Lua training overlay have their own counters.
+> `--ttl` was also a dead knob (hardcoded `#$48`); now wired (default 72 unchanged).
 
 ## What it does
 Renders a live **combo-hit counter** (big yellow digits, up to 99) under the attacker's
@@ -941,7 +964,8 @@ health bar — left when P1 combos, right when P2 combos — using the base game
 it shows on real hardware and any emulator with **no Lua overlay**. Counts true chains only
 (defender never actionable between hits), exactly like `tools/training/combo.lua`: a hit
 after ≥3 free frames restarts at 1; shows from `--min-hits` (default 2), fades after `--ttl`
-frames. Gated to VS + training modes (`--modes`, default `$008D` ∈ {0,1,4,5}).
+frames. Mode-gated via `--modes` (default `$008D` ∈ {0,1,2,4,5} = VS, 1P-vs-COM; the 4/5
+practice entries are inert — the hooked producer doesn't run there, see fix note above).
 
 ## Mechanism (Arch A — reverse-engineered, no new tiles, no NMI surgery)
 The in-match HUD is a staging-buffer design: a **main-loop producer `$C0:D5E8`** (scanline
@@ -985,7 +1009,8 @@ its own scratch + free VRAM cells).
 - **Digit render:** poked values stage the correct tile words — `3`→ones `2C53`/tens blank
   (leading-zero suppression), `15`→`2C51`+`2C55`, `7`→`2C57`; visually confirmed on-screen
   (screenshots: live "3", poked "15"/"8" on both sides).
-- **Gating:** in a disallowed mode (`$008D`=2) the counter blanks.
+- **Gating:** in a disallowed mode the counter blanks (pre-2026-07-25 this wrongly
+  included `$008D`=2 = 1P-vs-COM; mode 2 is now allowed by default).
 - **Non-interference / no lag:** frame-identical gameplay RAM + timer clean vs patched.
 - **Packaging:** BPS round-trip SHA-1 `ccdd1510…`; hooks byte-disjoint from patches 1–9.
 
@@ -994,7 +1019,7 @@ its own scratch + free VRAM cells).
 |---|---|---|---|
 | Min hits to show | `mkpatch10.py --min-hits` | `2` | counter appears from N hits |
 | Display TTL | `mkpatch10.py --ttl` | `72` | frames the count lingers after the last hit |
-| Mode gate | `mkpatch10.py --modes` | `0,1,4,5` | `$008D` values to show in; `all` = every match |
+| Mode gate | `mkpatch10.py --modes` | `0,1,2,4,5` | `$008D` values to show in; `all` = every match |
 
 ## Status labels (`--events labels`)
 
@@ -1074,7 +1099,9 @@ flips --apply build/sms_tauntbuff.bps          <clean ROM> <out>   # patch 13 (o
 flips --apply build/sms_gutsgrip.bps           <clean ROM> <out>   # patch 14 (optional; inert without 13)
 
 # everything at once (the current bundle)
-flips --apply build/sms_allpatches_v0.21.bps   <clean ROM> <out>   # ALL 14 patches (10b labels on)
+flips --apply build/sms_allpatches_v0.22.bps   <clean ROM> <out>   # ALL 14 patches (10b labels on)
+# the REF v.1 reference combination (1b+2+3+4+5+7+8+9+12+13+14)
+flips --apply build/sms_reference_v1.bps       <clean ROM> <out>   # -> sha bd1104ee…
 
 # stacking IPS onto an already-patched ROM — ONLY the fixed-address patches ship .ips
 # (1/1b, 2, 6: no appended bank, checksum-free, safe to stack):
@@ -1092,7 +1119,7 @@ flips --apply build/sms_dashfix.ips <1f-link ROM> <out>
 Historical cumulative bundles (`sms_both`, `sms_full*`, the v1.x line) were pruned from
 `build/` on 2026-07-19 — where a per-patch section below names one as its "showcase"/
 "combined" deliverable, read it as historical record; the current bundle is
-`sms_allpatches_v0.21.bps`. Standalone per-patch write-ups remain at
+`sms_allpatches_v0.22.bps`. Standalone per-patch write-ups remain at
 `patch_notes_dashfix.md`, `patch_notes_palettes.md`, and `patch_notes_title.md`; this file
 is the consolidated reference.
 

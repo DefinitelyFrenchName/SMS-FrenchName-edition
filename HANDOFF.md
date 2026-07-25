@@ -22,7 +22,30 @@ Playable roster (charID): 1 Moon, 2 Mercury, 3 Mars, 4 Jupiter, 5 Venus, 6 Uranu
 ## 1. Current state (2026-07-25) — all green, no open items
 
 Sixteen patch entries (14 patches + 2 variants), all built and suite-verified. The
-**canonical** shipping build is **v0.7**; the newest all-patches test ROM is **v0.21**.
+**canonical** shipping build is **v0.7**; the newest all-patches test ROM is **v0.22**.
+
+**2026-07-25 — patch 10 field report fixed + REF v.1 bundle:**
+- Maintainer reported the combo counter never appears and status labels never disappear
+  (v0.21 + p10 standalone). Two root causes, both fixed in `mkpatch10.py` and A/B-verified
+  in-emulator (`tools/probe_p10_vs.lua`): (1) label expiry tested a stale Z flag after
+  `sta` — blank path unreachable, labels stuck forever once MEATY (removed 07-20) no
+  longer churned them; (2) the counter's mode gate excluded `$008D`=2 (1P-vs-COM) — dead
+  in the most-played mode. Default `--modes` now `0,1,2,4,5`; `--ttl` knob wired (was
+  dead). Counter verified healthy in 2P VS pre- and post-fix (true chains only, by
+  design); it can NEVER show in practice — the hooked producer `$C0:D5E8` doesn't run
+  there (`probe_p10_practice.lua`; p11/Lua training modes have their own counters).
+- New oracles: `test_regression.lua` p10-combo-counter now asserts VRAM show→count→clear;
+  `test_labels.lua` asserts the label blanks within TTL+10f. Old tests were WRAM-only and
+  stayed green through both bugs.
+- **v0.22** all-patches bundle (`52bc7e38…`, title "v.0.22") = 59/59; labels PASS
+  (drawn@84 blank@131); perf 2.24% worst-case. `perf_patch10_cfg.lua` STUB_F recomputed
+  (`$EA:06E6`).
+- **REF v.1 reference bundle** (maintainer request): 1b+2+3+4+5+7+8+9+12+13+14 —
+  true-combo gate, no p6/p10/p11. Patch 12 kept: without it p13's Guts grant is
+  unreachable in normal play (misfire needs ochame stat, 0 in all normal modes) and p14
+  is inert. `build/sms_reference_v1.bps`, ROM `bd1104ee…`, title "FrenchName REF v.1"
+  (uppercase E/R glyphs added to `texttiles.py`), regression 55/55 (detection:
+  p1 reads absent — fingerprint pins gate 0x04, harmless).
 The 2026-07-20 "L+R doesn't open the p11 menu" field report is **RESOLVED** — maintainer
 confirms L+R, taunts, and the Guts specials/desperation nerf all work as intended on the
 latest patches. 2026-07-21: fixed a Lua training-mode bug where HP regen never fired
@@ -75,7 +98,9 @@ after projectile-special damage (framedata move machine stuck; see §4 and
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
 - `SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` — `be2cb752…` — patches 1-11 (BPS `build/sms_allpatches_v1.1.bps`).
-- **`SailorMoonS_FrenchName_v0.21_ALLPATCHES.sfc`** — `62ffb174…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.21.bps`, title v.0.21; MEATY status label removed from patch 10b).
+- **`SailorMoonS_FrenchName_v0.22_ALLPATCHES.sfc`** — `52bc7e38…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.22.bps`, title v.0.22; patch-10 counter/label fixes 2026-07-25).
+- **`SailorMoonS_FrenchName_REF_v1.sfc`** — `bd1104ee…` — **REF v.1 reference bundle** 1b+2+3+4+5+7+8+9+12+13+14 (BPS `build/sms_reference_v1.bps`, title "FrenchName REF v.1").
+- `SailorMoonS_FrenchName_v0.21_ALLPATCHES.sfc` — `62ffb174…` — previous build (BPS `build/sms_allpatches_v0.21.bps`, title v.0.21; MEATY status label removed from patch 10b; p10 counter/label bugs present).
 - `SailorMoonS_FrenchName_v0.20_ALLPATCHES.sfc` — `9b0ae040…` — previous build (BPS `build/sms_allpatches_v0.20.bps`; Guts v3.4 = level indicator training-only).
 - `SailorMoonS_FrenchName_v0.18_ALLPATCHES.sfc` — `86b7f44c…` — previous build (BPS `build/sms_allpatches_v0.18.bps`).
 - `SailorMoonS_FrenchName_v0.17_ALLPATCHES.sfc` — `bccb0182…` — previous build (BPS `build/sms_allpatches_v0.17.bps`).
@@ -90,7 +115,8 @@ after projectile-special damage (framedata move machine stuck; see §4 and
 
 The historical cumulative BPS these rows name (`sms_full*`, the v1.x line, all-patches
 < v0.19) were deleted in the 2026-07-19 prune — rebuild any lineage by chaining the
-`mkpatchN.py` builders (§2). Kept BPS: the per-patch standalones + `sms_allpatches_v0.21.bps`.
+`mkpatchN.py` builders (§2). Kept BPS: the per-patch standalones + the current bundles
+(`sms_allpatches_v0.22.bps`, `sms_reference_v1.bps`; `sms_allpatches_v0.21.bps` historical).
 
 ---
 
@@ -225,7 +251,7 @@ desperation types, dash distance) plus per-patch nominal+edge tests (incl. cross
 counter-hit×Guts, p8 tech-window dual-mode, p13 round-reset, the full 9-character
 desperation compendium + crouch edges). `ROM=<build> tools/run.sh
 tools/test_regression.lua 900`; optional cfg `EXPECT="clean"|"all"`, `ONLY="pattern"`.
-Green: v0.21 = 59 tests, clean = 41, clean+FULL ≈ 50 (dual-mode expectations flip
+Green: v0.22 = 59 tests, REF v.1 = 55, clean = 41, clean+FULL ≈ 50 (dual-mode expectations flip
 with detection; patch tests skip when absent). Engine-rule locks: death-underflow
 pair, GC-gate-immediate, backdash-GC, prejump throw-vulnerability, danger threshold,
 clock desperation trigger, first-hit-defense pair; statics for matrix, desperation
@@ -306,8 +332,9 @@ ROM="build/sms_trainingplus.sfc" tools/run.sh tools/perf_patch11.lua 200     # -
 ROM="build/sms_tauntbuff.sfc" tools/run.sh tools/test_p13_guts.lua 400
 # patch 12 (taunts) suites:
 ROM="build/sms_taunt.sfc" tools/run.sh tools/test_p12_taunt.lua 200          # MODE="solo" in cfg
-# rebuild any BPS and confirm round-trip (current bundle):
-./tools/Flips/flips --apply build/sms_allpatches_v0.21.bps "$CLEAN" /tmp/rt.sfc  # sha == 62ffb174…
+# rebuild any BPS and confirm round-trip (current bundles):
+./tools/Flips/flips --apply build/sms_allpatches_v0.22.bps "$CLEAN" /tmp/rt.sfc  # sha == 52bc7e38…
+./tools/Flips/flips --apply build/sms_reference_v1.bps     "$CLEAN" /tmp/rt.sfc  # sha == bd1104ee…
 ```
 
 ---

@@ -1,4 +1,4 @@
-# Next-session handoff — 2026-07-21
+# Next-session handoff — 2026-07-25
 
 Fast orientation. **Full operational map: `HANDOFF.md`; patch registry:
 `docs/patch_index.md`; engine subsystems: `docs/sms_engine_internals.md`; per-patch
@@ -6,67 +6,62 @@ detail: `docs/patch_notes.md`.**
 
 ## Status — no open items
 
-**The L+R field report is RESOLVED (2026-07-21):** maintainer confirms L+R opens the
-training menu as intended on the latest patches, and the taunt + Guts pipeline
-(specials/desperation damage reduction, Q-style) works as intended. The 2026-07-20
-investigation (commit `1a5963d`) stands as reference: the delivered v0.21 image was
-always clean; the chained-standalone-BPS gotcha (HANDOFF §5) remains the documented trap.
+All suites green. Current bundles: **v0.22 all-patches** (`52bc7e38…`, 59/59) and the
+**REF v.1 reference bundle** (`bd1104ee…`, 55/55). Canonical is still v0.7 (`24aa6b6d…`).
 
-## What shipped this session (2026-07-21)
+## What shipped this session (2026-07-25)
 
-**Lua training-mode HP-regen bug fixed** (maintainer field report: "life refill only
-occurs after a normal hit; special move damage does not trigger refill after 2s").
-Root cause was NOT the HP<max trigger: for **projectile specials** the attacker's BODY
-never gets an active hitbox (the box lives on the projectile slot $1100), so
-`framedata.lua`'s move machine never saw an active phase and every move-end path
-required `seenActive` — the attacker stayed classified STARTUP forever after e.g. Deep
-Submerge; `combo.lua`'s close gate treats attacker STARTUP as a live threat, so
-`combo[2].active` stuck true, and `regen.lua` gates the refill on no-open-combo. A later
-normal unstuck it (its real hitbox completed the move machine) — exactly the reported
-symptom. **Fix:** one guard in `tools/training/framedata.lua` classify(): a return to a
-neutral act now closes the move even with `seenActive == false`. Verified: refill fires
-120f after a DS hit (probe `tools/probe_regen_special.lua`, repro + fix traces in
-`traces/probe_regen_special.txt`); new regression **T10** in `tools/training_test.lua`
-(DS hit → P1 reclassifies NEUTRAL → combo closes → refill; PASS on clean AND v0.21);
-full self-test suite T1–T10 green (T1/T2/T2H/T3/T5/T6/T7 on clean, T4/T8/T9 on v0.7).
+**Patch 10 field report fixed** (maintainer: combo counter never appears — in 1P-vs-COM,
+2P VS and training — and status labels never disappear; seen on v0.21 AND p10 standalone).
+Root causes, both in `tools/mkpatch10.py`, both A/B-verified in-emulator:
 
-## Previous session (2026-07-20)
+1. **Stuck labels:** `_label_render`'s expiry branch did `sta shown / bne draw` — `sta`
+   sets no flags, so the branch tested the stale Z from the labelId≠shown compare and the
+   labelId==0 blank path was **unreachable dead code**. On TTL expiry the same glyphs
+   were re-staged forever. Latent since v1, masked while the MEATY label (removed
+   2026-07-20) churned labelId on nearly every hit. Fix: `cmp #$00` re-test after the
+   store. A/B: pre-fix PUNISH drawn@84 never blanks; fixed blanks@131 (47f = TTL).
+2. **Counter dead vs the CPU:** `_mode_gate` default excluded `$008D`=2 (1P-vs-COM).
+   Default `--modes` now `0,1,2,4,5`. A/B via mode-poke mid-combo (`probe_p10_vs.lua`).
+3. **Not bugs, now documented:** the counter pipeline is healthy in 2P VS (shows only on
+   true chains ≥ `--min-hits` 2, by design — same semantics as the Lua counter), and the
+   counter can never show in practice/training: the hooked HUD producer `$C0:D5E8` does
+   not execute there (`probe_p10_practice.lua`, 0 execs/300f) — p11 and the Lua training
+   mode carry their own counters. `--ttl` was a dead knob; now wired (default 72 = old
+   hardcode, byte-identical).
 
-**MEATY status label removed everywhere** (commit `e9c1976`) — pad testing showed it
-felt strange-to-detrimental. Removed from BOTH the Lua overlay
-(`tools/training/labels.lua`) and patch 10b (`mkpatch10.py`: label id 4 retired, ids
-1/2/3/5 stable; M/Y glyphs dropped). GC/REVERSAL/PUNISH/TECH (+Lua-only THROWN/TRADE)
-remain. The meaty *detection rule* stays documented in `sms_engine_internals.md`.
-- New all-patches build **v0.21** (`62ffb174…`, title tell "v.0.21"); byte-diff vs
-  v0.20 confined to p10 bank + title tiles + hook target + checksum. v0.20 bundle pruned.
-- `training_test.lua` T4 now asserts the label does NOT fire on the frame-perfect
-  infinite; `test_labels_cfg.lua` is now a committed PUNISH scenario (the old untracked
-  debug cfg sampled outside the 48f TTL and could never pass).
-- Suites after change: **v0.21 = 59 ALL PASS, clean = 41 ALL PASS**, T4/T5/T8 PASS,
-  in-ROM label oracle PASS.
+**Test-gap closed** (old suites were WRAM-only and stayed green through both bugs):
+`test_regression.lua` p10-combo-counter is now a VRAM show→count→clear oracle;
+`test_labels.lua` asserts the label row blanks within TTL+10f of the event.
+New probes: `tools/probe_p10_vs.lua` (pipeline logger + optional `P10_MODE2_FROM/TO`
+mode-poke), `tools/probe_p10_practice.lua`, `tools/probe_title_shot.lua` (title
+screenshots). `perf_patch10_cfg.lua` STUB_F recomputed → `$EA:06E6` (was stale).
+Rebuilt: `sms_combocounter.bps` (`b819f3d4…`), `sms_combolabels.bps` (`38faf40c…`),
+**v0.22** bundle. Perf on v0.22: 2.24% worst-case, glyph upload 3 scanlines — fine.
+
+**REF v.1 reference bundle** (maintainer request): 1b+2+3+4+5+7+8+9+12+13+14 →
+`build/sms_reference_v1.bps`, ROM `SailorMoonS_FrenchName_REF_v1.sfc` (`bd1104ee…`),
+title tell "FrenchName REF v.1" (uppercase E/R glyphs added to `texttiles.py`).
+**Patch 12 kept deliberately:** without it p13's Guts grant is unreachable in normal play
+(the only other trigger is a real ochame misfire; all ACS stats are 0 in every normal
+mode) and p14 is then inert. Regression 55/55 with expected detection (p1 reads absent —
+the fingerprint pins gate 0x04; only the true-combo gate byte differs, no test depends
+on it). Title verified by screenshot.
 
 ## Current state in one breath
 
-14 patches + 2 variants, registry with status/lifecycle in `docs/patch_index.md`.
-Canonical = 1+2+3+4+5 (v0.7, `24aa6b6d…`). Newest all-patches test ROM v0.21.
-Regression suite `tools/test_regression.lua` (fingerprint auto-detection, statics,
-base-engine locks, per-patch behavioral tests, FULL mode): 59/59 on v0.21, 41/41 clean.
-The RE campaign is CLOSED — damage pipeline, ACS, reaction dispatch, danger/ochame,
-input recognizers, GC system, throws, specials compendium (`docs/sms_specials.md`) all
-decoded and regression-locked. Ochame-inflicting taunt: REJECTED by maintainer.
+14 patches + 2 variants, registry in `docs/patch_index.md`. Canonical = 1+2+3+4+5
+(v0.7). Newest all-patches v0.22; reference bundle REF v.1. Regression suite:
+59/59 v0.22, 55/55 REF v.1, 41/41 clean. RE campaign CLOSED.
 
 ## Open threads (unchanged backlog)
 
 - Maintainer decisions: patch 6 deprecation, patch 1 vs 1b final gate, Guts knob feel,
-  whether p14 `--all-grabs` ever ships. Their side: pad-test v0.21 (indicator
-  training-only + MEATY-gone tells).
-- Parked trivia: full per-char d48 census (needs boot-fresh rounds; Jupiter=1 Neptune=2
-  verified), +0x76 slot meanings, unobserved acts (0x07/0x10/0x14), dizzy handler
-  details, ground-vs-air same-throw vertical wiki comparison.
+  whether p14 `--all-grabs` ever ships. Their side: pad-test v0.22 (counter now visible
+  vs COM; labels expire) and REF v.1.
+- Parked trivia: full per-char d48 census, +0x76 slot meanings, unobserved acts
+  (0x07/0x10/0x14), dizzy handler details, ground-vs-air same-throw wiki comparison.
 - Rig-limited attested: Jupiter air Power Bomb, Mercury triangle jump.
-- ~~Housekeeping nit: CLAUDE.md status banner still describes the 10-patch era~~ —
-  DONE 2026-07-24 (banner updated; patch_notes.md front matter/knobs/applying brought
-  up to the 14-patch era, pruned-bundle references corrected in HANDOFF §1/§6).
 
 ## Session hygiene
 
