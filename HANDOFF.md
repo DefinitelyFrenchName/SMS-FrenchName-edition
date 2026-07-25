@@ -19,7 +19,7 @@ Playable roster (charID): 1 Moon, 2 Mercury, 3 Mars, 4 Jupiter, 5 Venus, 6 Uranu
 
 ---
 
-## 1. Current state (2026-07-21) — all green, no open items
+## 1. Current state (2026-07-25) — all green, no open items
 
 Sixteen patch entries (14 patches + 2 variants), all built and suite-verified. The
 **canonical** shipping build is **v0.7**; the newest all-patches test ROM is **v0.21**.
@@ -28,6 +28,19 @@ confirms L+R, taunts, and the Guts specials/desperation nerf all work as intende
 latest patches. 2026-07-21: fixed a Lua training-mode bug where HP regen never fired
 after projectile-special damage (framedata move machine stuck; see §4 and
 `docs/NEXT_SESSION.md`).
+
+**2026-07-24/25 housekeeping:**
+- **Git history was REWRITTEN** (`git filter-repo`, force-pushed): `mockups/` (title-screen
+  PNGs containing copyrighted art) was purged from every commit and is now gitignored —
+  **every commit hash changed**, so hashes quoted in docs/notes from before 2026-07-24
+  refer to the pre-rewrite history and won't resolve. Any stale clone must re-clone or
+  hard-reset to the new remote, never push its old history back.
+- `patch11-training-rom` was **merged into `main` and deleted** — `main` is the only
+  branch and carries everything (all 14 patches, tooling, docs).
+- Maintainer added a root **`README.md`** (public-facing intro + a copy of the
+  deliverables table — keep it in sync with `docs/patch_notes.md` when patches change).
+- Docs refreshed to the 14-patch era: patch_notes.md front matter (deliverables/
+  edit-region map/knobs/applying incl. the 2026-07-19 bundle prune), CLAUDE.md banner.
 
 > One-page registry with status/lifecycle (deprecation candidates, exclusivity,
 > dependencies): **docs/patch_index.md** — keep it updated when patches change.
@@ -301,7 +314,7 @@ ROM="build/sms_taunt.sfc" tools/run.sh tools/test_p12_taunt.lua 200          # M
 
 ## 7. Repo layout (post-reorg)
 ```
-CLAUDE.md, HANDOFF.md, .gitignore   ← root only
+CLAUDE.md, HANDOFF.md, README.md, .gitignore   ← root only
 roms/     clean JP ROM + Big Zam ROM (source assets; gitignored contents but tracked)
 docs/     patch_notes.md, annotations.md, sms_uranus_rom_map.md, sms_all_boxes.json, spec, PDF
 tools/    mkpatch*.py, all test/demo .lua, run.sh, coltest, texttiles, Dispel/, Mesen.app, Flips/
