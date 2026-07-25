@@ -506,12 +506,34 @@ add{ name = "p9-ds-tracks-sprite", group = "p9", need = function() return true e
   end }
 
 add{ name = "p10-combo-counter", group = "p10", need = function() return has.p10 end,
-  state = "uranus_vs_jupiter.mss", dur = 90,
+  state = "uranus_vs_jupiter.mss", dur = 200,
   frame = function(api)
-    if api.pt == 5 then park(1, 40); wr(0x8B0, 0) end
-    if api.pt >= 30 and api.pt <= 31 then pulse[0] = { x = true } elseif api.pt == 32 then pulse[0] = nil end
+    local pt = api.pt
+    if pt == 5 then
+      -- point-blank (probe_p10_vs.lua positions) + reset the P2-defender combo block
+      wr(0x1021, 0xE8); wr(0x1022, 0); wr(0x10A1, 0x00); wr(0x10A2, 0x01)
+      wr(0x8B0, 0)
+    end
+    if pt >= 6 then pulse[1] = { down = true } end                      -- crouch dummy
+    if pt == 21 or pt == 22 then pulse[0] = { down = true, y = true }   -- 2LP
+    elseif pt == 23 then pulse[0] = { down = true }
+    elseif pt >= 38 and pt <= 40 then pulse[0] = { down = true, x = true } -- 2HP (chain)
+    elseif pt == 41 then pulse[0] = { down = true }
+    elseif pt == 42 then pulse[0] = nil end
+    -- VRAM oracle on the LEFT counter cells ($10E2/$10E3 = bottom digits)
+    local function vw(w) return emu.read(w * 2, emu.memType.snesVideoRam) + 256 * emu.read(w * 2 + 1, emu.memType.snesVideoRam) end
+    local drawn = vw(0x10E2) ~= 0x2000 or vw(0x10E3) ~= 0x2000
+    if drawn and not api.mem.shownAt then api.mem.shownAt = pt end
+    if api.mem.shownAt and not drawn and not api.mem.blankAt then api.mem.blankAt = pt end
+    if ram(0x8B0) > (api.mem.maxHits or 0) then api.mem.maxHits = ram(0x8B0) end
   end,
-  verdict = function() return ck(ram(0x8B0) >= 1, "combo counter $08B0 expects >=1 after hit, got " .. ram(0x8B0)) end }
+  verdict = function(api)
+    local m = api.mem
+    if (m.maxHits or 0) < 2 then return ck(false, "chain never reached 2 hits ($08B0 max=" .. tostring(m.maxHits) .. ")") end
+    if not m.shownAt then return ck(false, "counter never drawn to VRAM despite " .. m.maxHits .. " hits") end
+    if not m.blankAt then return ck(false, "counter drawn @" .. m.shownAt .. " but never cleared (TTL)") end
+    return ck(m.blankAt - m.shownAt <= 120, string.format(
+      "counter drawn @%d cleared @%d (expect <=120f)", m.shownAt, m.blankAt)) end }
 
 add{ name = "p11-menu-toggle", group = "p11", need = function() return has.p11 end,
   state = "training_p11.mss", dur = 80,

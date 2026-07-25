@@ -1,1 +1,1 @@
-EXPECT = "clean"
+EXPECT = nil

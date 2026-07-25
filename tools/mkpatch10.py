@@ -68,7 +68,7 @@ LABEL_TTL = 48
 HARD = "hitstun/KD/thrown"        # 0x10-0x20, 0x27-0x29 (hard constraint, for REVERSAL)
 
 
-def _defender_logic(hp, act, st, sfx):
+def _defender_logic(hp, act, st, ttl, sfx):
     """8-bit A; update one combo block from defender HP/act. min-hits/ttl baked by caller."""
     return f"""
   lda ${hp:04X}
@@ -84,7 +84,7 @@ def _defender_logic(hp, act, st, sfx):
 cont{sfx}:
   inc ${st + 0:04X}
 afth{sfx}:
-  lda #$48
+  lda #${ttl:02X}
   sta ${st + 2:04X}
   stz ${st + 1:04X}
   lda ${hp:04X}
@@ -426,6 +426,7 @@ ttlok{sfx}:
   jmp rdone{sfx}
 rchg{sfx}:
   sta ${st + 7:04X}
+  cmp #$00               ; sta sets no flags; Z here is stale from the cmp above
   bne draw{sfx}
   ; labelId==0 -> blank all 8 cells
   rep #$20
@@ -508,8 +509,9 @@ gok:
 """
 
 
-def build(src, out, stage="full", minhits=2, ttl=72, modes=(0x00, 0x01, 0x04, 0x05),
+def build(src, out, stage="full", minhits=2, ttl=72, modes=(0x00, 0x01, 0x02, 0x04, 0x05),
           events="off"):
+    assert 1 <= ttl <= 255, "ttl must be 1..255 frames"
     data = bytearray(open(src, "rb").read())
     while len(data) >= 0x10000 and data[-0x10000:] == bytes(0x10000):
         data = data[:-0x10000]
@@ -546,8 +548,8 @@ glok:
     else:
         compute_src = (
             _mode_gate(modes if stage == "full" else None)
-            + _defender_logic(0x1049, 0x1001, ST_P1D, "a")
-            + _defender_logic(0x10C9, 0x1081, ST_P2D, "b")
+            + _defender_logic(0x1049, 0x1001, ST_P1D, ttl, "a")
+            + _defender_logic(0x10C9, 0x1081, ST_P2D, ttl, "b")
             + "dorender:\n"
             + _render_logic(ST_P2D, STG_L, minhits, "l")   # P2 defender -> LEFT (attacker P1)
             + _render_logic(ST_P1D, STG_R, minhits, "r")   # P1 defender -> RIGHT (attacker P2)
@@ -683,9 +685,9 @@ if __name__ == "__main__":
                     help="pipe=fixed-pattern pipeline test; full=combo counter")
     ap.add_argument("--min-hits", type=int, default=2)
     ap.add_argument("--ttl", type=int, default=72)
-    ap.add_argument("--modes", default="0,1,4,5",
+    ap.add_argument("--modes", default="0,1,2,4,5",
                     help="game_mode ($008D) values to show in, comma hex/dec; "
-                         "'all' = every match (default 0,1,4,5 = VS + training)")
+                         "'all' = every match (default 0,1,2,4,5 = VS + vs-COM + training)")
     ap.add_argument("--events", choices=["off", "labels"], default="off",
                     help="off = combo counter only (default); labels = also show "
                          "GC/REVERSAL/PUNISH/TECH status text")
