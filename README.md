@@ -12,7 +12,7 @@ The project also includes an extensive Mesen training script developed for my sp
 
 Some of the memory analysis, all the decisions and a disgusting amount of testing was made by me. However all the assembly heavy lifting and the vast majority of lua scripting was done by Claude. 
 
-Everything implemented relies on a suite of in-emulator end-to-end tests. The AI does it's share via automated tests built on actual use and conversely the AI double checks my test findings, be them positive or negative. 
+Everything implemented relies on a suite of in-emulator end-to-end tests, both automated and human double-checked for edge cases.
 Any patch listed as not fully tested has been tested using the automated test suite but the extent of human double-checks does not reach my quality bar... yet.
 
 
