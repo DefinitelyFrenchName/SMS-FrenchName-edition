@@ -7,10 +7,11 @@ much. Update THIS file whenever a patch is added, revised, or deprecated.
 All patches are independent stackable BPS files built by `tools/mkpatchN.py`,
 byte-disjoint by design (any install order; regression-guarded by
 `tools/test_regression.lua`, which auto-detects which are present).
-Current all-patches build: **v0.22** (`52bc7e38…`, 2026-07-25 — patch 10 counter/label
-fixes). Also current: the **REF v.1 reference bundle** (`sms_reference_v1.bps`, ROM
-`bd1104ee…`, title tell "FrenchName REF v.1") = 1b+2+3+4+5+7+8+9+12+13+14 — the
-maintainer-requested reference combination (true-combo gate; no p6/p10/p11).
+Current all-patches build: **v0.22** (`19a7fc0d…`, rebuilt 2026-07-30 with the patch-4
+credit line; pre-credit hash `52bc7e38…`). Also current: the **REF v.1 reference
+bundle** (`sms_reference_v1.bps`, ROM `7ab26db4…`, title tell "FrenchName REF v.1";
+pre-credit hash `bd1104ee…`) = 1b+2+3+4+5+7+8+9+12+13+14 — the maintainer-requested
+reference combination (true-combo gate; no p6/p10/p11).
 
 | # | Name | One-liner | Status | Standalone BPS (`build/`) |
 |---|---|---|---|---|

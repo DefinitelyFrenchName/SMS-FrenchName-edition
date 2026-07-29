@@ -30,8 +30,12 @@ title-screen copyright line 1 to the Big Zam edition's **"©MOONLIGHT FIGHT SOCI
 VRAM tiles 0x0C2–0x0FC; line 2 "©ANGEL 1994" untouched, © glyph shared/skipped).
 Default ON; `--no-credit` reproduces the old subtitle-only build byte-for-byte
 (`e5dce7d5…`). New standalone `sms_title.bps` → ROM `f5337f9a…`, regression ALL PASS
-(40). Detail: docs/patch_notes_title.md. **Bundles v0.22 / REF v.1 predate this** —
-rebuild them (chain the builders) to pick up the credit line.
+(40). Detail: docs/patch_notes_title.md. **Both bundles rebuilt with the credit line
+(2026-07-30, same recipes — pre-rebuild recipes first re-validated byte-for-byte
+against the old hashes):** v0.22 `52bc7e38…` → **`19a7fc0d…`**, REF v.1 `bd1104ee…` →
+**`7ab26db4…`**; diffs vs the old bundles confined to patch 4's bank $E9 + checksum;
+suites green (59/59 v0.22 incl. EXPECT=all, 55/55 REF); title tells unchanged — the
+credit line is the naked-eye tell for the rebuilt ROMs.
 
 **2026-07-25 — patch 10 field report fixed + REF v.1 bundle:**
 - Maintainer reported the combo counter never appears and status labels never disappear
@@ -107,8 +111,8 @@ after projectile-special damage (framedata move machine stuck; see §4 and
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
 - `SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` — `be2cb752…` — patches 1-11 (BPS `build/sms_allpatches_v1.1.bps`).
-- **`SailorMoonS_FrenchName_v0.22_ALLPATCHES.sfc`** — `52bc7e38…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.22.bps`, title v.0.22; patch-10 counter/label fixes 2026-07-25).
-- **`SailorMoonS_FrenchName_REF_v1.sfc`** — `bd1104ee…` — **REF v.1 reference bundle** 1b+2+3+4+5+7+8+9+12+13+14 (BPS `build/sms_reference_v1.bps`, title "FrenchName REF v.1").
+- **`SailorMoonS_FrenchName_v0.22_ALLPATCHES.sfc`** — `19a7fc0d…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.22.bps`, title v.0.22; patch-10 counter/label fixes 2026-07-25; rebuilt 2026-07-30 with the patch-4 credit line — pre-credit hash was `52bc7e38…`).
+- **`SailorMoonS_FrenchName_REF_v1.sfc`** — `7ab26db4…` — **REF v.1 reference bundle** 1b+2+3+4+5+7+8+9+12+13+14 (BPS `build/sms_reference_v1.bps`, title "FrenchName REF v.1"; rebuilt 2026-07-30 with the patch-4 credit line — pre-credit hash was `bd1104ee…`).
 - `SailorMoonS_FrenchName_v0.21_ALLPATCHES.sfc` — `62ffb174…` — previous build (BPS `build/sms_allpatches_v0.21.bps`, title v.0.21; MEATY status label removed from patch 10b; p10 counter/label bugs present).
 - `SailorMoonS_FrenchName_v0.20_ALLPATCHES.sfc` — `9b0ae040…` — previous build (BPS `build/sms_allpatches_v0.20.bps`; Guts v3.4 = level indicator training-only).
 - `SailorMoonS_FrenchName_v0.18_ALLPATCHES.sfc` — `86b7f44c…` — previous build (BPS `build/sms_allpatches_v0.18.bps`).
@@ -343,8 +347,8 @@ ROM="build/sms_tauntbuff.sfc" tools/run.sh tools/test_p13_guts.lua 400
 # patch 12 (taunts) suites:
 ROM="build/sms_taunt.sfc" tools/run.sh tools/test_p12_taunt.lua 200          # MODE="solo" in cfg
 # rebuild any BPS and confirm round-trip (current bundles):
-./tools/Flips/flips --apply build/sms_allpatches_v0.22.bps "$CLEAN" /tmp/rt.sfc  # sha == 52bc7e38…
-./tools/Flips/flips --apply build/sms_reference_v1.bps     "$CLEAN" /tmp/rt.sfc  # sha == bd1104ee…
+./tools/Flips/flips --apply build/sms_allpatches_v0.22.bps "$CLEAN" /tmp/rt.sfc  # sha == 19a7fc0d…
+./tools/Flips/flips --apply build/sms_reference_v1.bps     "$CLEAN" /tmp/rt.sfc  # sha == 7ab26db4…
 ```
 
 ---

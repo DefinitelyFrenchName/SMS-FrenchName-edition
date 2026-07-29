@@ -42,6 +42,8 @@ file offset = SNES addr & 0x3FFFFF).
 | 14. Guts Grip **(companion to 13)** | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py`                 | `build/sms_gutsgrip.bps`                               | `b90b8fd6…`   |
 
 Combined builds (each applies to the clean ROM): `build/sms_allpatches_v0.22.bps` — all 14
-patches (10 as 10b), ROM SHA-1 `52bc7e38…`, title tell "v.0.22"; `build/sms_reference_v1.bps`
+patches (10 as 10b), ROM SHA-1 `19a7fc0d…`, title tell "v.0.22"; `build/sms_reference_v1.bps`
 — the **REF v.1** reference combination 1b+2+3+4+5+7+8+9+12+13+14 (true-combo gate, no
-counter/training patches), ROM SHA-1 `bd1104ee…`, title tell "FrenchName REF v.1".
+counter/training patches), ROM SHA-1 `7ab26db4…`, title tell "FrenchName REF v.1".
+Both rebuilt 2026-07-30 with the patch-4 "©MOONLIGHT FIGHT SOCIETY" credit line (the
+visible tell vs the pre-credit builds `52bc7e38…` / `bd1104ee…`).

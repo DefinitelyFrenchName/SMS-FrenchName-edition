@@ -37,9 +37,10 @@ Combined builds:
 
 > **Current bundle:** `build/sms_allpatches_v0.22.bps` — clean → ALL 14 patches (10 as 10b,
 > labels on), title tell "v.0.22", ROM `build/SailorMoonS_FrenchName_v0.22_ALLPATCHES.sfc`
-> (SHA-1 `52bc7e38…`, 2026-07-25 p10 counter/label fixes). Also current:
+> (SHA-1 `19a7fc0d…`; rebuilt 2026-07-30 with the patch-4 credit line, pre-credit hash
+> `52bc7e38…`). Also current:
 > `build/sms_reference_v1.bps` — **REF v.1** = 1b+2+3+4+5+7+8+9+12+13+14, title
-> "FrenchName REF v.1", ROM `bd1104ee…`. **2026-07-19 prune:** the historical cumulative bundles listed below
+> "FrenchName REF v.1", ROM `7ab26db4…` (pre-credit `bd1104ee…`). **2026-07-19 prune:** the historical cumulative bundles listed below
 > (`sms_both`, `sms_full*`, the v1.x line, all-patches < v0.19) were deleted from `build/`
 > (see `docs/patch_index.md`); the entries are kept as historical record of what each
 > lineage contained. Custom combinations are rebuilt by chaining the `mkpatchN.py` builders
@@ -1130,7 +1131,7 @@ flips --apply build/sms_gutsgrip.bps           <clean ROM> <out>   # patch 14 (o
 # everything at once (the current bundle)
 flips --apply build/sms_allpatches_v0.22.bps   <clean ROM> <out>   # ALL 14 patches (10b labels on)
 # the REF v.1 reference combination (1b+2+3+4+5+7+8+9+12+13+14)
-flips --apply build/sms_reference_v1.bps       <clean ROM> <out>   # -> sha bd1104ee…
+flips --apply build/sms_reference_v1.bps       <clean ROM> <out>   # -> sha 7ab26db4…
 
 # stacking IPS onto an already-patched ROM — ONLY the fixed-address patches ship .ips
 # (1/1b, 2, 6: no appended bank, checksum-free, safe to stack):

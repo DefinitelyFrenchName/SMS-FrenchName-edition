@@ -6,10 +6,10 @@ detail: `docs/patch_notes.md`.**
 
 ## Status
 
-All suites green. Current bundles: **v0.22 all-patches** (`52bc7e38…`, 59/59) and the
-**REF v.1 reference bundle** (`bd1104ee…`, 55/55). Canonical is still v0.7 (`24aa6b6d…`).
-**Open item:** bundles predate the 2026-07-30 patch-4 credit-line change — rebuild them
-(chain the builders, new title tell) when this session's changes settle.
+All suites green. Current bundles: **v0.22 all-patches** (`19a7fc0d…`, 59/59) and the
+**REF v.1 reference bundle** (`7ab26db4…`, 55/55) — both rebuilt 2026-07-30 with the
+patch-4 credit line (pre-credit hashes `52bc7e38…` / `bd1104ee…`; title tells unchanged,
+the credit line is the naked-eye tell). Canonical is still v0.7 (`24aa6b6d…`).
 
 ## What shipped 2026-07-30
 
