@@ -1,13 +1,26 @@
-# Next-session handoff — 2026-07-25
+# Next-session handoff — 2026-07-30
 
 Fast orientation. **Full operational map: `HANDOFF.md`; patch registry:
 `docs/patch_index.md`; engine subsystems: `docs/sms_engine_internals.md`; per-patch
 detail: `docs/patch_notes.md`.**
 
-## Status — no open items
+## Status
 
 All suites green. Current bundles: **v0.22 all-patches** (`52bc7e38…`, 59/59) and the
 **REF v.1 reference bundle** (`bd1104ee…`, 55/55). Canonical is still v0.7 (`24aa6b6d…`).
+**Open item:** bundles predate the 2026-07-30 patch-4 credit-line change — rebuild them
+(chain the builders, new title tell) when this session's changes settle.
+
+## What shipped 2026-07-30
+
+**Patch 4 credit line** (maintainer request): title copyright line 1 →
+Big Zam's "©MOONLIGHT FIGHT SOCIETY", pixel-identical (54 tiles lifted from BZ title
+VRAM via `tools/probe_title_vram.lua`; 3 extra DMA runs, VRAM tiles 0x0C2–0x0FC);
+line 2 "©ANGEL 1994" untouched. Default ON in `mkpatch4.py`; `--no-credit` reproduces
+the old build byte-for-byte (`e5dce7d5…`). New `sms_title.bps` → `f5337f9a…`,
+regression ALL PASS (40). Geometry + verification: docs/patch_notes_title.md.
+New probes: `tools/probe_title_vram.lua` (VRAM/CGRAM/screenshot at title),
+`tools/probe_title_ppu.lua` (PPU layer state).
 
 ## What shipped this session (2026-07-25)
 

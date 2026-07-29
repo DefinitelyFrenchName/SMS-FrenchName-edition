@@ -18,7 +18,7 @@ maintainer-requested reference combination (true-combo gate; no p6/p10/p11).
 | 1b | 1f-link (true combo) | Alternative gate 0x05 (N=5): the one frame is a true combo instead of a meaty | ALTERNATE (pick 1 *or* 1b, never both) | `sms_uranus_infinite_1f_truecombo.bps` |
 | **2** | No reversal-dash invuln | Removes the invincibility of Uranus's guard-cancel ("reversal") Shadow Dash | CANONICAL | `sms_dashfix.bps` |
 | **3** | Palettes + header | Big Zam extended color palettes + "FrenchName" internal header | CANONICAL (cosmetic) | `sms_palettes.bps` |
-| **4** | Title subtitle | Title-screen version text (doubles as the naked-eye build tell, e.g. "v.0.19") | CANONICAL (cosmetic) | `sms_title.bps` |
+| **4** | Title subtitle | Title-screen version text (doubles as the naked-eye build tell, e.g. "v.0.19"); since 2026-07-30 also swaps copyright line 1 to BZ's "©MOONLIGHT FIGHT SOCIETY" (line 2 "©ANGEL 1994" untouched; `--no-credit` to opt out) | CANONICAL (cosmetic) | `sms_title.bps` |
 | **5** | Dash distance | Uranus forward-dash distance −1/3 (~145 → ~89px) | CANONICAL | `sms_dashdist.bps` |
 | 6 | Dash i-frames | Uranus forward dash gains ~6 strike-invuln frames mid-move | EXPERIMENTAL — tension with patch 2's nerf intent; deprecation candidate | `sms_dashinvuln.bps` |
 | 7 | Pluto 5HP vs crouchers | Extends c.HP's active box down so the semi-overhead hits every croucher except Chibi | OPTIONAL | `sms_pluto5hp.bps` |

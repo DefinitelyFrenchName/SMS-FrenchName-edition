@@ -20,7 +20,7 @@ the operational map (current state, deliverables, tooling, findings, gotchas).
 | 1b. 1f-link (true combo) | **Alternative to patch 1** — true unblockable 1-frame combo (N=5); wider (2-frame connect: combo@0 + meaty@+1) | `tools/mkpatch.py 0x05` | `build/sms_uranus_infinite_1f_truecombo.bps` (+`.ips`) | `8966c119…` |
 | 2. Dash-fix | Remove reversal-dash invincibility | `tools/mkpatch2.py` | `build/sms_dashfix.bps` (+`.ips`) | `07d760fe…` |
 | 3. Palettes | Sprint / Big Zam extended character colors ( + "FrenchName" rom header for easy rom ID) | `tools/mkpatch3.py` | `build/sms_palettes.bps` | `291f6474…` |
-| 4. Title | Title subtitle → "FrenchName ver. X.Y" | `tools/mkpatch4.py` | `build/sms_title.bps` | `e5dce7d5…` |
+| 4. Title | Title subtitle → "FrenchName ver. X.Y" + copyright line 1 → BZ's "©MOONLIGHT FIGHT SOCIETY" ("©ANGEL 1994" untouched) | `tools/mkpatch4.py` | `build/sms_title.bps` | `f5337f9a…` |
 | 5. Dash dist | Cut Uranus forward-dash distance ~1/3 | `tools/mkpatch5.py` | `build/sms_dashdist.bps` | `99acb686…` |
 | 6. Dash i-frames **(OPTIONAL)** | Uranus forward dash gains ~6 strike-invuln frames mid-move | `tools/mkpatch6.py` | `build/sms_dashinvuln.bps` (+`.ips`) | `34c5d458…` |
 | 7. Pluto 5HP **(OPTIONAL)** | Pluto 5HP hitbox extended down to hit crouchers (all but Chibi) | `tools/mkpatch7.py` | `build/sms_pluto5hp.bps` | `fc757936…` |
@@ -119,6 +119,7 @@ one patch (or re-run the whole chain) after changing a knob; all stack.
 | **Dash i-frames (opt.)** | `mkpatch6.py … --lo <n> --hi <n>` | `5`–`10` | Strike-invuln while the dash frame-counter `+0x5D` is in `[lo,hi]` (1..14). Default ≈ 6 middle frames. Uranus-only, strike-only. |
 | **Title text** | `mkpatch4.py … --text "<str>"` | `"FrenchName ver. 0.4"` | The red subtitle (≤20 chars, the font covers A-Z a-z 0-9 space `.`). Bump the version here. |
 | **Title style** | `mkpatch4.py … --style <s>` | `white_red` | `white_red` (white core/red outline), `red_white`, `red`. |
+| **Title credit line** | `mkpatch4.py … --no-credit` | credit on | Default swaps copyright line 1 to BZ's "©MOONLIGHT FIGHT SOCIETY" (line 2 "©ANGEL 1994" untouched); `--no-credit` keeps the original line and reproduces the pre-2026-07-30 build byte-for-byte. |
 | **Pluto 5HP reach (opt.)** | `mkpatch7.py … --h <n>` | `62` | New active-box height: `54` = vanilla (whiffs crouchers), **`62` = hits all crouchers except Chibi**, `64` = all incl. Chibi. Byte `0xAF0DE`. |
 | **Venus tech window (opt.)** | `mkpatch8.py … --extra <n>` | `1` | Extra sampling steps on the throw-hold script: `0` = vanilla 6f, **`1` = 13f (default)**, `2` = 19f, `3` = 24f (whole hold). Standard throws ≈ 15f (Jupiter). Bytes `0x16C70/78/80`. |
 | **Neptune fireball box (opt.)** | `mkpatch9.py … --yoff <n>` | `-11` | `y_off` of the 4 active hit boxes vs the projectile origin (ball ≈ origin ±11): **`-11` = centred on the ball (tracks the descent)**; more negative biases higher, less negative lower. `-27`/`-60` = vanilla (floats at head level). Bytes `0xAFD5D/65/6D/75`. |
@@ -574,18 +575,28 @@ On-screen title text (the harder graphics job flagged here originally) is now sh
 
 ---
 
-# Patch 4 — Title subtitle → "FrenchName ver. 0.4"
+# Patch 4 — Title subtitle → "FrenchName ver. 0.4" + Big Zam credit line
 
-Patched (title only) SHA-1 `e5dce7d5130909fc0e125ea621a11a10d2ded04e`.
-Deliverables: `build/sms_title.bps` (clean → subtitle + header), `build/sms_full4.bps`
-(clean → all four). Built by `tools/mkpatch4.py` (+ `tools/texttiles.py`).
+Patched (title only) SHA-1 `f5337f9adfaf7adcd10aaecbc3e6ea8c525e4df3`
+(2026-07-30, credit line included; `--no-credit` reproduces the previous
+subtitle-only build `e5dce7d5…` byte-for-byte).
+Deliverables: `build/sms_title.bps` (clean → subtitle + credit + header),
+`build/sms_full4.bps` (clean → all four). Built by `tools/mkpatch4.py`
+(+ `tools/texttiles.py`).
 
 ## What this patch does
 
 Replaces the red Japanese subtitle (場外乱闘!? 主役争奪戦) with **"FrenchName ver. 0.4"** —
-white glyphs, red outline, in the subtitle's own palette. Sailor Moon logo, all menu items,
-and both copyright lines untouched. Validated against a true-to-resolution mockup first; the
-patched ROM's subtitle band is **pixel-identical** to the approved mockup.
+white glyphs, red outline, in the subtitle's own palette. Validated against a
+true-to-resolution mockup first; the patched ROM's subtitle band is **pixel-identical** to
+the approved mockup.
+
+**2026-07-30 addition:** the first copyright line (©武内直子・講談社・テレビ朝日・東映動画)
+is replaced with the Big Zam edition's **"©MOONLIGHT FIGHT SOCIETY"**, pixel-identical to
+BZ (tiles lifted verbatim from its title-screen VRAM). The second line **"©ANGEL 1994" is
+untouched** (BZ keeps it too), as are the Sailor Moon logo and all menu items. The © glyph
+tiles are shared between the two lines' style and identical in clean vs BZ, so they're
+skipped. Disable with `--no-credit`.
 
 ## Mechanism (Big-Zam-style runtime overwrite; no LZSS encoder)
 
@@ -603,12 +614,24 @@ is 42 tiles across tilemap rows 13-14 (each column = a 16px glyph split top/bott
 6 contiguous VRAM runs (0x10D–0x10F, 0x11D–0x11F, 0x120–0x12F, 0x130–0x13F, 0x140–0x141,
 0x150–0x151; the gaps are copyright/other tiles, skipped).
 
+The credit line uses the same mechanism: copyright line 1 occupies BG1 tilemap rows 23-24
+(cols 2-29, words `18C1…`, palette 6), copyright line 2 rows 25-26 — the tilemap is
+**identical** in clean and BZ; BZ only swaps CHR contents. The 54 changed tiles form 3
+contiguous VRAM runs (0x0C2–0x0CF, 0x0D2–0x0EC, 0x0F0–0x0FC; 0x0C1/0x0D1 = the © glyph,
+identical in both, skipped; 0x0EC/0x0FC are blank in BZ — the Latin line is shorter than
+the kanji line, so blanking the tail is required). Tile data is embedded in `mkpatch4.py`
+(`CREDIT_TILES_HEX`), extracted from BZ title VRAM via `tools/probe_title_vram.lua` (the
+BZ ROM stores these tiles only in a packed/injected form — raw/2bpp/plane searches all
+miss — so a one-time VRAM lift is the faithful source). Palette 6 verified identical
+clean vs BZ, so colors match by construction.
+
 ## Changed bytes
 
 - **0x3B81F–0x3B822**: `22 43 8C 80` (`JSL $80:8C43`) → `JSL` to the stub (bank/addr computed
   from ROM size: `$E8:0000` standalone / `$E9:0000` combined).
-- **Appended bank** ($E8/$E9): 195-byte DMA stub (calls `$80:8C43`, then 6 DMA runs) + 1344
-  bytes of custom tile data.
+- **Appended bank** ($E8/$E9): 276-byte DMA stub (calls `$80:8C43`, then 9 DMA runs) + 3072
+  bytes of tile data (42 subtitle + 54 credit tiles × 32B). With `--no-credit`: 195-byte
+  stub (6 runs) + 1344 bytes, byte-identical to the pre-2026-07-30 build.
 - **0xFFC0** header, **0xFFDC/DE** checksum.
 
 Glyphs are generated by `tools/texttiles.py` (hand-drawn 8×16 proportional pixel font,
@@ -622,6 +645,12 @@ and `mkpatch4.py` re-lays the DMA runs automatically.
 - **Isolation**: exactly **42 VRAM tiles changed**, all within the subtitle set; all BG
   tilemaps (VRAM 0x0000–0x3FFF) byte-identical; logo CHR unchanged (the logo-band screenshot
   difference is only the logo's animation phase).
+- **Credit line (2026-07-30)**: patched title VRAM diff vs clean = exactly **96 tiles**
+  (42 subtitle + 54 credit), zero unexpected; the 54 credit tiles are **byte-identical to
+  the Big Zam dump**; tilemaps (0x0000–0x3FFF), VRAM 0x8000+, and CGRAM all identical to
+  clean; "©ANGEL 1994" tiles untouched. Title screenshot confirms
+  ©MOONLIGHT FIGHT SOCIETY / ©ANGEL 1994 (`traces/titlevram_patched_700.png`).
+  Regression suite on the new standalone: **ALL PASS (40)**.
 - **No gameplay regression on `sms_full4`**: 1f-link dash-out@100 / press-115-only; reversal
   meaty connects (P1 → hitstun 0x16); palette selection still distinct (A vs Y CGRAM differ).
 - **BPS round-trips**: reproduces both builds byte-exact from clean.

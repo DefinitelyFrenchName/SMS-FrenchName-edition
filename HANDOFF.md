@@ -19,10 +19,19 @@ Playable roster (charID): 1 Moon, 2 Mercury, 3 Mars, 4 Jupiter, 5 Venus, 6 Uranu
 
 ---
 
-## 1. Current state (2026-07-25) — all green, no open items
+## 1. Current state (2026-07-30) — all green
 
 Sixteen patch entries (14 patches + 2 variants), all built and suite-verified. The
 **canonical** shipping build is **v0.7**; the newest all-patches test ROM is **v0.22**.
+
+**2026-07-30 — patch 4 credit line (maintainer request):** `mkpatch4.py` now also swaps
+title-screen copyright line 1 to the Big Zam edition's **"©MOONLIGHT FIGHT SOCIETY"**
+(pixel-identical — 54 tiles lifted verbatim from BZ title VRAM, 3 extra DMA runs over
+VRAM tiles 0x0C2–0x0FC; line 2 "©ANGEL 1994" untouched, © glyph shared/skipped).
+Default ON; `--no-credit` reproduces the old subtitle-only build byte-for-byte
+(`e5dce7d5…`). New standalone `sms_title.bps` → ROM `f5337f9a…`, regression ALL PASS
+(40). Detail: docs/patch_notes_title.md. **Bundles v0.22 / REF v.1 predate this** —
+rebuild them (chain the builders) to pick up the credit line.
 
 **2026-07-25 — patch 10 field report fixed + REF v.1 bundle:**
 - Maintainer reported the combo counter never appears and status labels never disappear
@@ -74,7 +83,7 @@ after projectile-special damage (framedata move machine stuck; see §4 and
 | 1b | Infinite → true 1-frame combo (alt) | `mkpatch.py 0x05` | `build/sms_uranus_infinite_1f_truecombo.bps` |
 | 2 | Remove reversal-dash invincibility | `mkpatch2.py` | `build/sms_dashfix.bps` |
 | 3 | Big Zam palettes + "FrenchName" header | `mkpatch3.py` | `build/sms_palettes.bps` |
-| 4 | Title subtitle text | `mkpatch4.py` | `build/sms_title.bps` |
+| 4 | Title subtitle text + BZ "©MOONLIGHT FIGHT SOCIETY" credit line | `mkpatch4.py` | `build/sms_title.bps` |
 | 5 | Forward-dash distance −1/3 | `mkpatch5.py` | `build/sms_dashdist.bps` |
 | 6 | Forward-dash i-frames (OPTIONAL) | `mkpatch6.py` | `build/sms_dashinvuln.bps` |
 | 7 | Pluto 5HP hits crouchers (OPTIONAL) | `mkpatch7.py` | `build/sms_pluto5hp.bps` |
@@ -143,6 +152,7 @@ python3 tools/mkpatch5.py /tmp/s4.sfc     /tmp/s5.sfc         # (patch 6/7 optio
 | Dash distance | `mkpatch5.py --speed` | `0x0640` | `0x0B00` vanilla … `0x0480` (−½) |
 | Dash i-frames | `mkpatch6.py --lo/--hi` | `5`–`10` | any window in dash frames 1..14 |
 | Title text/style | `mkpatch4.py --text/--style` | — | `white_red`/`red_white`/`red` |
+| Title credit line | `mkpatch4.py --no-credit` | credit on | default swaps copyright line 1 to BZ's "©MOONLIGHT FIGHT SOCIETY" ("©ANGEL 1994" untouched); flag restores the original line |
 | Pluto 5HP reach | `mkpatch7.py --h` | `62` | `54`=vanilla, `62`=all but Chibi, `64`=all |
 | Venus tech window | `mkpatch8.py --extra` | `1` | `0`=vanilla 6f, `1`=13f, `2`=19f, `3`=24f (standard≈15f) |
 | Neptune fireball box y_off | `mkpatch9.py --yoff` | `-11` | box vs origin; `-11`=centred on ball, more neg=higher |
