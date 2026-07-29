@@ -3,7 +3,8 @@
 -- Phase 2: refill + force standup act 0x20 at first act==0x1E frame (vendor-style write).
 -- Each phase: lethal 2LP kill with REFILL on; verdict = no 0x1F + act returns to 0.
 -- Output: traces/p11_standup.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_standup.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

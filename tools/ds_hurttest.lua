@@ -1,4 +1,5 @@
-local TRACE="/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE=ENV.TRACE
 local WRAM=emu.memType.snesWorkRam
 local loaded,t=false,-1
 local function ram(a) return emu.read(a,WRAM) end

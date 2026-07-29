@@ -1,8 +1,9 @@
 -- capability check: io, getState keys (PC), exec callback + savestate, setInput
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 print("capcheck: start, io=" .. tostring(io) .. " os=" .. tostring(os))
 local f = nil
 if io and io.open then
-  local ok, res = pcall(io.open, "/Users/koneko/Developer/SailorMoonS/traces/capcheck.txt", "w")
+  local ok, res = pcall(io.open, ENV.TRACE .. "capcheck.txt", "w")
   if ok then f = res end
 end
 print("IO: " .. (f and "OK" or "FAIL"))
@@ -36,7 +37,7 @@ execCb = emu.addMemoryCallback(function(addr, value)
     local okS, ss = pcall(emu.createSavestate)
     if okS and ss then
       w("SAVESTATE: OK len=" .. #ss)
-      local f2 = io.open("/Users/koneko/Developer/SailorMoonS/traces/capcheck.mss", "wb")
+      local f2 = io.open(ENV.TRACE .. "capcheck.mss", "wb")
       if f2 then f2:write(ss); f2:close(); w("SAVESTATE FILE: OK") end
     else
       w("SAVESTATE: FAIL " .. tostring(ss))

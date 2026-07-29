@@ -1,5 +1,6 @@
 -- probe_p11_vs70.lua (patch 11): read $0070/$008D/$01FA in a VS match state (gate design).
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local t, needLoad = -1, true
 emu.addMemoryCallback(function()
   if needLoad then

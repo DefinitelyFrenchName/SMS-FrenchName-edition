@@ -2,7 +2,8 @@
 -- practice nav -> char select -> training match (+ VS-mode detour would be separate).
 -- Watches reads+writes to $7F0000-$7FFFFF (WRAM offs 0x10000-0x1FFFF), reporting
 -- touched 256-byte pages per phase. Output: traces/p11_7f.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_7f.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local function ram(a) return emu.read(a, emu.memType.snesWorkRam) end

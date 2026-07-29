@@ -4,5 +4,6 @@
 -- frame (frame 120 is a forced neutral-return frame; 5LP state 0x40 first appears at 121),
 -- so the meaty (active on 120) hits Chibi while she's still neutral. Fastest poke, still loses.
 -- Run on the v0.7 ROM in a live match (loads the Uranus-vs-Chibi state itself).
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 REACTION="chibi5lp"
-dofile("/Users/koneko/Developer/SailorMoonS/tools/react_test.lua")
+dofile(ENV.TOOLS .. "react_test.lua")

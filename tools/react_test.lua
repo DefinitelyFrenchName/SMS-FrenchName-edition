@@ -17,11 +17,12 @@
 --   Uranus-vs-Mars state itself. Headless: ROM=<v0.7> tools/run.sh tools/react_reactname.lua
 -- Keys: R reset, S stop.
 
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local REACT = REACTION or "backdash"
 -- Mars reactions use the Mars state; the Neptune DP uses the Neptune state.
-local DEF_STATE = (REACT=="dp") and "/Users/koneko/Developer/SailorMoonS/traces/uranus_vs_neptune_v07.mss"
-              or (REACT=="chibi5lp") and "/Users/koneko/Developer/SailorMoonS/traces/uranus_vs_chibi_v07.mss"
-                                 or "/Users/koneko/Developer/SailorMoonS/traces/uranus_vs_mars_v07.mss"
+local DEF_STATE = (REACT=="dp") and ENV.TRACE .. "uranus_vs_neptune_v07.mss"
+              or (REACT=="chibi5lp") and ENV.TRACE .. "uranus_vs_chibi_v07.mss"
+                                 or ENV.TRACE .. "uranus_vs_mars_v07.mss"
 local STATE = REACT_STATE or DEF_STATE
 local MFV   = REACT_MFV or 115        -- meaty press frame (frame-perfect); try 116 for "1 late"
 

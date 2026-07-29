@@ -1,6 +1,7 @@
 -- wramdump.lua: load a savestate, dump a WRAM range to traces/<OUT>. Cfg: wramdump_cfg.lua
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
-pcall(dofile, "/Users/koneko/Developer/SailorMoonS/tools/wramdump_cfg.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
+pcall(dofile, ENV.TOOLS .. "wramdump_cfg.lua")
 STATE = STATE or "venus_vs_jupiter_clean.mss"
 LO = LO or 0x6A00
 HI = HI or 0x7200

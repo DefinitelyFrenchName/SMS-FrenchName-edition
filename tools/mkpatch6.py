@@ -26,7 +26,9 @@ import sys
 import argparse
 from hashlib import sha1
 
-CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+from pathlib import Path as _P
+REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
+CLEAN = str(REPO / "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc")
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 HOOK = 0x09CCD                       # sta $41,X ; lda ($10),Y   (C0:9CCD)
@@ -82,7 +84,7 @@ def _fix_checksum(data):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("src", nargs="?", default=CLEAN)
-    ap.add_argument("out", nargs="?", default="build/sms_dashinvuln.sfc")
+    ap.add_argument("out", nargs="?", default=str(REPO / "build/sms_dashinvuln.sfc"))
     ap.add_argument("--lo", type=lambda s: int(s, 0), default=5, help="first invuln dash-frame (default 5)")
     ap.add_argument("--hi", type=lambda s: int(s, 0), default=10, help="last invuln dash-frame (default 10)")
     a = ap.parse_args()

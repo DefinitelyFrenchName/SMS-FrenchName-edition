@@ -1,4 +1,5 @@
-local ROOT="/Users/koneko/Developer/SailorMoonS/tools/"; local TRACE=ROOT.."../traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local ROOT=ENV.TOOLS; local TRACE=ROOT.."../traces/"
 local C0=dofile(ROOT.."training/const.lua"); local FALSE=C0.FALSE_PAD
 local WRAM=emu.memType.snesWorkRam; local FV=115
 local function pl1(t) local kf={{10,{down=true}},{60,{down=true,y=true}},{62,{down=true}},{77,{down=true,x=true}},{80,{down=true}},{95,{}},{97,{right=true}},{98,{}},{99,{right=true}},{101,{}},{FV,{down=true,y=true}},{FV+2,{down=true}}}

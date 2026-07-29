@@ -1,5 +1,6 @@
 -- probe_p11_demo.lua (patch 11): grab demo screenshots — SHOW display live (inputs + ADV).
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local WRAM = emu.memType.snesWorkRam
 local function ram(a) return emu.read(a, WRAM) end
 local function wr(a, v) emu.write(a, v, WRAM) end

@@ -37,6 +37,17 @@ against the old hashes):** v0.22 `52bc7e38…` → **`19a7fc0d…`**, REF v.1 `b
 suites green (59/59 v0.22 incl. EXPECT=all, 55/55 REF); title tells unchanged — the
 credit line is the naked-eye tell for the rebuilt ROMs.
 
+**2026-07-30 — tooling de-hardcoded (repo-relative paths):** all 124 Lua tools now
+bootstrap `tools/sms_env.lua` (runtime repo-root discovery; see §5) and every Python
+builder anchors to the repo via `__file__` — the whole toolchain runs from any cwd and
+any checkout location (still macOS-assumed). Verified: all 14 builders reproduce their
+tracked-BPS ROMs byte-for-byte from a foreign cwd; demo_link (new headless wrapper
+`demo_link_headless.lua`) reports the canonical single-MEATY window; training suite
+T1–T10 green on v0.7; regression ALL PASS on clean. Bonus: the builder hash audit
+exposed three STALE doc hashes, now fixed (p11 `42add705`→`574d4948`, p13
+`04e13428`→`6be3d788`, p14 `b90b8fd6`→`0ce0806f` — the BPS had been rebuilt in later
+QA rounds without updating the docs; the tracked BPS were always self-consistent).
+
 **2026-07-25 — patch 10 field report fixed + REF v.1 bundle:**
 - Maintainer reported the combo counter never appears and status labels never disappear
   (v0.21 + p10 standalone). Two root causes, both fixed in `mkpatch10.py` and A/B-verified
@@ -312,9 +323,15 @@ Submerge fireball demos.
   the open ROM; the **headless testrunner is permissive** and loads anything. So any GUI demo
   that `emu.loadSavestate`s a file needs a state tagged to that exact build. Regenerate one by
   loading any state then `emu.createSavestate()` while running the target ROM.
-- **Scripts use absolute paths** (`/Users/koneko/Developer/SailorMoonS/...`). The shipped test
-  zip includes `fixpaths.sh` to repoint them if extracted elsewhere. On this machine, run from
-  the repo.
+- **Script paths are repo-relative since 2026-07-30** via `tools/sms_env.lua` (every Lua
+  tool bootstraps it and uses `ENV.ROOT/TOOLS/TRACE`; discovery order: script dir from
+  `package.path` → `$SMS_ROOT` → `$PWD` → ROM-path walk-up, validated by `HANDOFF.md`
+  presence). Mesen's process cwd is NOT the shell cwd (relative `io.open` fails even under
+  `run.sh`), which is why paths were absolute historically — never hardcode them again.
+  Tool scripts must live in `tools/` for the bootstrap line to find `sms_env.lua`; a
+  script elsewhere must set `SMS_ROOT` or load a repo ROM. Python builders are anchored
+  to the repo via `__file__` (`REPO`) and run from any cwd. `fixpaths.sh` (old zip fixer)
+  is obsolete.
 - **`extract_sms_hitboxes.py` skips Saturn's hurt/coll** (cid>9 → bounds undefined). Saturn
   isn't playable, so this rarely matters, but her hurt boxes aren't in the JSON.
 - **Box-index writer order:** `$C0:9CCD` sets `+0x41` (hurtbox) every frame from animation data,
@@ -333,8 +350,9 @@ Submerge fireball demos.
 ## 6. Verify quickly
 
 ```bash
-# 1-frame-link window on the canonical build (expect a single MEATY frame):
-ROM="build/SailorMoonS_FrenchName_v0.7_all5.sfc" tools/run.sh tools/demo_link.lua
+# 1-frame-link window on the canonical build (expect a single MEATY frame, no COMBO;
+# writes traces/demo_link_out.txt and exits — plain demo_link.lua is the GUI variant):
+ROM="build/SailorMoonS_FrenchName_v0.7_all5.sfc" tools/run.sh tools/demo_link_headless.lua
 # Venus throw-tech window (patch 8): expect TECH [55..72] clean, [55..79] patched:
 ROM="build/sms_venustech.sfc" tools/run.sh tools/techsweep.lua 500   # → traces/techsweep_out.txt
 # reversal outcome (frame-perfect vs +1 late):

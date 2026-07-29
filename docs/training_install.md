@@ -29,23 +29,13 @@ docs/training_usage.md      <- commands & usage reference
 
 ## Recommended paths
 
-**If you work inside the repo** (`/Users/koneko/Developer/SailorMoonS/`): nothing to do —
-all paths are already correct.
-
-**If you extracted the distribution zip somewhere else:** the two entry scripts carry one
-absolute path each (`ROOT`). Run the included fixer from the extract directory:
-
-```bash
-cd <extract dir>
-./fixpaths.sh            # rewrites the path prefix in tools/training*.lua to $PWD
-```
-
-or edit by hand — it is a single line at the top of `tools/training.lua` (and
-`tools/training_test.lua` if you want the self-tests):
-
-```lua
-local ROOT = "/path/to/extract/tools/"
-```
+Since 2026-07-30 all paths are discovered at runtime (`tools/sms_env.lua`) — no editing
+needed wherever the tree lives, as long as the layout above is preserved (the scripts
+locate the root by finding `HANDOFF.md` next to `tools/`; keep that file in the extract).
+Discovery order: the script's own directory (Mesen registers it in `package.path`) →
+`$SMS_ROOT` → `$PWD` → walking up from the loaded ROM's path. If you move `training.lua`
+outside `tools/`, set `SMS_ROOT=/path/to/extract` in Mesen's environment or load a ROM
+from inside the tree. The old `fixpaths.sh` fixer is obsolete.
 
 Everything else derives from `ROOT` at runtime. Keep the `tools/training/` package
 directory next to `training.lua`, and keep a writable `traces/` directory as a **sibling

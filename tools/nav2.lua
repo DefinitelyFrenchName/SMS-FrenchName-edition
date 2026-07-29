@@ -6,7 +6,8 @@
 --   type="shot":  screenshot + optional WRAM dump, immediately continue
 --   type="state": save savestate to file
 --   type="stop":  end run
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local frames = 0
 local stepIdx = 1
 local stepFrame = 0
@@ -16,7 +17,7 @@ local log = io.open(TRACE .. "nav2.txt", "w")
 local function ram(addr) return emu.read(addr, emu.memType.snesWorkRam) end
 local function w16(a) return ram(a) + 256 * ram(a + 1) end
 
-dofile("/Users/koneko/Developer/SailorMoonS/tools/nav2_steps.lua")
+dofile(ENV.TOOLS .. "nav2_steps.lua")
 
 local function L(s)
   log:write(string.format("f=%06d step=%02d %s\n", frames, stepIdx, s))

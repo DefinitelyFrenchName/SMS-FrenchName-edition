@@ -3,8 +3,9 @@
 -- three ways: (a) both pressed same frame, held 8f; (b) L leads R by 2f (pad skew);
 -- (c) R leads L by 2f. After each attempt logs $8D, MENUOPEN $7F:F005, P1 act
 -- (taunt = 0x65/0x66), and $7F:F000..F00F. Output: traces/p11_lr.txt
-pcall(dofile, "/Users/koneko/Developer/SailorMoonS/tools/probe_p11_lr_cfg.lua")  -- optional TAG
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+pcall(dofile, ENV.TOOLS .. "probe_p11_lr_cfg.lua")  -- optional TAG
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_lr.txt", "w"))
 local frames, step, sf = 0, 1, 0
 local pulse = {}

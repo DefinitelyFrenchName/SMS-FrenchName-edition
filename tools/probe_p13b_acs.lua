@@ -1,7 +1,8 @@
 -- probe_p13b_acs.lua (patch 13 v3, P2): do ACS +0x73 (buff_special) / +0x74 (buff_secret)
 -- scale SPECIAL-move damage? Neptune P1 214LP vs P2, stat swept, hp restored between.
 -- Output: traces/p13b_acs.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p13b_acs.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

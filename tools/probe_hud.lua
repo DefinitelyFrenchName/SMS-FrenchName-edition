@@ -1,7 +1,8 @@
 -- probe_hud.lua — ScriptHud runtime probe: surface sizes at runtime, drawRectangle/String
 -- on scriptHud at scale 2, ruler grid, measureString metrics. Screenshot both surfaces to
 -- traces/probe_hud.png for visual inspection. Headless-friendly.
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local log = io.open(TRACE .. "probe_hud.txt", "w")
 local t, needLoad = -1, true
 

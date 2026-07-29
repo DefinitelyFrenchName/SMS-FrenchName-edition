@@ -1,8 +1,9 @@
 -- probe_p13e_trace.lua: full timeline of Pluto's desperation (632146+HP, hp<=0x18).
 -- Logs per-frame act/hp changes for both players + every write to BOTH hp bytes with
 -- t and PC + $08B0/$0802 changes. Single attempt. Output: traces/p13e_trace.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
-pcall(dofile, "/Users/koneko/Developer/SailorMoonS/tools/probe_p13e_trace_cfg.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
+pcall(dofile, ENV.TOOLS .. "probe_p13e_trace_cfg.lua")
 local LOG = assert(io.open(TRACE .. "p13e_trace.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

@@ -2,8 +2,9 @@
 --   MODE = "solo"    -> run on a patch-12 ROM (build/sms_taunt.sfc): core behavior
 --   MODE = "coexist" -> run on a p11+p12 stacked ROM: chord/menu interaction phases
 -- Output: traces/p12_taunt.txt; exit 0 = all pass.
-dofile("/Users/koneko/Developer/SailorMoonS/tools/test_p12_taunt_cfg.lua")
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "test_p12_taunt_cfg.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p12_taunt.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

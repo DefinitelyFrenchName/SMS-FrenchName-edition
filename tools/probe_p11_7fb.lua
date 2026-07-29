@@ -2,7 +2,8 @@
 -- Loads traces/training_p11.mss, watches $7F reads/writes for 300 frames of fighting:
 -- logs per-frame hit counts, the distinct address set (min/max + up to 60 samples),
 -- and writer/reader PCs (up to 12 distinct). Output: traces/p11_7fb.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_7fb.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 

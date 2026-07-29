@@ -5,7 +5,8 @@
 --       test words to rows 8-15, screenshot (visible?), readback at +160f (stable?),
 --       and log PPU scroll state keys.
 -- Output: traces/p11_res.txt (+ p11_res_rows.png)
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_res.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local function ram(a) return emu.read(a, emu.memType.snesWorkRam) end

@@ -4,9 +4,10 @@
 --                      P1 does 236236P (Uranus special-class melee) into P2
 -- Logs LV2 timeline, P2 hp deltas per hit, and the attacker +0x44 at impact.
 -- Output: appends traces/p13c_e2e.txt
-dofile("/Users/koneko/Developer/SailorMoonS/tools/probe_p13c_e2e_cfg.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "probe_p13c_e2e_cfg.lua")
 TAUNTS = TAUNTS or 3
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p13c_e2e.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

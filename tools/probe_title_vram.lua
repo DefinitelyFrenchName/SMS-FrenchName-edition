@@ -1,7 +1,8 @@
 -- probe_title_vram.lua — boot to the title screen, dump VRAM + CGRAM + screenshot.
 -- ROM=<rom> OUT=<tag> tools/run.sh tools/probe_title_vram.lua 60
 -- Output: traces/titlevram_<tag>.{bin,cgram,png} at frame 420 (title screen up).
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local TAG = os.getenv("OUT") or "clean"
 local t = 0
 local FALSE = { a=false,b=false,x=false,y=false,l=false,r=false,

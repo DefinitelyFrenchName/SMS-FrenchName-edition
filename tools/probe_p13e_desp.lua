@@ -5,9 +5,10 @@
 --   POKES = { {addr=..., val=...}, ... }  (applied after load; e.g. LV2, +0x74)
 -- P1 performs; logs P1 acts >= 0x2B with a44, all P2 hp writes (PC, damage), and any
 -- $C1:0B49 dispatcher hit (Y + record dump). Output: appends traces/p13e_desp.txt
-dofile("/Users/koneko/Developer/SailorMoonS/tools/probe_p13e_desp_cfg.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "probe_p13e_desp_cfg.lua")
 STEPF = STEPF or 3
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p13e_desp.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

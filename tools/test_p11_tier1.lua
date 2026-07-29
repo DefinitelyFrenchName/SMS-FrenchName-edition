@@ -1,7 +1,8 @@
 -- test_p11_tier1.lua (patch 11): Tier-1 feature suite on the PATCHED ROM (tier1 stage).
 -- 10 phases, each from a fresh traces/training_p11.mss load; settings poked at $7F:F02x
 -- (menu phase drives the real L+R menu). Output: traces/p11_tier1.txt; exit 0 = all pass.
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_tier1.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

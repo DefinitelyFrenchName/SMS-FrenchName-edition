@@ -21,10 +21,12 @@ Build stages via --stage {pipe,combo,full} let the pipeline be validated increme
 import argparse
 from hashlib import sha1
 import sys
-sys.path.insert(0, "tools")
+from pathlib import Path as _P
+REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
+sys.path.insert(0, str(REPO / "tools"))
 import asm65816 as A  # noqa: E402
 
-CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+CLEAN = str(REPO / "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc")
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 PROD = 0x00D5E8            # hud_producer entry; first bytes C2 10 E2 20
@@ -680,7 +682,7 @@ def _fix_checksum(data):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="In-match combo counter (base game).")
     ap.add_argument("src", nargs="?", default=CLEAN)
-    ap.add_argument("out", nargs="?", default="build/sms_combocounter.sfc")
+    ap.add_argument("out", nargs="?", default=str(REPO / "build/sms_combocounter.sfc"))
     ap.add_argument("--stage", choices=["pipe", "combo", "full"], default="full",
                     help="pipe=fixed-pattern pipeline test; full=combo counter")
     ap.add_argument("--min-hits", type=int, default=2)

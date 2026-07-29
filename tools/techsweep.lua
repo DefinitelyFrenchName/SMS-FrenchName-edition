@@ -24,8 +24,9 @@
 --            press count M_LO..M_HI (defaults 1..25) to find the mash threshold
 --
 -- USE (headless): edit techsweep_cfg.lua, then  ROM=<rom> tools/run.sh tools/techsweep.lua 600
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
-pcall(dofile, "/Users/koneko/Developer/SailorMoonS/tools/techsweep_cfg.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
+pcall(dofile, ENV.TOOLS .. "techsweep_cfg.lua")
 
 STATE    = STATE or "venus_vs_jupiter_clean.mss"
 THROWER  = THROWER or 0

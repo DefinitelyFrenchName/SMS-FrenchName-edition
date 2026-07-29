@@ -7,6 +7,7 @@
 -- LEFT staging $08D0 (dirty + 4 tile words), and the LEFT VRAM cells $10C2/3 $10E2/3.
 -- Ends with a WHERE-IT-STALLS verdict. Out: traces/probe_p10_vs.txt
 
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local WRAM = emu.memType.snesWorkRam
 local VRAM = emu.memType.snesVideoRam
 local function r(a) return emu.read(a, WRAM) end
@@ -14,7 +15,7 @@ local function w(a, v) emu.write(a, v, WRAM) end
 local function rw(a) return r(a) + 256 * r(a + 1) end
 local function vword(wa) return emu.read(wa * 2, VRAM) + 256 * emu.read(wa * 2 + 1, VRAM) end
 
-local ROOT = "/Users/koneko/Developer/SailorMoonS/"
+local ROOT = ENV.ROOT
 local STATE = ROOT .. "traces/uranus_vs_jupiter.mss"
 local OUT = ROOT .. "traces/probe_p10_vs.txt"
 

@@ -21,11 +21,13 @@ See docs/patch_notes.md "Patch 1" / "Patch 1b".
 import hashlib
 import sys
 
-CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+from pathlib import Path as _P
+REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
+CLEAN = str(REPO / "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc")
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 gate = int(sys.argv[1], 0) if len(sys.argv) > 1 else 0x04
-out = sys.argv[2] if len(sys.argv) > 2 else "build/sms_patched.sfc"
+out = sys.argv[2] if len(sys.argv) > 2 else str(REPO / "build/sms_patched.sfc")
 
 rom = bytearray(open(CLEAN, "rb").read())
 assert hashlib.sha1(rom).hexdigest() == CLEAN_SHA1, "clean ROM hash mismatch"

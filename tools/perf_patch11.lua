@@ -5,8 +5,9 @@
 -- Reports mean/max cycles per stub per phase + UPL2 scanline span. Thresholds:
 -- each stub < 5% of a ~40850-cycle frame; UPL2 span < 25 scanlines.
 -- Output: traces/p11_perf.txt
-dofile("/Users/koneko/Developer/SailorMoonS/tools/perf_patch11_cfg.lua")
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "perf_patch11_cfg.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_perf.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

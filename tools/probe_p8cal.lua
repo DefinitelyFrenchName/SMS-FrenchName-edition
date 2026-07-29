@@ -2,7 +2,8 @@
 -- P2 mashes starting at grab+D for D in {0,2,4,6,8,10,12,14}; log outcome per D
 -- (toss write lo<0x850 vs tech write lo>=0x850, damage). Run on clean AND patched.
 -- Output: appends traces/p8cal.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p8cal.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

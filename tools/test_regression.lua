@@ -23,8 +23,9 @@
 -- Config tools/test_regression_cfg.lua (optional):
 --   EXPECT = "clean"|"all"  (assert detection result), ONLY = "pattern" (filter tests)
 -- Output: traces/regression.txt, final line "ALL PASS (n)" or "FAILURES (k/n)".
-pcall(dofile, "/Users/koneko/Developer/SailorMoonS/tools/test_regression_cfg.lua")
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+pcall(dofile, ENV.TOOLS .. "test_regression_cfg.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "regression.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

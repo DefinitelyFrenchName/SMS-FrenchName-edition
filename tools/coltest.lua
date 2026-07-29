@@ -2,8 +2,9 @@
 -- dump CGRAM. On the palette-patched ROM, charselect confirm = face button (A/B/Y/X),
 -- with L/R/Start as color-range modifiers. Config via coltest_cfg.lua:
 --   CHARA (id), CONFIRM (table like {a=true} or {l=true,a=true}), TAG.
-local TRACE = "/Users/koneko/Developer/SailorMoonS/tools/../traces/"
-dofile("/Users/koneko/Developer/SailorMoonS/tools/coltest_cfg.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
+dofile(ENV.TOOLS .. "coltest_cfg.lua")
 local frames, step, sf = 0, 1, 0
 local pulse = {}
 local function ram(a) return emu.read(a, emu.memType.snesWorkRam) end

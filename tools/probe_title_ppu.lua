@@ -1,6 +1,7 @@
 -- probe_title_ppu.lua — dump PPU state (bg mode, tilemap/CHR bases) at the title screen.
 -- ROM=<rom> OUT=<tag> tools/run.sh tools/probe_title_ppu.lua 60
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local TAG = os.getenv("OUT") or "clean"
 local t = 0
 local FALSE = { a=false,b=false,x=false,y=false,l=false,r=false,

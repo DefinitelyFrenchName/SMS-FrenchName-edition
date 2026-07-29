@@ -2,7 +2,8 @@
 -- Boots to title, enters 1P-vs-COM (left column row 2), autopilots char select, then
 -- watches $5E (P2=CPU held) and $5C for 0x30 bits over 900 in-match frames.
 -- Output: traces/p12_com.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p12_com.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local function ram(a) return emu.read(a, emu.memType.snesWorkRam) end

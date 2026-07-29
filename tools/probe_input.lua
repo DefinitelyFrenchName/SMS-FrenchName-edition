@@ -2,7 +2,8 @@
 -- physical pad, or does a PREVIOUS frame's setInput stick? Headless: no physical input, so
 -- inject y on frames 60-62 only, never touch port 0 after t=63, and log getInput(0) each
 -- frame 59..70 taken at the TOP of inputPolled. Sticky => {y} persists past 63.
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local log = io.open(TRACE .. "probe_input.txt", "w")
 local t, needLoad = -1, true
 local FALSE = { a=false,b=false,x=false,y=false,l=false,r=false,

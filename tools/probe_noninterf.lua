@@ -1,6 +1,7 @@
 -- dump gameplay WRAM ($1000-$1FFF) hash each frame during the infinite rep; also timer.
-pcall(dofile,"/Users/koneko/Developer/SailorMoonS/tools/probe_ni_cfg.lua")
-local ROOT="/Users/koneko/Developer/SailorMoonS/tools/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+pcall(dofile,ENV.TOOLS .. "probe_ni_cfg.lua")
+local ROOT=ENV.TOOLS
 local TRACE=ROOT.."../traces/"
 local C0=dofile(ROOT.."training/const.lua"); local FALSE=C0.FALSE_PAD
 local WRAM=emu.memType.snesWorkRam

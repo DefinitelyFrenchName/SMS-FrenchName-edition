@@ -4,8 +4,9 @@
 -- Damage expectations assume default --l1/l2/l3 = 10/25/45 and the deterministic
 -- fixed-timing rolls (2HP=7, throw=24, tech=12, fireball chip=2).
 -- Output: traces/p13_guts.txt; exit 0 = all pass.
-dofile("/Users/koneko/Developer/SailorMoonS/tools/test_p13_guts_cfg.lua")
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "test_p13_guts_cfg.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p13_guts.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

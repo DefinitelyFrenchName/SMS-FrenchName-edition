@@ -4,7 +4,8 @@
 -- Phase B (mode 5): poke P2 hp=1, P1 2LP kills -> log every act/flag change for 400f:
 --   does the round end (0x0070 change / positions reset / act 0x1F)?
 -- Output: traces/p11_kd.txt (+ p11_kd_end.png)
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_kd.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local function ram(a) return emu.read(a, emu.memType.snesWorkRam) end

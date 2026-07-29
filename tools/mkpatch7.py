@@ -23,7 +23,9 @@ import sys
 import argparse
 from hashlib import sha1
 
-CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+from pathlib import Path as _P
+REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
+CLEAN = str(REPO / "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc")
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 # Pluto hit table $8A:F0C1 = file 0xAF0C1; box 0x03 at +0x18; height byte at +5.
@@ -54,7 +56,7 @@ def _fix_checksum(data):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Extend Pluto 5HP hitbox downward to hit crouchers.")
     ap.add_argument("src", nargs="?", default=CLEAN, help="input ROM (clean or a combined build)")
-    ap.add_argument("out", nargs="?", default="build/sms_pluto5hp.sfc", help="output ROM path")
+    ap.add_argument("out", nargs="?", default=str(REPO / "build/sms_pluto5hp.sfc"), help="output ROM path")
     ap.add_argument("--h", type=lambda s: int(s, 0), default=62,
                     help="new box height. 54=vanilla, 62=all crouchers except Chibi (default), "
                          "64=all incl Chibi.")

@@ -1,5 +1,6 @@
 -- watch reads+writes to 0x0900-0x09FF over a match with action; report any access
-local TRACE="/Users/koneko/Developer/SailorMoonS/tools/../traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE=ENV.TRACE
 local WRAM=emu.memType.snesWorkRam
 local FALSE={a=false,b=false,x=false,y=false,l=false,r=false,up=false,down=false,left=false,right=false,start=false,select=false}
 local t,needLoad=-1,true

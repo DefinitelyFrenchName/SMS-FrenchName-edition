@@ -1,5 +1,6 @@
-local TRACE="/Users/koneko/Developer/SailorMoonS/tools/../traces/"
-pcall(dofile,"/Users/koneko/Developer/SailorMoonS/tools/probe_soak_cfg.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE=ENV.TRACE
+pcall(dofile,ENV.TOOLS .. "probe_soak_cfg.lua")
 local WRAM=emu.memType.snesWorkRam
 local FALSE={a=false,b=false,x=false,y=false,l=false,r=false,up=false,down=false,left=false,right=false,start=false,select=false}
 local t,needLoad=-1,true

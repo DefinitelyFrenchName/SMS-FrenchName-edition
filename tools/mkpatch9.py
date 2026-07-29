@@ -25,7 +25,9 @@ import sys
 import argparse
 from hashlib import sha1
 
-CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+from pathlib import Path as _P
+REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
+CLEAN = str(REPO / "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc")
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 # Deep Submerge fireball object box table $8A:FD51 = file 0xAFD51 (8-byte entries).
@@ -77,7 +79,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(
         description="Fix Neptune Deep Submerge fireball hitbox to track the descending sprite.")
     ap.add_argument("src", nargs="?", default=CLEAN, help="input ROM (clean or a combined build)")
-    ap.add_argument("out", nargs="?", default="build/sms_neptune_ds.sfc", help="output ROM path")
+    ap.add_argument("out", nargs="?", default=str(REPO / "build/sms_neptune_ds.sfc"), help="output ROM path")
     ap.add_argument("--yoff", type=lambda s: int(s, 0), default=-11,
                     help="new y_off for the 4 active hit boxes (signed; box spans origin+yoff "
                          "for h=22). Default -11 centres the box on the ball. Use larger |value| "

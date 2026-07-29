@@ -1,7 +1,8 @@
 -- probe_hudnmi.lua — patch-10 probe R3: who CONSUMES the HUD staging block ($0806-$0815)
 -- and who touches the rest of the $0800 page ($0816-$08FF)? Logs unique reader/writer PCs.
 -- USE: ROM=<clean> tools/run.sh tools/probe_hudnmi.lua 60 → traces/probe_hudnmi.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local log = io.open(TRACE .. "probe_hudnmi.txt", "w")
 local t, needLoad = -1, true
 local consumers, others = {}, {}

@@ -1,5 +1,6 @@
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
-pcall(dofile, "/Users/koneko/Developer/SailorMoonS/tools/probe_shot_cfg.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
+pcall(dofile, ENV.TOOLS .. "probe_shot_cfg.lua")
 local STATE = SHOTSTATE or "venus_vs_jupiter_clean.mss"
 local OUT = SHOTOUT or "cc_shot"
 local AT = SHOTAT or 40

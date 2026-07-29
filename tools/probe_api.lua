@@ -3,7 +3,8 @@
 -- sizes at scale 1/2/4, (3) inputPolled vs exec@$80:8353 ordering, (4) hitstop identity
 -- (+0x43 vs +0x4D) during a 2LP hit, (5) isKeyPressed name tolerance, (6) emu.* API keys.
 -- Headless: ROM=<clean> tools/run.sh tools/probe_api.lua 90 → traces/probe_api.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local log = io.open(TRACE .. "probe_api.txt", "w")
 local function L(s) log:write(s .. "\n"); log:flush() end
 local WRAM = emu.memType.snesWorkRam

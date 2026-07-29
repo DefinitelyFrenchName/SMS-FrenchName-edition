@@ -4,8 +4,9 @@
 --  - watches writes to $212C/$212D (TM/TS) logging value+scanline (first 12)
 --  - dumps CGRAM words 0-31 (BG 2bpp palettes 0-7)
 -- Output: appends traces/p11_ppu.txt
-dofile("/Users/koneko/Developer/SailorMoonS/tools/probe_p11_ppu_cfg.lua")
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "probe_p11_ppu_cfg.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_ppu.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 

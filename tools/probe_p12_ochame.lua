@@ -3,8 +3,9 @@
 -- read-watches $1075 (roll PC) and logs P1 act after each attempt (0x62 = Deep Submerge,
 -- anything else = the native whiff act). Config probe_p12_ochame_cfg.lua: OCHAME (0-255).
 -- Output: appends traces/p12_ochame.txt
-dofile("/Users/koneko/Developer/SailorMoonS/tools/probe_p12_ochame_cfg.lua")
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "probe_p12_ochame_cfg.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p12_ochame.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

@@ -1,6 +1,7 @@
 -- mockup.lua: at the title screen, overwrite the subtitle CHR tiles in VRAM with the
 -- tiles from traces/subtitle_tiles.txt, then screenshot. NO ROM change.
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local OUT = os.getenv("MOCKOUT") or "title_mockup"
 local frames = 0
 local wrote = false

@@ -165,5 +165,7 @@ if __name__ == "__main__":
     out = []
     for slot, tile in zip(ROW13, tops): out.append(f"{slot:03X} {tile.hex()}")
     for slot, tile in zip(ROW14, bots): out.append(f"{slot:03X} {tile.hex()}")
-    open("traces/subtitle_tiles.txt","w").write("\n".join(out))
+    from pathlib import Path as _P
+    REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
+    open(str(REPO / "traces/subtitle_tiles.txt"), "w").write("\n".join(out))
     print(f"rendered '{text}' mode={mode}: {len(out)} tiles -> traces/subtitle_tiles.txt")

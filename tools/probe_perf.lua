@@ -1,6 +1,7 @@
 -- measure compute-stub + flush-stub cycle cost via masterClock deltas; also full-frame cycles.
-pcall(dofile,"/Users/koneko/Developer/SailorMoonS/tools/probe_perf_cfg.lua")
-local TRACE="/Users/koneko/Developer/SailorMoonS/tools/../traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+pcall(dofile,ENV.TOOLS .. "probe_perf_cfg.lua")
+local TRACE=ENV.TRACE
 local WRAM=emu.memType.snesWorkRam
 local t, needLoad = -1, true
 local function mclk() local ok,st=pcall(emu.getState); return ok and (st["cpu.cycleCount"] or st["masterClock"] or 0) or 0 end

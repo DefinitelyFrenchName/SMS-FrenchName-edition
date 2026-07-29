@@ -3,7 +3,8 @@
 -- and her projectile slot ($1100) per frame: object id(+0x00), anim frame(+0x05),
 -- hitbox idx(+0x40), origin Y(+0x25/26), X(+0x21/22), Yvel(+0x32), gravity(+0x34).
 -- Config overridable via globals: STATE, BTN ('y'=LP / 'x'=HP), OUT, MAXT.
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 STATE = STATE or "neptune_vs_jupiter.mss"
 BTN   = BTN or "y"          -- y = LP (214LP), x = HP (214HP)
 OUT   = OUT or "ds_trace.txt"

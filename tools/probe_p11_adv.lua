@@ -1,6 +1,7 @@
 -- probe_p11_adv.lua (patch 11): per-frame act/hitstop timeline for a 2LP on idle dummy,
 -- to calibrate the advantage approximation. Output: traces/p11_adv.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_adv.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

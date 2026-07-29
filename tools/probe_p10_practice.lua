@@ -4,8 +4,9 @@
 -- Loads traces/training_p11.mss (practice match), counts stub executions vs frames.
 -- Out: traces/probe_p10_practice.txt
 
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local WRAM = emu.memType.snesWorkRam
-local ROOT = "/Users/koneko/Developer/SailorMoonS/"
+local ROOT = ENV.ROOT
 local STATE = ROOT .. "traces/training_p11.mss"
 local OUT = ROOT .. "traces/probe_p10_practice.txt"
 

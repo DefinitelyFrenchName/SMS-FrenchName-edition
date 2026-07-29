@@ -1,5 +1,6 @@
 -- probe_vram.lua — patch-10 R4: dump in-match VRAM + CGRAM + the HUD tilemap region.
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local t, needLoad = -1, true
 emu.addMemoryCallback(function()
   if needLoad then

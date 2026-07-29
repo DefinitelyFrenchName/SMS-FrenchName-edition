@@ -2,7 +2,8 @@
 -- covers it. Neptune P1 at hp 0x10 in VS, tries super motions with all buttons; when a
 -- hit lands, logs apply PC + attacker a44 + damage, with LV2 poked to 3.
 -- Output: appends traces/p13c_desp.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p13c_desp.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

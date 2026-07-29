@@ -20,7 +20,8 @@
 -- USE (headless): ROM=<rom> tools/run.sh tools/demo_link.lua
 -- Keys: R re-run, S stop.
 
-local STATE  = LINK_STATE or "/Users/koneko/Developer/SailorMoonS/traces/uranus_vs_jupiter_v07.mss"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local STATE  = LINK_STATE or ENV.TRACE .. "uranus_vs_jupiter_v07.mss"
 local OFFSET = LINK_OFFSET          -- nil => full-sweep report; number => single-offset demo
 local F_LO, F_HI = 108, 122         -- press-frame sweep range
 

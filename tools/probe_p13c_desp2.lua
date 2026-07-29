@@ -4,9 +4,10 @@
 --   STATE = savestate; PLAYER = 1|2 (who performs; directions auto-mirrored by side)
 -- Tries a fixed motion list (qcf/qcb/hcf x LP/LK/HP) and logs every distinct record hit.
 -- Output: appends traces/p12_rec.txt
-dofile("/Users/koneko/Developer/SailorMoonS/tools/probe_p12_rec_cfg.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "probe_p12_rec_cfg.lua")
 -- DESPERATION VARIANT: attacker hp pinned low, defender hp restored; logs acts+a44
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p13c_desp2.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

@@ -8,8 +8,9 @@
 -- POKES ({{t,addr,val}}), CHECKS (list of {t=frame, fn=function(ctx) return ok, msg end}),
 -- DONE (end frame). The harness feeds plans through ctx.padSource so the full input
 -- pipeline (swap/recorder/dummy) is exercised exactly as in the GUI.
-local ROOT = "/Users/koneko/Developer/SailorMoonS/tools/"
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local ROOT = ENV.TOOLS
+local TRACE = ENV.TRACE
 pcall(dofile, ROOT .. "training_test_cfg.lua")
 TEST = TEST or "T1"
 

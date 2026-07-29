@@ -1,5 +1,6 @@
-local ROOT = "/Users/koneko/Developer/SailorMoonS/tools/"
-local TRACE = "/Users/koneko/Developer/SailorMoonS/tools/../traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local ROOT = ENV.TOOLS
+local TRACE = ENV.TRACE
 local C0 = dofile(ROOT .. "training/const.lua")
 local FALSE = C0.FALSE_PAD
 local WRAM = emu.memType.snesWorkRam

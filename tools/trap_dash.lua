@@ -1,6 +1,7 @@
 -- trap_dash.lua: run the rep (2LP>2HP>66); log every write to P1 act ($1001)
 -- with PC + context. Also log writes to $1004 (mirror).
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local log = io.open(TRACE .. "trap_dash.txt", "w")
 local loaded = false
 local t = -1

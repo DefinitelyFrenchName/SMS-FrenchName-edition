@@ -5,7 +5,8 @@
 --   B) alternating HK every other frame -> +0x50 press latch shows fresh HK bits
 --   C) scanline positions of joy_read ($8353) and uploader ($D56F) within the frame/NMI
 -- Output: traces/p11_inj.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_inj.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local function ram(a) return emu.read(a, emu.memType.snesWorkRam) end

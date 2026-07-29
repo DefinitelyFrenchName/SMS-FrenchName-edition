@@ -1,7 +1,8 @@
 -- probe_boxes.lua — visual check of hud_boxes: load the training modules, Venus 5LP at
 -- point blank, screenshot at the active frame + idle. traces/probe_boxes_*.png
-local ROOT = "/Users/koneko/Developer/SailorMoonS/tools/"
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local ROOT = ENV.TOOLS
+local TRACE = ENV.TRACE
 local C0 = dofile(ROOT .. "training/const.lua")
 local ctxRef
 local main = dofile(ROOT .. "training/main.lua")

@@ -4,7 +4,8 @@
 -- B) menu-uneat: open menu, close it, press Y later; log $5C/$5D, p1 act, EATLINGER
 --    per frame to see who eats the press.
 -- Output: traces/p11_dbg.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_dbg.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

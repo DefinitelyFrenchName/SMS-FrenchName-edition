@@ -1,6 +1,7 @@
 -- replicate hud_boxes.lua projectile drawing EXACTLY; BEFORE=draw garbage hurt, AFTER=skip.
-pcall(dofile,"/Users/koneko/Developer/SailorMoonS/tools/probe_vfix_cfg.lua")
-local TRACE="/Users/koneko/Developer/SailorMoonS/tools/../traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+pcall(dofile,ENV.TOOLS .. "probe_vfix_cfg.lua")
+local TRACE=ENV.TRACE
 local WRAM=emu.memType.snesWorkRam; local BUS=emu.memType.snesMemory
 local FALSE={a=false,b=false,x=false,y=false,l=false,r=false,up=false,down=false,left=false,right=false,start=false,select=false}
 local t,needLoad=-1,true

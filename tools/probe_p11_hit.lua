@@ -2,8 +2,9 @@
 --   STATE = savestate filename, MODEPOKE = nil or value for $8D, GAP = px gap (default 16)
 -- Logs P1 act/hitbox/connect-latch and P2 act/hp each frame around the press.
 -- Output: appends to traces/p11_hit.txt
-dofile("/Users/koneko/Developer/SailorMoonS/tools/probe_p11_hit_cfg.lua")
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "probe_p11_hit_cfg.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_hit.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local function ram(a) return emu.read(a, emu.memType.snesWorkRam) end

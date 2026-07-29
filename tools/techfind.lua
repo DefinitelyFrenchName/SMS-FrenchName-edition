@@ -10,8 +10,9 @@
 --
 -- Config via tools/techfind_cfg.lua (optional): STATE, TFRAME, MASH, MASHGAP, NOMASH
 -- USE: ROM=<rom> tools/run.sh tools/techfind.lua 120
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
-pcall(dofile, "/Users/koneko/Developer/SailorMoonS/tools/techfind_cfg.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
+pcall(dofile, ENV.TOOLS .. "techfind_cfg.lua")
 
 STATE   = STATE or "venus_vs_jupiter_clean.mss"
 TFRAME  = TFRAME or 60

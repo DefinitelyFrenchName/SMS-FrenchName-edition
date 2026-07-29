@@ -2,7 +2,8 @@
 -- Phase A: jab at close range in mode 4 (expect: no damage, no hitstun?)
 -- Phase B: poke $8D=5, jab again (expect: damage? hitstun?), watch producer exec + HUD
 -- Output: traces/p11_dmg.txt (+ p11_dmg_mode5.png)
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_dmg.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local function ram(a) return emu.read(a, emu.memType.snesWorkRam) end

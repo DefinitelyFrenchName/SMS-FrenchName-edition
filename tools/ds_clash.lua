@@ -4,7 +4,8 @@
 -- balls thanks to patch 9), screenshots the clash. P1 faces right (214 = down,down-left,left);
 -- P2 faces left (down,down-right,right). P2X pokes P2 closer so the balls meet.
 -- GUI use: open the v0.7_all5_neptuneds build, load traces/neptune_vs_neptune.mss, run this.
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 STATE = STATE or "neptune_vs_neptune.mss"
 OUT   = OUT or "ds_clash.txt"
 P2X   = P2X or 0xF0        -- bring P2 to x=240 (~112px apart) so the two balls overlap

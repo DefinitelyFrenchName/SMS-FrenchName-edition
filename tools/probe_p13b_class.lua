@@ -4,8 +4,9 @@
 --   STATE, SCEN = "melee" (2LP light + 2HP heavy, mode 5) | "proj" (214LP hit + chip)
 --                | "desp" (attacker hp poked low, tries super motions)
 -- Output: appends traces/p13b_class.txt
-dofile("/Users/koneko/Developer/SailorMoonS/tools/probe_p13b_class_cfg.lua")
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "probe_p13b_class_cfg.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p13b_class.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

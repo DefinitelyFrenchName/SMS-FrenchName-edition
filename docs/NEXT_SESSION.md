@@ -22,6 +22,14 @@ regression ALL PASS (40). Geometry + verification: docs/patch_notes_title.md.
 New probes: `tools/probe_title_vram.lua` (VRAM/CGRAM/screenshot at title),
 `tools/probe_title_ppu.lua` (PPU layer state).
 
+**Tooling de-hardcoded:** all Lua tools now resolve paths at runtime via
+`tools/sms_env.lua` (bootstrap one-liner + `ENV.ROOT/TOOLS/TRACE`; HANDOFF §5 has the
+rules — tool scripts must live in `tools/`); Python builders anchor to the repo via
+`__file__`. Everything runs from any cwd/checkout (macOS still assumed). All 14 builders
+re-verified byte-for-byte vs tracked BPS; T1–T10 + regression green. Three stale doc
+hashes found & fixed (p11/p13/p14). New: `demo_link_headless.lua` (logs the connect
+window to a file, exits — use for verification instead of GUI demo_link).
+
 ## What shipped this session (2026-07-25)
 
 **Patch 10 field report fixed** (maintainer: combo counter never appears — in 1P-vs-COM,

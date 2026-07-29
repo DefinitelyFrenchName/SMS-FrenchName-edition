@@ -2,8 +2,9 @@
 -- sites. Config probe_p13b_throws_cfg.lua: STATE, PLAYER (thrower). Walks the thrower in
 -- and presses fwd+HP repeatedly; logs every defender-HP write with PC.
 -- Output: appends traces/p13b_throws.txt
-dofile("/Users/koneko/Developer/SailorMoonS/tools/probe_p13b_throws_cfg.lua")
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "probe_p13b_throws_cfg.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p13b_throws.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

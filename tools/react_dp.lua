@@ -9,5 +9,6 @@
 -- So an invincible-reversal character punishes a non-frame-perfect meaty; only frame-perfect
 -- execution beats the DP. Run on the v0.7 ROM in a live match (loads the Uranus-vs-Neptune
 -- state itself). To see the late-punish case: add a line `REACT_MFV = 116` before the dofile.
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 REACTION="dp"
-dofile("/Users/koneko/Developer/SailorMoonS/tools/react_test.lua")
+dofile(ENV.TOOLS .. "react_test.lua")

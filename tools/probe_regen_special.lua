@@ -3,7 +3,8 @@
 -- ~t=45), then idles and logs every regen gate per frame: P2 hp/maxhp/act/cls,
 -- combo[2].active/freeFrames, proj slot id / alive, until MAXT.
 -- Out: traces/probe_regen_special.txt
-local ROOT = "/Users/koneko/Developer/SailorMoonS/tools/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local ROOT = ENV.TOOLS
 local TRACE = ROOT .. "../traces/"
 local main = dofile(ROOT .. "training/main.lua")
 

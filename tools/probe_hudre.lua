@@ -3,7 +3,8 @@
 -- counts. Scenario: Venus 5LP hits Jupiter at t=64 (established oracle), timer ticking.
 -- Also confirms game_mode ($7E:008D) of the savestate.
 -- USE: ROM=<clean> tools/run.sh tools/probe_hudre.lua 90 → traces/probe_hudre.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local log = io.open(TRACE .. "probe_hudre.txt", "w")
 local WRAM = emu.memType.snesWorkRam
 local function r(a) return emu.read(a, WRAM) end

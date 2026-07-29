@@ -3,7 +3,8 @@
 -- (checks VRAM words + $7F state + TM force) and screenshots for the eyeball check.
 -- Then Start (movelist) -> visible must drop; Start again -> must come back.
 -- Output: traces/p11_pipe.txt (+ p11_pipe.png / p11_pipe_movelist.png)
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_pipe.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local function ram(a) return emu.read(a, emu.memType.snesWorkRam) end

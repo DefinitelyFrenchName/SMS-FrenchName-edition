@@ -5,8 +5,9 @@
 --   with full PC + old->new values.
 -- proj (neptune_vs_jupiter, VS): 214LP fireball hit, fireball blocked (chip?).
 -- Output: appends traces/p13_dmg.txt
-dofile("/Users/koneko/Developer/SailorMoonS/tools/probe_p13_dmg_cfg.lua")
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "probe_p13_dmg_cfg.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p13_dmg.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

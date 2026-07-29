@@ -1,7 +1,8 @@
 -- probe_p11_kolatch.lua (patch 11): find the KO latch. Two identical sweep-KD scenarios
 -- (mode 5): phase L = lethal (hp poked to 1), phase N = normal (hp 0x60). Logs P2 struct
 -- $1080-$10FF at KD+2 / KD+30 / KD+58 for offline diff. Output: traces/p11_kolatch.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_kolatch.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

@@ -2,7 +2,8 @@
 -- Loads training_p11.mss, opens menu (L+R), 4 downs -> DAMAGE, right (ON), L+R close,
 -- pokes P2 hp low, P1 jabs -> KO, waits through the KO latch, then L+R x2.
 -- Logs mode/$0070/$01FA/menu/acts/hp around every step. Output: traces/p11_ko_lr.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_ko_lr.txt", "w"))
 local WRAM = emu.memType.snesWorkRam
 local function ram(a) return emu.read(a, WRAM) end

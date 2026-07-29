@@ -1,7 +1,8 @@
 -- ds_overlay.lua: draw Neptune's Deep Submerge fireball HITBOX (from its own object
 -- box table $8A:FD51, resolved via the projectile's +0x00) plus an origin crosshair on
 -- the console surface, and screenshot across the descent. Lets us SEE box-vs-sprite.
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 STATE = STATE or "neptune_vs_jupiter.mss"
 BTN   = BTN or "y"
 local BUS  = emu.memType.snesMemory

@@ -1,7 +1,8 @@
 -- probe_p11_wmdata.lua (patch 11, P6): does the game touch the WMDATA port $2180-$2183
 -- during a training match (incl. movelist + fighting)? Recording ring depends on it.
 -- Output: traces/p11_wmdata.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_wmdata.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 

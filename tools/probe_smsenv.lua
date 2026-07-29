@@ -1,0 +1,11 @@
+-- probe_smsenv.lua — self-test for sms_env.lua discovery.
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+print("ROOT  = " .. ENV.ROOT)
+print("TOOLS = " .. ENV.TOOLS)
+print("TRACE = " .. ENV.TRACE)
+local f = io.open(ENV.TRACE .. "smsenv_probe.txt", "w")
+f:write("ok\n"); f:close()
+print("write to TRACE: OK")
+local c = ENV.cfg("does_not_exist_cfg.lua")
+print("optional cfg absent -> " .. tostring(c))
+emu.stop(0)

@@ -3,7 +3,8 @@
 -- the KO through the next round's fight-ready state; snapshots $0000-$00FF + $0800-$08FF
 -- at round-1 fight and round-2 fight for a diff (round-counter hunt).
 -- Output: traces/p13_round.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p13_round.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

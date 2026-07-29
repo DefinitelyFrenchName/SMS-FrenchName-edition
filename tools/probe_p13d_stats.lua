@@ -4,8 +4,9 @@
 --   MEASURES = { {addr=0xXXXX|0, val=N, move="jab"|"fb"}, ... }   (addr 0 = baseline)
 -- State: neptune_vs_jupiter (P1 Neptune: jab = 5LP close, fb = 214LP).
 -- Output: appends traces/p13d_stats.txt
-dofile("/Users/koneko/Developer/SailorMoonS/tools/probe_p13d_stats_cfg.lua")
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "probe_p13d_stats_cfg.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p13d_stats.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

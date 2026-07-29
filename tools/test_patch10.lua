@@ -3,7 +3,8 @@
 -- Checks: (1) ROM counter WRAM ($08B0) == Lua combo oracle across the infinite rep;
 --         (2) digit staging renders correct tile words for poked values (single + double).
 -- Writes traces/test_patch10.txt (PASS/FAIL), exits 0/1.
-local ROOT="/Users/koneko/Developer/SailorMoonS/tools/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local ROOT=ENV.TOOLS
 local TRACE=ROOT.."../traces/"
 local C0=dofile(ROOT.."training/const.lua"); local FALSE=C0.FALSE_PAD
 local WRAM=emu.memType.snesWorkRam

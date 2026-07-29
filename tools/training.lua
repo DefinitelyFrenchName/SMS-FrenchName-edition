@@ -37,7 +37,8 @@
 --   [ ] M menu navigates with W/S/A/D, settings persist across restarts
 --   [ ] labels pop on GC/punish/reversal/throw situations (MEATY label removed 2026-07-20)
 -- Headless self-tests (all must pass): see tools/training_test.lua header.
-local ROOT = "/Users/koneko/Developer/SailorMoonS/tools/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local ROOT = ENV.TOOLS
 local main = dofile(ROOT .. "training/main.lua")
 TM = main.run(ROOT, {})
 print("training mode loaded — M for menu, 9 to cycle HUD")

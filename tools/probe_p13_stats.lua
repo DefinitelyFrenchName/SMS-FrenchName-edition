@@ -3,7 +3,8 @@
 -- defense) through a value sweep, measuring Uranus 2LP damage each time (hp restored
 -- between hits). Also exec-watches $C0:D055 (scaling-matrix lookup) during hits.
 -- Output: traces/p13_stats.txt
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p13_stats.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

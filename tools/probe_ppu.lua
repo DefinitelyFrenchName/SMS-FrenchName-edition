@@ -1,4 +1,5 @@
-local TRACE="/Users/koneko/Developer/SailorMoonS/tools/../traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE=ENV.TRACE
 local t,needLoad=-1,true
 emu.addMemoryCallback(function()
   if needLoad then local f=io.open(TRACE.."venus_vs_jupiter_clean.mss","rb"); if not f then return end

@@ -4,8 +4,9 @@
 --   CROUCH (defender holds down), DBTN/DPH (defender presses DBTN at phase DPH),
 --   TAG. One attempt per 200f cycle, 2 cycles max. Logs every defender-hp write with
 --   t, damage, both acts, both y positions. Output: appends traces/hitzone.txt
-dofile("/Users/koneko/Developer/SailorMoonS/tools/probe_hitzone_cfg.lua")
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "probe_hitzone_cfg.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "hitzone.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

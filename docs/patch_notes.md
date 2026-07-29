@@ -28,10 +28,10 @@ the operational map (current state, deliverables, tooling, findings, gotchas).
 | 9. Neptune fireball **(OPTIONAL)** | Deep Submerge fireball hitbox tracks the descending sprite (was stuck at head level) | `tools/mkpatch9.py` | `build/sms_neptune_ds.bps` | `d5ee12a3…` |
 | 10. In-match combo counter **(OPTIONAL)** | Live combo-hit counter rendered by the base game under each attacker's bar (no overlay needed) | `tools/mkpatch10.py` | `build/sms_combocounter.bps` | `ccdd1510…` |
 | 10b. + status labels **(variant of 10)** | Counter + GC/REVERSAL/PUNISH/TECH event text (MEATY label removed 2026-07-20) | `tools/mkpatch10.py --events labels` | `build/sms_combolabels.bps` | `bf5ba9f9…` |
-| 11. Training+ **(OPTIONAL)** | In-ROM training-mode upgrade: L+R menu, dummy control (pose/guard/wakeup/tech), recording+playback, damage/regen/refill, input+ADV display | `tools/mkpatch11.py` | `build/sms_trainingplus.bps` | `42add705…` |
+| 11. Training+ **(OPTIONAL)** | In-ROM training-mode upgrade: L+R menu, dummy control (pose/guard/wakeup/tech), recording+playback, damage/regen/refill, input+ADV display | `tools/mkpatch11.py` | `build/sms_trainingplus.bps` | `574d4948…` |
 | 12. Taunts **(OPTIONAL)** | Taunt on L: each character's native misfire ("ochame") pratfall, fully vulnerable | `tools/mkpatch12.py` | `build/sms_taunt.bps` | `614f318e…` |
-| 13. Guts **(OPTIONAL)** | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py` | `build/sms_tauntbuff.bps` | `04e13428…` |
-| 14. Guts Grip **(OPTIONAL, companion to 13)** | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py` | `build/sms_gutsgrip.bps` | `b90b8fd6…` |
+| 13. Guts **(OPTIONAL)** | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py` | `build/sms_tauntbuff.bps` | `6be3d788…` |
+| 14. Guts Grip **(OPTIONAL, companion to 13)** | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py` | `build/sms_gutsgrip.bps` | `0ce0806f…` |
 
 Combined builds:
 
@@ -1160,7 +1160,7 @@ is the consolidated reference.
 **User guide: `docs/trainingplus.md`** (install, menu reference, drills, internals summary).
 
 **Builder:** `tools/mkpatch11.py [src] [out] [--stage pipe|tier1]` (stacks on any patch 1-10 ROM, any order)
-**Standalone BPS:** `build/sms_trainingplus.bps` (clean+11, ROM sha1 `42add705…`)
+**Standalone BPS:** `build/sms_trainingplus.bps` (clean+11, ROM sha1 `574d4948…`)
 **Canonical+11 BPS:** `build/sms_full11_trainingplus.bps` (v0.7 five + 11, sha1 `09106a07…`)
 **Showcase BPS:** `build/sms_allpatches_v1.1.bps` = patches 1-10 + 11, title "FrenchName v.1.1" (sha1 `be2cb752…`)
 
@@ -1383,7 +1383,7 @@ added: each player's current level (1-3) as a small HUD digit at their top corne
 row 7, cols 1/30; hook `$80:D596`, the uploader's every-frame exit, redrawn per vblank so
 wipes/restages never leave it stale; blank at level 0; visible in VS always, in Practice
 whenever Training+ shows BG3).
-**Standalone BPS:** `build/sms_tauntbuff.bps` (clean+13, ROM sha1 `04e13428…`)
+**Standalone BPS:** `build/sms_tauntbuff.bps` (clean+13, ROM sha1 `6be3d788…`)
 **Showcase BPS:** `build/sms_allpatches_v0.11.bps` = patches 1-13, title "FrenchName v.0.11" (sha1 `be476410…`)
 
 ## What it is
@@ -1441,7 +1441,7 @@ tell). Works standalone (real whiffs only) or with patches 11/12.
 # Patch 14 — "Guts Grip": Guts levels also nerf command grabs (OPTIONAL, companion to 13)
 
 **Deliverables:** `tools/mkpatch14.py`, `build/sms_gutsgrip.bps` (standalone SHA-1
-`b90b8fd6…`). In v0.18+ all-patches builds.
+`0ce0806f…`). In v0.18+ all-patches builds.
 
 ## What
 While a player holds Guts levels (patch 13's taunt-completion stacks), incoming

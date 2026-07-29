@@ -2,6 +2,7 @@
 -- ROM=<build> tools/run.sh tools/probe_title_shot.lua 60
 -- Taps Start a few times to skip intros; saves traces/title_<t>.png at intervals.
 
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local t = 0
 local FALSE = { a=false,b=false,x=false,y=false,l=false,r=false,
                 up=false,down=false,left=false,right=false,start=false,select=false }
@@ -19,7 +20,7 @@ emu.addEventCallback(function()
   t = t + 1
   if SHOTS[t] then
     local png = emu.takeScreenshot()
-    local f = io.open("/Users/koneko/Developer/SailorMoonS/traces/title_" .. t .. ".png", "wb")
+    local f = io.open(ENV.TRACE .. "title_" .. t .. ".png", "wb")
     f:write(png); f:close()
   end
   if t > 1350 then emu.stop(0) end

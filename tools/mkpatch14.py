@@ -37,10 +37,12 @@ Own scratch: $7F:F810-F815 (disjoint from patch 13's F800-F80A).
 import argparse
 from hashlib import sha1
 import sys
-sys.path.insert(0, "tools")
+from pathlib import Path as _P
+REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
+sys.path.insert(0, str(REPO / "tools"))
 import asm65816 as A  # noqa: E402
 
-CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+CLEAN = str(REPO / "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc")
 
 # apply-site tails (site+6 of the toss/tick sites patch 13 hooks at +0)
 TOSS_TAIL = 0x10835
@@ -213,7 +215,7 @@ def _fix_checksum(data):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Guts Grip: Guts levels nerf command grabs (patch 14).")
     ap.add_argument("src", nargs="?", default=CLEAN)
-    ap.add_argument("out", nargs="?", default="build/sms_gutsgrip.sfc")
+    ap.add_argument("out", nargs="?", default=str(REPO / "build/sms_gutsgrip.sfc"))
     ap.add_argument("--l1", type=int, default=20, help="level-1 reduction percent")
     ap.add_argument("--l2", type=int, default=40)
     ap.add_argument("--l3", type=int, default=60)

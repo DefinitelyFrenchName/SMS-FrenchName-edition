@@ -32,11 +32,13 @@ Stages: pipe (plumbing smoke test) / tier1 (full build; default).
 import argparse
 from hashlib import sha1
 import sys
-sys.path.insert(0, "tools")
+from pathlib import Path as _P
+REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
+sys.path.insert(0, str(REPO / "tools"))
 import asm65816 as A  # noqa: E402
 import hudfont  # noqa: E402
 
-CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+CLEAN = str(REPO / "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc")
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 INP = 0x008373
@@ -1879,7 +1881,7 @@ def _fix_checksum(data):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="In-ROM training mode upgrade (patch 11).")
     ap.add_argument("src", nargs="?", default=CLEAN)
-    ap.add_argument("out", nargs="?", default="build/sms_trainingplus.sfc")
+    ap.add_argument("out", nargs="?", default=str(REPO / "build/sms_trainingplus.sfc"))
     ap.add_argument("--stage", choices=["pipe", "tier1"], default="tier1")
     a = ap.parse_args()
     if a.src == CLEAN:

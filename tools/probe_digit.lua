@@ -1,5 +1,6 @@
 -- poke my combo state to a fixed hits value, screenshot to check the rendered glyph
-local TRACE = "/Users/koneko/Developer/SailorMoonS/tools/../traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local WRAM = emu.memType.snesWorkRam
 local t, needLoad = -1, true
 local VAL = POKEVAL or 15

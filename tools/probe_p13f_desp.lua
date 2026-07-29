@@ -6,9 +6,10 @@
 -- Per attempt (400f cycle): restore hp/positions at start, perform, log every
 -- defender-hp write with t+PC+class, defender grab state, performer acts+a44.
 -- Output: appends traces/p13f_desp.txt
-dofile("/Users/koneko/Developer/SailorMoonS/tools/probe_p13f_desp_cfg.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+dofile(ENV.TOOLS .. "probe_p13f_desp_cfg.lua")
 TOFF = TOFF or 0
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p13f_desp.txt", "a"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam

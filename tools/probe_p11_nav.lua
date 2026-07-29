@@ -2,7 +2,8 @@
 -- -> char select autopilot -> in-match. Logs $008D/$1B10/$1B40/$1B42/$1B80/$1000/$1080
 -- every 20f + on step transitions to traces/p11_nav.txt; saves traces/training_p11.mss
 -- + screenshot when a training match is live. Run on the CLEAN ROM via tools/run.sh.
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_nav.txt", "w"))
 local frames, step, sf = 0, 1, 0
 local pulse = {}

@@ -1,5 +1,6 @@
 -- inputprobe.lua: at the menu (f>=900), hold start; log reads of $4016/17/4218-421B
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local log = io.open(TRACE .. "inputprobe.txt", "w")
 local frames = 0
 local logging = false

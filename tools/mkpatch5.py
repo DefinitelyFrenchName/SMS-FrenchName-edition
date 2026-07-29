@@ -16,7 +16,9 @@ adjacent 0x188ED/EE, untouched here). Builds from any input ROM so it stacks.
 import sys
 from hashlib import sha1
 
-CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+from pathlib import Path as _P
+REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
+CLEAN = str(REPO / "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc")
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 SITE = 0x188E9              # LDA #$0B00  (dash X-speed)
 OLD = bytes.fromhex("a9000b")
@@ -51,7 +53,7 @@ if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser(description="Uranus forward-dash distance nerf (via X-speed).")
     ap.add_argument("src", nargs="?", default=CLEAN, help="input ROM (clean or a combined build)")
-    ap.add_argument("out", nargs="?", default="build/sms_dashdist.sfc", help="output ROM path")
+    ap.add_argument("out", nargs="?", default=str(REPO / "build/sms_dashdist.sfc"), help="output ROM path")
     ap.add_argument("--speed", type=lambda s: int(s, 0), default=NEW_SPEED,
                     help="dash X-speed (8.8 fixed-point). 0x0B00=vanilla 121px, 0x0780~98px (-1/5), "
                          "0x0640=82px (-1/3, default), 0x0480=59px (-1/2). Lower = shorter dash.")

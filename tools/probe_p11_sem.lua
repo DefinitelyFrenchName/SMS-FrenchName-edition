@@ -6,7 +6,8 @@
 --   D) damage: P2 pulled close, P1 jabs -> does P2 hp drop in mode 4?
 --   E) Start press (movelist?), L / R / L+R presses, Select press (exit?) + screenshots
 -- Output: traces/p11_sem.txt (+ p11_sem_*.png)
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_sem.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local function ram(a) return emu.read(a, emu.memType.snesWorkRam) end

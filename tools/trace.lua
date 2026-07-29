@@ -5,8 +5,9 @@
 --   LOGFROM, LOGTO: local frame range to log
 --   OUT: output file name (in traces/)
 --   POKES: optional { {t=, addr=, val=}, ... }
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
-dofile("/Users/koneko/Developer/SailorMoonS/tools/trace_plan.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
+dofile(ENV.TOOLS .. "trace_plan.lua")
 
 local log = io.open(TRACE .. (OUT or "trace.txt"), "w")
 local loaded = false

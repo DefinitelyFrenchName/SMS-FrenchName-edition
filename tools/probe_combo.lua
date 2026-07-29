@@ -1,7 +1,8 @@
 -- probe_combo.lua — visual check of hud_combo: run the v0.7 infinite rep, screenshot the
 -- gold 2-hit counter (t=92) and the magenta 3-hit 1F counter after the meaty (t=126).
-local ROOT = "/Users/koneko/Developer/SailorMoonS/tools/"
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local ROOT = ENV.TOOLS
+local TRACE = ENV.TRACE
 local C0 = dofile(ROOT .. "training/const.lua")
 local FALSE = C0.FALSE_PAD
 local FV = 115

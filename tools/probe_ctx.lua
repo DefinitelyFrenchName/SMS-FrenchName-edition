@@ -1,4 +1,5 @@
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local log = io.open(TRACE .. "probe_ctx.txt", "w")
 local t, needLoad = -1, true
 local prodFrames, uplFrames = {}, {}

@@ -15,10 +15,12 @@ are computed from the ROM size, so it stacks with patches 1-3.
 """
 import sys
 from hashlib import sha1
-sys.path.insert(0, "tools")
+from pathlib import Path as _P
+REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
+sys.path.insert(0, str(REPO / "tools"))
 import texttiles as T  # noqa: E402
 
-CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+CLEAN = str(REPO / "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc")
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 HOOK = 0x3B81F           # JSL $808C43 in the title CHR loader tail
 HOOK_OLD = bytes.fromhex("22438c80")
@@ -220,7 +222,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(
         description="Patch the title subtitle. Bump the version by changing --text.")
     ap.add_argument("src", nargs="?", default=CLEAN, help="input ROM (clean or combined build)")
-    ap.add_argument("out", nargs="?", default="build/sms_title.sfc", help="output ROM path")
+    ap.add_argument("out", nargs="?", default=str(REPO / "build/sms_title.sfc"), help="output ROM path")
     ap.add_argument("--text", default=TEXT,
                     help=f'subtitle text, <=21 chars (default: "{TEXT}")')
     ap.add_argument("--style", default=STYLE, choices=["white_red", "red_white", "red"],

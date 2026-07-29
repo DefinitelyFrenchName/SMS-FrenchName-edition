@@ -2,7 +2,8 @@
 -- 'stand'/'crouch'). Logs projectile + P2 state/HP so we can see whether the fireball
 -- connects, and at what height. Compare vanilla vs patched ROM. Config: STATE, BTN, POSE,
 -- OUT, P2X (optional poke of P2 pixel-X to set distance).
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 STATE = STATE or "neptune_vs_jupiter.mss"
 BTN   = BTN or "y"
 POSE  = POSE or "crouch"

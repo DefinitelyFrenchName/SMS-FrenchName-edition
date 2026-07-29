@@ -5,11 +5,12 @@
 --   (a same-base ROM WITHOUT patch 10, for the non-interference diff).
 -- Checks (hard thresholds): (1) compute+flush stub cost < 1% of the frame; (2) glyph-upload
 -- span fits vblank; (3) gameplay RAM frame-identical clean vs patched (zero lag).
-local TRACE="/Users/koneko/Developer/SailorMoonS/tools/../traces/"
-pcall(dofile,"/Users/koneko/Developer/SailorMoonS/tools/perf_patch10_cfg.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE=ENV.TRACE
+pcall(dofile,ENV.TOOLS .. "perf_patch10_cfg.lua")
 STUB_C = STUB_C or 0xEA0000
 STUB_F = STUB_F or 0xEA0772
-local C0=dofile("/Users/koneko/Developer/SailorMoonS/tools/training/const.lua"); local FALSE=C0.FALSE_PAD
+local C0=dofile(ENV.TOOLS .. "training/const.lua"); local FALSE=C0.FALSE_PAD
 local WRAM=emu.memType.snesWorkRam
 local FV=115
 local function pl1(t) local kf={{10,{down=true}},{60,{down=true,y=true}},{62,{down=true}},{77,{down=true,x=true}},{80,{down=true}},{95,{}},{97,{right=true}},{98,{}},{99,{right=true}},{101,{}},{FV,{down=true,y=true}},{FV+2,{down=true}}}

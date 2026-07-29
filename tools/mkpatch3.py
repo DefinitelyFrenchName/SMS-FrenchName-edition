@@ -20,12 +20,14 @@ import sys
 import struct
 from hashlib import sha1
 
-sys.path.insert(0, "vendor/sms-training-mode")
+from pathlib import Path as _P
+REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
+sys.path.insert(0, str(REPO / "vendor/sms-training-mode"))
 from sms_patcher import apply_patch, PATCH_PAL, read_int  # noqa: E402
 
-CLEAN = "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
+CLEAN = str(REPO / "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc")
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
-BIGZAM = "roms/sailor moon s big zam edition (hack).sfc"
+BIGZAM = str(REPO / "roms/sailor moon s big zam edition (hack).sfc")
 BZ_PAL_BASE = 0x2A0000  # palette block in the Big Zam ROM
 TITLE = b"FrenchName "  # 11 chars, space-padded
 
@@ -105,7 +107,7 @@ def _fix_checksum(data):
 
 if __name__ == "__main__":
     src = sys.argv[1] if len(sys.argv) > 1 else CLEAN
-    out = sys.argv[2] if len(sys.argv) > 2 else "build/sms_palettes.sfc"
+    out = sys.argv[2] if len(sys.argv) > 2 else str(REPO / "build/sms_palettes.sfc")
     if src == CLEAN:
         assert sha1(open(src, "rb").read()).hexdigest() == CLEAN_SHA1, "clean hash mismatch"
     build(src, out)

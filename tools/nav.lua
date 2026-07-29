@@ -1,12 +1,13 @@
 -- nav.lua: schedule-driven menu navigation with dense screenshot dumps.
 -- Edit SCHEDULE: list of {frame, buttons_table, hold_frames(default 3), port(default 0)}
 -- Screenshots dumped every SHOT_EVERY frames between SHOT_FROM and SHOT_TO.
-local TRACE = "/Users/koneko/Developer/SailorMoonS/traces/"
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local TRACE = ENV.TRACE
 local log = io.open(TRACE .. "nav.txt", "w")
 local frames = 0
 
 -- dofile the schedule so this harness stays fixed
-dofile("/Users/koneko/Developer/SailorMoonS/tools/nav_schedule.lua")
+dofile(ENV.TOOLS .. "nav_schedule.lua")
 
 local function ram(addr) return emu.read(addr, emu.memType.snesWorkRam) end
 
