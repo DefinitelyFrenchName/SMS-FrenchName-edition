@@ -17,35 +17,73 @@ MEATY on the defender's first actionable frame — unblockable by holding back (
 same-frame block), escapable only by a frame-1/2-invincible reversal. 0x05 (N=5) shifts one
 frame earlier so it lands in hitstun (guaranteed true combo, but a 2-frame connect window).
 See docs/patch_notes.md "Patch 1" / "Patch 1b".
+
+Always builds FROM THE CLEAN ROM (this is the chain's first patch by design).
+Restructured 2026-07-30 (issue #14): main() guard (no work at import), the clean-ROM
+SHA gate raises (not assert), and the header checksum is now fixed like every other
+builder (standalone ROM/BPS hashes changed accordingly).
 """
+import argparse
 import hashlib
 import sys
 
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 CLEAN = clean_rom()
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
-gate = int(sys.argv[1], 0) if len(sys.argv) > 1 else 0x04
-out = sys.argv[2] if len(sys.argv) > 2 else str(REPO / "build/sms_patched.sfc")
 
-rom = bytearray(open(CLEAN, "rb").read())
-assert hashlib.sha1(rom).hexdigest() == CLEAN_SHA1, "clean ROM hash mismatch"
+def _fix_checksum(data):
+    # SNES checksum over a power-of-two footprint: pad-region repeated to fill.
+    # Fixed 2026-07-30 (issue #9): the old `while chk_size <= size` loop skipped the
+    # equality branch and hung on power-of-two sizes, and over-summed 0x380000.
+    size = len(data)
+    chk_size = max(0x80000, 1 << (size - 1).bit_length())
+    if chk_size == size:
+        chk = sum(data)
+    else:
+        half = chk_size // 2
+        cd = bytes(data[half:])
+        cd = (cd * ((half + len(cd) - 1) // len(cd)))[:half]
+        chk = sum(data[:half]) + sum(cd)
+    data[0xFFDE] = chk & 0xFF; data[0xFFDF] = chk >> 8 & 0xFF
+    data[0xFFDC] = data[0xFFDE] ^ 0xFF; data[0xFFDD] = data[0xFFDF] ^ 0xFF
 
-# call site: jsr $0952 -> jsr $BE20
-assert rom[0x1874C:0x1874F] == bytes.fromhex("205209"), rom[0x1874C:0x1874F].hex()
-rom[0x1874C:0x1874F] = bytes.fromhex("2020BE")
 
-# stub at $C1:BE20 (file 0x1BE20), previously zero
-assert rom[0x1BE14:0x1BE34] == bytes(0x20), "stub area not clean"
-stub = bytes([0xE2, 0x20,        # sep #$20
-              0xC9, gate,        # cmp #GATE
-              0xB0, 0x03,        # bcs +3 (to rts)
-              0x4C, 0x52, 0x09,  # jmp $0952
-              0x60])             # rts
-rom[0x1BE20:0x1BE20 + len(stub)] = stub
+def build(gate, out):
+    rom = bytearray(open(CLEAN, "rb").read())
 
-open(out, "wb").write(rom)
-print(f"wrote {out} gate=0x{gate:02X} sha1={hashlib.sha1(rom).hexdigest()}")
+    # call site: jsr $0952 -> jsr $BE20
+    if rom[0x1874C:0x1874F] != bytes.fromhex("205209"):
+        raise ValueError(f"unexpected call-site bytes: {rom[0x1874C:0x1874F].hex()}")
+    rom[0x1874C:0x1874F] = bytes.fromhex("2020BE")
+
+    # stub at $C1:BE20 (file 0x1BE20), previously zero
+    if rom[0x1BE14:0x1BE34] != bytes(0x20):
+        raise ValueError("stub area not clean")
+    stub = bytes([0xE2, 0x20,        # sep #$20
+                  0xC9, gate,        # cmp #GATE
+                  0xB0, 0x03,        # bcs +3 (to rts)
+                  0x4C, 0x52, 0x09,  # jmp $0952
+                  0x60])             # rts
+    rom[0x1BE20:0x1BE20 + len(stub)] = stub
+
+    _fix_checksum(rom)
+    open(out, "wb").write(rom)
+    print(f"wrote {out} gate=0x{gate:02X} sha1={hashlib.sha1(rom).hexdigest()}")
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(
+        description="Patch 1/1b: gate the Uranus 2HP dash-cancel (always builds from the clean ROM).")
+    ap.add_argument("gate", nargs="?", default="0x04",
+                    help="cancel gate tick (hex ok): 0x04=meaty (canonical), 0x05=true combo, 0x03=removed")
+    ap.add_argument("out", nargs="?", default=str(REPO / "build/sms_patched.sfc"))
+    a = ap.parse_args()
+    gate = int(a.gate, 0)
+    if not 0x00 <= gate <= 0x0B:
+        raise SystemExit(f"error: gate {gate:#x} out of range 0x00..0x0B")
+    check_not_inplace(CLEAN, a.out)
+    require_source(CLEAN)   # unconditional clean-SHA gate
+    build(gate, a.out)

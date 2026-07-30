@@ -19,9 +19,10 @@ local function check(name, ok, detail)
   if not ok then fails = fails + 1 end
 end
 
--- font order: 16 p10 letters + BDFJKOW + > + #
+-- font order: patch 10's DERIVED 14 letters (issue #42: shared CHR prefix, no drift),
+-- then p11's extras M,Y + BDFJKOW + > + #
 local ORDER = { }
-for i, c in ipairs({ "G","C","R","E","V","S","A","L","P","U","N","I","H","M","T","Y",
+for i, c in ipairs({ "G","C","R","E","V","S","A","L","P","U","N","I","H","T","M","Y",
                      "B","D","F","J","K","O","W",">","#" }) do ORDER[c] = 0xC7 + i - 1 end
 local function tw(c) return 0x2C00 + ORDER[c] end
 local function rowaddr(i) return 0x1000 + (4 + i) * 32 + 3 end

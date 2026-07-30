@@ -24,7 +24,7 @@ import sys
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 import asm65816 as A  # noqa: E402
 
 CLEAN = clean_rom()
@@ -85,6 +85,9 @@ def _defender_logic(hp, act, st, ttl, sfx):
   sta ${st + 0:04X}
   bra afth{sfx}
 cont{sfx}:
+  lda ${st + 0:04X}
+  cmp #$63
+  bcs afth{sfx}
   inc ${st + 0:04X}
 afth{sfx}:
   lda #${ttl:02X}
@@ -163,6 +166,11 @@ t1{sfx}:
   inx
   bra t1{sfx}
 t2{sfx}:
+  cpx #$0A
+  bcc t2k{sfx}
+  ldx #$09
+  lda #$09
+t2k{sfx}:
   rep #$20
   and #$00FF
   pha
@@ -514,7 +522,8 @@ gok:
 
 def build(src, out, stage="full", minhits=2, ttl=72, modes=(0x00, 0x01, 0x02, 0x04, 0x05),
           events="off"):
-    assert 1 <= ttl <= 255, "ttl must be 1..255 frames"
+    if not 1 <= ttl <= 255:
+        raise ValueError("ttl must be 1..255 frames")
     data = bytearray(open(src, "rb").read())
     while len(data) >= 0x10000 and data[-0x10000:] == bytes(0x10000):
         data = data[:-0x10000]
@@ -650,6 +659,13 @@ glok:
         font_off = (bankbase & 0xFFFF) + len(compute_bytes) + len(flush_bytes)
 
     blob = bytearray(compute_bytes) + flush_bytes + font_blob
+    # bank guards (issue #27): the appended stub+data must fit one 64K bank, and the
+    # target region must be virgin (a collision means stacking standalone BPS — forbidden)
+    if len(blob) > 0x10000:
+        raise SystemExit(f"error: appended blob {len(blob):#x} bytes exceeds one 64K bank")
+    if any(data[bankbase:bankbase + len(blob)]):
+        raise SystemExit(f"error: target bank at {bankbase:#x} is already occupied "
+                         "(never stack standalone BPS files; chain the builders)")
     data[bankbase:bankbase + len(blob)] = blob
 
     # repoint the two hooks (JML into the appended bank)
@@ -668,14 +684,18 @@ glok:
 
 
 def _fix_checksum(data):
-    size = len(data); chk_size = 0x80000
-    while chk_size <= size: chk_size <<= 1
+    # SNES checksum over a power-of-two footprint: pad-region repeated to fill.
+    # Fixed 2026-07-30 (issue #9): the old `while chk_size <= size` loop skipped the
+    # equality branch and hung on power-of-two sizes, and over-summed 0x380000.
+    size = len(data)
+    chk_size = max(0x80000, 1 << (size - 1).bit_length())
     if chk_size == size:
         chk = sum(data)
     else:
-        cd = data[chk_size // 2:]
-        while len(cd) < chk_size // 2: cd += cd[len(cd) - chk_size:]
-        chk = sum(data[:chk_size // 2]) + sum(cd)
+        half = chk_size // 2
+        cd = bytes(data[half:])
+        cd = (cd * ((half + len(cd) - 1) // len(cd)))[:half]
+        chk = sum(data[:half]) + sum(cd)
     data[0xFFDE] = chk & 0xFF; data[0xFFDF] = chk >> 8 & 0xFF
     data[0xFFDC] = data[0xFFDE] ^ 0xFF; data[0xFFDD] = data[0xFFDF] ^ 0xFF
 
@@ -694,8 +714,20 @@ if __name__ == "__main__":
     ap.add_argument("--events", choices=["off", "labels"], default="off",
                     help="off = combo counter only (default); labels = also show "
                          "GC/REVERSAL/PUNISH/TECH status text")
+    ap.add_argument("--stacked", action="store_true",
+                    help="src is an already-patched ROM (builder chaining); skips the clean-SHA gate")
     a = ap.parse_args()
-    if a.src == CLEAN:
-        assert sha1(open(a.src, "rb").read()).hexdigest() == CLEAN_SHA1, "clean hash mismatch"
+    check_not_inplace(a.src, a.out)
+    require_source(a.src, a.stacked)
+    # flag validation (issue #37): reject instead of silently dropping/truncating
+    if a.events == "labels" and a.stage != "full":
+        raise SystemExit("error: --events labels requires --stage full "
+                         f"(got --stage {a.stage}); labels ride the full counter pipeline")
+    if not 1 <= a.min_hits <= 99:
+        raise SystemExit(f"error: --min-hits {a.min_hits} out of range 1..99 (display caps at 99)")
+    if not 1 <= a.ttl <= 255:
+        raise SystemExit(f"error: --ttl {a.ttl} out of range 1..255 frames")
     modes = () if a.modes.strip().lower() == "all" else tuple(int(m, 0) for m in a.modes.split(","))
+    if any(not 0 <= m <= 255 for m in modes):
+        raise SystemExit(f"error: --modes values must be 0..255 ($008D is one byte): {a.modes}")
     build(a.src, a.out, a.stage, a.min_hits, a.ttl, modes, a.events)

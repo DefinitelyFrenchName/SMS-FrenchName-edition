@@ -24,6 +24,8 @@ def assemble(lines, org, bank):
 
     def size_of(mn, op, m, x):
         mn = mn.lower()
+        if mn == "assume":
+            return 0   # width directive, no bytes (e.g. `assume m=1` after plp)
         if mn in ("php","plp","phb","plb","pha","pla","phx","plx","phy","ply","rtl","rts","inc_a","dec_a","tax","txa","tay","tya","xba","clc","sec","inx","dex","iny","dey","nop"):
             return 1
         if mn in ("sep","rep"):
@@ -58,7 +60,14 @@ def assemble(lines, org, bank):
             if bits & 0x20: m = val
             if bits & 0x10: x = val
         elif ml == "plp":
-            m, x = None, None   # width unknown until the next sep/rep (issue #11)
+            m, x = None, None   # width unknown until the next sep/rep/assume (issue #11)
+        elif ml == "assume":
+            # explicit width assertion for caller-guaranteed contexts, e.g. `assume m=1`
+            for part in op.replace(" ", "").split(","):
+                k, _, v = part.partition("=")
+                if k == "m": m = int(v)
+                elif k == "x": x = int(v)
+                else: raise ValueError(f"assume: unknown flag {part!r}")
         return m, x
 
     labels = {}
@@ -108,6 +117,9 @@ def assemble(lines, org, bank):
         mn = parts[0].lower()
         op = parts[1].strip() if len(parts) > 1 else ""
         start = pc
+        if mn == "assume":
+            m, x = apply_flags(mn, op, m, x)
+            continue
         if mn in SIMPLE:
             out.append(SIMPLE[mn]); pc += 1
         elif mn in ("sep","rep"):

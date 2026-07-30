@@ -10,9 +10,9 @@ bank-appending BPS (4, 10/10b, 11, 12, 13, 14) is diffed against the clean ROM a
 targets the same first-free bank, so chained BPS application corrupts the earlier
 patch (see the ⚠️ note below). Custom combos: chain the builders, diff once.
 Regression-guarded by `tools/test_regression.lua` (auto-detects which are present).
-Current all-patches build: **v0.22** (`19a7fc0d…`, rebuilt 2026-07-30 with the patch-4
+Current all-patches build: **v0.22** (`3bb9c829…`, rebuilt 2026-07-30 with the patch-4
 credit line; pre-credit hash `52bc7e38…`). Also current: the **REF v.1 reference
-bundle** (`sms_reference_v1.bps`, ROM `7ab26db4…`, title tell "FrenchName REF v.1";
+bundle** (`sms_reference_v1.bps`, ROM `2873f214…`, title tell "FrenchName REF v.1";
 pre-credit hash `bd1104ee…`) = 1b+2+3+4+5+7+8+9+12+13+14 — the maintainer-requested
 reference combination (true-combo gate; no p6/p10/p11).
 

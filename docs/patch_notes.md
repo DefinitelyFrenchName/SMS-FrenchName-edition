@@ -16,9 +16,9 @@ the operational map (current state, deliverables, tooling, findings, gotchas).
 
 | Patch | What | Builder | Standalone BPS | Patched SHA-1 |
 |---|---|---|---|---|
-| 1. 1f-link **(CANONICAL)** | Uranus infinite → **1-frame meaty** (N=6): exactly one press connects, and it's an unblockable-by-block meaty (escapable by invincible reversal / jump) | `tools/mkpatch.py 0x04` | `build/sms_uranus_infinite_1f.bps` (+`.ips`) | `c773d99a…` |
-| 1b. 1f-link (true combo) | **Alternative to patch 1** — true unblockable 1-frame combo (N=5); wider (2-frame connect: combo@0 + meaty@+1) | `tools/mkpatch.py 0x05` | `build/sms_uranus_infinite_1f_truecombo.bps` (+`.ips`) | `8966c119…` |
-| 2. Dash-fix | Remove reversal-dash invincibility | `tools/mkpatch2.py` | `build/sms_dashfix.bps` (+`.ips`) | `07d760fe…` |
+| 1. 1f-link **(CANONICAL)** | Uranus infinite → **1-frame meaty** (N=6): exactly one press connects, and it's an unblockable-by-block meaty (escapable by invincible reversal / jump) | `tools/mkpatch.py 0x04` | `build/sms_uranus_infinite_1f.bps` (+`.ips`) | `258ffd4e…` |
+| 1b. 1f-link (true combo) | **Alternative to patch 1** — true unblockable 1-frame combo (N=5); wider (2-frame connect: combo@0 + meaty@+1) | `tools/mkpatch.py 0x05` | `build/sms_uranus_infinite_1f_truecombo.bps` (+`.ips`) | `deefccec…` |
+| 2. Dash-fix | Remove reversal-dash invincibility | `tools/mkpatch2.py` | `build/sms_dashfix.bps` (+`.ips`) | `14f747a7…` |
 | 3. Palettes | Sprint / Big Zam extended character colors ( + "FrenchName" rom header for easy rom ID) | `tools/mkpatch3.py` | `build/sms_palettes.bps` | `291f6474…` |
 | 4. Title | Title subtitle → "FrenchName ver. X.Y" + copyright line 1 → BZ's "©MOONLIGHT FIGHT SOCIETY" ("©ANGEL 1994" untouched) | `tools/mkpatch4.py` | `build/sms_title.bps` | `f5337f9a…` |
 | 5. Dash dist | Cut Uranus forward-dash distance ~1/3 | `tools/mkpatch5.py` | `build/sms_dashdist.bps` | `99acb686…` |
@@ -26,21 +26,21 @@ the operational map (current state, deliverables, tooling, findings, gotchas).
 | 7. Pluto 5HP **(OPTIONAL)** | Pluto 5HP hitbox extended down to hit crouchers (all but Chibi) | `tools/mkpatch7.py` | `build/sms_pluto5hp.bps` | `fc757936…` |
 | 8. Venus throw tech **(OPTIONAL)** | Venus 6HP throw mash-escape window 6f → 13f (standard-ish; Jupiter=15f) | `tools/mkpatch8.py` | `build/sms_venustech.bps` | `63ce0748…` |
 | 9. Neptune fireball **(OPTIONAL)** | Deep Submerge fireball hitbox tracks the descending sprite (was stuck at head level) | `tools/mkpatch9.py` | `build/sms_neptune_ds.bps` | `d5ee12a3…` |
-| 10. In-match combo counter **(OPTIONAL)** | Live combo-hit counter rendered by the base game under each attacker's bar (no overlay needed) | `tools/mkpatch10.py` | `build/sms_combocounter.bps` | `ccdd1510…` |
-| 10b. + status labels **(variant of 10)** | Counter + GC/REVERSAL/PUNISH/TECH event text (MEATY label removed 2026-07-20) | `tools/mkpatch10.py --events labels` | `build/sms_combolabels.bps` | `bf5ba9f9…` |
-| 11. Training+ **(OPTIONAL)** | In-ROM training-mode upgrade: L+R menu, dummy control (pose/guard/wakeup/tech), recording+playback, damage/regen/refill, input+ADV display | `tools/mkpatch11.py` | `build/sms_trainingplus.bps` | `574d4948…` |
+| 10. In-match combo counter **(OPTIONAL)** | Live combo-hit counter rendered by the base game under each attacker's bar (no overlay needed) | `tools/mkpatch10.py` | `build/sms_combocounter.bps` | `be072a5e…` |
+| 10b. + status labels **(variant of 10)** | Counter + GC/REVERSAL/PUNISH/TECH event text (MEATY label removed 2026-07-20) | `tools/mkpatch10.py --events labels` | `build/sms_combolabels.bps` | `920652df…` |
+| 11. Training+ **(OPTIONAL)** | In-ROM training-mode upgrade: L+R menu, dummy control (pose/guard/wakeup/tech), recording+playback, damage/regen/refill, input+ADV display | `tools/mkpatch11.py` | `build/sms_trainingplus.bps` | `e9ac2205…` |
 | 12. Taunts **(OPTIONAL)** | Taunt on L: each character's native misfire ("ochame") pratfall, fully vulnerable | `tools/mkpatch12.py` | `build/sms_taunt.bps` | `614f318e…` |
-| 13. Guts **(OPTIONAL)** | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py` | `build/sms_tauntbuff.bps` | `6be3d788…` |
-| 14. Guts Grip **(OPTIONAL, companion to 13)** | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py` | `build/sms_gutsgrip.bps` | `0ce0806f…` |
+| 13. Guts **(OPTIONAL)** | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py` | `build/sms_tauntbuff.bps` | `bafb87d4…` |
+| 14. Guts Grip **(OPTIONAL, companion to 13)** | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py` | `build/sms_gutsgrip.bps` | `5fadcaca…` |
 
 Combined builds:
 
 > **Current bundle:** `build/sms_allpatches_v0.22.bps` — clean → ALL 14 patches (10 as 10b,
 > labels on), title tell "v.0.22", ROM `build/SailorMoonS_FrenchName_v0.22_ALLPATCHES.sfc`
-> (SHA-1 `19a7fc0d…`; rebuilt 2026-07-30 with the patch-4 credit line, pre-credit hash
+> (SHA-1 `3bb9c829…`; rebuilt 2026-07-30 with the patch-4 credit line, pre-credit hash
 > `52bc7e38…`). Also current:
 > `build/sms_reference_v1.bps` — **REF v.1** = 1b+2+3+4+5+7+8+9+12+13+14, title
-> "FrenchName REF v.1", ROM `7ab26db4…` (pre-credit `bd1104ee…`). **2026-07-19 prune:** the historical cumulative bundles listed below
+> "FrenchName REF v.1", ROM `2873f214…` (pre-credit `bd1104ee…`). **2026-07-19 prune:** the historical cumulative bundles listed below
 > (`sms_both`, `sms_full*`, the v1.x line, all-patches < v0.19) were deleted from `build/`
 > (see `docs/patch_index.md`); the entries are kept as historical record of what each
 > lineage contained. Custom combinations are rebuilt by chaining the `mkpatchN.py` builders
@@ -139,7 +139,7 @@ retune: `python3 tools/mkpatch.py 0x05 build/n5.sfc` (true-combo gate), or
 
 # Patch 1 — Uranus Infinite™ → 1-frame link
 
-Patched ROM SHA-1 `c773d99a16910c9aff57a6df019b713ffcf87160`.
+Patched ROM SHA-1 `258ffd4e16910c9aff57a6df019b713ffcf87160`.
 Deliverables: `build/sms_uranus_infinite_1f.bps` (canonical), `.ips` (convenience),
 built by `tools/mkpatch.py 0x04`.
 
@@ -306,7 +306,7 @@ had slack lose it. Measured, and kept as balance features:
 
 # Patch 1b — 1f-link, true-combo variant (N=5)  *(alternative to patch 1)*
 
-Patched (standalone) SHA-1 `8966c119d1415f64f4bebd2af9c33f91847cd60b`.
+Patched (standalone) SHA-1 `deefccecd1415f64f4bebd2af9c33f91847cd60b`.
 Deliverables: `build/sms_uranus_infinite_1f_truecombo.bps` (+`.ips`), built by
 `tools/mkpatch.py 0x05`. **Apply this instead of patch 1, not on top of it** — both
 write the same gate byte at `0x1BE23`.
@@ -414,7 +414,7 @@ Identical to patch 1 except the single gate operand:
 
 # Patch 2 — Remove reversal forward-dash invincibility
 
-Patched (dashfix only) SHA-1 `07d760fea31b727dd30200d59f1239404fc1ab7b`.
+Patched (dashfix only) SHA-1 `14f747a7a31b727dd30200d59f1239404fc1ab7b`.
 Deliverables: `build/sms_dashfix.bps` (clean → dash-fix), `build/sms_dashfix.ips`
 (checksum-free, **stacks onto the 1f-link ROM**), `build/sms_both.bps` (clean → patch 1+2).
 Built by `tools/mkpatch2.py`.
@@ -962,7 +962,7 @@ now lands at the ball's true position too. No further bytes to change.
 # Patch 10 — in-match combo counter (base game) (OPTIONAL / experimental)
 
 **Deliverables:** `tools/mkpatch10.py`, `build/sms_combocounter.bps` (standalone, patched
-SHA-1 `b819f3d4…` since the 2026-07-25 fixes; historical pre-fix `ccdd1510…`),
+SHA-1 `be072a5e…` since the 2026-07-25 fixes; historical pre-fix `ccdd1510…`),
 `build/sms_full10_combo.bps` (canonical v0.7 + this, ROM
 `build/SailorMoonS_FrenchName_v0.7_all5_combo.sfc`, SHA-1 `b0d5500f…`, historical). Answers
 the feasibility question "can the training-mode combo counter live in the ROM?" — **yes**,
@@ -1042,7 +1042,7 @@ its own scratch + free VRAM cells).
 - **Gating:** in a disallowed mode the counter blanks (pre-2026-07-25 this wrongly
   included `$008D`=2 = 1P-vs-COM; mode 2 is now allowed by default).
 - **Non-interference / no lag:** frame-identical gameplay RAM + timer clean vs patched.
-- **Packaging:** BPS round-trip SHA-1 `ccdd1510…`; hooks byte-disjoint from patches 1–9.
+- **Packaging:** BPS round-trip SHA-1 `be072a5e…`; hooks byte-disjoint from patches 1–9.
 
 ## Knob
 | Knob | Flag | Default | Effect |
@@ -1101,7 +1101,7 @@ there is **no noticeable lag** — the definitive test is frame-identity, not th
 |---|---|---|---|
 | Status labels | `mkpatch10.py --events` | `off` | `labels` = also show GC/REVERSAL/PUNISH/TECH text |
 
-Standalone `build/sms_combolabels.bps` (SHA-1 `bf5ba9f9…`), combined
+Standalone `build/sms_combolabels.bps` (SHA-1 `920652df…`), combined
 `build/sms_full10_combolabels.bps` (ROM `…_v0.7_all5_combolabels.sfc`). Same two hooks as the
 counter (`0x0D56F`, `0x0D5E8`) — byte-disjoint from patches 1–9.
 
@@ -1131,7 +1131,7 @@ flips --apply build/sms_gutsgrip.bps           <clean ROM> <out>   # patch 14 (o
 # everything at once (the current bundle)
 flips --apply build/sms_allpatches_v0.22.bps   <clean ROM> <out>   # ALL 14 patches (10b labels on)
 # the REF v.1 reference combination (1b+2+3+4+5+7+8+9+12+13+14)
-flips --apply build/sms_reference_v1.bps       <clean ROM> <out>   # -> sha 7ab26db4…
+flips --apply build/sms_reference_v1.bps       <clean ROM> <out>   # -> sha 2873f214…
 
 # stacking IPS onto an already-patched ROM — ONLY the fixed-address patches ship .ips
 # (1/1b, 2, 6: no appended bank, checksum-free, safe to stack):
@@ -1160,7 +1160,7 @@ is the consolidated reference.
 **User guide: `docs/trainingplus.md`** (install, menu reference, drills, internals summary).
 
 **Builder:** `tools/mkpatch11.py [src] [out] [--stage pipe|tier1]` (stacks on any patch 1-10 ROM, any order)
-**Standalone BPS:** `build/sms_trainingplus.bps` (clean+11, ROM sha1 `574d4948…`)
+**Standalone BPS:** `build/sms_trainingplus.bps` (clean+11, ROM sha1 `e9ac2205…`)
 **Canonical+11 BPS:** `build/sms_full11_trainingplus.bps` (v0.7 five + 11, sha1 `09106a07…`)
 **Showcase BPS:** `build/sms_allpatches_v1.1.bps` = patches 1-10 + 11, title "FrenchName v.1.1" (sha1 `be2cb752…`)
 
@@ -1383,7 +1383,7 @@ added: each player's current level (1-3) as a small HUD digit at their top corne
 row 7, cols 1/30; hook `$80:D596`, the uploader's every-frame exit, redrawn per vblank so
 wipes/restages never leave it stale; blank at level 0; visible in VS always, in Practice
 whenever Training+ shows BG3).
-**Standalone BPS:** `build/sms_tauntbuff.bps` (clean+13, ROM sha1 `6be3d788…`)
+**Standalone BPS:** `build/sms_tauntbuff.bps` (clean+13, ROM sha1 `bafb87d4…`)
 **Showcase BPS:** `build/sms_allpatches_v0.11.bps` = patches 1-13, title "FrenchName v.0.11" (sha1 `be476410…`)
 
 ## What it is
@@ -1441,7 +1441,7 @@ tell). Works standalone (real whiffs only) or with patches 11/12.
 # Patch 14 — "Guts Grip": Guts levels also nerf command grabs (OPTIONAL, companion to 13)
 
 **Deliverables:** `tools/mkpatch14.py`, `build/sms_gutsgrip.bps` (standalone SHA-1
-`0ce0806f…`). In v0.18+ all-patches builds.
+`5fadcaca…`). In v0.18+ all-patches builds.
 
 ## What
 While a player holds Guts levels (patch 13's taunt-completion stacks), incoming

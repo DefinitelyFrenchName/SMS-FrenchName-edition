@@ -15,7 +15,7 @@ Apply one of the BPS patches (with Flips or any BPS patcher) to the **clean** Ja
 
 | Patch file | Contents | Result ROM SHA-1 |
 |---|---|---|
-| `build/sms_trainingplus.bps` | clean + patch 11 only | `574d4948…` |
+| `build/sms_trainingplus.bps` | clean + patch 11 only | `e9ac2205…` |
 | `build/sms_full11_trainingplus.bps` | canonical v0.7 (patches 1-5) + 11 | `09106a07…` |
 | `build/sms_allpatches_v1.1.bps` | **everything** (patches 1-11), title shows "v.1.1" | `be2cb752…` |
 

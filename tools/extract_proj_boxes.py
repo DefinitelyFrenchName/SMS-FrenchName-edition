@@ -31,9 +31,16 @@ def parse_box(e):
 
 def main():
     rom = open(sys.argv[1], "rb").read()
-    if len(rom) % 0x100000 == 0x200:
-        rom = rom[0x200:]
-    print("SHA-1:", hashlib.sha1(rom).hexdigest(), file=sys.stderr)
+    if len(rom) % 0x8000 == 0x200:
+        rom = rom[0x200:]  # strip copier header (issue #38: was % 0x100000, never matched)
+    h = hashlib.sha1(rom).hexdigest()
+    print("SHA-1:", h, file=sys.stderr)
+    from pathlib import Path as _P
+    sys.path.insert(0, str(_P(__file__).resolve().parent))
+    from smspaths import CLEAN_SHA1
+    if h != CLEAN_SHA1 and "--force" not in sys.argv:
+        raise SystemExit(f"error: not the clean ROM (expected {CLEAN_SHA1}); "
+                         "pass --force to extract anyway")
     rw = lambda fo: struct.unpack("<H", rom[fo:fo + 2])[0]
 
     ptrs = [rw(BANK + PT_HIT + i * 2) for i in range(N_PTR)]

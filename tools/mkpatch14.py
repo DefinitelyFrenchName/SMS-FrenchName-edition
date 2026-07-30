@@ -40,7 +40,7 @@ import sys
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 import asm65816 as A  # noqa: E402
 
 CLEAN = clean_rom()
@@ -120,6 +120,10 @@ cl{sfx}:
   sta_l ${SCR16:06X}
   lda_l ${SCRD:06X}
   and #$00FF
+  cmp #$0080
+  bcc dk{sfx}
+  lda #$007F
+dk{sfx}:
   clc
   adc_l ${SCR16:06X}
   tax
@@ -159,6 +163,7 @@ j2:
 fin:
   sep #$20
   plp
+  assume m=1 ; caller context: the hooked tail's own `cmp #$90` guarantees 8-bit A
   lda_l ${SCRF:06X}
   cmp #$90
   bcc dost
@@ -187,6 +192,13 @@ def build(src, out, pcts=(20, 40, 60), all_grabs=False):
     body, _ = A.assemble(_stub(table_long, all_grabs).splitlines(), stub_off, bank)
 
     blob = tables + body
+    # bank guards (issue #27): the appended stub+data must fit one 64K bank, and the
+    # target region must be virgin (a collision means stacking standalone BPS — forbidden)
+    if len(blob) > 0x10000:
+        raise SystemExit(f"error: appended blob {len(blob):#x} bytes exceeds one 64K bank")
+    if any(data[bankbase:bankbase + len(blob)]):
+        raise SystemExit(f"error: target bank at {bankbase:#x} is already occupied "
+                         "(never stack standalone BPS files; chain the builders)")
     data[bankbase:bankbase + len(blob)] = blob
 
     jsl = bytes([0x22, stub_off & 0xFF, (stub_off >> 8) & 0xFF, bank])
@@ -201,14 +213,18 @@ def build(src, out, pcts=(20, 40, 60), all_grabs=False):
 
 
 def _fix_checksum(data):
-    size = len(data); chk_size = 0x80000
-    while chk_size <= size: chk_size <<= 1
+    # SNES checksum over a power-of-two footprint: pad-region repeated to fill.
+    # Fixed 2026-07-30 (issue #9): the old `while chk_size <= size` loop skipped the
+    # equality branch and hung on power-of-two sizes, and over-summed 0x380000.
+    size = len(data)
+    chk_size = max(0x80000, 1 << (size - 1).bit_length())
     if chk_size == size:
         chk = sum(data)
     else:
-        cd = data[chk_size // 2:]
-        while len(cd) < chk_size // 2: cd += cd[len(cd) - chk_size:]
-        chk = sum(data[:chk_size // 2]) + sum(cd)
+        half = chk_size // 2
+        cd = bytes(data[half:])
+        cd = (cd * ((half + len(cd) - 1) // len(cd)))[:half]
+        chk = sum(data[:half]) + sum(cd)
     data[0xFFDE] = chk & 0xFF; data[0xFFDF] = chk >> 8 & 0xFF
     data[0xFFDC] = data[0xFFDE] ^ 0xFF; data[0xFFDD] = data[0xFFDF] ^ 0xFF
 
@@ -222,5 +238,9 @@ if __name__ == "__main__":
     ap.add_argument("--l3", type=int, default=60)
     ap.add_argument("--all-grabs", action="store_true",
                     help="nerf ALL grab-path damage (normal throws and hold-throws included)")
+    ap.add_argument("--stacked", action="store_true",
+                    help="src is an already-patched ROM (builder chaining); skips the clean-SHA gate")
     args = ap.parse_args()
+    check_not_inplace(args.src, args.out)
+    require_source(args.src, args.stacked)
     build(args.src, args.out, (args.l1, args.l2, args.l3), args.all_grabs)

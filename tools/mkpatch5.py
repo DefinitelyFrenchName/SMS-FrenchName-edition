@@ -19,7 +19,7 @@ from hashlib import sha1
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 CLEAN = clean_rom()
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 SITE = 0x188E9              # LDA #$0B00  (dash X-speed)
@@ -31,23 +31,25 @@ def build(src_path, out_path, speed=NEW_SPEED):
     assert data[SITE:SITE+3] == OLD, f"dash-speed site: {data[SITE:SITE+3].hex()}"
     data[SITE+1] = speed & 0xFF
     data[SITE+2] = (speed >> 8) & 0xFF
-    # header + checksum (only matters for a standalone base image; harmless when stacked)
-    if data[0xFFC0:0xFFC8] == b"\xBE\xB0\xD7\xB0\xD1\xB0\xDDS":
-        pass  # keep whatever title/header the input already has
+    # keep whatever title/header the input already has; just refresh the checksum
     _fix_checksum(data)
     open(out_path, "wb").write(data)
     print(f"wrote {out_path} from {src_path}: dash speed 0x0B00->{speed:#06x}, "
           f"sha1={sha1(bytes(data)).hexdigest()}")
 
 def _fix_checksum(data):
-    size = len(data); chk_size = 0x80000
-    while chk_size <= size: chk_size <<= 1
+    # SNES checksum over a power-of-two footprint: pad-region repeated to fill.
+    # Fixed 2026-07-30 (issue #9): the old `while chk_size <= size` loop skipped the
+    # equality branch and hung on power-of-two sizes, and over-summed 0x380000.
+    size = len(data)
+    chk_size = max(0x80000, 1 << (size - 1).bit_length())
     if chk_size == size:
         chk = sum(data)
     else:
-        cd = data[chk_size//2:]
-        while len(cd) < chk_size//2: cd += cd[len(cd)-chk_size:]
-        chk = sum(data[:chk_size//2]) + sum(cd)
+        half = chk_size // 2
+        cd = bytes(data[half:])
+        cd = (cd * ((half + len(cd) - 1) // len(cd)))[:half]
+        chk = sum(data[:half]) + sum(cd)
     data[0xFFDE] = chk & 0xFF; data[0xFFDF] = chk >> 8 & 0xFF
     data[0xFFDC] = data[0xFFDE] ^ 0xFF; data[0xFFDD] = data[0xFFDF] ^ 0xFF
 
@@ -59,7 +61,9 @@ if __name__ == "__main__":
     ap.add_argument("--speed", type=lambda s: int(s, 0), default=NEW_SPEED,
                     help="dash X-speed (8.8 fixed-point). 0x0B00=vanilla 121px, 0x0780~98px (-1/5), "
                          "0x0640=82px (-1/3, default), 0x0480=59px (-1/2). Lower = shorter dash.")
+    ap.add_argument("--stacked", action="store_true",
+                    help="src is an already-patched ROM (builder chaining); skips the clean-SHA gate")
     a = ap.parse_args()
-    if a.src == CLEAN:
-        assert sha1(open(a.src, "rb").read()).hexdigest() == CLEAN_SHA1, "clean hash mismatch"
+    check_not_inplace(a.src, a.out)
+    require_source(a.src, a.stacked)
     build(a.src, a.out, a.speed)

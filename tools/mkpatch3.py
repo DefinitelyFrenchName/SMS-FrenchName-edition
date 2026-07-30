@@ -17,20 +17,21 @@ Builds from any input ROM (clean or the stacked 1f-link+dashfix build): the PATC
 anchors live in bank $C0, disjoint from our bank-$C1 gameplay patches.
 """
 import sys
-import struct
 from hashlib import sha1
 
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, bigzam_rom  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, bigzam_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 sys.path.insert(0, str(REPO / "vendor/sms-training-mode"))
 from sms_patcher import apply_patch, PATCH_PAL, read_int  # noqa: E402
 
 CLEAN = clean_rom()
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 BIGZAM = bigzam_rom()
+BZ_SHA1 = "12114423b278d3114a301c5366a7a1811913ba25"   # donor validation (issue #8)
 BZ_PAL_BASE = 0x2A0000  # palette block in the Big Zam ROM
+BZ_MIN_LEN = BZ_PAL_BASE + 0x1000 * 10                # palette block must be fully present
 TITLE = b"FrenchName "  # 11 chars, space-padded
 
 NAMES = ["", "Moon", "Mercury", "Mars", "Jupiter", "Venus",
@@ -42,6 +43,13 @@ def build(src_path, out_path):
     if len(data) > 0x280000 and data[0x280000:] == bytes(len(data) - 0x280000):
         data = data[:0x280000]
     bz = open(BIGZAM, "rb").read()
+    # donor validation (issue #8): a short/wrong donor must fail loudly, not shift the image
+    bzh = sha1(bz).hexdigest()
+    if bzh != BZ_SHA1:
+        raise SystemExit(f"error: Big Zam donor ROM hash mismatch — {BIGZAM}\n"
+                         f"  got sha1 {bzh}\n  expected {BZ_SHA1}")
+    if len(bz) < BZ_MIN_LEN:
+        raise SystemExit(f"error: Big Zam donor too short ({len(bz):#x} < {BZ_MIN_LEN:#x})")
 
     # 1) Apply the palette hooks + selection code + appended block (patcher-exact).
     apply_patch(data, PATCH_PAL)
@@ -91,25 +99,26 @@ def build(src_path, out_path):
           f"{len(data):#x} bytes, sha1={sha1(bytes(data)).hexdigest()}")
 
 def _fix_checksum(data):
+    # SNES checksum over a power-of-two footprint: pad-region repeated to fill.
+    # Fixed 2026-07-30 (issue #9): the old `while chk_size <= size` loop skipped the
+    # equality branch and hung on power-of-two sizes, and over-summed 0x380000.
     size = len(data)
-    chk_size = 0x80000
-    while chk_size <= size:
-        chk_size <<= 1
+    chk_size = max(0x80000, 1 << (size - 1).bit_length())
     if chk_size == size:
         chk = sum(data)
     else:
-        chk_data = data[chk_size // 2:]
-        while len(chk_data) < chk_size // 2:
-            chk_data += chk_data[len(chk_data) - chk_size:]
-        chk = sum(data[:chk_size // 2]) + sum(chk_data)
-    data[0xFFDE] = chk & 0xFF
-    data[0xFFDF] = chk >> 8 & 0xFF
-    data[0xFFDC] = data[0xFFDE] ^ 0xFF
-    data[0xFFDD] = data[0xFFDF] ^ 0xFF
+        half = chk_size // 2
+        cd = bytes(data[half:])
+        cd = (cd * ((half + len(cd) - 1) // len(cd)))[:half]
+        chk = sum(data[:half]) + sum(cd)
+    data[0xFFDE] = chk & 0xFF; data[0xFFDF] = chk >> 8 & 0xFF
+    data[0xFFDC] = data[0xFFDE] ^ 0xFF; data[0xFFDD] = data[0xFFDF] ^ 0xFF
 
 if __name__ == "__main__":
-    src = sys.argv[1] if len(sys.argv) > 1 else CLEAN
-    out = sys.argv[2] if len(sys.argv) > 2 else str(REPO / "build/sms_palettes.sfc")
-    if src == CLEAN:
-        assert sha1(open(src, "rb").read()).hexdigest() == CLEAN_SHA1, "clean hash mismatch"
+    argv = [x for x in sys.argv[1:] if x != "--stacked"]
+    stacked = "--stacked" in sys.argv[1:]
+    src = argv[0] if len(argv) > 0 else CLEAN
+    out = argv[1] if len(argv) > 1 else str(REPO / "build/sms_palettes.sfc")
+    check_not_inplace(src, out)
+    require_source(src, stacked)
     build(src, out)

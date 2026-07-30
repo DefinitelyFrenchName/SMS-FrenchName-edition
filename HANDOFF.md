@@ -54,6 +54,29 @@ resolved at runtime (`tools/smspaths.py` + `run.sh`): `$SMS_ROM_DIR` → `roms/`
 paths + the missing-ROM error verified; full 16-output builder hash audit green after
 the refactor.
 
+**2026-07-30 — adversarial-review remediation (issues #2–#57), batches A–C:** see the
+GitHub tracker for per-issue evidence; every fix commented and auto-verifiable ones
+closed. Key operational changes:
+- **`--stacked` is now REQUIRED on every chained builder step** (unconditional SHA gate,
+  #12); `src == out` is rejected (#56); the §2 chain examples and the new committed
+  bundle recipes `tools/build_v022.sh` / `tools/build_ref_v1.sh` (#10) reflect this.
+- Regression suite is a real gate: exits 1 on failure (#2), pre-flights fixtures (#4,
+  the 6 missing ones are force-added), detects never-fired checks (#7), tracks HP
+  per-player (#16), detects both p1 gates (#29 — REF reads p1=Y(gate 05)).
+- Guts resets on TIMED-OUT rounds (#21, A/B frame-advance proof, probe_p13_timeout.lua).
+- Builders: checksum fix in all 14 (#9 — hung at power-of-two sizes), donor validation
+  (#8), bank guards (#27), p14 damage-table clamp (#41), p10 counter caps at 99 + flag
+  validation (#36/#37), p11 glyph list derived from p10 (#42; fixed a real bundle bug —
+  label episodes re-uploaded T over p11's M slot — and gave the ADV display a real
+  minus glyph that had silently rendered blank).
+- STANDALONE HASHES CHANGED: p1 `258ffd4e`, p1b `deefccec`, p2 `14f747a7` (checksum now
+  fixed, #14 — chain outputs unaffected since later builders recompute it), p10
+  `be072a5e`, p10b `920652df`, p11 `e9ac2205`, p13 `bafb87d4`, p14 `5fadcaca`.
+  Bundles: v0.22 `3bb9c829…`, REF v.1 `2873f214…`. Canonical v0.7 `24aa6b6d…`
+  unchanged (reproduced byte-for-byte with the new builders).
+- Suite-count note: v0.22 full run counts differ slightly from the 07-25 numbers only
+  via EXPECT cfg (58 + static-expect-all = 59) — see §4.
+
 **2026-07-25 — patch 10 field report fixed + REF v.1 bundle:**
 - Maintainer reported the combo counter never appears and status labels never disappear
   (v0.21 + p10 standalone). Two root causes, both fixed in `mkpatch10.py` and A/B-verified
@@ -128,8 +151,8 @@ after projectile-special damage (framedata move machine stuck; see §4 and
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
 - `SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` — `be2cb752…` — patches 1-11 (BPS `build/sms_allpatches_v1.1.bps`).
-- **`SailorMoonS_FrenchName_v0.22_ALLPATCHES.sfc`** — `19a7fc0d…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.22.bps`, title v.0.22; patch-10 counter/label fixes 2026-07-25; rebuilt 2026-07-30 with the patch-4 credit line — pre-credit hash was `52bc7e38…`).
-- **`SailorMoonS_FrenchName_REF_v1.sfc`** — `7ab26db4…` — **REF v.1 reference bundle** 1b+2+3+4+5+7+8+9+12+13+14 (BPS `build/sms_reference_v1.bps`, title "FrenchName REF v.1"; rebuilt 2026-07-30 with the patch-4 credit line — pre-credit hash was `bd1104ee…`).
+- **`SailorMoonS_FrenchName_v0.22_ALLPATCHES.sfc`** — `3bb9c829…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.22.bps`, title v.0.22; built by `tools/build_v022.sh`; lineage: `52bc7e38…` 07-25 fixes → `19a7fc0d…` 07-30 credit line → `3bb9c829…` 07-30 review-remediation fixes).
+- **`SailorMoonS_FrenchName_REF_v1.sfc`** — `2873f214…` — **REF v.1 reference bundle** 1b+2+3+4+5+7+8+9+12+13+14 (BPS `build/sms_reference_v1.bps`, title "FrenchName REF v.1"; built by `tools/build_ref_v1.sh`; lineage: `bd1104ee…` → `7ab26db4…` credit line → `2873f214…` review fixes).
 - `SailorMoonS_FrenchName_v0.21_ALLPATCHES.sfc` — `62ffb174…` — previous build (BPS `build/sms_allpatches_v0.21.bps`, title v.0.21; MEATY status label removed from patch 10b; p10 counter/label bugs present).
 - `SailorMoonS_FrenchName_v0.20_ALLPATCHES.sfc` — `9b0ae040…` — previous build (BPS `build/sms_allpatches_v0.20.bps`; Guts v3.4 = level indicator training-only).
 - `SailorMoonS_FrenchName_v0.18_ALLPATCHES.sfc` — `86b7f44c…` — previous build (BPS `build/sms_allpatches_v0.18.bps`).
@@ -163,14 +186,18 @@ accident. The filenames are fixed (clean + Big Zam, exact names in `smspaths.py`
 the directory moves.
 
 ```bash
-CLEAN="roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
-# rebuild the canonical v0.7 chain (N=6):
+# resolve the clean ROM the same way the tooling does ($SMS_ROM_DIR -> roms/ -> ../roms/):
+CLEAN="$(python3 -c 'import sys;sys.path.insert(0,"tools");from smspaths import clean_rom;print(clean_rom())')"
+# rebuild the canonical v0.7 chain (N=6). Since 2026-07-30 every stacked step needs
+# --stacked (the SHA gate is unconditional; a non-clean src without it is an error):
 python3 tools/mkpatch.py  0x04            /tmp/s1.sfc
-python3 tools/mkpatch2.py /tmp/s1.sfc     /tmp/s2.sfc
-python3 tools/mkpatch3.py /tmp/s2.sfc     /tmp/s3.sfc
-python3 tools/mkpatch4.py /tmp/s3.sfc     /tmp/s4.sfc --text "FrenchName v.0.7"
-python3 tools/mkpatch5.py /tmp/s4.sfc     /tmp/s5.sfc         # (patch 6/7 optional: mkpatch6/7.py)
+python3 tools/mkpatch2.py --stacked /tmp/s1.sfc     /tmp/s2.sfc
+python3 tools/mkpatch3.py --stacked /tmp/s2.sfc     /tmp/s3.sfc
+python3 tools/mkpatch4.py --stacked /tmp/s3.sfc     /tmp/s4.sfc --text "FrenchName v.0.7" --no-credit
+python3 tools/mkpatch5.py --stacked /tmp/s4.sfc     /tmp/s5.sfc   # (patch 6/7 optional: mkpatch6/7.py)
 ./tools/Flips/flips --create --bps "$CLEAN" /tmp/s5.sfc build/out.bps
+# current bundles have committed one-command recipes:
+#   tools/build_v022.sh  /  tools/build_ref_v1.sh
 ```
 
 ### Tunable knobs (all builder flags — no hex editing; full table in patch_notes.md)
@@ -378,8 +405,11 @@ ROM="build/sms_tauntbuff.sfc" tools/run.sh tools/test_p13_guts.lua 400
 # patch 12 (taunts) suites:
 ROM="build/sms_taunt.sfc" tools/run.sh tools/test_p12_taunt.lua 200          # MODE="solo" in cfg
 # rebuild any BPS and confirm round-trip (current bundles):
-./tools/Flips/flips --apply build/sms_allpatches_v0.22.bps "$CLEAN" /tmp/rt.sfc  # sha == 19a7fc0d…
-./tools/Flips/flips --apply build/sms_reference_v1.bps     "$CLEAN" /tmp/rt.sfc  # sha == 7ab26db4…
+./tools/Flips/flips --apply build/sms_allpatches_v0.22.bps "$CLEAN" /tmp/rt.sfc  # sha == 3bb9c829…
+./tools/Flips/flips --apply build/sms_reference_v1.bps     "$CLEAN" /tmp/rt.sfc  # sha == 2873f214…
+# or rebuild either bundle from source (the committed recipes):
+tools/build_v022.sh    # -> 3bb9c829…
+tools/build_ref_v1.sh  # -> 2873f214…
 ```
 
 ---

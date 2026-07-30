@@ -35,7 +35,7 @@ import sys
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 import asm65816 as A  # noqa: E402
 import hudfont  # noqa: E402
 
@@ -133,10 +133,24 @@ BG3_CHR = 0x5000
 GLYPH_TILE0 = 0xC7
 BLANK = 0x2000
 TM_ON, TM_OFF = 0x17, 0x13
-P10_LETTERS = list("GCREVSALPUNIHMTY")
-P11_LETTERS = list("BDFJKOW") + [">", "-"]
+# Shared glyph prefix DERIVED from patch 10's label set (issue #42): both patches
+# upload fonts to the same CHR slots (0xC7+), so their shared-letter indices MUST
+# agree — a hand-copied list drifted (T at idx 13 vs 14) and a label episode after
+# opening the training menu re-uploaded T over the slot p11 used for M.
+from mkpatch10 import LABELS as _P10_LABELS  # noqa: E402
+P10_LETTERS = []
+for _s in _P10_LABELS.values():
+    for _c in _s:
+        if _c not in P10_LETTERS:
+            P10_LETTERS.append(_c)
+P11_LETTERS = [c for c in "MY" if c not in P10_LETTERS] + list("BDFJKOW") + [">", "-"]
 FONT_LETTERS = P10_LETTERS + P11_LETTERS
-assert len(FONT_LETTERS) <= 25
+if len(FONT_LETTERS) > 25:
+    raise ValueError(f"font overflow: {len(FONT_LETTERS)} glyphs > 25 slots")
+# build-time cross-check: every shared letter sits at patch 10's derived index
+for _i, _c in enumerate(P10_LETTERS):
+    if FONT_LETTERS[_i] != _c:
+        raise ValueError(f"glyph drift: {_c} expected at {_i}, got {FONT_LETTERS[_i]}")
 
 # menu geometry: 9 rows on BG3 map rows 4-12, cells cols 3-24 (22 cells/row)
 PANEL_ROW0, PANEL_COL, PANEL_W = 4, 3, 22
@@ -548,7 +562,7 @@ fsmdone:
 """
 
 
-def _actionable(src_label, ok_label, fail_label, sfx):
+def _actionable(ok_label, fail_label):
     """A holds an act id: branch to ok if actionable (<=4, 0C, 0D, 0x21), else fail."""
     return f"""
   cmp #$05
@@ -577,10 +591,10 @@ rs0:
   lda $10CD
   bne rsfail
   lda $1001
-{_actionable("", "rsp2", "rsdone", "r1")}
+{_actionable("rsp2", "rsdone")}
 rsp2:
   lda $1081
-{_actionable("", "rsgo", "rsdone", "r2")}
+{_actionable("rsgo", "rsdone")}
 rsgo:
   stz $1001
   stz $1002
@@ -655,7 +669,7 @@ ghdone:
   lda_l ${WAKEARMED:06X}
   beq nofire
   lda $1081
-{_actionable("", "fire", "nofire", "wf")}
+{_actionable("fire", "nofire")}
 fire:
   lda #$00
   sta_l ${WAKEARMED:06X}
@@ -1853,6 +1867,13 @@ def build(src, out, stage="tier1"):
         _upl2_stub(stage, font_off, bank, len(font_blob), idx).splitlines(), upl_off, bank)
 
     blob = font_blob + inp_body + inp_tail + upl_body
+    # bank guards (issue #27): the appended stub+data must fit one 64K bank, and the
+    # target region must be virgin (a collision means stacking standalone BPS — forbidden)
+    if len(blob) > 0x10000:
+        raise SystemExit(f"error: appended blob {len(blob):#x} bytes exceeds one 64K bank")
+    if any(data[bankbase:bankbase + len(blob)]):
+        raise SystemExit(f"error: target bank at {bankbase:#x} is already occupied "
+                         "(never stack standalone BPS files; chain the builders)")
     data[bankbase:bankbase + len(blob)] = blob
     data[INP:INP + 4] = bytes([0x5C, inp_off & 0xFF, (inp_off >> 8) & 0xFF, bank])
     data[UPL2:UPL2 + 4] = bytes([0x5C, upl_off & 0xFF, (upl_off >> 8) & 0xFF, bank])
@@ -1867,14 +1888,18 @@ def build(src, out, stage="tier1"):
 
 
 def _fix_checksum(data):
-    size = len(data); chk_size = 0x80000
-    while chk_size <= size: chk_size <<= 1
+    # SNES checksum over a power-of-two footprint: pad-region repeated to fill.
+    # Fixed 2026-07-30 (issue #9): the old `while chk_size <= size` loop skipped the
+    # equality branch and hung on power-of-two sizes, and over-summed 0x380000.
+    size = len(data)
+    chk_size = max(0x80000, 1 << (size - 1).bit_length())
     if chk_size == size:
         chk = sum(data)
     else:
-        cd = data[chk_size // 2:]
-        while len(cd) < chk_size // 2: cd += cd[len(cd) - chk_size:]
-        chk = sum(data[:chk_size // 2]) + sum(cd)
+        half = chk_size // 2
+        cd = bytes(data[half:])
+        cd = (cd * ((half + len(cd) - 1) // len(cd)))[:half]
+        chk = sum(data[:half]) + sum(cd)
     data[0xFFDE] = chk & 0xFF; data[0xFFDF] = chk >> 8 & 0xFF
     data[0xFFDC] = data[0xFFDE] ^ 0xFF; data[0xFFDD] = data[0xFFDF] ^ 0xFF
 
@@ -1884,7 +1909,9 @@ if __name__ == "__main__":
     ap.add_argument("src", nargs="?", default=CLEAN)
     ap.add_argument("out", nargs="?", default=str(REPO / "build/sms_trainingplus.sfc"))
     ap.add_argument("--stage", choices=["pipe", "tier1"], default="tier1")
+    ap.add_argument("--stacked", action="store_true",
+                    help="src is an already-patched ROM (builder chaining); skips the clean-SHA gate")
     a = ap.parse_args()
-    if a.src == CLEAN:
-        assert sha1(open(a.src, "rb").read()).hexdigest() == CLEAN_SHA1, "clean hash mismatch"
+    check_not_inplace(a.src, a.out)
+    require_source(a.src, a.stacked)
     build(a.src, a.out, a.stage)

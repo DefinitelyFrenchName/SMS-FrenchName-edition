@@ -35,20 +35,27 @@ GLYPHS = {
     "O": ["01110","10001","10001","10001","10001","10001","01110"],
     "W": ["10001","10001","10001","10101","10101","11011","10001"],
     ">": ["10000","11000","11100","11110","11100","11000","10000"],  # menu cursor
+    # minus sign (p11 advantage display). Latent bug until 2026-07-30: no glyph
+    # existed and glyph_2bpp silently blanked it (issue #39), so negative
+    # advantage rendered with no sign.
+    "-": ["00000","00000","00000","11110","00000","00000","00000"],
 }
 
 COLOR = 3   # 2bpp pixel index for glyph pixels (matches digit outline color)
 
 
 def glyph_2bpp(ch, color=COLOR):
-    """Return the 16-byte 2bpp tile for a letter, or all-zero for space/unknown.
-    "#" = solid 8x8 backdrop tile in color index 2 (menu panel background)."""
+    """Return the 16-byte 2bpp tile for a letter. Space is a deliberate blank;
+    "#" = solid 8x8 backdrop tile in color index 2 (menu panel background).
+    Any other unknown character raises (issue #39 — used to blank silently)."""
     if ch == "#":
         return bytes([0x00, 0xFF]) * 8   # every pixel = color 2 (plane1 set)
-    rows = GLYPHS.get(ch)
     out = bytearray(16)
-    if not rows:
+    if ch == " ":
         return bytes(out)
+    rows = GLYPHS.get(ch)
+    if not rows:
+        raise KeyError(f"hudfont: no glyph for {ch!r}")
     for r in range(7):                 # 7 glyph rows, top-aligned at row 0
         bits = rows[r]
         p0 = p1 = 0
@@ -84,6 +91,6 @@ if __name__ == "__main__":
         for r in range(8):
             p0, p1 = t[2 * r], t[2 * r + 1]
             line = "".join(
-                (str(((p0 >> (7 - x)) & 1) | (((p1 >> (7 - x)) & 1) << 1)) or ".").replace("0", ".")
+                str(((p0 >> (7 - x)) & 1) | (((p1 >> (7 - x)) & 1) << 1)).replace("0", ".")
                 for x in range(8))
             print("  " + line)

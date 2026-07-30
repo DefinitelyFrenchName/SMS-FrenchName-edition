@@ -40,3 +40,29 @@ def clean_rom():
 
 def bigzam_rom():
     return str(rom_dir() / BIGZAM_NAME)
+
+
+def require_source(src, stacked=False):
+    """SHA gate (issue #12): the source is hashed UNCONDITIONALLY — path spelling is
+    irrelevant. An exact clean-ROM match passes; anything else needs stacked=True
+    (the builder chain passes already-patched ROMs deliberately, via --stacked).
+    Returns "clean" or "stacked"."""
+    from hashlib import sha1
+    h = sha1(open(src, "rb").read()).hexdigest()
+    if h == CLEAN_SHA1:
+        return "clean"
+    if stacked:
+        return "stacked"
+    raise SystemExit(
+        f"error: source ROM hash mismatch — {src}\n"
+        f"  got      sha1 {h}\n"
+        f"  expected sha1 {CLEAN_SHA1} (clean '{CLEAN_NAME}')\n"
+        f"  If you are deliberately stacking onto an already-patched ROM, pass --stacked.")
+
+
+def check_not_inplace(src, out):
+    """In-place patching is forbidden (CLAUDE.md; issue #56)."""
+    import os
+    if os.path.realpath(src) == os.path.realpath(out):
+        raise SystemExit(f"error: src and out are the same file ({src}) — "
+                         "in-place patching is forbidden; write the output to a new path")

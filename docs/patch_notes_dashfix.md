@@ -2,7 +2,7 @@
 
 Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),
 clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`.
-Patched (dashfix only) SHA-1 `07d760fea31b727dd30200d59f1239404fc1ab7b`.
+Patched (dashfix only) SHA-1 `14f747a7a31b727dd30200d59f1239404fc1ab7b`.
 Stacked (1f-link + dashfix) SHA-1 `5ae720fe0d3b6613555028d1bf33cf8642f85e3a`.
 
 Deliverables (built by `tools/mkpatch2.py`):

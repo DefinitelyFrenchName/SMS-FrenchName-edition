@@ -92,6 +92,8 @@ def _style(grid, mode):
         outline(N8, RED); fill(WHITE)
     elif mode == "red_white":       # red core, white outline (closest to original)
         outline(N4, WHITE); fill(RED)
+    else:
+        raise ValueError(f"texttiles: unknown style {mode!r} (red / white_red / red_white)")
     return out
 
 def _glyph_cols(ch):

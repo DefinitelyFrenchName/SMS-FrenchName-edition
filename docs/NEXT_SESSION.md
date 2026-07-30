@@ -6,10 +6,22 @@ detail: `docs/patch_notes.md`.**
 
 ## Status
 
-All suites green. Current bundles: **v0.22 all-patches** (`19a7fc0d…`, 59/59) and the
-**REF v.1 reference bundle** (`7ab26db4…`, 55/55) — both rebuilt 2026-07-30 with the
-patch-4 credit line (pre-credit hashes `52bc7e38…` / `bd1104ee…`; title tells unchanged,
-the credit line is the naked-eye tell). Canonical is still v0.7 (`24aa6b6d…`).
+All suites green. Current bundles: **v0.22 all-patches** (`3bb9c829…`) and **REF v.1**
+(`2873f214…`) — built by the NEW committed recipes `tools/build_v022.sh` /
+`tools/build_ref_v1.sh` (lineage: 52bc7e38/bd1104ee → 19a7fc0d/7ab26db4 credit line →
+current, after the 2026-07-30 review-remediation fixes). Canonical is still v0.7
+(`24aa6b6d…` — reproduces byte-for-byte with the new builders).
+
+**Review remediation (GitHub issues #2–#57, 2026-07-30):** Batches A–C landed — see
+HANDOFF §1 and the issue tracker for per-fix evidence. Highlights: .gitignore ROM-commit
+hole closed (#26); regression suite is a real gate (exit codes #2, fixtures #4,
+silent-skip detection #7, per-player HP streams #16, gate-aware p1 fingerprint #29);
+Guts now resets on timed-out rounds (#21, A/B-proven); builders hardened (checksum #9,
+unconditional SHA gate + --stacked #12, src!=out #56, donor validation #8, bank guards
+#27, p14 clamp #41, p10 flag validation #37 + 99-cap #36, p11 letter-list derived from
+p10 #42 + real minus glyph). **Builder chains now need `--stacked` on every stacked
+step** (see the build scripts). Standalone hashes changed for p1/1b/2 (checksum now
+fixed, #14), p10/10b, p11, p13, p14 — tables updated everywhere.
 
 ## What shipped 2026-07-30
 
