@@ -20,7 +20,8 @@ Versions before 0.6.0 are retroactive labels for the historical lineage
 | 0.6.0 | `601920bc…` | `1beaad9` | VERSIONED BUILDS: version string embedded at $EE:C040, shown on-screen by saturn_test.lua; builder writes versioned filename by default. No gameplay changes vs 0.5.0. |
 | 0.7.0 | `a0822027…` | (this) | SOUND: interpreter CMD case back-ported (audit: 757 SMS scripts have no 0xC0+ ctrl bytes — provably neutral); her scripts now CMD-INTACT (exact Super S timing); normals play whooshes (5LP/light 0x05, 5HK/heavy 0x06 via script CMD args), specials play the native starter sfx (0x08), hit sounds already worked; $EF:DB50 translator covers her proc's direct sound calls (throw/desperation acts). VERIFIED this build: throws both directions (her 6HP throw = acts 68/69; she can be thrown, victim acts 1C/1D/1E); low-HP dizzy correctly blocks specials. |
 | 0.8.0 | `2b360298…` | `1ee037e` | **IN-ROM SELECT — no Lua needed: hold L+R (P1 pad) while a round loads → P1 becomes Saturn**; hold SELECT at a round load to revert. Persists across rounds. Her effect tiles load in-ROM (embedded at $EE:D000 from the one-time dump; DMA-staging override at the $C0:92A4 VRAM-DMA kick); palette injected in-ROM at transform; live-round gate ($1E04==0 + clock≠0) keeps the intro sequencer safe. P2 still Lua-only. Without L+R the ROM behaves stock. **Known bug: L+R only worked in 2P VS** (the live-round gate required the round clock — training has none). |
-| **0.8.1** | `b9d98964…` | (this) | FIX (field report): **L+R select now works in ALL modes** — training/practice, 1P-vs-CPU, 2P VS (verified headless in each). The live-round gate's clock check replaced with `$01FA==0x80` (0xE1 during the dangerous load window; the p11-proven gameplay signal that holds in clock-less practice mode). |
+| 0.8.1 | `b9d98964…` | `739b9d5` | FIX (field report): **L+R select now works in ALL modes** — training/practice, 1P-vs-CPU, 2P VS (verified headless in each). The live-round gate's clock check replaced with `$01FA==0x80` (0xE1 during the dangerous load window; the p11-proven gameplay signal that holds in clock-less practice mode). |
+| **0.9.0** | `e29f41bb…` | (this) | **P2 IN-ROM SELECT**: hold L+R on the **P2 pad** at a round load → P2 becomes Saturn — mirror matches, and **Saturn as the training dummy**, no Lua. The effects-DMA hook now serves both transfers (P1 VRAM $6A00 / P2 VRAM $7300, staging $7F:0000 reused; P2 pad = $421A/B); helper v3 transforms either player with per-player palette rows ($0600/$0620). SELECT on the respective pad reverts. Verified: both-players VS mirror, P1-only VS, practice, vs-CPU, no-L+R stock, smoke, fireball. |
 
 ## Known gaps (as of 0.7.0)
 
@@ -31,10 +32,9 @@ Versions before 0.6.0 are retroactive labels for the historical lineage
   refine per-move later if it feels off.
 - Fireball art needs the one-time effect-tile dump (see saturn_test.lua header);
   without it the fireball renders with Uranus's effect tiles.
-- No char-select portrait/slot — selection is the hidden L+R hold (P1). P2 is
-  Lua-only (`P2_ALSO` in saturn_test.lua; its effect-tile buffer layout unmapped).
-  HUD name/portrait show the shell character you picked. Bank layout claims
-  $E8-$F0 — REF-patch reconciliation pending.
+- No char-select portrait/slot — selection is the hidden L+R hold (either pad,
+  each player independently). HUD name/portrait show the shell character you
+  picked. Bank layout claims $E8-$F0 — REF-patch reconciliation pending.
 
 ## How to test
 

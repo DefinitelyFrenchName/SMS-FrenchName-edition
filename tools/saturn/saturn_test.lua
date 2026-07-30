@@ -3,9 +3,10 @@
 -- HOW TO USE (Mesen GUI):
 --   1. Build the ROM:  python3 tools/saturn/mksaturn_smoke.py build/saturn/SailorMoonS_saturn_smoke.sfc
 --   2. Open it in Mesen, start a match (2P VS or vs COM; pick ANY character as P1).
---   3. EITHER just hold L+R while the round loads (in-ROM select, v0.8.0+;
---      SELECT-hold at a round load reverts) OR load this script in the Script
---      Window for auto-transform + P2 mirror support + the version label.
+--   3. EITHER just hold L+R on a pad while the round loads (in-ROM select:
+--      P1 pad -> P1 Saturn since v0.8.0, P2 pad -> P2 Saturn since v0.9.0 —
+--      mirror matches and Saturn-as-training-dummy; SELECT-hold reverts) OR
+--      load this script in the Script Window (auto-transform + version label).
 --
 -- WHAT SHOULD WORK: idle/walk, all normals (standing/crouch/air; Y=LP X=HP
 -- B=LK A=HK), qcf+P specials with a VISIBLE traveling fireball that hits, the

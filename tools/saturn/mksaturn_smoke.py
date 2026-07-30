@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.8.1"
+SATURN_VERSION = "0.9.0"
 
 SAT_ID = 0x1C
 
@@ -121,8 +121,9 @@ CMD_SND_MAP = {0x15: 0x05, 0x14: 0x06, 0x0E: 0x06, 0x20: 0x06}
 SITE_DMA_KICK = 0x092A4
 DMA_KICK_OLD = bytes.fromhex("A0018C00438C0B42")
 E8_DMASTUB = 0x2980
-SATURN_FLAG = 0x1F60
-EE_TILES = 0xD000
+SATURN_FLAG = 0x1F60      # P1; P2 flag = +1. v0.9.0: P2 in-ROM select — the same
+SATURN_FLAG2 = 0x1F61     # DMA site also runs P2's effects transfer (VRAM $7300
+EE_TILES = 0xD000         # <- $7F:0000 staging reused); P2 pad = $421A/B.
 # Box tables: appended bank $F0 = full bank-$8A copy read via WRAM-mirror $B0
 # (6x plb #$8A -> #$B0); widened ptr tables (0x30 entries) + Saturn's box data
 # grafted into the copy's upper half; 7 table-read operands repointed.
@@ -289,31 +290,53 @@ def main():
     stub += cmd_tail
     e8 += bytes(stub)
     e8 += bytes(E8_DMASTUB - len(e8))
-    # DMA-kick stub: filter effects transfer, manage the flag, override staging
+    # DMA-kick stub: P1 ($6A00) and P2 ($7300) effects transfers; per-player
+    # flags from the respective autopoll pads; staging override when flagged
+    def _flagblock(pad_lo, pad_hi, flag):
+        b = bytearray()
+        b += bytes((0xE2, 0x20))                             # sep #$20
+        b += bytes((0xA5, 0x36, 0xC9, 0x7F, 0xD0, 0x00))     # $36!=7F -> orig
+        j1 = len(b) - 1
+        b += bytes((0xAD, pad_lo & 0xFF, pad_lo >> 8, 0x29, 0x30, 0xC9, 0x30, 0xD0, 0x05))
+        b += bytes((0xA9, 0x01, 0x8D, flag & 0xFF, flag >> 8))
+        b += bytes((0xAD, pad_hi & 0xFF, pad_hi >> 8, 0x29, 0x20, 0xF0, 0x03))
+        b += bytes((0x9C, flag & 0xFF, flag >> 8))
+        b += bytes((0xAD, flag & 0xFF, flag >> 8, 0xF0, 0x00))
+        j2 = len(b) - 1
+        return b, (j1, j2)
     d = bytearray()
     d += bytes((0x08, 0xC2, 0x30))                       # php / rep #$30
-    d += bytes((0x48, 0xDA, 0x5A))                       # pha / phx / phy (16-bit)
-    d += bytes((0xA5, 0x30, 0xC9, 0x00, 0x6A, 0xD0, 0x00))  # lda $30/cmp #$6A00/bne orig
-    fx1 = len(d) - 1
-    d += bytes((0xE2, 0x20))                             # sep #$20
-    d += bytes((0xA5, 0x36, 0xC9, 0x7F, 0xD0, 0x00))     # lda $36/cmp #$7F/bne orig
-    fx2 = len(d) - 1
-    d += bytes((0xAD, 0x18, 0x42, 0x29, 0x30, 0xC9, 0x30, 0xD0, 0x05))  # $4218 L+R held?
-    d += bytes((0xA9, 0x01, 0x8D, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8))  # sta flag
-    d += bytes((0xAD, 0x19, 0x42, 0x29, 0x20, 0xF0, 0x03))  # $4219 SELECT held?
-    d += bytes((0x9C, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8))       # stz flag
-    d += bytes((0xAD, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, 0xF0, 0x00))  # flag? beq orig
-    fx3 = len(d) - 1
+    d += bytes((0x48, 0xDA, 0x5A))                       # pha / phx / phy
+    d += bytes((0xA5, 0x30, 0xC9, 0x00, 0x6A, 0xF0, 0x00))   # ==$6A00 -> p1eff
+    fp1 = len(d) - 1
+    d += bytes((0xC9, 0x00, 0x73, 0xF0, 0x00))               # ==$7300 -> p2eff
+    fp2 = len(d) - 1
+    d += bytes((0x80, 0x00))                                 # bra orig
+    forig1 = len(d) - 1
+    p1eff = len(d)
+    b1, (j11, j12) = _flagblock(0x4218, 0x4219, SATURN_FLAG)
+    d += b1
+    d += bytes((0x80, 0x00))                                 # bra copy
+    fcopy = len(d) - 1
+    p2eff = len(d)
+    b2, (j21, j22) = _flagblock(0x421A, 0x421B, SATURN_FLAG2)
+    d += b2
+    copy = len(d)
     d += bytes((0xC2, 0x30))                             # rep #$30
-    d += bytes((0xA2, 0x00, EE_TILES >> 8, 0xA0, 0x00, 0x00,      # ldx #tiles/ldy #0
-                0xA9, 0xFF, 0x0B, 0x8B, 0x54, 0x7F, 0xEE, 0xAB))  # lda #$0BFF/phb/mvn/plb
+    d += bytes((0xA2, 0x00, EE_TILES >> 8, 0xA0, 0x00, 0x00,
+                0xA9, 0xFF, 0x0B, 0x8B, 0x54, 0x7F, 0xEE, 0xAB))
     orig = len(d)
-    d[fx1] = orig - (fx1 + 1)
-    d[fx2] = orig - (fx2 + 1)
-    d[fx3] = orig - (fx3 + 1)
+    d[fp1] = p1eff - (fp1 + 1)
+    d[fp2] = p2eff - (fp2 + 1)
+    d[forig1] = orig - (forig1 + 1)
+    d[fcopy] = copy - (fcopy + 1)
+    d[p1eff + j11] = orig - (p1eff + j11 + 1)
+    d[p1eff + j12] = orig - (p1eff + j12 + 1)
+    d[p2eff + j21] = orig - (p2eff + j21 + 1)
+    d[p2eff + j22] = orig - (p2eff + j22 + 1)
     d += bytes((0xC2, 0x30, 0x7A, 0xFA, 0x68, 0x28))     # rep #$30/ply/plx/pla/plp
-    d += bytes((0xA0, 0x01, 0x8C, 0x00, 0x43, 0x8C, 0x0B, 0x42))  # original 8 bytes
-    d += bytes((0x6B,))                                  # rtl
+    d += bytes((0xA0, 0x01, 0x8C, 0x00, 0x43, 0x8C, 0x0B, 0x42))
+    d += bytes((0x6B,))
     e8 += bytes(d)
     e8[2 * SAT_ID] = E8_SATURN_ACTTBL & 0xFF          # id -> act-table entry
     e8[2 * SAT_ID + 1] = E8_SATURN_ACTTBL >> 8
@@ -402,49 +425,56 @@ def main():
     ef[PSP.BLOCK_LO:PSP.BLOCK_HI] = blk
     # helper: sep #$30 / cmp #SAT_ID / beq sat / asl / tax / JSL $C1:stub2 / rtl
     #         sat: jsr $C6F7 / rtl          (entered with 8-bit A=id via the hook)
-    # helper v2 (at EF_HELPER): id test + P1 in-ROM transform (flag $1F60)
+    # helper v3 (at EF_HELPER): id test + P1/P2 in-ROM transforms
     h = bytearray()
+    fixups = []          # (pos, labelname)
+    labels = {}
+    def _lbl(name): labels[name] = len(h)
+    def _br(op, name):   # 2-byte branch with fixup
+        h.extend((op, 0x00)); fixups.append((len(h) - 1, name))
     h += bytes((0xE2, 0x30))                     # sep #$30
-    h += bytes((0xC9, 0x1C, 0xF0, 0x00)); fsat1 = len(h) - 1   # beq sat
-    h += bytes((0xE0, 0x00, 0xD0, 0x00)); fnorm1 = len(h) - 1  # cpx #$00 (P1?) bne normal
-    h += bytes((0x48,))                          # pha (save id)
-    h += bytes((0xAD, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, 0xF0, 0x00))
-    fpop = len(h) - 1                            # beq pop_normal
-    h += bytes((0xAD, 0x04, 0x1E, 0xD0, 0x00)); fg1 = len(h) - 1   # $1E04!=0 -> pop (intro)
-    # gameplay-live gate: $01FA==0x80 (0xE1 during the load window; p11-proven to
-    # hold in practice mode where the round clock never runs)
-    h += bytes((0xAD, 0xFA, 0x01, 0xC9, 0x80, 0xD0, 0x00))
-    fg2 = len(h) - 1
-    h += bytes((0xC2, 0x10, 0xA6, 0x88))         # rep #$10 / ldx $88 (full struct)
-    h += bytes((0xB5, 0x01, 0xC9, 0x03, 0xB0, 0x00)); fpop8 = len(h) - 1  # act>=3? bcs pop8
-    h += bytes((0xA9, 0x1C, 0x95, 0x00))         # id = Saturn
+    h += bytes((0xC9, 0x1C)); _br(0xF0, "sat")   # already Saturn
+    h += bytes((0xE0, 0x00)); _br(0xF0, "p1chk")
+    h += bytes((0xE0, 0x80)); _br(0xD0, "normal")
+    # P2 check
+    h += bytes((0x48, 0xAD, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8)); _br(0xF0, "popn")
+    h += bytes((0xA9, 0x20)); _br(0x80, "gates") # A=palette-row hint 0x20 -> $0620
+    _lbl("p1chk")
+    h += bytes((0x48, 0xAD, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8)); _br(0xF0, "popn")
+    h += bytes((0xA9, 0x00))                     # palette row 0x00 -> $0600
+    _lbl("gates")
+    h += bytes((0x85, 0x0E))                     # sta $0E (palette-dest low byte)
+    h += bytes((0xAD, 0x04, 0x1E)); _br(0xD0, "popn")        # intro
+    h += bytes((0xAD, 0xFA, 0x01, 0xC9, 0x80)); _br(0xD0, "popn")  # not-live
+    h += bytes((0xC2, 0x10, 0xA6, 0x88))         # rep #$10 / ldx $88
+    h += bytes((0xB5, 0x01, 0xC9, 0x03)); _br(0xB0, "pop8")  # act>=3
+    h += bytes((0xA9, 0x1C, 0x95, 0x00))
     for o in (0x01, 0x02, 0x04, 0x05, 0x06, 0x07):
-        h += bytes((0x74, o))                    # stz o,X
-    h += bytes((0xDA, 0xA2, 0x1F, 0x00))         # phx / ldx #$001F
-    lp = len(h)
+        h += bytes((0x74, o))
+    # palette copy to $0600+row ($0E): sta $0600,X won't do variable dest ->
+    # use $0E as the low byte via (dp),Y addressing: $0C/0D = 0x0600+row ptr
+    h += bytes((0x64, 0x0D, 0xA5, 0x0E, 0x18, 0x69, 0x00, 0x85, 0x0C,
+                0xA9, 0x06, 0x85, 0x0D))         # $0C/0D = $06:row (16-bit ptr build, 8-bit ops)
+    h += bytes((0xDA, 0xC2, 0x10, 0xA0, 0x1F, 0x00))  # phx / rep #$10 / ldy #$001F
+    _lbl("plp2")
+    h += bytes((0xBB,))                          # tyx
     h += bytes((0xBF, 0x00, 0xC0, 0xEE))         # lda $EEC000,X
-    h += bytes((0x9D, 0x00, 0x06))               # sta $0600,X
-    h += bytes((0xCA, 0x10, (lp - (len(h) + 3)) & 0xFF))  # dex / bpl lp
+    h += bytes((0x91, 0x0C))                     # sta ($0C),Y
+    h += bytes((0x88, 0x10, (0x100 - 10) & 0xFF)) # dey / bpl plp2 (-10)
     h += bytes((0xFA,))                          # plx
-    h += bytes((0x68, 0xA9, 0x1C, 0xE2, 0x10))   # pla / lda #$1C / sep #$10
-    h += bytes((0x80, 0x00)); fsat2 = len(h) - 1 # bra sat
-    pop8 = len(h)
-    h += bytes((0xE2, 0x10))                     # pop_normal8: sep #$10
-    popn = len(h)
-    h += bytes((0x68,))                          # pop_normal: pla
-    norm = len(h)
-    h += bytes((0x0A, 0xAA))                     # normal: asl / tax
+    h += bytes((0x68, 0xA9, 0x1C, 0xE2, 0x10)); _br(0x80, "sat")
+    _lbl("pop8")
+    h += bytes((0xE2, 0x10))
+    _lbl("popn")
+    h += bytes((0x68,))
+    _lbl("normal")
+    h += bytes((0x0A, 0xAA))
     h += bytes((0x22, STUB2 & 0xFF, STUB2 >> 8, 0xC1, 0x6B))
-    sat = len(h)
-    h += bytes((0x20, 0xF7, 0xC6, 0x6B))         # sat: jsr $C6F7 / rtl
-    h[fsat1] = sat - (fsat1 + 1)
-    h[fnorm1] = norm - (fnorm1 + 1)
-    h[fpop] = popn - (fpop + 1)
-    h[fg1] = popn - (fg1 + 1)
-    h[fg2] = popn - (fg2 + 1)
-    h[fpop8] = pop8 - (fpop8 + 1)
-    h[fsat2] = sat - (fsat2 + 1)
-    assert len(h) <= 0x90, f"helper too big: {len(h)}"
+    _lbl("sat")
+    h += bytes((0x20, 0xF7, 0xC6, 0x6B))
+    for pos, name in fixups:
+        h[pos] = (labels[name] - (pos + 1)) & 0xFF
+    assert len(h) <= 0x100, f"helper too big: {len(h)}"
     ef[EF_HELPER:EF_HELPER + len(h)] = h
     # recognizer graft: payload at original offsets; copied-table entry -> her list
     ef[0x1452:0x1452 + (RECOG_PAYLOAD_HI - RECOG_PAYLOAD_LO)] = \
