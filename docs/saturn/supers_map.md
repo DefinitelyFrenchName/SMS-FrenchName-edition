@@ -23,6 +23,9 @@ ROM: `SailorMoonSuperS Vol2`, HiROM+FastROM, 0x300000, file offset = SNES & 0x3F
 | State-proc A dispatch | code `$C1:125F`, table `$C1:13C7` (28 e.) | code `$C1:1264`, table `$C1:13CC` | [P 07-30] |
 | State-proc B dispatch | code `$C1:15C4`, table `$C1:169B` (10 e.) | code `$C1:1622`, table `$C1:16F9` (**11 e.** — widened for Saturn) | [P 07-30] |
 | Saturn (cid 10) box ptrs | — | hit `$AF:EC3A` (30 boxes) / hurt `$AF:ED2A` (93 pairs) / coll `$AF:F2FA` (6) | [P 07-30] |
+| Anim-script char table | `$C0:0000` (interp `$80:A05C`; NO 0xC0 cmd case) | `$C0:0000` (interp `$80:A381`; adds 0xC0 cmd → `$80:FBB4`) | [P 07-30, live ALL PASS] |
+| Pose-record char table | `$84:809C` (writer `$C0:9C96`) | `$84:809F` (writer `$C0:9FC1`) | [P 07-30, live ALL PASS] |
+| Cel char table (pose→cels + 5B recs) | `$CB:0000` (resolver `$80:9FB8`, kicker ends `$80:9FB7`) | `$CB:0000` (resolver `$80:A2DD`, kicker `$80:A21A`) | [P 07-30, live ALL PASS] |
 
 ## WRAM (claimed identical to SMS by [L] — verify per row before use)
 
@@ -187,6 +190,19 @@ Chibi `1DD2`/`47C6`/`0B1C`, **Saturn `2105`/`4892`/`1346`**, plus a 12th slot
 
 **Route A graphics port unit per character** = act-script table + scripts (bank $C0)
 + pose records (bank $84) + pose→cels list + cel records (bank $CB) + the cel blocks
-themselves. The SMS side must have the same three layers at SMS addresses (the
-box-writer `$C0:9CCD` is layer-2's twin; locate SMS's `$C0:0000`-equivalent and
-resolver tables next).
+themselves.
+
+**SMS twins LOCATED + LIVE-VERIFIED (2026-07-30, probe_sms_animtables.lua on clean
+SMS, 241/241 frames ALL PASS incl. attack poses):** same three layers at the same
+table bases — scripts `$C0:0000` (interpreter `$80:A05C`; SMS lacks Super S's 0xC0
+command extension — Saturn's CMD steps need handling at port time: strip or
+back-port), pose records `$84:809C` (writer `$C0:9C96`), cels `$CB:0000` (resolver
+`$80:9FB8`). All tables are null+9 packed (id-10 "entries" are adjacent data — no
+dormant slot, as established). **Cross-game content identity (Uranus): pose-record
+array 100% byte-identical (all 115 SMS poses; Super S appended 5), universal-act
+scripts byte-identical, pose→cels lists identical, cel records same sizes with only
+addr24 relocated (SMS bank $D4 vs Super S $D6).** Port recipe per layer: pose
+records verbatim (+ the 2 guard-fix bytes), pose→cels verbatim, cel records with
+addr24 rebased to wherever her 137 KB cel block lands in SMS, scripts verbatim
+minus/with the CMD delta, plus 11th entries in the three char tables (relocation
+per the §Route A table list).

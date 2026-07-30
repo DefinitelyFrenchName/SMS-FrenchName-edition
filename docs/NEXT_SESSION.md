@@ -113,10 +113,16 @@ guard bug = pose-record class byte, **fixed with 1 byte/move A/B-proven** ($84:9
 $84:927D — the second also fixes close 5HK); animation pipeline fully decoded
 (scripts $C0:0000 / pose records $84:809F / cel tables $CB:0000); cel census 137 KB
 contiguous; no per-char handler block exists (~630 B measured exclusive code).
-**Route A is GO.** Natural next steps: locate SMS's three animation-layer tables
-(twin of box-writer $C0:9CCD known), then start the port scaffold (table
-relocations from the §Route A list); dossier: drive her remaining 4 specials
-(inputs unknown — try Fighter S wiki inputs), throws, desperation.
+**Route A is GO.** SMS's three animation-layer tables LOCATED + LIVE-VERIFIED
+(2026-07-30 third session, probe_sms_animtables.lua ALL PASS): scripts `$C0:0000`
+(interp `$80:A05C`), pose records `$84:809C` (writer `$C0:9C96`), cels `$CB:0000`
+(resolver `$80:9FB8`) — same bases as Super S; Uranus content byte-identical
+across games (cel addr24s relocated only). Port recipe per layer in supers_map
+§pipeline (note: SMS interpreter lacks Super S's 0xC0 CMD extension — strip or
+back-port Saturn's CMD steps). Next: the port scaffold proper — Saturn data-unit
+extractor (scripts/poses/cels/boxes/recognizers → bundle), then the §Route A
+table relocations. Dossier: drive her remaining 4 specials (inputs unknown — try
+Fighter S wiki inputs), throws, desperation.
 
 ## Open threads (unchanged backlog)
 
