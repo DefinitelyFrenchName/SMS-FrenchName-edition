@@ -1,0 +1,69 @@
+# supers_map.md — Super S (Zenin Sanka!!) ROM/RAM map
+
+Verified facts only; every row is tagged. Sources: [L] = vendor
+`sms-training-mode/SailorMoonS.lua` (dual-game, detects `$FFB3`); [P] = probed
+in-emulator/from-ROM this repo (date); [W] = web, cited. UNVERIFIED rows are
+claims awaiting a probe — do not build on them.
+
+ROM: `SailorMoonSuperS Vol2`, HiROM+FastROM, 0x300000, file offset = SNES & 0x3FFFFF
+(same mapping rule as SMS — banks $C0-$EF). SHA-1 `1ada3417…4426e` [P 2026-07-30].
+
+## Cross-game address table (the Rosetta Stone)
+
+| Structure | Sailor Moon S | Super S | Status |
+|---|---|---|---|
+| Header game code `$FFB3` | 0x51 | 0x4A | [P 07-30] |
+| Palette manifest ptr table | `$E0:0238` | `$E0:ABC4` (file 0x20ABC4; null+10 recs, 16 B apart — same format) | [P 07-30] |
+| Box data bank | `$AF` bank confirmed via extraction | `$AF` | [P 07-30] |
+| Hit-box ptr table | `$8A:C1F1` (28 e.) | `$AF:B000` (char ptrs B072..F32A; extraction green) | [P 07-30] |
+| Hurt-box ptr table | `$8A:C229` (10 e.) | `$AF:B046` (11 e., Saturn at B05A) | [P 07-30] |
+| Coll-box ptr table | `$8A:C23D` (10 e.) | `$AF:B05C` (11 e.) | [P 07-30] |
+| Input-read hook (exec PC) | `$80:8373` | `$80:8347` — SAME instruction bytes (c2 20 a5 5c), relocated −0x2C | [P 07-30] |
+| Object update entry | `$C1:0000` | `$C1:0000` | [L] UNVERIFIED |
+| Saturn (cid 10) box ptrs | — | hit `$AF:EC3A` (30 boxes) / hurt `$AF:ED2A` (93 pairs) / coll `$AF:F2FA` (6) | [P 07-30] |
+
+## WRAM (claimed identical to SMS by [L] — verify per row before use)
+
+| Address | Meaning | Status |
+|---|---|---|
+| `$7E:1000` / `$7E:1080` | P1/P2 player structs — offsets live in-match (charID/act/step/pos/boxidx/HP/maxHP/ACS) | [P 07-30] |
+| `$7E:008D` | game mode (1 = 2P VS observed) | [P 07-30] |
+| `$7E:0070` | in-match flag = 4 in-match | [P 07-30] |
+| `$7E:0802-0804` | round clock (frame/ones/tens; 60s default observed) | [P 07-30] |
+| `$7E:1B40/1B80` | char-select cursors — poking 10/6 selected Saturn/Uranus | [P 07-30] |
+| `$7E:00A4/$7E:00AC` | Super-S-specific exit-detect pair (the Lua's freeze workaround) | [L] |
+
+## Saturn behavioural data (from [L], to verify in Phase 2)
+
+- Cancellable light-recovery acts: `{0x41,0x43,0x49,0x4B,0x59,0x5B,0x61,0x63}` — 8
+  entries vs 4 for every SMS character.
+
+## Known gameplay deltas vs SMS [W: newchallenger.net Super S page]
+
+- Projectiles/desperations weakened across the shared cast (Moon/Mercury/Mars/
+  Venus/Jupiter lost their useful fireballs; DM damage cut, e.g. Moon 48→40).
+- Neptune's new charge fireball input overrides her DP → wrong guard cancels
+  (system-level regression).
+- Chibi Moon buffed (Twinkle Yell). No SMS bug fixes carried in. Saturn added.
+- "Ability Customize System" (ACS points UI) exposed in most modes.
+
+## Relocated SMS structures found in Super S [P 07-30, signature hunt]
+
+| Structure | SMS file off | Super S file off | Shift | Content |
+|---|---|---|---|---|
+| Char loader body | 0x87D0 | 0x87E8 | +0x18 | first 48 B identical |
+| On-hit tables | 0xCDD5 | 0xCEFF | +0x12A | first 0x40 identical |
+| Damage matrix | 0xD081 | 0xD1C9 | +0x148 | rows 10 & 48 identical |
+| Box-index writer | $C0:9CCD ctx | 0x9FF1 ctx | +0x32C | 16 B identical |
+| joy_read tail | 0x8373 | 0x8347 | −0x2C | 4 B identical |
+
+NOT found byte-exact (changed in Super S, consistent with the wiki's gameplay deltas):
+modifier handlers (0xCAED), Moon's desperation record, hit-resolution head (0xBFC0),
+the 8× melee apply sequence (only 1 exact match — apply-site pattern changed),
+2HP cancel-commit context. Bank-level similarity: $C0 28%, $C1 14%, $C3 61%, most
+data banks <13% (globally shifted, locally identical where hunted).
+
+## Saturn manifest [P 07-30]
+
+`$E0:AC6A` (via ptr table idx 10): **first_hit_defense = 1** (only Jupiter=1,
+Neptune=2 in SMS), pal1 `$E0:B0C8`, anim payload `$E0:F328`.

@@ -98,6 +98,19 @@ on it). Title verified by screenshot.
 (v0.7). Newest all-patches v0.22; reference bundle REF v.1. Regression suite:
 59/59 v0.22, 55/55 REF v.1, 41/41 clean. RE campaign CLOSED.
 
+## NEW PROJECT: "SMS + Saturn" (started 2026-07-30) — prep done, route decision made
+
+**Read `docs/saturn/PROJECT.md` first** (the brief), then `docs/saturn/feasibility.md`
+(evidence + Route A recommendation: port Saturn INTO SMS), `docs/saturn/supers_map.md`
+(verified Super S map — same engine, globally shifted; every Rosetta claim probed),
+`docs/saturn/saturn_notes.md` (first measurements: her normals' act map 0x40-0x4F,
+box tables extracted, **far 5HK empirically unblockable at 34-44px** — guard-proximity
+data bug, the #1 balance knob). Fixture: `traces/saturn_vs_uranus_supers.mss`
+(force-added). Tools: `smspaths.supers_rom()`, `extract_supers_boxes.py`,
+`probe_supers_saturn.lua`, `probe_saturn_moves.lua`, `probe_saturn_unblockable.lua`.
+Next-session probes (feasibility.md §Next): locate her $C1 handler block + size it,
+decode anim payload ($E0:F328), find the guard-proximity table, sprite CHR census.
+
 ## Open threads (unchanged backlog)
 
 - Maintainer decisions: patch 6 deprecation, patch 1 vs 1b final gate, Guts knob feel,

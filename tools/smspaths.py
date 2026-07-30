@@ -18,7 +18,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 CLEAN_NAME = "Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
 BIGZAM_NAME = "sailor moon s big zam edition (hack).sfc"
+# Sailor Moon Super S — Zenin Sanka!! (sequel, same engine family): the Sailor Saturn
+# donor for the docs/saturn/ project. HiROM+FastROM, 3MB, header game code $FFB3=0x4A.
+SUPERS_NAME = "Bishoujo Senshi Sailor Moon SuperS - Zenin Sanka!! Shuyaku Soudatsusen (Japan).sfc"
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
+SUPERS_SHA1 = "1ada34177e7384612ae83464288f3860e4c4426e"
 # Single version source (issue #40): mkpatch4's default subtitle and the bundle build
 # script both derive from this — bump it here when cutting a new all-patches build.
 BUNDLE_VERSION = "0.22"
@@ -43,6 +47,10 @@ def clean_rom():
 
 def bigzam_rom():
     return str(rom_dir() / BIGZAM_NAME)
+
+
+def supers_rom():
+    return str(rom_dir() / SUPERS_NAME)
 
 
 def require_source(src, stacked=False):

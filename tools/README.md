@@ -202,11 +202,14 @@ is the optional knob file `<name>.lua` loads. See HANDOFF.md §4 for the harness
 - `probe_ppu.lua`
 - `probe_regen.lua`
 - `probe_regen_special.lua` — repro for "HP regen doesn't fire after special-move damage".
+- `probe_saturn_moves.lua` — first Saturn frame data (Super S). Reloads the
+- `probe_saturn_unblockable.lua` — verify Super S Saturn's notorious property: her FAR
 - `probe_shot.lua`
 - `probe_shot_cfg.lua`
 - `probe_smsenv.lua` — self-test for sms_env.lua discovery.
 - `probe_soak.lua`
 - `probe_soak_cfg.lua`
+- `probe_supers_saturn.lua` — Super S recon: reach a VS match with P1 = SATURN (charID
 - `probe_title.lua`
 - `probe_title_ppu.lua` — dump PPU state (bg mode, tilemap/CHR bases) at the title screen.
 - `probe_title_shot.lua` — boot to the title screen and save screenshots.
@@ -225,6 +228,7 @@ is the optional knob file `<name>.lua` loads. See HANDOFF.md §4 for the harness
 
 - `extract_proj_boxes.py` — Dump the PROJECTILE / object box tables from Sailor Moon S (SFC, HiROM, headerless).
 - `extract_sms_hitboxes.py` — Extract hitbox/hurtbox/collision tables from Sailor Moon S (SFC, HiROM, headerless).
+- `extract_supers_boxes.py` — Extract hitbox/hurtbox/collision tables from Sailor Moon SUPER S (Zenin Sanka!!).
 
 ## Other
 

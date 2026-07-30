@@ -84,6 +84,16 @@ closed. Key operational changes:
 - Suite-count note: v0.22 full run counts differ slightly from the 07-25 numbers only
   via EXPECT cfg (58 + static-expect-all = 59) — see §4.
 
+**2026-07-30 — "SMS + Saturn" project started (docs/saturn/):** prep + first probes
+done. Super S ROM validated (SHA 1ada3417…, resolved via smspaths.supers_rom());
+engines proven same-but-shifted (char loader +0x18, on-hit +0x12A, matrix +0x148 with
+identical contents; WRAM identical — all probed); Saturn loads via char-select poke
+(fixture traces/saturn_vs_uranus_supers.mss), her box tables extracted
+(docs/saturn/supers_all_boxes.json), her far-5HK unblockable CONFIRMED empirically
+(hits through held guard 34-44px; 5LP control blocks). Route recommendation: **A —
+port Saturn into SMS** (docs/saturn/feasibility.md has the evidence + de-risk probes).
+Saturn-reference rule §5 has a scoped exception for this project.
+
 **2026-07-25 — patch 10 field report fixed + REF v.1 bundle:**
 - Maintainer reported the combo counter never appears and status labels never disappear
   (v0.21 + p10 standalone). Two root causes, both fixed in `mkpatch10.py` and A/B-verified
@@ -389,8 +399,11 @@ Submerge fireball demos.
 - **The extractors cover charIDs 1-9 only** — id 10 "Saturn" is a Sailor Moon Super S
   carry-over that is NOT in this game (no assets ever found despite decades of community
   digging); pre-2026-07-30 extractor versions invented a bogus "Saturn" JSON entry from
-  projectile-table bytes (fixed, issue #38). Rule: no code refers to Saturn except
-  explicit warnings like this one.
+  projectile-table bytes (fixed, issue #38). Rule: no SMS-targeted code refers to
+  Saturn except explicit warnings like this one. **Scoped exception (2026-07-30): the
+  "SMS + Saturn" project** — `docs/saturn/**` and Super-S-targeted tools
+  (`tools/*supers*`, `probe_supers_*`) legitimately deal in Saturn/Super S; see
+  `docs/saturn/PROJECT.md`.
 - **Box-index writer order:** `$C0:9CCD` sets `+0x41` (hurtbox) every frame from animation data,
   and it runs a per-object batch. To override a hurtbox you must write it *after* that (patch 6
   hooks the writer itself). Frame counters: the forward-dash frame index is `+0x5D` (1..14; read
