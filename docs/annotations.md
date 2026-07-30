@@ -119,7 +119,21 @@ every pulse registers at the title menu.
 | $7E:1B80 | charsel_p2_cursor | P2 equivalent |
 Flow: title (cursor $1B10=1 = 1P vs 2P, confirm Start) → char select → VS config screen
 (button map + stage) → Start → match. Poking $1B40 before confirm is a reliable way to
-select a character headlessly.
+select a character headlessly — but ONLY to a mode-legal charID: story/1P mode
+restricts the roster (see move-t2 below); poking 6/7/8 there crashes even vanilla.
+
+Char-select engine (decoded 2026-07-31, saturn v0.10.0 work; code runs from the
+$80 FastROM mirror — exec watchpoints need $80:xxxx):
+| Address | Label | Comment |
+|---|---|---|
+| $C0:A58E | charsel_move_t1 | movement, nav table $AA4D; serves BOTH cursors in VS AND practice (Y=$1B40/$1B80); X=charID*4; pad via [$FE]→DP $60/$62 (edge-triggered) |
+| $C0:A5DF | charsel_move_t2 | story/1P variant, nav table $AA75 — table deliberately omits routes to 6/7/8 (outer senshi are story bosses, no player story data) |
+| $C0:AA4D/AA75 | charsel_nav_t1/t2 | 10 rows × [up,down,left,right] neighbor charID; row 0 dead (cursor never 0); self-reference = no move; sfx $78=4 on move |
+| $C0:A77D | charsel_draw_blk1 | P1 cursor sprite; positions $AA9D+charID*2 (packed x,y); count byte $AAD9, sprite def $AADA, attr $07=0x30, emitter jsr $9B17 |
+| $C0:A7A4/A7F2/A819 | charsel_draw_blk2a/b/c | second cursor (VS P2 / practice dummy); positions $AAB1+charID*2 (+0x10 x-shift), defs $AAE1/$AAE8/$AAEF (tiles 02/04/06) |
+| $C0:A7CB | charsel_draw_blk3 | story single cursor; positions $AAC5+charID*2 (+8 x-shift) |
+| $C0:A630 | charsel_confirm | per-player per-frame; A/Y/Start (mask $5080, normal pal) or B/X ($8040, alt pal); $78=3; dedup $A693/$A6C4 sets samechar→alt palette |
+| — | position tables | each table's char-0 word is never read (reads 1-indexed) = the PREVIOUS table's free char-10 slot; UI sprites emitted via $9B17 are QUEUED (direct $0200 shadow pokes get E0-cleared later in the frame) |
 
 ## Uranus crouching LP (2LP) — measured lifecycle (Mesen frame-advance, savestate uranus_vs_moon.mss)
 Buttons: Y=LP, X=LK, B=HP, A=HK. Crouching attacks: 2LP=0x53, 2LK=0x55? (X→0x55 str8),

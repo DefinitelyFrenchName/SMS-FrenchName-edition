@@ -11,9 +11,9 @@ Design (docs/saturn/supers_map.md §pipeline + §Character architecture):
   * The three data layers can't extend in place (tables end flush against data),
     so each layer's whole region is COPIED into an appended bank and the engine's
     data-bank byte + table-base operands are patched (1-3 bytes per layer):
-      $E8: $C0:0000-0x2200 script region copy + widened id->acttable entry
-           + Saturn act table & scripts (CMD steps STRIPPED — the SMS interpreter
-           $80:A05C has no 0xC0 case) + the recognizer-guard stub
+      $E8: $C0:0000-0x2800 FULL script region copy (v0.10.0: vanilla story-mode
+           scripts reach 0x2800!) + widened id->acttable entry + Saturn act
+           table & scripts above the stubs + the recognizer-guard stub
       $E9: $84:8000-0x9400 pose-record region copy + widened table @ $9E00
            + Saturn records @ $9E40 (guard-fix bytes APPLIED — ships-fixed policy)
       $EA: $CB:0000-0x2000 cel-table region copy + widened table @ $2000
@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.9.0"
+SATURN_VERSION = "0.10.0"
 
 SAT_ID = 0x1C
 
@@ -124,6 +124,60 @@ E8_DMASTUB = 0x2980
 SATURN_FLAG = 0x1F60      # P1; P2 flag = +1. v0.9.0: P2 in-ROM select — the same
 SATURN_FLAG2 = 0x1F61     # DMA site also runs P2's effects transfer (VRAM $7300
 EE_TILES = 0xD000         # <- $7F:0000 staging reused); P2 pad = $421A/B.
+# v0.10.0 FIX (latent since 0.8.0): the $EF helper must NOT transform on the
+# user flag directly — story-mode load screens pass its act/$1FA gates on
+# non-fight actors, and a flag set BEFORE the load (char-select pick, or a
+# stale flag from an earlier match) crashed the story sequencer (pc -> $FFB0).
+# The L+R path never hit this only because the DMA stub sets the flag exactly
+# at the effects transfer, which is AFTER that window. So the DMA stub now
+# latches flag -> per-round ARM ($1F62/63) at that proven-safe moment, and the
+# helper transforms on the latch. Pre-set flags thereby behave exactly like
+# held-L+R: they take effect at the shell char's effects DMA, never earlier.
+SATURN_LATCH = 0x1F62     # P1 armed-this-round latch; P2 = +1
+SATURN_LATCH2 = 0x1F63
+# v0.10.0 — CHAR-SELECT 10TH SLOT (placeholder graphic): the select screen is a
+# group photo with table-driven spatial cursor movement. Decoded (charsel probes
+# 2026-07-31, code runs from the $80 FastROM mirror):
+#   move-t1 $C0:A58E  nav table $AA4D (10 rows x [up,down,left,right] charID)
+#                     — serves BOTH cursors in VS AND practice (Y=$1B40/$1B80)
+#   move-t2 $C0:A5DF  nav table $AA75 — story/vs-CPU single cursor only
+#   draw-blk1/2a/2b/2c/3: cursor sprites; position tables base+charID*2 at
+#     $AA9D (P1) / $AAB1 (P2/dummy) / $AAC5 (story); each table's char-0 word is
+#     dead (reads are 1-indexed) = the PREVIOUS table's free char-10 slot.
+#   confirm $C0:A630  per-player per-frame; buttons A/Y/Start ($5080 pad mask,
+#                     normal palette) or B/X ($8040, alt palette); union $D0C0.
+# Slot 10 (Saturn): t1 gains an 11th row in-place at $AA75 (t2's dead row 0 —
+# story cursor never reaches 0); Chibimoon-right + Venus-down lead to it.
+# STORY MODE IS DELIBERATELY EXCLUDED: t2 exists precisely to restrict the
+# story roster — its rows never lead to 6/7/8 (the outer senshi are story
+# bosses with no player story data; forcing cursor 6 there crashes VANILLA
+# too, verified). Slot 10 (shell 6) follows the same policy, so t2/draw-blk3
+# stay untouched and Saturn in 1P mode remains the L+R-at-load select.
+# Confirm hook (4-byte JSL over rep #$30/lda [$FE]) translates cursor 10 ->
+# shell char 6 (Uranus) + sets $1F60/$1F61 by cursor struct (Y) on the press
+# frame, so ALL downstream UI/loader sees a normal Uranus pick and the proven
+# round-load transform does the rest; while browsing (pre-confirm) it clears
+# that player's flag so each char-select trip re-decides (L+R at load still
+# overrides). A placeholder marker sprite (P1-cursor glyph, OAM slot 0x7B —
+# tail slot free in all modes) parks at the empty photo spot (170,162); the
+# engine clears the OAM shadow AFTER the confirm poll, so the marker is written
+# by the DRAW-phase hooks (draw-blk1 for VS/practice — hooked for this purpose
+# alone — and draw-blk3 for story), never by the confirm stub.
+CHARSEL_DRAW1 = 0x0A77D       # sep #$30 / lda $AA9D,Y head
+CHARSEL_DRAW1_OLD = bytes.fromhex("E230B99DAA")
+CHARSEL_CONFIRM = 0x0A630     # rep #$30 / lda [$FE] head
+CHARSEL_CONFIRM_OLD = bytes.fromhex("C230A7FE")
+T1_IDX10 = 0xAA75             # t1 row 10 == t2 row 0 (dead)
+T1_ID9_RIGHT = 0xAA74         # Chibimoon right: 9 -> 10
+T1_ID5_DOWN = 0xAA62          # Venus down: 5 -> 10
+POS1_10 = 0xAAB1              # blk1 char-10 word == blk2 char-0 (dead)
+POS2_10 = 0xAAC5              # blk2 char-10 word == blk3 char-0 (dead)
+SLOT10_XY = (0xAA, 0xA2)      # (170,162): bottom-right, beside Chibimoon
+CHARSEL_SHELL = 0x06          # shell charID stored on confirm (Uranus)
+EE_DRAW1 = 0xC1A0             # draw-blk1 reimpl (+marker call)
+EE_CONFIRM = 0xC220           # confirm stub: slot-10 translation + flags
+EE_MARKER = 0xC2A0            # shared marker-sprite enqueuer (jsr'd by the draws)
+EMIT_GADGET = 0xA782          # jsr $9B17 / rtl — carved from dead draw-blk1 body
 # Box tables: appended bank $F0 = full bank-$8A copy read via WRAM-mirror $B0
 # (6x plb #$8A -> #$B0); widened ptr tables (0x30 entries) + Saturn's box data
 # grafted into the copy's upper half; 7 table-read operands repointed.
@@ -145,13 +199,25 @@ F0_HIT_D, F0_HURT_D, F0_COLL_D = 0x8230, 0x8330, 0x8910
 OAM_BLOB_LO, OAM_BLOB_HI = 0x078000, 0x07BE5E
 SITE_OAM_ENTRY = 0x048000 + 3 * SAT_ID          # $84:8054 (unused id slot)
 
-# in-bank layout of the appended banks
-E8_SATURN_ACTTBL = 0x2200     # 128-word act table, then scripts (end < 0x2715)
-# Projectile objects 0x20-0x22 (her fireballs): scripts are CMD-free -> copied
-# VERBATIM at their original offsets $E8:2715-2795 (act-table words are
-# bank-absolute); pose records + OAM blob + hit boxes + procs ported alongside.
+# in-bank layout of the appended banks.
+# v0.10.0 LAYOUT FIX (latent since 0.1.0): the SMS script region does NOT end
+# at 0x2200 — vanilla act-table pointers reach 0x2780 (story-mode object ids up
+# to 50; script data runs to 0x2800). The old 0x2200-cut copy put Saturn's act
+# table + scripts + the projectile blob on top of those bytes, so any STORY
+# scene actor (e.g. Uranus's intro, act 0x22) executed garbage -> crash at
+# story round load (pc -> $FFB0) in every mode-1P flow. The copy now takes the
+# full 0x0000-0x2800 and everything Saturn-owned lives above the stubs.
+E8_SATURN_ACTTBL = 0x2C00     # 128-word act table, then scripts (end < 0x3200)
+# Projectile objects 0x20-0x22 (her fireballs): scripts are CMD-free; their
+# Super S home (0x2715-0x2795) collides with SMS's own script tail, so the
+# blob is RELOCATED to 0x3200 with its act-table words (bank-absolute into the
+# blob) rebased by the same delta; pose records + OAM blob + hit boxes + procs
+# ported alongside.
 PROJ_SCRIPTS_LO, PROJ_SCRIPTS_HI = 0x2715, 0x2795
-PROJ_SCRIPT_ENTRIES = {0x20: 0x2715, 0x21: 0x2725, 0x22: 0x2735}
+PROJ_SCRIPTS_NEW = 0x3200
+PROJ_DELTA = PROJ_SCRIPTS_NEW - PROJ_SCRIPTS_LO
+PROJ_SCRIPT_ENTRIES = {0x20: 0x2715 + PROJ_DELTA, 0x21: 0x2725 + PROJ_DELTA,
+                       0x22: 0x2735 + PROJ_DELTA}
 PROJ_POSES_LO, PROJ_POSES_N = 0x049575, 24 * 4     # $84:9575, 24 records
 PROJ_OAM_LO, PROJ_OAM_HI = 0x04B4A6, 0x04B6DA      # $84:B4A6 blob (in-bank abs)
 PROJ_HIT_LO, PROJ_HIT_N = 0x2FF552, 8 * 8          # $AF:F552 hit boxes
@@ -237,12 +303,7 @@ def main():
     # ---- bank $E8: scripts ----
     bankbase, bank = next_bank(data)
     assert bank == 0xE8, f"first free bank is ${bank:02X}, expected $E8 (clean src)"
-    e8 = bytearray(data[0x00000:0x02200])            # $C0 script region copy
-    e8 += bytes(E8_SATURN_ACTTBL - len(e8))
-    sat_tbl, nscripts = build_saturn_scripts(sup, E8_SATURN_ACTTBL)
-    e8 += sat_tbl
-    assert len(e8) <= PROJ_SCRIPTS_LO, "Saturn scripts overrun the projectile region"
-    e8 += bytes(E8_STUB - len(e8))
+    e8 = bytearray(data[0x00000:0x02800])            # FULL $C0 script region copy
     # recognizer stub (M=0 at hook): id != Saturn -> skip the 7 data bytes
     # (surgery +7) and emulate the original head; id == Saturn -> skip the whole
     # real dispatch remainder (surgery +0x26 lands at $C1:1289 plb/rts) and run
@@ -292,7 +353,7 @@ def main():
     e8 += bytes(E8_DMASTUB - len(e8))
     # DMA-kick stub: P1 ($6A00) and P2 ($7300) effects transfers; per-player
     # flags from the respective autopoll pads; staging override when flagged
-    def _flagblock(pad_lo, pad_hi, flag):
+    def _flagblock(pad_lo, pad_hi, flag, latch):
         b = bytearray()
         b += bytes((0xE2, 0x20))                             # sep #$20
         b += bytes((0xA5, 0x36, 0xC9, 0x7F, 0xD0, 0x00))     # $36!=7F -> orig
@@ -301,7 +362,9 @@ def main():
         b += bytes((0xA9, 0x01, 0x8D, flag & 0xFF, flag >> 8))
         b += bytes((0xAD, pad_hi & 0xFF, pad_hi >> 8, 0x29, 0x20, 0xF0, 0x03))
         b += bytes((0x9C, flag & 0xFF, flag >> 8))
-        b += bytes((0xAD, flag & 0xFF, flag >> 8, 0xF0, 0x00))
+        b += bytes((0xAD, flag & 0xFF, flag >> 8))           # lda flag
+        b += bytes((0x8D, latch & 0xFF, latch >> 8))         # arm this round
+        b += bytes((0xF0, 0x00))
         j2 = len(b) - 1
         return b, (j1, j2)
     d = bytearray()
@@ -314,12 +377,12 @@ def main():
     d += bytes((0x80, 0x00))                                 # bra orig
     forig1 = len(d) - 1
     p1eff = len(d)
-    b1, (j11, j12) = _flagblock(0x4218, 0x4219, SATURN_FLAG)
+    b1, (j11, j12) = _flagblock(0x4218, 0x4219, SATURN_FLAG, SATURN_LATCH)
     d += b1
     d += bytes((0x80, 0x00))                                 # bra copy
     fcopy = len(d) - 1
     p2eff = len(d)
-    b2, (j21, j22) = _flagblock(0x421A, 0x421B, SATURN_FLAG2)
+    b2, (j21, j22) = _flagblock(0x421A, 0x421B, SATURN_FLAG2, SATURN_LATCH2)
     d += b2
     copy = len(d)
     d += bytes((0xC2, 0x30))                             # rep #$30
@@ -338,10 +401,28 @@ def main():
     d += bytes((0xA0, 0x01, 0x8C, 0x00, 0x43, 0x8C, 0x0B, 0x42))
     d += bytes((0x6B,))
     e8 += bytes(d)
+    assert len(e8) <= E8_SATURN_ACTTBL, f"stubs overrun Saturn act table: {len(e8):#x}"
+    e8 += bytes(E8_SATURN_ACTTBL - len(e8))
+    sat_tbl, nscripts = build_saturn_scripts(sup, E8_SATURN_ACTTBL)
+    e8 += sat_tbl
+    assert len(e8) <= PROJ_SCRIPTS_NEW, "Saturn scripts overrun the projectile region"
+    e8 += bytes(PROJ_SCRIPTS_NEW - len(e8))
+    # projectile blob, relocated. The act tables are irregular word arrays with
+    # script bytes interleaved, so ONLY the verified pointer spans rebase:
+    # 0x2715(3 acts, id 0x20), 0x2725(3, id 0x21), 0x2735(5, id 0x22) and the
+    # dead-but-kept 0x274C(5) — every word verified in-blob before rebasing.
+    proj = bytearray(sup[PROJ_SCRIPTS_LO:PROJ_SCRIPTS_HI])
+    for base, n in ((0x2715, 3), (0x2725, 3), (0x2735, 5), (0x274C, 5)):
+        for i in range(n):
+            off = base - PROJ_SCRIPTS_LO + 2 * i
+            w = proj[off] | proj[off + 1] << 8
+            assert PROJ_SCRIPTS_LO <= w < PROJ_SCRIPTS_HI, \
+                f"proj act table {base:#x}[{i}] not in-blob: {w:#x}"
+            w += PROJ_DELTA
+            proj[off], proj[off + 1] = w & 0xFF, w >> 8
+    e8 += proj
     e8[2 * SAT_ID] = E8_SATURN_ACTTBL & 0xFF          # id -> act-table entry
     e8[2 * SAT_ID + 1] = E8_SATURN_ACTTBL >> 8
-    assert len(e8) > PROJ_SCRIPTS_HI
-    e8[PROJ_SCRIPTS_LO:PROJ_SCRIPTS_HI] = sup[PROJ_SCRIPTS_LO:PROJ_SCRIPTS_HI]
     for pid, tbl in PROJ_SCRIPT_ENTRIES.items():
         e8[2 * pid:2 * pid + 2] = bytes((tbl & 0xFF, tbl >> 8))
     write_bank(data, bankbase, bytes(e8))
@@ -404,6 +485,82 @@ def main():
     ee[0xC020:0xC040] = sup[0x20B0A8:0x20B0A8 + 32]
     ver = ("SATURN v" + SATURN_VERSION).encode()
     ee[0xC040:0xC040 + len(ver) + 1] = ver + b"\x00"
+    # -- char-select 10th-slot stubs (consumed by the v0.10.0 hooks below) --
+    def _asm():
+        code, fixups, labels = bytearray(), [], {}
+        def lbl(name): labels[name] = len(code)
+        def br(op, name):
+            code.extend((op, 0x00)); fixups.append((len(code) - 1, name))
+        def fix():
+            for pos, name in fixups:
+                d = labels[name] - (pos + 1)
+                assert -128 <= d <= 127, f"branch too far: {name}"
+                code[pos] = d & 0xFF
+        return code, lbl, br, fix
+
+    # shared marker enqueuer: UI sprites are QUEUED via the $9B17 emitter and
+    # written to the OAM shadow later in the frame (direct shadow pokes get
+    # E0-cleared), so the marker is a second $9B17 call with its own params:
+    # same cursor def ($AADA), parked at the slot-10 photo spot. The emitter
+    # is reached via the EMIT_GADGET (jsr $9B17 / rtl) carved from the dead
+    # body of the hooked draw-blk1 routine — PB=$80 exactly like the original.
+    mk = bytearray()
+    mk += bytes((0xA9, SLOT10_XY[0], 0x85, 0x01, 0x64, 0x02))  # x
+    mk += bytes((0xA9, SLOT10_XY[1], 0x85, 0x03, 0x64, 0x04))  # y
+    mk += bytes((0x64, 0x06, 0xA9, 0x30, 0x85, 0x07))          # attr/prio
+    mk += bytes((0xAF, 0xD9, 0xAA, 0xC0, 0x85, 0x00))          # count ($AAD9)
+    mk += bytes((0xA9, 0xDA, 0x85, 0x12, 0xA9, 0xAA, 0x85, 0x13))  # def $AADA
+    mk += bytes((0x22, EMIT_GADGET & 0xFF, EMIT_GADGET >> 8, 0x80))
+    mk += bytes((0x60,))
+    ee[EE_MARKER:EE_MARKER + len(mk)] = mk
+
+    # draw reimpls: original routine body with long position reads (so char-10
+    # rows exist), emitter via the gadget, then the marker call; plain rtl —
+    # the hooked site's trailing rts returns to the caller.
+    def _draw_stub(pos_lo, pos_hi):
+        d = bytearray()
+        d += bytes((0xE2, 0x30))               # sep #$30
+        d += bytes((0xDA, 0xBB))               # phx / tyx
+        d += bytes((0xBF, pos_lo & 0xFF, (pos_lo >> 8) & 0xFF, pos_lo >> 16, 0x85, 0x01, 0x64, 0x02))
+        d += bytes((0xBF, pos_hi & 0xFF, (pos_hi >> 8) & 0xFF, pos_hi >> 16, 0x85, 0x03))
+        d += bytes((0x64, 0x04, 0x64, 0x06))
+        d += bytes((0xA9, 0x30, 0x85, 0x07))   # attr/prio template
+        d += bytes((0xAF, 0xD9, 0xAA, 0xC0, 0x85, 0x00))  # count byte ($AAD9)
+        d += bytes((0xA9, 0xDA, 0x85, 0x12, 0xA9, 0xAA, 0x85, 0x13))  # def $AADA
+        d += bytes((0xFA,))                    # plx
+        d += bytes((0x22, EMIT_GADGET & 0xFF, EMIT_GADGET >> 8, 0x80))  # cursor
+        d += bytes((0x20, EE_MARKER & 0xFF, EE_MARKER >> 8))            # marker
+        d += bytes((0x6B,))
+        return d
+    d1 = _draw_stub(0xC0AA9D, 0xC0AA9E)                   # blk1: original table
+    assert len(d1) <= EE_CONFIRM - EE_DRAW1, f"draw1 stub too big: {len(d1)}"
+    ee[EE_DRAW1:EE_DRAW1 + len(d1)] = d1
+
+    # confirm stub: slot-10 translation + flag maintenance; ends by
+    # replicating the replaced head (rep #$30 / lda [$FE]) and rtl.
+    c, lbl, br, fix = _asm()
+    c += bytes((0xC2, 0x30))                   # rep #$30
+    c += bytes((0xC0, 0x40, 0x1B)); br(0xF0, "known")   # cpy #$1B40
+    c += bytes((0xC0, 0x80, 0x1B)); br(0xD0, "finish")  # cpy #$1B80
+    lbl("known")
+    c += bytes((0xB9, 0x02, 0x00)); br(0xD0, "finish")  # already confirmed
+    c += bytes((0xB9, 0x00, 0x00, 0xC9, 0x0A, 0x00)); br(0xF0, "on10")
+    c += bytes((0xE2, 0x20, 0xA9, 0x00)); br(0x80, "setflag")  # browsing: clear
+    lbl("on10")
+    c += bytes((0xA7, 0xFE, 0x29, 0xC0, 0xD0)); br(0xF0, "finish")  # press?
+    c += bytes((0xA9, CHARSEL_SHELL, 0x00, 0x99, 0x00, 0x00))  # cursor -> shell
+    c += bytes((0xE2, 0x20, 0xA9, 0x01))
+    lbl("setflag")
+    c += bytes((0xC0, 0x40, 0x1B)); br(0xD0, "p2f")
+    c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, 0x7E)); br(0x80, "finish")
+    lbl("p2f")
+    c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, 0x7E))
+    lbl("finish")
+    c += bytes((0xC2, 0x30, 0xA7, 0xFE, 0x6B))  # rep #$30 / lda [$FE] / rtl
+    fix()
+    assert len(c) <= 0x100, f"confirm stub too big: {len(c)}"
+    ee[EE_CONFIRM:EE_CONFIRM + len(c)] = c
+
     tiles = REPO / "traces" / "saturn" / "supers_effecttiles.bin"
     if tiles.is_file():
         tb = tiles.read_bytes()[:0xC00]
@@ -437,10 +594,10 @@ def main():
     h += bytes((0xE0, 0x00)); _br(0xF0, "p1chk")
     h += bytes((0xE0, 0x80)); _br(0xD0, "normal")
     # P2 check
-    h += bytes((0x48, 0xAD, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8)); _br(0xF0, "popn")
+    h += bytes((0x48, 0xAD, SATURN_LATCH2 & 0xFF, SATURN_LATCH2 >> 8)); _br(0xF0, "popn")
     h += bytes((0xA9, 0x20)); _br(0x80, "gates") # A=palette-row hint 0x20 -> $0620
     _lbl("p1chk")
-    h += bytes((0x48, 0xAD, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8)); _br(0xF0, "popn")
+    h += bytes((0x48, 0xAD, SATURN_LATCH & 0xFF, SATURN_LATCH >> 8)); _br(0xF0, "popn")
     h += bytes((0xA9, 0x00))                     # palette row 0x00 -> $0600
     _lbl("gates")
     h += bytes((0x85, 0x0E))                     # sta $0E (palette-dest low byte)
@@ -581,6 +738,25 @@ def main():
             data[site + 1] = 0xB0
         for site, (old, new) in BOX_READS.items():
             data[site + 1:site + 3] = bytes((new & 0xFF, new >> 8))
+    # -- v0.10.0 char-select 10th slot --
+    expect(CHARSEL_DRAW1, CHARSEL_DRAW1_OLD, "draw-blk1 head")
+    data[CHARSEL_DRAW1:CHARSEL_DRAW1 + 5] = \
+        bytes((0x22, EE_DRAW1 & 0xFF, EE_DRAW1 >> 8, 0xEE, 0x60))
+    expect(EMIT_GADGET, bytes.fromhex("85016402"), "gadget slot (dead blk1 body)")
+    data[EMIT_GADGET:EMIT_GADGET + 4] = bytes((0x20, 0x17, 0x9B, 0x6B))
+    expect(CHARSEL_CONFIRM, CHARSEL_CONFIRM_OLD, "charsel confirm head")
+    data[CHARSEL_CONFIRM:CHARSEL_CONFIRM + 4] = \
+        bytes((0x22, EE_CONFIRM & 0xFF, EE_CONFIRM >> 8, 0xEE))
+    expect(T1_IDX10, b"\x00\x00\x00\x00", "t1 row 10 (t2 dead row 0)")
+    data[T1_IDX10:T1_IDX10 + 4] = bytes((0x05, 0x0A, 0x09, 0x0A))
+    expect(T1_ID9_RIGHT, b"\x09", "t1 Chibimoon right")
+    data[T1_ID9_RIGHT] = 0x0A
+    expect(T1_ID5_DOWN, b"\x05", "t1 Venus down")
+    data[T1_ID5_DOWN] = 0x0A
+    expect(POS1_10, b"\x00\x00", "blk1 char-10 word")
+    data[POS1_10:POS1_10 + 2] = bytes(SLOT10_XY)
+    expect(POS2_10, b"\x00\x00", "blk2 char-10 word")
+    data[POS2_10:POS2_10 + 2] = bytes((SLOT10_XY[0] + 0x10, SLOT10_XY[1]))
     expect(0x10000 + PROJ_DESPAWN, bytes.fromhex("740060"), "despawn tail")
     for pid in PROJ_IDS:
         site = 0x100A6 + 2 * pid

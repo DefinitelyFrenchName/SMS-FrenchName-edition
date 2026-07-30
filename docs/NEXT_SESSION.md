@@ -159,9 +159,18 @@ Window on the mksaturn_smoke ROM — auto-transforms P1 at round start; header h
 instructions + known gaps). **PROJECTILES PORTED (same session):** fireballs are VISIBLE, travel, hit,
 and despawn (supers_map §Projectile objects; effect tiles are compressed in
 ROM → smoke uploads a fixture VRAM dump at runtime, see saturn_test.lua
-header). Palettes DONE (embedded in $EE:C000, tester injects CGRAM shadow $0600). Next: sfx (needs an SMS sound-API map), throws/desperation
-verification, close-5HK guard-band check, then roster/char-select + REF bank
-reconciliation (note: smoke claims banks $E8-$F0).
+header). Palettes DONE (embedded in $EE:C000, tester injects CGRAM shadow $0600). Sound DONE (0.7.0, CMD back-port). In-ROM select DONE (0.8.x L+R, 0.9.0 P2).
+**CHAR-SELECT SLOT DONE (0.10.0):** slot 10 on the select screen (VS/practice;
+placeholder cursor-glyph marker; confirm → shell 6 + flag; story mode excluded
+by design — vanilla's t2 nav table restricts the story roster, forcing outer
+senshi crashes vanilla too). Char-select engine fully decoded in
+annotations.md §Character select. Two latent fixes landed with it: $E8 script
+copy widened to the REAL region end 0x2800 (story scripts were clobbered since
+0.1.0), transform armed via per-round latches $1F62/63 (pre-set flags can't
+fire during load/dialogue windows). Next: real portrait/name art for the slot,
+$7E:6A00 manifest payload (effect-tile source pointers → drop the .bin
+fixture), desperation trigger, then REF bank reconciliation (note: smoke
+claims banks $E8-$F0).
 
 ## Open threads (unchanged backlog)
 
