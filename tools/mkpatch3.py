@@ -27,6 +27,11 @@ sys.path.insert(0, str(REPO / "vendor/sms-training-mode"))
 from sms_patcher import apply_patch, PATCH_PAL, read_int  # noqa: E402
 
 CLEAN = clean_rom()
+
+# Detection fingerprint (p3) — consumed by tools/mksigs.py to generate the
+# regression suite's SIGS table. ONLY bytes invariant across stub-layout and
+# bank-stacking changes: first bytes of the vendor patcher's 1P palette-map hook (fixed rewrite)
+SIG = [(0x884B, 0xA9), (0x884C, 0x0C), (0x884F, 0x65)]
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 BIGZAM = bigzam_rom()
 BZ_SHA1 = "12114423b278d3114a301c5366a7a1811913ba25"   # donor validation (issue #8)

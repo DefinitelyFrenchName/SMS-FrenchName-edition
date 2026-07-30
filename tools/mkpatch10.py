@@ -28,6 +28,11 @@ from smspaths import clean_rom, require_source, check_not_inplace  # ROM locatio
 import asm65816 as A  # noqa: E402
 
 CLEAN = clean_rom()
+
+# Detection fingerprint (p10) — consumed by tools/mksigs.py to generate the
+# regression suite's SIGS table. ONLY bytes invariant across stub-layout and
+# bank-stacking changes: JML opcodes at the two HUD hooks (operands vary with bank/stub layout)
+SIG = [(0xD56F, 0x5C), (0xD5E8, 0x5C)]
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 PROD = 0x00D5E8            # hud_producer entry; first bytes C2 10 E2 20

@@ -31,6 +31,11 @@ REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
 from smspaths import clean_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 CLEAN = clean_rom()
+
+# Detection fingerprint (p6) — consumed by tools/mksigs.py to generate the
+# regression suite's SIGS table. ONLY bytes invariant across stub-layout and
+# bank-stacking changes: jsl $C1:BE85 at the box-index writer (stub address is FIXED)
+SIG = [(0x9CCD, 0x22), (0x9CCE, 0x85), (0x9CCF, 0xBE)]
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 HOOK = 0x09CCD                       # sta $41,X ; lda ($10),Y   (C0:9CCD)

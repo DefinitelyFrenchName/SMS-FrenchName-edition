@@ -37,6 +37,11 @@ from smspaths import clean_rom, require_source, check_not_inplace  # ROM locatio
 import asm65816 as A  # noqa: E402
 
 CLEAN = clean_rom()
+
+# Detection fingerprint (p12) — consumed by tools/mksigs.py to generate the
+# regression suite's SIGS table. ONLY bytes invariant across stub-layout and
+# bank-stacking changes: JML opcode at the joy_read hook (vanilla 45; operands are stub-layout-dependent)
+SIG = [(0x8377, 0x5C)]
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 HOOK = 0x008377

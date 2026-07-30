@@ -49,6 +49,12 @@ import asm65816 as A  # noqa: E402
 from mkpatch12 import MISFIRE  # single source of truth for the primary misfire acts
 
 CLEAN = clean_rom()
+
+# Detection fingerprint (p13) — consumed by tools/mksigs.py to generate the
+# regression suite's SIGS table. ONLY bytes invariant across stub-layout and
+# bank-stacking changes: JML at the FSM hook + JSL opcodes at two melee thunks (operands shift with the
+# stub — pinning one silently skipped all p13 tests when #21 changed the stub)
+SIG = [(0x837B, 0x5C), (0xC09C, 0x22), (0xC16F, 0x22)]
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 # full per-character misfire-act sets (probe_p12_rec harvest: all specials' record+6)

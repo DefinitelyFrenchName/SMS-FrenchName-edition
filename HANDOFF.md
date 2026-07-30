@@ -310,7 +310,14 @@ inputPolled precedes exec@$80:8353; getInput is clean if read before setInput; S
 size degenerate headless; screenshots don't composite ScriptHud (console surface only).
 
 **Regression suite (run before shipping any build):** `tools/test_regression.lua` —
-auto-detects which patches are in the ROM via PRG-ROM fingerprints, then runs base-game
+auto-detects which patches are in the ROM via PRG-ROM fingerprints. **The fingerprints
+are GENERATED**: each builder exports `SIG = [(offset, byte), ...]` (layout/stacking-
+invariant bytes only) and `tools/mksigs.py --write` renders the suite's SIGS block
+(`--check` verifies sync; both build scripts run it). Never hand-edit the SIGS block or
+pin stub-layout operand bytes — a hand-pinned byte silently skipped all 11 p13 tests on
+2026-07-30 when a stub change shifted it. After changing a builder's hooks or knob
+defaults (p5/p7/p8/p9 SIGs pin the defaults), update its SIG and rerun mksigs --write.
+The suite then runs base-game
 engine invariants (deterministic damage, counter-hit −2 columns, posture, throws,
 desperation types, dash distance) plus per-patch nominal+edge tests (incl. cross-patch
 counter-hit×Guts, p8 tech-window dual-mode, p13 round-reset, the full 9-character

@@ -45,6 +45,12 @@ import asm65816 as A  # noqa: E402
 
 CLEAN = clean_rom()
 
+# Detection fingerprint (p14) — consumed by tools/mksigs.py to generate the
+# regression suite's SIGS table. ONLY bytes invariant across stub-layout and
+# bank-stacking changes: JSL opcodes at both grab-tail thunks + the relocated bcs (the old fingerprint's
+# 0x10836=0x80 was the stub offset low byte — table-size-dependent)
+SIG = [(0x10835, 0x22), (0x10839, 0xB0), (0x10D5A, 0x22)]
+
 # apply-site tails (site+6 of the toss/tick sites patch 13 hooks at +0)
 TOSS_TAIL = 0x10835
 TOSS_OLD = bytes.fromhex("c990b039994900")   # cmp #$90 / bcs +0x39 / sta $0049,Y
@@ -65,13 +71,9 @@ SCR16 = ST14 + 4   # 16-bit scratch
 GRAB_ACTS = ((6, 0x71), (4, 0x70), (4, 0x6F))
 
 
-def make_tables(pcts):
-    blob = bytearray()
-    for pct in pcts:
-        for d in range(128):
-            s = round(d * (100 - pct) / 100)
-            blob.append(max(1, s) if d >= 1 else 0)
-    return bytes(blob)
+# damage-scaling tables are shared with patch 13 (byte-identical copies had drifted
+# risk; same cross-import pattern as MISFIRE from 12 / LABELS from 10)
+from mkpatch13 import make_tables  # noqa: E402
 
 
 def _side(sfx, vic_hp, holder, lv, table_long, all_grabs):

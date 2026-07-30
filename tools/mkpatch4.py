@@ -22,6 +22,12 @@ from smspaths import clean_rom, require_source, check_not_inplace, BUNDLE_VERSIO
 import texttiles as T  # noqa: E402
 
 CLEAN = clean_rom()
+
+# Detection fingerprint (p4) — consumed by tools/mksigs.py to generate the
+# regression suite's SIGS table. ONLY bytes invariant across stub-layout and
+# bank-stacking changes: JSL operand low bytes at the title-CHR hook: the stub is structurally FIRST in the
+# appended bank (offset 0); vanilla operand is 43 8C. Bank byte varies with stacking.
+SIG = [(0x3B820, 0x00), (0x3B821, 0x00)]
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 HOOK = 0x3B81F           # JSL $808C43 in the title CHR loader tail
 HOOK_OLD = bytes.fromhex("22438c80")

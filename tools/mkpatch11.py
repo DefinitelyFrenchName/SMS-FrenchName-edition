@@ -40,6 +40,12 @@ import asm65816 as A  # noqa: E402
 import hudfont  # noqa: E402
 
 CLEAN = clean_rom()
+
+# Detection fingerprint (p11) — consumed by tools/mksigs.py to generate the
+# regression suite's SIGS table. ONLY bytes invariant across stub-layout and
+# bank-stacking changes: JML opcode at the joy_read hook (vanilla C2; operands vary with stub layout —
+# the old fingerprint pinned them and would have broken on any p11 blob change)
+SIG = [(0x8373, 0x5C)]
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 INP = 0x008373

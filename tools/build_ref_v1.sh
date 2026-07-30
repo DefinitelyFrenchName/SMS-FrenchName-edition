@@ -7,6 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 CLEAN="$(python3 -c 'import sys;sys.path.insert(0,"tools");from smspaths import clean_rom;print(clean_rom())')"
+python3 tools/mksigs.py --check   # builder fingerprints must match the suite (#33 follow-up)
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 OUT="build/SailorMoonS_FrenchName_REF_v1.sfc"
 python3 tools/mkpatch.py   0x05 "$T/r1.sfc"

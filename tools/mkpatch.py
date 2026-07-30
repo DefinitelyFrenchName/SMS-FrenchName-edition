@@ -33,6 +33,12 @@ sys.path.insert(0, str(REPO / "tools"))
 from smspaths import clean_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 CLEAN = clean_rom()
 
+# Detection fingerprint (p1) — consumed by tools/mksigs.py to generate the
+# regression suite's SIGS table. ONLY bytes invariant across stub-layout and
+# bank-stacking changes: jsr $BE20 operand + stub cmp opcode (stub address is FIXED); the gate byte at
+# 0x1BE23 is deliberately excluded — the suite reads it separately (0x04/0x05, #29)
+SIG = [(0x1874D, 0x20), (0x1874E, 0xBE), (0x1BE22, 0xC9)]
+
 
 def _fix_checksum(data):
     # SNES checksum over a power-of-two footprint: pad-region repeated to fill.

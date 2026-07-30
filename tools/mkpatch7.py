@@ -28,6 +28,11 @@ REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
 from smspaths import clean_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 CLEAN = clean_rom()
+
+# Detection fingerprint (p7) — consumed by tools/mksigs.py to generate the
+# regression suite's SIGS table. ONLY bytes invariant across stub-layout and
+# bank-stacking changes: the DEFAULT box height 62 — a --h retune changes this byte; rerun mksigs --write
+SIG = [(0xAF0DE, 0x3E)]
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 # Pluto hit table $8A:F0C1 = file 0xAF0C1; box 0x03 at +0x18; height byte at +5.
