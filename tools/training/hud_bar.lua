@@ -67,8 +67,10 @@ function M.init(ctx)
     local pitch, cw = 6, 5
     local n = #cells
     local x0 = math.floor((w - n * pitch) / 2)
-    local y1, y2 = h - 60, h - 46        -- P1 track, P2 track tops (10px tall)
-    emu.drawRectangle(x0 - 2, y1 - 12, n * pitch + 4, 40, C.COL.bg, true)
+    -- 12px inter-track gap (issue #50: at h-46 the advantage badge at y1+12 overlapped
+    -- the P2 track's top ~7px; the badge now genuinely lands between the tracks)
+    local y1, y2 = h - 60, h - 38        -- P1 track, P2 track tops (10px tall)
+    emu.drawRectangle(x0 - 2, y1 - 12, n * pitch + 4, 56, C.COL.bg, true)
 
     for k = 1, n do
       local ref = cells[k]

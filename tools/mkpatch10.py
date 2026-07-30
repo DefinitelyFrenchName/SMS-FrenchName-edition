@@ -531,8 +531,10 @@ def build(src, out, stage="full", minhits=2, ttl=72, modes=(0x00, 0x01, 0x02, 0x
         raise ValueError("ttl must be 1..255 frames")
     data = bytearray(open(src, "rb").read())
     data = trim_banks(data)
-    assert data[PROD:PROD + 4] == PROD_OLD, f"producer hook bytes: {data[PROD:PROD+4].hex()}"
-    assert data[UPL:UPL + 5] == UPL_OLD, f"uploader hook bytes: {data[UPL:UPL+5].hex()}"
+    if not (data[PROD:PROD + 4] == PROD_OLD):
+        raise ValueError(f"producer hook bytes: {data[PROD:PROD+4].hex()}")
+    if not (data[UPL:UPL + 5] == UPL_OLD):
+        raise ValueError(f"uploader hook bytes: {data[UPL:UPL+5].hex()}")
 
     bankbase, bank = next_bank(data)
     labels = (events == "labels") and stage == "full"

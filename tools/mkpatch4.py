@@ -118,7 +118,8 @@ CREDIT_TILES_HEX = [
 def _credit_tiles():
     """Return {tile_id: 32-byte 4bpp} for the Big Zam credit line."""
     ids = [tid for _, run in CREDIT_RUNS for tid in run]
-    assert len(ids) == len(CREDIT_TILES_HEX)
+    if len(ids) != len(CREDIT_TILES_HEX):
+        raise ValueError(f"credit tile count mismatch: {len(ids)} run slots vs {len(CREDIT_TILES_HEX)} tiles")
     return {tid: bytes.fromhex(h) for tid, h in zip(ids, CREDIT_TILES_HEX)}
 
 def _subtitle_tiles(text, style):
@@ -136,7 +137,8 @@ def build(src_path, out_path, text=TEXT, style=STYLE, credit=True):
     data = bytearray(open(src_path, "rb").read())
     # trim trailing all-zero padding to a 64K boundary base
     data = trim_banks(data)
-    assert data[HOOK:HOOK+4] == HOOK_OLD, f"hook bytes: {data[HOOK:HOOK+4].hex()}"
+    if not (data[HOOK:HOOK+4] == HOOK_OLD):
+        raise ValueError(f"hook bytes: {data[HOOK:HOOK+4].hex()}")
 
     tiles = _subtitle_tiles(text, style)
     runs = list(RUNS)

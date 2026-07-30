@@ -54,12 +54,13 @@ def build(src, out, yoff):
     data = bytearray(open(src, "rb").read())
     for i in ENTRIES:
         got = data[YOFF[i]]
-        assert got == s8(VANILLA_YOFF[i]), (
-            f"fireball hit[{i}] y_off site 0x{YOFF[i]:05X}: {got:#04x} "
-            f"(expected {s8(VANILLA_YOFF[i]):#04x})")
+        if got != s8(VANILLA_YOFF[i]):
+            raise ValueError(f"fireball hit[{i}] y_off site 0x{YOFF[i]:05X}: {got:#04x} "
+                             f"(expected {s8(VANILLA_YOFF[i]):#04x})")
         # sanity: height byte should be the expected 22 (we do NOT change it)
         h = data[TABLE + i * 8 + 5]
-        assert h == VANILLA_H, f"fireball hit[{i}] h: {h} (expected {VANILLA_H})"
+        if not (h == VANILLA_H):
+            raise ValueError(f"fireball hit[{i}] h: {h} (expected {VANILLA_H})")
     for i in ENTRIES:
         data[YOFF[i]] = s8(yoff)
     fix_checksum(data)
@@ -83,7 +84,8 @@ if __name__ == "__main__":
     ap.add_argument("--stacked", action="store_true",
                     help="src is an already-patched ROM (builder chaining); skips the clean-SHA gate")
     a = ap.parse_args()
-    assert -30 <= a.yoff <= 5, "yoff should be a small signed offset around the origin"
+    if not (-30 <= a.yoff <= 5):
+        raise ValueError("yoff should be a small signed offset around the origin")
     check_not_inplace(a.src, a.out)
     require_source(a.src, a.stacked)
     build(a.src, a.out, a.yoff)

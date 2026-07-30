@@ -106,9 +106,11 @@ is the optional knob file `<name>.lua` loads. See HANDOFF.md §4 for the harness
 - `perf_patch10_cfg.lua`
 - `perf_patch11.lua` — : cycle cost + vblank span of patch 11's two stubs, plus a soak.
 - `perf_patch11_cfg.lua`
+- `probe_adv2hp.lua` — issue #28: measure Uranus 2HP on-hit advantage by frame-advance,
 - `probe_api.lua` — one-shot Mesen 2 Lua API probe for the training-mode build (P-1).
 - `probe_bar.lua`
 - `probe_boxes.lua` — visual check of hud_boxes: load the training modules, Venus 5LP at
+- `probe_cancelgate.lua` — issue #29: measure the 2HP→66 dash-cancel gate behaviourally.
 - `probe_cc.lua`
 - `probe_chr.lua`
 - `probe_chr_cfg.lua`
@@ -228,6 +230,7 @@ is the optional knob file `<name>.lua` loads. See HANDOFF.md §4 for the harness
 
 - `gen_plan.py` — Generate tools/trace_plan.lua for a re-press experiment.
 - `mksigs.py` — keep test_regression.lua's detection SIGS in sync with the builders.
+- `probelib.lua` — shared emulator-access helpers for the standalone suites/probes
 - `smoke.lua` — smoke test: boot ROM, run 120 frames, read some WRAM, exit with code 42
 - `trap_dash.lua` — : run the rep (2LP>2HP>66); log every write to P1 act ($1001)
 

@@ -63,7 +63,8 @@ MISFIRE_SETS = {
     5: [0x5F, 0x60, 0x65, 0x66], 6: [0x65, 0x66], 7: [0x66, 0x67],
     8: [0x62, 0x63], 9: [0x63, 0x64],
 }
-assert all(MISFIRE[c] in s for c, s in MISFIRE_SETS.items())
+if not all(MISFIRE[c] in s for c, s in MISFIRE_SETS.items()):
+    raise ValueError("MISFIRE_SETS out of sync with mkpatch12.MISFIRE (primary act missing from a set)")
 
 # hooks
 FSM_HOOK = 0x00837B
@@ -488,12 +489,17 @@ def make_tables(pcts):
 def build(src, out, pcts=(20, 40, 60)):
     data = bytearray(open(src, "rb").read())
     data = trim_banks(data)
-    assert data[FSM_HOOK:FSM_HOOK + 4] == FSM_OLD, f"fsm hook: {data[FSM_HOOK:FSM_HOOK+4].hex()}"
+    if not (data[FSM_HOOK:FSM_HOOK + 4] == FSM_OLD):
+        raise ValueError(f"fsm hook: {data[FSM_HOOK:FSM_HOOK+4].hex()}")
     for s in MELEE_SITES + PROJ_SITES:
-        assert data[s:s + 6] == STRIKE_OLD, f"strike site {s:#x}: {data[s:s+6].hex()}"
-    assert data[TICK_SITE:TICK_SITE + 6] == TICK_OLD, f"tick site: {data[TICK_SITE:TICK_SITE+6].hex()}"
-    assert data[TOSS_SITE:TOSS_SITE + 6] == TICK_OLD, f"toss site: {data[TOSS_SITE:TOSS_SITE+6].hex()}"
-    assert data[IND_HOOK:IND_HOOK + 5] == IND_OLD, f"indicator hook: {data[IND_HOOK:IND_HOOK+5].hex()}"
+        if not (data[s:s + 6] == STRIKE_OLD):
+            raise ValueError(f"strike site {s:#x}: {data[s:s+6].hex()}")
+    if not (data[TICK_SITE:TICK_SITE + 6] == TICK_OLD):
+        raise ValueError(f"tick site: {data[TICK_SITE:TICK_SITE+6].hex()}")
+    if not (data[TOSS_SITE:TOSS_SITE + 6] == TICK_OLD):
+        raise ValueError(f"toss site: {data[TOSS_SITE:TOSS_SITE+6].hex()}")
+    if not (data[IND_HOOK:IND_HOOK + 5] == IND_OLD):
+        raise ValueError(f"indicator hook: {data[IND_HOOK:IND_HOOK+5].hex()}")
 
     bankbase, bank = next_bank(data)
 

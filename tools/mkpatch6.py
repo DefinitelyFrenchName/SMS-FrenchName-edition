@@ -67,9 +67,11 @@ def build_stub(lo, hi):
 
 def build(src, out, lo, hi):
     data = bytearray(open(src, "rb").read())
-    assert data[HOOK:HOOK+4] == HOOK_OLD, f"hook site: {data[HOOK:HOOK+4].hex()}"
+    if not (data[HOOK:HOOK+4] == HOOK_OLD):
+        raise ValueError(f"hook site: {data[HOOK:HOOK+4].hex()}")
     stub = build_stub(lo, hi)
-    assert data[STUB:STUB+len(stub)] == bytes(len(stub)), "stub area not clean"
+    if not (data[STUB:STUB+len(stub)] == bytes(len(stub))):
+        raise ValueError("stub area not clean")
     data[HOOK:HOOK+4] = JSL
     data[STUB:STUB+len(stub)] = stub
     fix_checksum(data)
@@ -86,7 +88,8 @@ if __name__ == "__main__":
     ap.add_argument("--stacked", action="store_true",
                     help="src is an already-patched ROM (builder chaining); skips the clean-SHA gate")
     a = ap.parse_args()
-    assert 1 <= a.lo <= a.hi <= 14, "window must be within dash frames 1..14"
+    if not (1 <= a.lo <= a.hi <= 14):
+        raise ValueError("window must be within dash frames 1..14")
     check_not_inplace(a.src, a.out)
     require_source(a.src, a.stacked)
     build(a.src, a.out, a.lo, a.hi)

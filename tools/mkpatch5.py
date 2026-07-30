@@ -34,7 +34,8 @@ NEW_SPEED = 0x0640          # 6.25 px/f  (~ -1/3 distance: 121px -> 82px)
 
 def build(src_path, out_path, speed=NEW_SPEED):
     data = bytearray(open(src_path, "rb").read())
-    assert data[SITE:SITE+3] == OLD, f"dash-speed site: {data[SITE:SITE+3].hex()}"
+    if not (data[SITE:SITE+3] == OLD):
+        raise ValueError(f"dash-speed site: {data[SITE:SITE+3].hex()}")
     data[SITE+1] = speed & 0xFF
     data[SITE+2] = (speed >> 8) & 0xFF
     # keep whatever title/header the input already has; just refresh the checksum

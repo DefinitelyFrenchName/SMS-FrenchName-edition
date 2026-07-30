@@ -160,7 +160,8 @@ def _to4bpp(grid8):
 # The VRAM tile slots for the 21 subtitle columns (from investigation).
 ROW13 = [0x10D,0x10E,0x10F]+list(range(0x120,0x130))+[0x140,0x141]
 ROW14 = [0x11D,0x11E,0x11F]+list(range(0x130,0x140))+[0x150,0x151]
-assert len(ROW13)==21 and len(ROW14)==21
+if len(ROW13) != 21 or len(ROW14) != 21:
+    raise ValueError("subtitle slot tables must be 21 columns each")
 
 if __name__ == "__main__":
     import sys, json

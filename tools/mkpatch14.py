@@ -179,8 +179,10 @@ dost:
 def build(src, out, pcts=(20, 40, 60), all_grabs=False):
     data = bytearray(open(src, "rb").read())
     data = trim_banks(data)
-    assert data[TOSS_TAIL:TOSS_TAIL + 7] == TOSS_OLD, f"toss tail: {data[TOSS_TAIL:TOSS_TAIL+7].hex()}"
-    assert data[TICK_TAIL:TICK_TAIL + 7] == TICK_OLD, f"tick tail: {data[TICK_TAIL:TICK_TAIL+7].hex()}"
+    if not (data[TOSS_TAIL:TOSS_TAIL + 7] == TOSS_OLD):
+        raise ValueError(f"toss tail: {data[TOSS_TAIL:TOSS_TAIL+7].hex()}")
+    if not (data[TICK_TAIL:TICK_TAIL + 7] == TICK_OLD):
+        raise ValueError(f"tick tail: {data[TICK_TAIL:TICK_TAIL+7].hex()}")
 
     bankbase, bank = next_bank(data)
 

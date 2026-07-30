@@ -294,6 +294,55 @@ add{ name = "base-dash-distance", group = "base", state = "uranus_vs_jupiter.mss
     return ck(math.abs(d - exp) <= 4, string.format("dash distance expects ~%d (p5=%s), got %d", exp, tostring(has.p5), d))
   end }
 
+-- behavioural cancel-gate tests (issue #29): 2LP>2HP on hit, then the 66 dash input.
+-- EARLY plan (66 taps complete at t=93, before vanilla's earliest cancel): vanilla
+-- cancels immediately; the patch-1 gate makes the early input EXPIRE (no dash) — the
+-- buffer removal itself. LATE plan (66 at 97/99, demo_link's keyframes): dash comes out
+-- at hit+21 on vanilla AND gate 0x05, hit+22 on gate 0x04 (measured 2026-07-30,
+-- tools/probe_cancelgate.lua; deterministic, exact frames).
+local function cgFrame(late)
+  return function(api)
+    local m = api.mem
+    if api.pt == 5 then wr(0x1021, 0xE8) end
+    local kf = late and { {10,{down=true}}, {60,{down=true,y=true}}, {62,{down=true}},
+                          {77,{down=true,x=true}}, {80,{down=true}},
+                          {95,{}}, {97,{right=true}}, {98,{}}, {99,{right=true}}, {101,{}} }
+                    or  { {10,{down=true}}, {60,{down=true,y=true}}, {62,{down=true}},
+                          {77,{down=true,x=true}}, {80,{down=true}},
+                          {89,{}}, {91,{right=true}}, {92,{}}, {93,{right=true}}, {95,{}} }
+    local best = nil
+    for _, e in ipairs(kf) do if e[1] <= api.pt then best = e[2] end end
+    pulse[0] = best
+    local a1, a2 = ram(0x1001), ram(0x1081)
+    if api.pt > 78 and not m.hit and a2 >= 0x10 and a2 <= 0x16 then m.hit = api.pt end
+    if m.hit and not m.dash and a1 == 0x60 then m.dash = api.pt end
+  end
+end
+add{ name = "base-cancelgate-early", group = "base", state = "uranus_vs_jupiter.mss", dur = 160,
+  frame = cgFrame(false),
+  verdict = function(api)
+    local m = api.mem
+    if not m.hit then return ck(false, "2HP never connected") end
+    if has.p1 then
+      return ck(m.dash == nil, string.format(
+        "gated ROM must EXPIRE the early 66 (no buffering), but dash came out at +%s",
+        tostring(m.dash and (m.dash - m.hit))))
+    end
+    return ck(m.dash and (m.dash - m.hit) == 16, string.format(
+      "vanilla must cancel the early 66 at hit+16, got +%s", tostring(m.dash and (m.dash - m.hit))))
+  end }
+add{ name = "base-cancelgate-late", group = "base", state = "uranus_vs_jupiter.mss", dur = 160,
+  frame = cgFrame(true),
+  verdict = function(api)
+    local m = api.mem
+    if not m.hit then return ck(false, "2HP never connected") end
+    local exp = (has.p1gate == 0x04) and 22 or 21
+    return ck(m.dash and (m.dash - m.hit) == exp, string.format(
+      "late 66 dash-out expects hit+%d (gate=%s), got +%s",
+      exp, has.p1gate and string.format("%02X", has.p1gate) or "none",
+      tostring(m.dash and (m.dash - m.hit))))
+  end }
+
 add{ name = "base-firsthit-defense-pair", group = "base", state = "uranus_vs_jupiter.mss", dur = 280,
   frame = function(api)
     if api.pt == 5 or api.pt == 205 then park(1, 40) end

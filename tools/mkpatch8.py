@@ -52,7 +52,8 @@ EXTRA_OFFS = [SCRIPT + 8 * e + 5 for e in (3, 4, 5)]   # 0x16C70, 0x16C78, 0x16C
 def build(src, out, extra):
     data = bytearray(open(src, "rb").read())
     for off in EXTRA_OFFS:
-        assert data[off] == 0x00, f"script byte5 at 0x{off:05X}: {data[off]:02X} (expected 00)"
+        if not (data[off] == 0x00):
+            raise ValueError(f"script byte5 at 0x{off:05X}: {data[off]:02X} (expected 00)")
     for off in EXTRA_OFFS[:extra]:
         data[off] = 0x01
     fix_checksum(data)

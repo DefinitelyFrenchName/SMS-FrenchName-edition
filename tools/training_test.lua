@@ -102,7 +102,10 @@ tests.T2H = {
     { t = 155, fn = function(ctx)
         local a = ctx.lastAdv
         if not a then return false, "t155 no lastAdv (2HP)" end
-        return a.kind == "hit", string.format("t155 2HP adv=%+d c%+d kind=%s", a.adv, a.cAdv, a.kind) end },
+        -- adv==+8 measured by independent frame-advance 2026-07-30 (issue #28,
+        -- tools/probe_adv2hp.lua: P1 actionable @97 via crouch, P2 free @105)
+        return a.kind == "hit" and a.adv == 8,
+               string.format("t155 2HP adv=%+d c%+d kind=%s (want hit +8)", a.adv, a.cAdv, a.kind) end },
   },
 }
 

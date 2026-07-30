@@ -194,7 +194,8 @@ def _words(text, width, idx):
         elif c.isdigit():
             w.append(0x2C50 + int(c))     # resident HUD digit tiles (top half)
         else:
-            assert c in idx, f"glyph missing: {c}"
+            if not (c in idx):
+                raise ValueError(f"glyph missing: {c}")
             w.append(0x2C00 | (GLYPH_TILE0 + idx[c]))
     return w + [BLANK] * (width - len(w))
 
@@ -1850,8 +1851,10 @@ far96:
 def build(src, out, stage="tier1"):
     data = bytearray(open(src, "rb").read())
     data = trim_banks(data)
-    assert data[INP:INP + 4] == INP_OLD, f"input hook bytes: {data[INP:INP+4].hex()}"
-    assert data[UPL2:UPL2 + 5] == UPL2_OLD, f"upl2 hook bytes: {data[UPL2:UPL2+5].hex()}"
+    if not (data[INP:INP + 4] == INP_OLD):
+        raise ValueError(f"input hook bytes: {data[INP:INP+4].hex()}")
+    if not (data[UPL2:UPL2 + 5] == UPL2_OLD):
+        raise ValueError(f"upl2 hook bytes: {data[UPL2:UPL2+5].hex()}")
     for site, old, name in ((P10_PROD, P10_PROD_OLD, "p10-producer"),
                             (P10_UPL, P10_UPL_OLD, "p10-uploader")):
         if data[site:site + len(old)] != old and data[site] != 0x5C:

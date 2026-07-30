@@ -41,7 +41,8 @@ VANILLA_H = 54
 
 def build(src, out, h):
     data = bytearray(open(src, "rb").read())
-    assert data[H_OFF] == VANILLA_H, f"5HP box height site: {data[H_OFF]} (expected {VANILLA_H})"
+    if not (data[H_OFF] == VANILLA_H):
+        raise ValueError(f"5HP box height site: {data[H_OFF]} (expected {VANILLA_H})")
     data[H_OFF] = h
     fix_checksum(data)
     open(out, "wb").write(data)
@@ -59,7 +60,8 @@ if __name__ == "__main__":
     ap.add_argument("--stacked", action="store_true",
                     help="src is an already-patched ROM (builder chaining); skips the clean-SHA gate")
     a = ap.parse_args()
-    assert VANILLA_H <= a.h <= 90, "h should be between vanilla (54) and ~90"
+    if not (VANILLA_H <= a.h <= 90):
+        raise ValueError("h should be between vanilla (54) and ~90")
     check_not_inplace(a.src, a.out)
     require_source(a.src, a.stacked)
     build(a.src, a.out, a.h)

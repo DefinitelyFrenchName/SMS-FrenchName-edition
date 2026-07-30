@@ -133,7 +133,8 @@ g2:
 def build(src, out):
     data = bytearray(open(src, "rb").read())
     data = trim_banks(data)
-    assert data[HOOK:HOOK + 4] == HOOK_OLD, f"hook bytes: {data[HOOK:HOOK+4].hex()}"
+    if not (data[HOOK:HOOK + 4] == HOOK_OLD):
+        raise ValueError(f"hook bytes: {data[HOOK:HOOK+4].hex()}")
 
     bankbase, bank = next_bank(data)
 
