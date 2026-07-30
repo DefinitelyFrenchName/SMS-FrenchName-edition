@@ -11,7 +11,7 @@ and findings made in this project (marked NEW, with evidence).
 | $7E:008D | game_mode | 0=VS, 1=Story, 4=Training (5=training pause helper) | training Lua `mem_game_mode` |
 | $7E:0802 | game_timer_bcd | round timer BCD (training Lua freezes it) | training Lua |
 | $7E:1000 | p1 struct | player struct base P1 (0x80 bytes); P2 $7E:1080; base formula 0x7E0F80+n*0x80 | ground truth |
-| +0x00 | charID | 1=Moon…6=Uranus…10=Saturn | ground truth |
+| +0x00 | charID | 1=Moon…6=Uranus…9=Chibimoon (10 "Saturn" = Super S carry-over, not in this game) | ground truth |
 | +0x01 | actionID | current move/state; universal 0x00–0x2A (list in training Lua mem_player_action) | ground truth |
 | +0x02 | action_started/step | word; training Lua writes 0x0001 when forcing action | training Lua |
 | +0x04 | actionID mirror | written together with +0x01 by training Lua | training Lua |

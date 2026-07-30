@@ -372,8 +372,11 @@ Submerge fireball demos.
   script elsewhere must set `SMS_ROOT` or load a repo ROM. Python builders are anchored
   to the repo via `__file__` (`REPO`) and run from any cwd. `fixpaths.sh` (old zip fixer)
   is obsolete.
-- **`extract_sms_hitboxes.py` skips Saturn's hurt/coll** (cid>9 → bounds undefined). Saturn
-  isn't playable, so this rarely matters, but her hurt boxes aren't in the JSON.
+- **The extractors cover charIDs 1-9 only** — id 10 "Saturn" is a Sailor Moon Super S
+  carry-over that is NOT in this game (no assets ever found despite decades of community
+  digging); pre-2026-07-30 extractor versions invented a bogus "Saturn" JSON entry from
+  projectile-table bytes (fixed, issue #38). Rule: no code refers to Saturn except
+  explicit warnings like this one.
 - **Box-index writer order:** `$C0:9CCD` sets `+0x41` (hurtbox) every frame from animation data,
   and it runs a per-object batch. To override a hurtbox you must write it *after* that (patch 6
   hooks the writer itself). Frame counters: the forward-dash frame index is `+0x5D` (1..14; read

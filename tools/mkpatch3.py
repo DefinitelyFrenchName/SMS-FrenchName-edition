@@ -34,9 +34,6 @@ BZ_PAL_BASE = 0x2A0000  # palette block in the Big Zam ROM
 BZ_MIN_LEN = BZ_PAL_BASE + 0x1000 * 10                # palette block must be fully present
 TITLE = b"FrenchName "  # 11 chars, space-padded
 
-NAMES = ["", "Moon", "Mercury", "Mars", "Jupiter", "Venus",
-         "Uranus", "Neptune", "Pluto", "Chibimoon", "Saturn"]
-
 def build(src_path, out_path):
     data = bytearray(open(src_path, "rb").read())
     # trim any padding down to the base 0x280000 image the patcher expects
