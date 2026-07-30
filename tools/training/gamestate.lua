@@ -72,6 +72,7 @@ function M.init(ctx)
   end
 
   table.insert(ctx.hooks.frame, step)   -- runs first: main registers modules in order
+  table.insert(ctx.hooks.reset, M.reset)  -- issue #15: history must not survive savestate loads
 end
 
 return M

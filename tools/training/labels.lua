@@ -102,7 +102,7 @@ function M.init(ctx)
     local lm = ctx.ui.labelMode
     if lm ~= "meter" and lm ~= "both" then return end
     local hud = ctx.mod.hud
-    if not hud or not hud.show("panel") or #popups == 0 then return end
+    if not hud or not hud.show("bar") or #popups == 0 then return end  -- issue #19: meter popups follow the meter
     local surf = hud.hudSurface()
     if not surf then return end
     local w = surf.visibleWidth or surf.width
@@ -119,7 +119,7 @@ function M.init(ctx)
   table.insert(ctx.hooks.frame, step)
   table.insert(ctx.hooks.draw, draw)
   table.insert(ctx.hooks.reset, function()
-    popups = {}; M.side = { nil, nil }; lastText = nil
+    popups = {}; M.side = { nil, nil }; lastText = nil; M.fired = {}  -- issue #15
     lastHard = { -99, -99 }; lastBlockstun = { -99, -99 }
   end)
 end

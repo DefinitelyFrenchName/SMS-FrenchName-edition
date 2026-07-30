@@ -350,7 +350,7 @@ tests.T5 = (function()
                   for _, f in ipairs(ctx.mod.labels.fired) do out[#out + 1] = f.text end
                   return table.concat(out, ", ")
                 end)() .. ")"))
-        ctx.mod.labels.fired = {}
+        -- (manual labels.fired clear removed — the reset hook clears it since issue #15)
         if phase == "A" then phase = "B"
         elseif phase == "B" then phase = "D"
         else finish(); return end
