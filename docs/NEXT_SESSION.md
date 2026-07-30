@@ -156,10 +156,12 @@ tables landed (supers_map §proc block / pad-input layer): real buttons give all
 normals (standing/crouch/air), real qcf motion gives the special, hits connect
 both ways. **Tester entry point: `tools/saturn/saturn_test.lua`** (Mesen GUI Script
 Window on the mksaturn_smoke ROM — auto-transforms P1 at round start; header has
-instructions + known gaps). Next: projectile objects 0x20/0x22 (fireballs
-visible; 7-table units, source addresses in saturn_notes), palettes, sfx
-(needs an SMS sound-API map), throws/desperation verification, then roster/
-char-select + REF bank reconciliation (note: smoke claims banks $E8-$F0).
+instructions + known gaps). **PROJECTILES PORTED (same session):** fireballs are VISIBLE, travel, hit,
+and despawn (supers_map §Projectile objects; effect tiles are compressed in
+ROM → smoke uploads a fixture VRAM dump at runtime, see saturn_test.lua
+header). Next: palettes, sfx (needs an SMS sound-API map), throws/desperation
+verification, close-5HK guard-band check, then roster/char-select + REF bank
+reconciliation (note: smoke claims banks $E8-$F0).
 
 ## Open threads (unchanged backlog)
 

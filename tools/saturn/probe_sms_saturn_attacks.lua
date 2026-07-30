@@ -10,7 +10,7 @@ local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 
 local t, needLoad = -1, true
-local nib = 4  -- screenshot run: the qcf special
+local nib = 9
 local acts, poses, hits = {}, {}, {}
 local shotDone = false
 
@@ -50,7 +50,7 @@ emu.addEventCallback(function()
       f:write(png); f:close()
     end
   end
-  if t >= 150 and t <= 236 and t % 12 == 0 then
+  if t >= 121 and t <= 200 then
     local ok2, st = pcall(emu.getState)
     local pc = st and (st["cpu.pc"] or st["snes.cpu.pc"]) or -1
     local k = st and (st["cpu.k"] or st["snes.cpu.k"]) or -1
@@ -58,6 +58,11 @@ emu.addEventCallback(function()
       t, ram(0x1001), ram(0x1002), ram(0x1005), ram(0x1006), ram(0x1007),
       ram(0x1016), ram(0x1055), ram(0x1054), ram(0x1076),
       ram(0x1100), ram(0x1101), ram(0x1103), ram(0x1176)))
+  end
+  if t >= 121 and t <= 200 then
+    log(string.format("t=%03d p1 act=%02X | s1100 id=%02X act=%02X pose=%02X x=%d | s1180 id=%02X act=%02X",
+      t, ram(0x1001), ram(0x1100), ram(0x1101), ram(0x1105),
+      ram(0x1121) + 256 * ram(0x1122), ram(0x1180), ram(0x1181)))
   end
   if t == 240 then
     local la, lp, lh = {}, {}, {}
@@ -70,7 +75,7 @@ emu.addEventCallback(function()
       nib, table.concat(la, " "), table.concat(lp, " "), table.concat(lh, " "),
       back, (back <= 0x03) and "OK" or "STUCK?"))
     nib = nib + 1
-    if nib > 0x04 then log("DONE"); emu.stop(0) end
+    if nib > 0x09 then log("DONE"); emu.stop(0) end
     needLoad = true; t = -1
   end
 end, emu.eventType.endFrame)

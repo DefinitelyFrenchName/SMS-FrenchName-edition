@@ -84,19 +84,24 @@ def resolve_jsl_map(sup, sms):
       sound/command handler with NO SMS twin (the CMD extension). Stubbed
       silent; TODO map SMS's real sfx API and restore her sounds."""
     assert sup[0xC115:0xC115 + 11] == sms[0xBFBB:0xBFBB + 11], "C115/BFBB drift"
+    assert sup[0xC494:0xC494 + 11] == sms[0xC352:0xC352 + 11], "C494/C352 drift"
     assert sms[0x9FB7] == 0x6B, "$80:9FB7 is not RTL"
-    return {0x80C115: 0x80BFBB, 0x80FBB0: 0x809FB7}
+    return {0x80C115: 0x80BFBB, 0x80FBB0: 0x809FB7,
+            0x80C494: 0x80C352}   # projectile-flavor box helper (verified twin)
 
 
-def disassemble(sup):
-    """Recursive descent over the block. Returns {addr: (op, length)} of reached
-    instructions, with per-address M/X states validated for consistency."""
+def disassemble(sup, block_lo=BLOCK_LO, block_hi=BLOCK_HI, entries=None):
+    """Recursive descent over a block. Returns {addr: (op, length)} of reached
+    instructions, with per-address M/X states validated for consistency.
+    entries: list of in-bank start addresses (default: the char-proc dispatch +
+    act table). Any `jmp/jsr (abs,X)` table INSIDE the block is auto-walked:
+    its word entries that land in-block are pushed as code."""
     code = {}
     flags = {}
     work = []
 
     def push(addr, m, x):
-        if not (BLOCK_LO <= addr < BLOCK_HI):
+        if not (block_lo <= addr < block_hi):
             return
         if addr in flags:
             if flags[addr] != (m, x):
@@ -111,16 +116,22 @@ def disassemble(sup):
         work.append((addr, m, x))
 
     # entries: dispatch runs with sep #$30 (M=1, X=1) from the main-loop hook
-    push(DISPATCH, 1, 1)
-    for i in range(N_ACTS):
-        w = sup[BANK + ACT_TABLE + 2 * i] | sup[BANK + ACT_TABLE + 2 * i + 1] << 8
-        if w:
-            push(w, 1, 1)          # dispatch does not change flags before jmp
+    tables = set()
+    if entries is None:
+        push(DISPATCH, 1, 1)
+        tables.add(ACT_TABLE)
+        for i in range(N_ACTS):
+            w = sup[BANK + ACT_TABLE + 2 * i] | sup[BANK + ACT_TABLE + 2 * i + 1] << 8
+            if w:
+                push(w, 1, 1)      # dispatch does not change flags before jmp
+    else:
+        for e in entries:
+            push(e, 1, 1)
 
     while work:
         addr, m, x = work.pop()
         while True:
-            if not (BLOCK_LO <= addr < BLOCK_HI):
+            if not (block_lo <= addr < block_hi):
                 break
             if addr in code:
                 break
@@ -149,6 +160,15 @@ def disassemble(sup):
                 v = sup[BANK + addr + 1]
                 if v & 0x20: m = 1
                 if v & 0x10: x = 1
+            if op in (0x7C, 0xFC):     # (abs,X) table inside the block: walk it
+                tbl = sup[BANK + addr + 1] | sup[BANK + addr + 2] << 8
+                if block_lo <= tbl < block_hi and tbl not in tables:
+                    tables.add(tbl)
+                    for i in range(64):
+                        w = sup[BANK + tbl + 2 * i] | sup[BANK + tbl + 2 * i + 1] << 8
+                        if not (block_lo <= w < block_hi):
+                            break
+                        push(w, m, x)
             if op in BRANCH:
                 off = sup[BANK + addr + 1]
                 if off > 127: off -= 256
@@ -162,32 +182,31 @@ def disassemble(sup):
                 break
             elif op in (0x20, 0x4C):
                 t = sup[BANK + addr + 1] | sup[BANK + addr + 2] << 8
-                push(t, m, x)       # internal targets get walked; external ignored
+                if block_lo <= t < block_hi:
+                    push(t, m, x)
                 if op == 0x4C:
                     break
             elif op in (0x60, 0x6B, 0x40):
                 break
             elif op in (0x5C, 0x6C, 0x7C, 0xFC, 0xDC):
-                if op == 0x7C and addr == DISPATCH + 12:
-                    pass            # act dispatch handled via table entries
                 break
             addr += ln
     return code
 
 
-def patched_block(sup, sms):
+def patched_block(sup, sms, block_lo=BLOCK_LO, block_hi=BLOCK_HI, entries=None):
     """Return (block bytes with operands fixed, report)."""
     global JSL_MAP
     JSL_MAP = resolve_jsl_map(sup, sms)
-    code = disassemble(sup)
-    out = bytearray(sup[BANK + BLOCK_LO:BANK + BLOCK_HI])
+    code = disassemble(sup, block_lo, block_hi, entries)
+    out = bytearray(sup[BANK + block_lo:BANK + block_hi])
     fixed, internal, data_refs, unresolved = [], 0, [], []
     for addr in sorted(code):
         op, ln = code[addr]
-        o = addr - BLOCK_LO
+        o = addr - block_lo
         if op in (0x20, 0x4C):
             t = out[o + 1] | out[o + 2] << 8
-            if BLOCK_LO <= t < BLOCK_HI:
+            if block_lo <= t < block_hi:
                 internal += 1
                 continue
             if t in EXT_MAP:
@@ -213,11 +232,14 @@ def patched_block(sup, sms):
                     0x4E, 0x6E, 0xCE, 0xEE, 0xFE, 0xDE, 0x1E, 0x3E, 0x5E, 0x7E,
                     0x9C, 0x1C, 0x0C, 0x2C):
             t = out[o + 1] | out[o + 2] << 8
-            if t >= 0x2000 and not (BLOCK_LO <= t < BLOCK_HI):
+            if t >= 0x2000 and not (block_lo <= t < block_hi):
                 data_refs.append((addr, op, t))
-        elif op in (0xAF, 0xBF, 0x8F, 0x9F, 0x5C, 0x6C, 0x7C, 0xFC, 0xDC):
-            if not (op == 0x7C and addr == DISPATCH + 12):
-                t = out[o + 1] | out[o + 2] << 8
+        elif op in (0xAF, 0xBF, 0x8F, 0x9F, 0x5C, 0x6C, 0xDC):
+            t = out[o + 1] | out[o + 2] << 8
+            data_refs.append((addr, op, t))
+        elif op in (0x7C, 0xFC):
+            t = out[o + 1] | out[o + 2] << 8
+            if not (block_lo <= t < block_hi):
                 data_refs.append((addr, op, t))
     report = {
         "reached": len(code), "fixed": fixed, "internal": internal,

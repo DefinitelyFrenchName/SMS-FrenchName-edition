@@ -78,7 +78,7 @@ SITE_BTN = 0x115C4
 BTN_HEAD = bytes.fromhex("B50029FF000AA8B99B16A8")
 BTN_RECORD_ADDR = 0x1263            # = the recognizer hook's data slot
 SATURN_BTN_RECORD = bytes.fromhex("0200040806000A")
-E8_BTNSTUB = 0x2740
+E8_BTNSTUB = 0x2840
 # Recognizer graft: her payload ($C1:1452-1615 Super S) goes into the $EF copy at
 # original offsets; copied table entry [0x1C] ($EF:13FF) -> $1452; the recognizer
 # stub runs the FULL copied dispatch via an $EF trampoline (balanced phb/plb) and
@@ -107,9 +107,19 @@ OAM_BLOB_LO, OAM_BLOB_HI = 0x078000, 0x07BE5E
 SITE_OAM_ENTRY = 0x048000 + 3 * SAT_ID          # $84:8054 (unused id slot)
 
 # in-bank layout of the appended banks
-E8_SATURN_ACTTBL = 0x2200     # 128-word act table, then scripts
-E8_STUB = 0x2700
-E9_TABLE, E9_RECORDS = 0x9E00, 0x9E40
+E8_SATURN_ACTTBL = 0x2200     # 128-word act table, then scripts (end < 0x2715)
+# Projectile objects 0x20-0x22 (her fireballs): scripts are CMD-free -> copied
+# VERBATIM at their original offsets $E8:2715-2795 (act-table words are
+# bank-absolute); pose records + OAM blob + hit boxes + procs ported alongside.
+PROJ_SCRIPTS_LO, PROJ_SCRIPTS_HI = 0x2715, 0x2795
+PROJ_SCRIPT_ENTRIES = {0x20: 0x2715, 0x21: 0x2725, 0x22: 0x2735}
+PROJ_POSES_LO, PROJ_POSES_N = 0x049575, 24 * 4     # $84:9575, 24 records
+PROJ_OAM_LO, PROJ_OAM_HI = 0x04B4A6, 0x04B6DA      # $84:B4A6 blob (in-bank abs)
+PROJ_HIT_LO, PROJ_HIT_N = 0x2FF552, 8 * 8          # $AF:F552 hit boxes
+PROJ_BLOCK_LO, PROJ_BLOCK_HI = 0x280B, 0x2B60      # procs (grafted into $EF)
+PROJ_PROC_ENTRIES = [0x280B, 0x28D3, 0x29A6]
+E8_STUB = 0x2800
+E9_TABLE, E9_RECORDS, E9_PROJ_POSES = 0x9E00, 0x9E80, 0xA080
 EA_TABLE, EA_P2C, EA_CELREC = 0x2000, 0x2100, 0x2210
 
 
@@ -190,7 +200,7 @@ def main():
     e8 += bytes(E8_SATURN_ACTTBL - len(e8))
     sat_tbl, nscripts = build_saturn_scripts(sup, E8_SATURN_ACTTBL)
     e8 += sat_tbl
-    assert len(e8) <= E8_STUB, "Saturn scripts overrun the stub slot"
+    assert len(e8) <= PROJ_SCRIPTS_LO, "Saturn scripts overrun the projectile region"
     e8 += bytes(E8_STUB - len(e8))
     # recognizer stub (M=0 at hook): id != Saturn -> skip the 7 data bytes
     # (surgery +7) and emulate the original head; id == Saturn -> skip the whole
@@ -213,15 +223,24 @@ def main():
     e8 += btnstub
     e8[2 * SAT_ID] = E8_SATURN_ACTTBL & 0xFF          # id -> act-table entry
     e8[2 * SAT_ID + 1] = E8_SATURN_ACTTBL >> 8
+    assert len(e8) > PROJ_SCRIPTS_HI
+    e8[PROJ_SCRIPTS_LO:PROJ_SCRIPTS_HI] = sup[PROJ_SCRIPTS_LO:PROJ_SCRIPTS_HI]
+    for pid, tbl in PROJ_SCRIPT_ENTRIES.items():
+        e8[2 * pid:2 * pid + 2] = bytes((tbl & 0xFF, tbl >> 8))
     write_bank(data, bankbase, bytes(e8))
 
     # ---- bank $E9: pose records ----
     bankbase, bank = next_bank(data)
     e9 = bytearray(0x10000)
     e9[0x8000:0x9400] = data[0x048000:0x049400]       # $84 region copy
-    e9[E9_TABLE:E9_TABLE + 56] = data[0x04809C:0x04809C + 56]  # 28 entries
+    e9[E9_TABLE:E9_TABLE + 56] = data[0x04809C:0x04809C + 56]  # 28 entries (of 0x30)
     e9[E9_TABLE + 2 * SAT_ID] = E9_RECORDS & 0xFF
     e9[E9_TABLE + 2 * SAT_ID + 1] = E9_RECORDS >> 8
+    for pid in PROJ_SCRIPT_ENTRIES:
+        e9[E9_TABLE + 2 * pid:E9_TABLE + 2 * pid + 2] = \
+            bytes((E9_PROJ_POSES & 0xFF, E9_PROJ_POSES >> 8))
+    e9[E9_PROJ_POSES:E9_PROJ_POSES + PROJ_POSES_N] = \
+        sup[PROJ_POSES_LO:PROJ_POSES_LO + PROJ_POSES_N]
     poses = bytearray(sup[X.POSES_LO:X.POSES_HI])
     for off, _pose, van, fix in X.GUARDFIX:           # ships-fixed policy
         assert poses[off] == van
@@ -285,6 +304,17 @@ def main():
     # trampoline: jsr the copied dispatch AT ITS OWN PROLOGUE ($125C phb/phk/plb;
     # phk in bank $EF sets DB=$EF) so its tail plb/rts self-balances; then rtl
     ef[EF_TRAMP:EF_TRAMP + 4] = bytes.fromhex("205C126B")
+    pblk, prep = PSP.patched_block(sup, bytes(data[:0x280000]),
+                                   PROJ_BLOCK_LO, PROJ_BLOCK_HI, PROJ_PROC_ENTRIES)
+    if prep["unresolved"]:
+        raise SystemExit(f"error: projectile port unresolved: {prep['unresolved']}")
+    ef[PROJ_BLOCK_LO:PROJ_BLOCK_HI] = pblk
+    # tramp3 @ $EF:DB30: re-dispatch the projectile id to its proc (jsr keeps
+    # rts semantics; entered via JSL from the $C1 mini-stub)
+    # ldx $88 / lda $00,X / cmp #$20 / beq p20 / cmp #$21 / beq p21
+    # / jsr $29A6 / rtl / p20: jsr $280B / rtl / p21: jsr $28D3 / rtl
+    tramp3 = bytes.fromhex("C210A688B500C920F008C921F00820A6296B200B286B20D3286B")
+    ef[0xDB30:0xDB30 + len(tramp3)] = tramp3
     write_bank(data, bankbase, bytes(ef))
 
     # ---- bank $F0: bank-$8A copy + widened box ptr tables + Saturn's boxes ----
@@ -302,6 +332,11 @@ def main():
     f0[F0_HIT_D:F0_HIT_D + len(hitb)] = hitb
     f0[F0_HURT_D:F0_HURT_D + len(hurtb)] = hurtb
     f0[F0_COLL_D:F0_COLL_D + len(collb)] = collb
+    f0[0x8920:0x8920 + PROJ_HIT_N] = sup[PROJ_HIT_LO:PROJ_HIT_LO + PROJ_HIT_N]
+    for pid in PROJ_SCRIPT_ENTRIES:
+        f0[F0_HIT_T + 2 * pid:F0_HIT_T + 2 * pid + 2] = bytes((0x20, 0x89))
+    # projectile OAM blob at its original in-bank offset (read via $B0 mirror)
+    f0[0xB4A6:0xB4A6 + (PROJ_OAM_HI - PROJ_OAM_LO)] = sup[PROJ_OAM_LO:PROJ_OAM_HI]
     write_bank(data, bankbase, bytes(f0))
 
     # ---- engine patches ----
@@ -326,8 +361,11 @@ def main():
     data[0x10000 + BTN_RECORD_ADDR:0x10000 + BTN_RECORD_ADDR + 7] = SATURN_BTN_RECORD
     import os as _os
     if _os.environ.get("SATURN_SKIP") != "btn":
+        # the 7 skipped bytes host the projectile-proc mini-stub (jsr-dispatch
+        # target at $C1:15C8): JSL $EF:DB30 (tramp3) / RTS
         data[SITE_BTN:SITE_BTN + 11] = \
-            bytes((0x22, E8_BTNSTUB & 0xFF, E8_BTNSTUB >> 8, 0xE8)) + b"\xFF" * 7
+            bytes((0x22, E8_BTNSTUB & 0xFF, E8_BTNSTUB >> 8, 0xE8)) \
+            + bytes((0x22, 0x30, 0xDB, 0xEF, 0x60)) + b"\xFF" * 2
     import os
     if os.environ.get("SATURN_SKIP") != "box":
         for site in BOX_PLB_SITES:
@@ -338,7 +376,15 @@ def main():
     for pid in PROJ_IDS:
         site = 0x100A6 + 2 * pid
         expect(site, b"\x00\x00", f"proc-table entry {pid:#04x} (must be free)")
-        data[site:site + 2] = bytes((PROJ_DESPAWN & 0xFF, PROJ_DESPAWN >> 8))
+        if pid in PROJ_SCRIPT_ENTRIES:      # real ported procs via the mini-stub
+            data[site:site + 2] = bytes(((SITE_BTN + 4) & 0xFF, ((SITE_BTN + 4) - 0x10000) >> 8))
+        else:
+            data[site:site + 2] = bytes((PROJ_DESPAWN & 0xFF, PROJ_DESPAWN >> 8))
+    # OAM char-table entries for the projectiles -> shared blob via $B0 mirror
+    for pid in PROJ_SCRIPT_ENTRIES:
+        site = 0x048000 + 3 * pid
+        expect(site, b"\x00\x00\x00", f"OAM entry {pid:#04x} (must be free)")
+        data[site:site + 3] = bytes((0xA6, 0xB4, 0xB0))
 
     fix_checksum(data)
     open(out_path, "wb").write(data)

@@ -177,6 +177,34 @@ takes hits):
   NOTE for final integration: p7/p9 patch box data in REAL $8A — the copy must
   be taken AFTER their edits when stacking.
 
+## Projectile objects — PORTED (visible fireballs) [P 07-30, projectile session]
+
+Projectiles do NOT stream cels (both games): their tiles are STATIC in the OBJ
+effects VRAM region (tile base 0xA0 = VRAM $6A00; loaded at match start,
+COMPRESSED in ROM — source/decompressor unmapped, smoke uses a fixture VRAM dump
+uploaded at runtime: probe_supers_effecttiles.lua → traces/saturn/
+supers_effecttiles.bin). Saturn's fireball = 6 OAM sprites (tiles 0xA0/0xEE ×
+flip variants).
+
+Her three projectile objects (Super S ids kept — free in SMS): **0x20/0x21**
+(qcf LP/HP wave) and **0x22** (second special). Per-object port surface:
+scripts `$C0:2715/2725/2735` (CMD-free → verbatim at original $E8 offsets),
+shared pose records `$84:9575` (24), shared OAM blob `$84:B4A6-B6DA` (→
+$F0:B4A6 via the $B0 mirror), shared hit boxes `$AF:F552` (→ $F0:8920), procs
+`$C1:280B/28D3/29A6` with act tables — block $280B-**$2B60** grafted into $EF
+(323 instructions, 42 operand fixups; new JSL twin verified: $80:C494 →
+$80:C352, the projectile-flavor box helper). Dispatch: proc-table entries →
+5-byte mini-stub in the button hook's skipped bytes ($C1:15C8: JSL $EF:DB30 /
+RTS) → tramp3 re-dispatches by id (rep #$10 FIRST — the projectile loop
+dispatches with 8-bit X, measured). Gotcha that cost a debug cycle: the wave's
+act table extends past $2A80 (acts 3/4 at $2A8E/$2ACA) — a truncated graft
+executes stale copy bytes mid-handler (garbage act 9, projectile never dies,
+her wait-act wedges).
+
+Verified: qcf fireball travels ~90 px, animates poses 0-3, hits at range from a
+REAL pad motion, despawns; wave special (both strengths) completes; remaining
+free ids keep the despawn placeholder.
+
 ## OAM sprite-layout — the 4TH animation layer [P 07-30, smoke-test session]
 
 Boxes/cels alone don't render a fighter; the OAM layout is a separate id-indexed
