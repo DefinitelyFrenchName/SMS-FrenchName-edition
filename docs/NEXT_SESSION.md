@@ -119,10 +119,23 @@ contiguous; no per-char handler block exists (~630 B measured exclusive code).
 (resolver `$80:9FB8`) — same bases as Super S; Uranus content byte-identical
 across games (cel addr24s relocated only). Port recipe per layer in supers_map
 §pipeline (note: SMS interpreter lacks Super S's 0xC0 CMD extension — strip or
-back-port Saturn's CMD steps). Next: the port scaffold proper — Saturn data-unit
-extractor (scripts/poses/cels/boxes/recognizers → bundle), then the §Route A
-table relocations. Dossier: drive her remaining 4 specials (inputs unknown — try
-Fighter S wiki inputs), throws, desperation.
+back-port Saturn's CMD steps; her scripts carry 67 CMD steps).
+
+**Data-unit extractor DONE (`tools/extract_saturn_unit.py`):** 18 components,
+141.4 KB → `build/saturn_unit/` (gitignored — ROM-derived; manifest.json carries
+addresses/sha1s/rebase rules/TODOs). Validations: act table = exactly 128 slots
+(0x2105-0x2205), 110 scripted acts all parse in-slice; pose records bounds-checked;
+cel census re-derived (115 cels, 140000 streamed bytes); ground-truth tripwires
+(pose 6B/20/1D bytes, act 4C script shape, marker box 1B zero-size); boxes_hit
+cross-checked 30/30 vs supers_all_boxes.json. Extractor TODOs recorded in the
+manifest: palette sizes ASSUMED 0x20; recognizer motion-spec format partial;
+special act-list per-char indexing + gating-record base not yet located.
+
+Next: the §Route A table relocations (11th roster entries; six tables + ~12 reader
+sites already enumerated in feasibility §Route A), then a first in-SMS smoke test
+(inject her three animation layers + boxes, poke charID 10, expect idle/walk to
+animate). Dossier: drive her remaining 4 specials (inputs unknown — try Fighter S
+wiki inputs), throws, desperation.
 
 ## Open threads (unchanged backlog)
 

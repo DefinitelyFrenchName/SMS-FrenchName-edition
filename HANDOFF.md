@@ -107,7 +107,12 @@ data-driven (+0x51 move-request pipeline, generic starters/interpreters); exec-
 coverage bounds her exclusive code at ~630 B (1 of 5 specials driven; ≤2-3 KB
 extrapolated). New probes: probe_supers_guardfind/guardpose/posetiming/guardfix/
 movereq/coverage.lua. Route A confidence: HIGH — the port is data + a few hundred
-bytes of per-object procs.
+bytes of per-object procs. SMS's three animation-layer twins located +
+live-verified (scripts $C0:0000 / poses $84:809C / cels $CB:0000;
+probe_sms_animtables.lua 241/241 ALL PASS; Uranus content byte-identical across
+games). **Port bundle extractor: `tools/extract_saturn_unit.py`** → 18 components,
+141.4 KB, `build/saturn_unit/` (gitignored) with manifest (rebase rules, guard-fix
+offsets, TODOs); tripwire-asserted against the measured ground truth.
 
 **2026-07-25 — patch 10 field report fixed + REF v.1 bundle:**
 - Maintainer reported the combo counter never appears and status labels never disappear
