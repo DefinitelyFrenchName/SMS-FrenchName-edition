@@ -69,3 +69,51 @@ def check_not_inplace(src, out):
     if os.path.realpath(src) == os.path.realpath(out):
         raise SystemExit(f"error: src and out are the same file ({src}) — "
                          "in-place patching is forbidden; write the output to a new path")
+
+
+# ---- shared ROM-image tooling (maintainer's dedup rule: common code that no patch
+# ---- alters lives HERE; patch-specific logic stays in each builder) ----
+
+def fix_checksum(data):
+    """SNES header checksum over a power-of-two footprint (pad region repeated to
+    fill; a power-of-two image sums directly). Single copy since 2026-07-30 — the
+    2026-07-30 #9 bug (hang at power-of-two sizes) previously needed 14 fixes."""
+    size = len(data)
+    chk_size = max(0x80000, 1 << (size - 1).bit_length())
+    if chk_size == size:
+        chk = sum(data)
+    else:
+        half = chk_size // 2
+        cd = bytes(data[half:])
+        cd = (cd * ((half + len(cd) - 1) // len(cd)))[:half]
+        chk = sum(data[:half]) + sum(cd)
+    data[0xFFDE] = chk & 0xFF; data[0xFFDF] = chk >> 8 & 0xFF
+    data[0xFFDC] = data[0xFFDE] ^ 0xFF; data[0xFFDD] = data[0xFFDF] ^ 0xFF
+
+
+def trim_banks(data):
+    """Drop trailing all-zero 64K banks (undo pad-to-boundary from a previous builder)."""
+    while len(data) >= 0x10000 and data[-0x10000:] == bytes(0x10000):
+        data = data[:-0x10000]
+    return data
+
+
+def next_bank(data):
+    """Pad to the next 64K boundary and return (file_offset, snes_bank) of the fresh
+    bank a bank-appending patch may claim."""
+    bankbase = (len(data) + 0xFFFF) & ~0xFFFF
+    while len(data) < bankbase:
+        data += b"\x00"
+    return bankbase, 0xC0 + (bankbase >> 16)
+
+
+def write_bank(data, bankbase, blob):
+    """Write an appended-bank blob with the issue-#27 guards: must fit one 64K bank,
+    and the target region must be virgin (a collision means someone stacked
+    standalone BPS files — forbidden; chain the builders)."""
+    if len(blob) > 0x10000:
+        raise SystemExit(f"error: appended blob {len(blob):#x} bytes exceeds one 64K bank")
+    if any(data[bankbase:bankbase + len(blob)]):
+        raise SystemExit(f"error: target bank at {bankbase:#x} is already occupied "
+                         "(never stack standalone BPS files; chain the builders)")
+    data[bankbase:bankbase + len(blob)] = blob

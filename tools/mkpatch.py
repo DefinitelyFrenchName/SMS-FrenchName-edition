@@ -30,7 +30,7 @@ import sys
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 CLEAN = clean_rom()
 
 # Detection fingerprint (p1) — consumed by tools/mksigs.py to generate the
@@ -40,21 +40,6 @@ CLEAN = clean_rom()
 SIG = [(0x1874D, 0x20), (0x1874E, 0xBE), (0x1BE22, 0xC9)]
 
 
-def _fix_checksum(data):
-    # SNES checksum over a power-of-two footprint: pad-region repeated to fill.
-    # Fixed 2026-07-30 (issue #9): the old `while chk_size <= size` loop skipped the
-    # equality branch and hung on power-of-two sizes, and over-summed 0x380000.
-    size = len(data)
-    chk_size = max(0x80000, 1 << (size - 1).bit_length())
-    if chk_size == size:
-        chk = sum(data)
-    else:
-        half = chk_size // 2
-        cd = bytes(data[half:])
-        cd = (cd * ((half + len(cd) - 1) // len(cd)))[:half]
-        chk = sum(data[:half]) + sum(cd)
-    data[0xFFDE] = chk & 0xFF; data[0xFFDF] = chk >> 8 & 0xFF
-    data[0xFFDC] = data[0xFFDE] ^ 0xFF; data[0xFFDD] = data[0xFFDF] ^ 0xFF
 
 
 def build(gate, out):
@@ -75,7 +60,7 @@ def build(gate, out):
                   0x60])             # rts
     rom[0x1BE20:0x1BE20 + len(stub)] = stub
 
-    _fix_checksum(rom)
+    fix_checksum(rom)
     open(out, "wb").write(rom)
     print(f"wrote {out} gate=0x{gate:02X} sha1={hashlib.sha1(rom).hexdigest()}")
 

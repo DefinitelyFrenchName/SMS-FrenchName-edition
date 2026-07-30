@@ -26,10 +26,10 @@ local DEF_STATE = (REACT=="dp") and ENV.TRACE .. "uranus_vs_neptune_v07.mss"
 local STATE = REACT_STATE or DEF_STATE
 local MFV   = REACT_MFV or 115        -- meaty press frame (frame-perfect); try 116 for "1 late"
 
-local WRAM = emu.memType.snesWorkRam
-local function r(a) return emu.read(a, WRAM) end
-local FALSE = { a=false,b=false,x=false,y=false,l=false,r=false,
-                up=false,down=false,left=false,right=false,start=false,select=false }
+local PL = ENV.dofile("probelib.lua")   -- shared emulator-access helpers (#34)
+local WRAM = PL.WRAM
+local r = PL.ram
+local FALSE = PL.FALSE_PAD
 
 -- Uranus P1: 2LP@60, 2HP@77, 66@97/99, meaty 2LP@MFV (verified relative timing)
 local function p1btn(t)

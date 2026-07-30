@@ -24,7 +24,7 @@ import sys
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, trim_banks, next_bank, write_bank  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 import asm65816 as A  # noqa: E402
 
 CLEAN = clean_rom()
@@ -530,15 +530,11 @@ def build(src, out, stage="full", minhits=2, ttl=72, modes=(0x00, 0x01, 0x02, 0x
     if not 1 <= ttl <= 255:
         raise ValueError("ttl must be 1..255 frames")
     data = bytearray(open(src, "rb").read())
-    while len(data) >= 0x10000 and data[-0x10000:] == bytes(0x10000):
-        data = data[:-0x10000]
+    data = trim_banks(data)
     assert data[PROD:PROD + 4] == PROD_OLD, f"producer hook bytes: {data[PROD:PROD+4].hex()}"
     assert data[UPL:UPL + 5] == UPL_OLD, f"uploader hook bytes: {data[UPL:UPL+5].hex()}"
 
-    bankbase = (len(data) + 0xFFFF) & ~0xFFFF
-    while len(data) < bankbase:
-        data += b"\x00"
-    bank = 0xC0 + (bankbase >> 16)
+    bankbase, bank = next_bank(data)
     labels = (events == "labels") and stage == "full"
     font_blob, label_words = _font_and_words() if labels else (b"", {})
 
@@ -664,14 +660,7 @@ glok:
         font_off = (bankbase & 0xFFFF) + len(compute_bytes) + len(flush_bytes)
 
     blob = bytearray(compute_bytes) + flush_bytes + font_blob
-    # bank guards (issue #27): the appended stub+data must fit one 64K bank, and the
-    # target region must be virgin (a collision means stacking standalone BPS — forbidden)
-    if len(blob) > 0x10000:
-        raise SystemExit(f"error: appended blob {len(blob):#x} bytes exceeds one 64K bank")
-    if any(data[bankbase:bankbase + len(blob)]):
-        raise SystemExit(f"error: target bank at {bankbase:#x} is already occupied "
-                         "(never stack standalone BPS files; chain the builders)")
-    data[bankbase:bankbase + len(blob)] = blob
+    write_bank(data, bankbase, blob)   # 64K-fit + virgin-bank guards (#27)
 
     # repoint the two hooks (JML into the appended bank)
     ca = bankbase & 0xFFFF
@@ -681,28 +670,13 @@ glok:
 
     data[0xFFC0:0xFFD5] = b"\xBE\xB0\xD7\xB0\xD1\xB0\xDDS FrenchName  "
     data += b"\x00" * ((len(data) + 0x7FFFF) // 0x80000 * 0x80000 - len(data))
-    _fix_checksum(data)
+    fix_checksum(data)
     open(out, "wb").write(data)
     print(f"wrote {out} from {src}: stage={stage} bank={bank:#04x} "
           f"compute={len(compute_bytes)}B flush={len(flush_bytes)}B, "
           f"{len(data):#x} bytes, sha1={sha1(bytes(data)).hexdigest()}")
 
 
-def _fix_checksum(data):
-    # SNES checksum over a power-of-two footprint: pad-region repeated to fill.
-    # Fixed 2026-07-30 (issue #9): the old `while chk_size <= size` loop skipped the
-    # equality branch and hung on power-of-two sizes, and over-summed 0x380000.
-    size = len(data)
-    chk_size = max(0x80000, 1 << (size - 1).bit_length())
-    if chk_size == size:
-        chk = sum(data)
-    else:
-        half = chk_size // 2
-        cd = bytes(data[half:])
-        cd = (cd * ((half + len(cd) - 1) // len(cd)))[:half]
-        chk = sum(data[:half]) + sum(cd)
-    data[0xFFDE] = chk & 0xFF; data[0xFFDF] = chk >> 8 & 0xFF
-    data[0xFFDC] = data[0xFFDE] ^ 0xFF; data[0xFFDD] = data[0xFFDF] ^ 0xFF
 
 
 if __name__ == "__main__":

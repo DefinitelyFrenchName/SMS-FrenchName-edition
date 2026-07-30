@@ -5,9 +5,9 @@ local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: too
 local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_tier1.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
-local WRAM = emu.memType.snesWorkRam
-local function ram(a) return emu.read(a, WRAM) end
-local function wr(a, v) emu.write(a, v, WRAM) end
+local PL = ENV.dofile("probelib.lua")   -- shared emulator-access helpers (#34)
+local WRAM = PL.WRAM
+local ram, wr = PL.ram, PL.wr
 local function st(off) return ram(0x1F000 + off) end
 local function stw(off, v) wr(0x1F000 + off, v) end
 local function vword(w) return emu.read(w * 2, emu.memType.snesVideoRam) + 256 * emu.read(w * 2 + 1, emu.memType.snesVideoRam) end

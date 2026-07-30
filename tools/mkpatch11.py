@@ -35,7 +35,7 @@ import sys
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, trim_banks, next_bank, write_bank  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 import asm65816 as A  # noqa: E402
 import hudfont  # noqa: E402
 
@@ -1849,8 +1849,7 @@ far96:
 
 def build(src, out, stage="tier1"):
     data = bytearray(open(src, "rb").read())
-    while len(data) >= 0x10000 and data[-0x10000:] == bytes(0x10000):
-        data = data[:-0x10000]
+    data = trim_banks(data)
     assert data[INP:INP + 4] == INP_OLD, f"input hook bytes: {data[INP:INP+4].hex()}"
     assert data[UPL2:UPL2 + 5] == UPL2_OLD, f"upl2 hook bytes: {data[UPL2:UPL2+5].hex()}"
     for site, old, name in ((P10_PROD, P10_PROD_OLD, "p10-producer"),
@@ -1858,10 +1857,7 @@ def build(src, out, stage="tier1"):
         if data[site:site + len(old)] != old and data[site] != 0x5C:
             print(f"WARNING: unexpected bytes at {name} ({data[site:site+len(old)].hex()})")
 
-    bankbase = (len(data) + 0xFFFF) & ~0xFFFF
-    while len(data) < bankbase:
-        data += b"\x00"
-    bank = 0xC0 + (bankbase >> 16)
+    bankbase, bank = next_bank(data)
 
     font_blob, idx = hudfont.build_font(FONT_LETTERS, color=1)   # white (visible everywhere)
     font_off = bankbase & 0xFFFF
@@ -1873,19 +1869,12 @@ def build(src, out, stage="tier1"):
         _upl2_stub(stage, font_off, bank, len(font_blob), idx).splitlines(), upl_off, bank)
 
     blob = font_blob + inp_body + inp_tail + upl_body
-    # bank guards (issue #27): the appended stub+data must fit one 64K bank, and the
-    # target region must be virgin (a collision means stacking standalone BPS — forbidden)
-    if len(blob) > 0x10000:
-        raise SystemExit(f"error: appended blob {len(blob):#x} bytes exceeds one 64K bank")
-    if any(data[bankbase:bankbase + len(blob)]):
-        raise SystemExit(f"error: target bank at {bankbase:#x} is already occupied "
-                         "(never stack standalone BPS files; chain the builders)")
-    data[bankbase:bankbase + len(blob)] = blob
+    write_bank(data, bankbase, blob)   # 64K-fit + virgin-bank guards (#27)
     data[INP:INP + 4] = bytes([0x5C, inp_off & 0xFF, (inp_off >> 8) & 0xFF, bank])
     data[UPL2:UPL2 + 4] = bytes([0x5C, upl_off & 0xFF, (upl_off >> 8) & 0xFF, bank])
 
     data += b"\x00" * ((len(data) + 0x7FFFF) // 0x80000 * 0x80000 - len(data))
-    _fix_checksum(data)
+    fix_checksum(data)
     open(out, "wb").write(data)
     print(f"wrote {out} from {src}: stage={stage} bank={bank:#04x} "
           f"font={len(font_blob)}B input={len(inp_body)}B upl2={len(upl_body)}B, "
@@ -1893,21 +1882,6 @@ def build(src, out, stage="tier1"):
     print(f"  stubs: INPUT={bank:02X}{inp_off:04X} UPL2={bank:02X}{upl_off:04X}")
 
 
-def _fix_checksum(data):
-    # SNES checksum over a power-of-two footprint: pad-region repeated to fill.
-    # Fixed 2026-07-30 (issue #9): the old `while chk_size <= size` loop skipped the
-    # equality branch and hung on power-of-two sizes, and over-summed 0x380000.
-    size = len(data)
-    chk_size = max(0x80000, 1 << (size - 1).bit_length())
-    if chk_size == size:
-        chk = sum(data)
-    else:
-        half = chk_size // 2
-        cd = bytes(data[half:])
-        cd = (cd * ((half + len(cd) - 1) // len(cd)))[:half]
-        chk = sum(data[:half]) + sum(cd)
-    data[0xFFDE] = chk & 0xFF; data[0xFFDF] = chk >> 8 & 0xFF
-    data[0xFFDC] = data[0xFFDE] ^ 0xFF; data[0xFFDD] = data[0xFFDF] ^ 0xFF
 
 
 if __name__ == "__main__":

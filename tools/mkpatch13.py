@@ -44,7 +44,7 @@ import sys
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, trim_banks, next_bank, write_bank  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 import asm65816 as A  # noqa: E402
 from mkpatch12 import MISFIRE  # single source of truth for the primary misfire acts
 
@@ -487,8 +487,7 @@ def make_tables(pcts):
 
 def build(src, out, pcts=(20, 40, 60)):
     data = bytearray(open(src, "rb").read())
-    while len(data) >= 0x10000 and data[-0x10000:] == bytes(0x10000):
-        data = data[:-0x10000]
+    data = trim_banks(data)
     assert data[FSM_HOOK:FSM_HOOK + 4] == FSM_OLD, f"fsm hook: {data[FSM_HOOK:FSM_HOOK+4].hex()}"
     for s in MELEE_SITES + PROJ_SITES:
         assert data[s:s + 6] == STRIKE_OLD, f"strike site {s:#x}: {data[s:s+6].hex()}"
@@ -496,10 +495,7 @@ def build(src, out, pcts=(20, 40, 60)):
     assert data[TOSS_SITE:TOSS_SITE + 6] == TICK_OLD, f"toss site: {data[TOSS_SITE:TOSS_SITE+6].hex()}"
     assert data[IND_HOOK:IND_HOOK + 5] == IND_OLD, f"indicator hook: {data[IND_HOOK:IND_HOOK+5].hex()}"
 
-    bankbase = (len(data) + 0xFFFF) & ~0xFFFF
-    while len(data) < bankbase:
-        data += b"\x00"
-    bank = 0xC0 + (bankbase >> 16)
+    bankbase, bank = next_bank(data)
 
     tables = make_tables(pcts)
     table_long = (bank << 16) | (bankbase & 0xFFFF)
@@ -517,14 +513,7 @@ def build(src, out, pcts=(20, 40, 60)):
     ind_body, _ = A.assemble(_ind_stub().splitlines(), ind_off, bank)
 
     blob = tables + fsm_body + fsm_tail + melee_body + proj_body + tick_body + ind_body
-    # bank guards (issue #27): the appended stub+data must fit one 64K bank, and the
-    # target region must be virgin (a collision means stacking standalone BPS — forbidden)
-    if len(blob) > 0x10000:
-        raise SystemExit(f"error: appended blob {len(blob):#x} bytes exceeds one 64K bank")
-    if any(data[bankbase:bankbase + len(blob)]):
-        raise SystemExit(f"error: target bank at {bankbase:#x} is already occupied "
-                         "(never stack standalone BPS files; chain the builders)")
-    data[bankbase:bankbase + len(blob)] = blob
+    write_bank(data, bankbase, blob)   # 64K-fit + virgin-bank guards (#27)
 
     def jsl(addr16):
         return bytes([0x22, addr16 & 0xFF, (addr16 >> 8) & 0xFF, bank])
@@ -539,28 +528,13 @@ def build(src, out, pcts=(20, 40, 60)):
     # IND_OLD was 5 bytes; the byte at IND_HOOK+4 (0x20) is orphaned, skipped by the jml
 
     data += b"\x00" * ((len(data) + 0x7FFFF) // 0x80000 * 0x80000 - len(data))
-    _fix_checksum(data)
+    fix_checksum(data)
     open(out, "wb").write(data)
     print(f"wrote {out} from {src}: pcts={pcts} bank={bank:#04x} fsm={len(fsm_body)}B "
           f"melee={len(melee_body)}B proj={len(proj_body)}B tick={len(tick_body)}B ind={len(ind_body)}B, "
           f"{len(data):#x} bytes, sha1={sha1(bytes(data)).hexdigest()}")
 
 
-def _fix_checksum(data):
-    # SNES checksum over a power-of-two footprint: pad-region repeated to fill.
-    # Fixed 2026-07-30 (issue #9): the old `while chk_size <= size` loop skipped the
-    # equality branch and hung on power-of-two sizes, and over-summed 0x380000.
-    size = len(data)
-    chk_size = max(0x80000, 1 << (size - 1).bit_length())
-    if chk_size == size:
-        chk = sum(data)
-    else:
-        half = chk_size // 2
-        cd = bytes(data[half:])
-        cd = (cd * ((half + len(cd) - 1) // len(cd)))[:half]
-        chk = sum(data[:half]) + sum(cd)
-    data[0xFFDE] = chk & 0xFF; data[0xFFDF] = chk >> 8 & 0xFF
-    data[0xFFDC] = data[0xFFDE] ^ 0xFF; data[0xFFDD] = data[0xFFDF] ^ 0xFF
 
 
 if __name__ == "__main__":

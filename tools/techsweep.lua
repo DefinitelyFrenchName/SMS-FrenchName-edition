@@ -44,10 +44,10 @@ FFIX     = FFIX or (TFRAME + 1)
 M_LO     = M_LO or 1
 M_HI     = M_HI or 25
 
-local WRAM = emu.memType.snesWorkRam
-local function r(a) return emu.read(a, WRAM) end
-local FALSE = { a=false,b=false,x=false,y=false,l=false,r=false,
-                up=false,down=false,left=false,right=false,start=false,select=false }
+local PL = ENV.dofile("probelib.lua")   -- shared emulator-access helpers (#34)
+local WRAM = PL.WRAM
+local r = PL.ram
+local FALSE = PL.FALSE_PAD
 
 local DEF = (THROWER == 0) and 1 or 0            -- defender port
 local thrBase = (THROWER == 0) and 0x1000 or 0x1080

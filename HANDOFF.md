@@ -60,6 +60,13 @@ closed. Key operational changes:
 - **`--stacked` is now REQUIRED on every chained builder step** (unconditional SHA gate,
   #12); `src == out` is rejected (#56); the §2 chain examples and the new committed
   bundle recipes `tools/build_v022.sh` / `tools/build_ref_v1.sh` (#10) reflect this.
+- **Dedup policy (maintainer ruling, 2026-07-30):** common tooling that no patch alters
+  is CENTRALIZED (smspaths.py: ROM paths, SHA gates, `fix_checksum`, `trim_banks`,
+  `next_bank`/`write_bank`; probelib.lua: emulator-access helpers for the standalone
+  suites; sms_env.lua: Lua path discovery; mksigs.py: detection fingerprints) —
+  patch-specific logic stays in each standalone builder, and no object-model
+  abstractions are introduced that don't NEED to exist (argparse blocks stay
+  per-builder; one-shot archival probes keep their local helpers).
 - Regression suite is a real gate: exits 1 on failure (#2), pre-flights fixtures (#4,
   the 6 missing ones are force-added), detects never-fired checks (#7), tracks HP
   per-player (#16), detects both p1 gates (#29 — REF reads p1=Y(gate 05)).

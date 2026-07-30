@@ -19,7 +19,7 @@ from hashlib import sha1
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 CLEAN = clean_rom()
 
 # Detection fingerprint (p5) — consumed by tools/mksigs.py to generate the
@@ -38,26 +38,11 @@ def build(src_path, out_path, speed=NEW_SPEED):
     data[SITE+1] = speed & 0xFF
     data[SITE+2] = (speed >> 8) & 0xFF
     # keep whatever title/header the input already has; just refresh the checksum
-    _fix_checksum(data)
+    fix_checksum(data)
     open(out_path, "wb").write(data)
     print(f"wrote {out_path} from {src_path}: dash speed 0x0B00->{speed:#06x}, "
           f"sha1={sha1(bytes(data)).hexdigest()}")
 
-def _fix_checksum(data):
-    # SNES checksum over a power-of-two footprint: pad-region repeated to fill.
-    # Fixed 2026-07-30 (issue #9): the old `while chk_size <= size` loop skipped the
-    # equality branch and hung on power-of-two sizes, and over-summed 0x380000.
-    size = len(data)
-    chk_size = max(0x80000, 1 << (size - 1).bit_length())
-    if chk_size == size:
-        chk = sum(data)
-    else:
-        half = chk_size // 2
-        cd = bytes(data[half:])
-        cd = (cd * ((half + len(cd) - 1) // len(cd)))[:half]
-        chk = sum(data[:half]) + sum(cd)
-    data[0xFFDE] = chk & 0xFF; data[0xFFDF] = chk >> 8 & 0xFF
-    data[0xFFDC] = data[0xFFDE] ^ 0xFF; data[0xFFDD] = data[0xFFDF] ^ 0xFF
 
 if __name__ == "__main__":
     import argparse
