@@ -112,7 +112,8 @@ Fixture: `traces/saturn_vs_uranus_supers.mss` (force-added). Tools:
 guard bug = pose-record class byte, **fixed with 1 byte/move A/B-proven** ($84:9289,
 $84:927D — the second also fixes close 5HK); animation pipeline fully decoded
 (scripts $C0:0000 / pose records $84:809F / cel tables $CB:0000); cel census 137 KB
-contiguous; no per-char handler block exists (~630 B measured exclusive code).
+contiguous; handler sizing (CORRECTED later same day: per-char proc blocks DO
+exist, ~4.3 KB — see the smoke-test section below).
 **Route A is GO.** SMS's three animation-layer tables LOCATED + LIVE-VERIFIED
 (2026-07-30 third session, probe_sms_animtables.lua ALL PASS): scripts `$C0:0000`
 (interp `$80:A05C`), pose records `$84:809C` (writer `$C0:9C96`), cels `$CB:0000`
