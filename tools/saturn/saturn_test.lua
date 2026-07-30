@@ -18,6 +18,8 @@
 -- throws/desperation unverified; win-pose/dizzy/etc. cosmetics may glitch;
 -- P2 stays whoever you picked.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
+local P2_ALSO = false   -- set true for a Saturn MIRROR match (P2 transforms too;
+                        -- P2's fireball art + palette use P2 slots automatically)
 local WRAM = emu.memType.snesWorkRam
 local function r(a) return emu.read(a, WRAM) end
 local function w(a, v) emu.write(a, v, WRAM) end
@@ -61,6 +63,14 @@ emu.addEventCallback(function()
       wasSaturn = true
       tilesDone = uploadTiles()
       uploadPalette()
+    end
+  end
+  if P2_ALSO and inMatch and r(0x1080) ~= 0x1C and r(0x1081) <= 0x02 then
+    w(0x1080, 0x1C)
+    for _, o in ipairs({ 0x01, 0x02, 0x04, 0x05, 0x06, 0x07 }) do w(0x1080 + o, 0) end
+    local PRG = emu.memType.snesPrgRom
+    for i = 0, 31 do  -- P2 = OBJ palette 1 -> shadow $0620
+      emu.write(0x0620 + i, emu.read(0x2EC000 + i, PRG), emu.memType.snesWorkRam)
     end
   end
   if wasSaturn then

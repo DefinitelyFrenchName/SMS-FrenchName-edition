@@ -51,10 +51,16 @@ the SMS S/A/R conventions in the full pass.)
   $CB:9A03/$CB:CB9A, poses $84:9575, OAM $84:B4A6-B6DA) — Silence Buster
   presumably. Nibbles 08/09 → **acts 0x6A→0x6C / 0x6B→0x6D** spawning
   **projectile id 0x22** (second special). Her "wait" acts (0x70/71, 0x6C/6D)
-  re-force themselves each frame until the projectile slot clears. Remaining
-  recognizers (specs $C1:145E/15F1/15FA/1603/160C; one is the desperation per
-  its gating bit — likely nibbles 06/07, inert at full HP) need inputs +
-  measurement.
+  re-force themselves each frame until the projectile slot clears. **Recognizer specs DECODED (v0.7.0 session)** — direction encoding is a
+  BITMASK (1=fwd, 2=back, 4=down; 5=df, 6=db), spec = [threshold, dir]* pairs +
+  [threshold, button-mask] + FF: spec2 = d,df,f+light = **QCF** (nibble 4 ✓
+  observed), spec3 = its mirror/heavy variant, spec4 = d,db,b+light = **QCB**
+  (nibble 8 ✓ = the wave special), spec5 = b,db,d,df,f,b+button =
+  **412364+P — the desperation** (matches Fighter S's documented "Death Drive
+  Break" input!). Triggering it live still fails in BOTH games with scripted
+  input (per-step threshold timing not yet calibrated) — no crash either way;
+  the SMS danger-idle act 0x21 (HP≤0x18) does NOT block specials (qcf fires
+  from it). Remaining: threshold semantics + live desperation measurement.
 - Button-map record $C1:174E `02 00 04 08 06 00 0a`; special gating records per
   supers_map §Character architecture.
 
