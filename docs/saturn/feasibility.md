@@ -104,13 +104,15 @@ enumerate the behavior deltas.
    both per-char tables are SMS's structures widened to 11 entries, and her
    recognizer record has the exact SMS shape (5 specials + FFFF). Sizing needs
    Dispel along her act dispatch — mechanical, method known. Route A confidence: up.
-2. **Anim/sprite pipeline: RESOLVED.** The manifest anim field is dead in Super S
-   (never read; $E0:F328 never read either). Cel graphics stream uncompressed from
-   ROM per frame via two fixed streamer routines (P1 $80:A244 / P2 $80:A29F);
-   Saturn's 5HP cels located ($DD:7C60-9600). Route A's graphics port unit =
-   cel blocks + the per-frame cel-address tables those routines read + the
-   animation scripts; remaining work is enumeration (census per move) and
-   disassembly of the two streamers — mechanical, methods proven.
+2. **Anim/sprite pipeline: FULLY DECODED (same day, later session).** All three
+   layers disassembled and cross-validated live (supers_map §pipeline): animation
+   scripts (interpreter $80:A381, char table $C0:0000, 2-byte [dur,pose] steps),
+   pose records ($84:809F, boxes+class), cel resolver ($80:A2DD, $CB:0000 tables,
+   5-byte [addr24,size16] cel records) feeding the per-frame DMA kicker $80:A21A.
+   **Saturn's graphics census complete: 115 cels, 136.7 KB, contiguous
+   $DD:0D40–$DF:34E0.** The whole port unit is statically enumerable; remaining
+   Route A graphics work is locating SMS's equivalents of the three layer tables
+   (the twin of box-writer $C0:9CCD is already known).
 3. **Guard-proximity: RESOLVED (same day, later session).** The proximity-guard
    trigger is the pose-record class byte (+0x18, class 9 = threat; system mapped in
    supers_map §Pose records). Saturn's far 5HK/5LK startup poses are the roster's
@@ -118,8 +120,8 @@ enumerate the behavior deltas.
    **Fix = 1 byte per move ($84:9289 / $84:927D byte0 00→09), A/B-validated:
    blocked when guarded, still hits otherwise.** Far 5LK unblockable also now
    CONFIRMED empirically (@24px). Balance knob #1 settled; she can ship fixed.
-4. **Sprite CHR census**: method proven (DMA census probe, idle/attack windows);
-   first data point in saturn_notes §3c. Full enumeration next session.
+4. **Sprite CHR census: DONE** (static, from the decoded cel tables — superseded
+   the DMA-probe method). Saturn = 137 KB contiguous; saturn_notes §3c.
 
 Also refuted en route: the "attack-class table overflow" hypothesis for her
 unblockables (her classes are textbook SMS — see saturn_notes §3b).

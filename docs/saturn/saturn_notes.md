@@ -86,11 +86,36 @@ Her +0x44 attack classes are TEXTBOOK SMS: lights cls=0x00, heavies cls=0x04
 "class-overflow causes the unblockable" hypothesis is REFUTED — her classes fit
 the on-hit tables fine; the guard bug lives in guard-success data/logic elsewhere.
 
-## 3c. Sprite cels (port budget seed)
+## 3c. Sprite cels — FULL CENSUS DONE (static, 2026-07-30)
 
-Cels stream uncompressed from ROM per frame (see supers_map §pipeline). Known so
-far: **5HP cels at $DD:7C60-9600 (~6.6 KB)**. Full census: run
-probe_supers_dmacensus.lua while driving each move (next session, mechanical).
+Enumerated from the decoded pipeline (supers_map §pipeline; no emulator needed):
+her pose→cels list ($CB:4892, 132 entries) references **115 cels, 136.7 KB total**,
+one contiguous region: **$DD:0D40–$DD:FEE0 (50 cels), $DE:0000–$DE:FC60 (51),
+$DF:0000–$DF:34E0 (14)**. (The old 5HP DMA data point sits inside the $DD run.)
+Whole-character port budget: 137 KB cels + act scripts + 126 pose records (0x1F8 B,
+$84:9209) + pose→cels list (0x108 B) + cel records (575 B, $CB:1346) + boxes
+(~1.6 KB) + palettes — trivially within SMS's ~1 MB headroom.
+
+## 3d. Animation scripts (decoded; the balance fix lives here)
+
+Act-script table `$C0:2105` (+act*2 → script). Verified against live traces:
+
+| Act | Script | Steps (dur×pose) |
+|---|---|---|
+| 0x40 5LP | `$C0:234B` | CMD(15) 3f×6B, 3f×15, 4f×16, HOLD |
+| 0x48 5LK | `$C0:237D` | CMD(15) 3f×1D, 6f×1C, HOLD |
+| 0x4C far 5HK | `$C0:2391` | CMD(14) 7f×20, 10f×21, HOLD |
+| 0x4E close 5HK | `$C0:239F` | CMD(14) 6f×1D, 7f×1E, 8f×1F, HOLD |
+| 0x44 far 5HP | `$C0:2363` | CMD(14) 9f×3F, 5f×15, 11f×1A, HOLD |
+| 0x46 close 5HP | `$C0:2371` | CMD(14) 6f×19, 8f×17, 11f×18, HOLD |
+
+Key contrast: far 5HP announces startup properly (pose 0x3F = class 9, hit 0);
+the kicks' startup poses 0x1D/0x20 are class 0 → the §3 bug. **Close 5HK shares
+pose 0x1D with far 5LK, so the SAME 2-byte fix covers all three broken normals**
+(far 5LK, far 5HK, close 5HK's 25-37px-only guard band). Usage census (whole act
+table 0x00-0x6F): pose 0x1D only in acts {48,49,4D,4E,4F}, pose 0x20 only in {4C} —
+attack/recovery contexts only, and recoveries carrying class 9 is cast convention
+(5LP recovery reuses class-9 poses), so no side effects.
 
 ## 4. Reference: what changed around her in Super S [W]
 

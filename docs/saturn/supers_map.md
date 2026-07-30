@@ -116,19 +116,42 @@ for boxes AND the pose "class".
   trigger is the CLASS byte, not the box (A/B-proven: marker box alone ≠ trigger,
   class 9 alone = trigger).
 
-## Sprite/animation pipeline [P 07-30, DMA census + streamer probes]
+## Sprite/animation pipeline — FULLY DECODED [P 07-30, streamer disasm + static census]
 
-- **Cel graphics STREAM per-frame from ROM, uncompressed** — no decompressed anim
-  buffer (the WRAM $6A00 write-watch caught nothing; the manifest anim field is
-  vestigial — never read during load; $E0:F328 never read at all).
-- Two fixed streamer sites configure the per-player cel DMA every frame:
-  **P1 `$80:A244`, P2 `$80:A29F`** ($43n4 bank writes, B-bus $2118). Sources roam
-  ROM banks by animation: fighters observed streaming from banks **$D6, $DD, $DE**
-  (~1.2 KB/frame each); effects/projectiles from $DF; OAM shadow $7E:0200 → $2104,
-  CGRAM shadow $7E:0500 → $2122, each DMA'd per frame.
-- **Saturn's 5HP cels: bank $DD, src 0x7C60..0x9600** (attack-window census).
-  Full per-move cel census = drive each move under probe_supers_dmacensus.lua.
-- NEXT: Dispel `$80:A244/A29F` to find the per-frame cel-address tables (per
-  act/step) — that table + the cel blocks + the animation scripts are the Route A
-  port unit for graphics. (Callback gotcha recorded: register bus watches on BOTH
-  bank $00 and $80 mirrors — $80-DB writes land at $80xxxx bus addresses.)
+Three ROM layers drive all fighter animation; each is statically enumerable:
+
+1. **Animation scripts** (interpreter `$80:A381`, JSL; data bank $C0):
+   `charID*2` indexes **`$C0:0000`** → per-char act-script pointer table (indexed by
+   act×2, act read from +0x04) → script = 2-byte steps `[duration-1 | ctrl, pose id]`.
+   Ctrl bits in byte0: `0x40`=loop to script start (resets cursor +0x07), `0x80`=hold
+   (stores negative duration → animation frozen until act change), `0xC0`=command
+   (byte1 → `jsr $80:FBB4`, then continue; used at attack starts — sfx?). Duration
+   countdown lives in +0x06, script cursor in +0x07, pose id lands in **+0x05**.
+   Gated off during hitstop via +0x16 bit 4.
+2. **Pose records** (writer `$C0:9FC1`; bank $84): see §Pose records above —
+   pose id → `[class, hit, hurt, coll]` (class → +0x18, boxes → +0x40-42).
+3. **Cel resolver + streamer** (resolver `$80:A2DD`, JSL; data bank $CB):
+   `charID*4` indexes **`$CB:0000`** → two pointers: (a) pose→cels list, 2 B/pose
+   `(celA, celB)`; (b) cel records, **5 B/cel `[addr24, size16]`**. Resolved into the
+   player struct: celA → +0x0C..0x0E (24-bit ROM src) + size +0x12/13; celB (if ≠0)
+   → +0x0F..0x11 + +0x14/15. The per-frame DMA kicker **`$80:A21A`** (the previously
+   noted "streamer sites" `$80:A244`/`$80:A29F` are its P1/P2 halves) uploads
+   P1 → VRAM word $6000, P2 → $6500 (B-bus $2118), one or two runs per player.
+
+Cel graphics stream per-frame from ROM, uncompressed — no decompressed buffer; the
+manifest anim field is vestigial (never read; $E0:F328 never read at all).
+OAM shadow $7E:0200 → $2104, CGRAM shadow $7E:0500 → $2122, each DMA'd per frame.
+(Callback gotcha: register bus watches on BOTH bank $00 and $80 mirrors.)
+
+Per-char table entries (anim-script base / pose→cels / cel records):
+Moon `$C0:006A`/`$CB:4000`/`$CB:002C`, Mercury `043A`/`40F6`/`0234`, Mars
+`079D`/`41E6`/`045A`, Jupiter `0B60`/`42E8`/`06AD`, Venus `0F68`/`43EA`/`0905`,
+Uranus `1299`/`44DA`/`0CC0`, Neptune `167E`/`45CA`/`0ECD`, Pluto `1A3B`/`46EA`/`1161`,
+Chibi `1DD2`/`47C6`/`0B1C`, **Saturn `2105`/`4892`/`1346`**, plus a 12th slot
+`252B`/`499A`/`00CB` (unidentified — boss/extra?).
+
+**Route A graphics port unit per character** = act-script table + scripts (bank $C0)
++ pose records (bank $84) + pose→cels list + cel records (bank $CB) + the cel blocks
+themselves. The SMS side must have the same three layers at SMS addresses (the
+box-writer `$C0:9CCD` is layer-2's twin; locate SMS's `$C0:0000`-equivalent and
+resolver tables next).
