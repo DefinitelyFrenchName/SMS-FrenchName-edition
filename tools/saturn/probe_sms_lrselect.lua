@@ -91,8 +91,8 @@ local STEPS = {
 emu.addEventCallback(function()
   frames = frames + 1; sf = sf + 1
   if frames > 1500 and frames % 25 == 0 then
-    log(string.format("f=%d p1 id=%02X act=%02X mode70=%02X clock=%02X%02X flag=%02X e04=%02X e3d=%02X",
-      frames, ram(0x1000), ram(0x1001), ram(0x70), ram(0x804), ram(0x803), ram(0x1F60), ram(0x1E04), ram(0x1E3D)))
+    log(string.format("f=%d p1 id=%02X act=%02X mode70=%02X clock=%02X%02X flag=%02X e04=%02X fa=%02X",
+      frames, ram(0x1000), ram(0x1001), ram(0x70), ram(0x804), ram(0x803), ram(0x1F60), ram(0x1E04), ram(0x1FA)))
   end
   local fn = STEPS[step]
   if fn and fn() then step = step + 1; sf = 0; pulse = {} end

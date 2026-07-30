@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.8.0"
+SATURN_VERSION = "0.8.1"
 
 SAT_ID = 0x1C
 
@@ -411,7 +411,9 @@ def main():
     h += bytes((0xAD, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, 0xF0, 0x00))
     fpop = len(h) - 1                            # beq pop_normal
     h += bytes((0xAD, 0x04, 0x1E, 0xD0, 0x00)); fg1 = len(h) - 1   # $1E04!=0 -> pop (intro)
-    h += bytes((0xAD, 0x03, 0x08, 0x0D, 0x04, 0x08, 0xF0, 0x00))   # clock==0 -> pop (loading)
+    # gameplay-live gate: $01FA==0x80 (0xE1 during the load window; p11-proven to
+    # hold in practice mode where the round clock never runs)
+    h += bytes((0xAD, 0xFA, 0x01, 0xC9, 0x80, 0xD0, 0x00))
     fg2 = len(h) - 1
     h += bytes((0xC2, 0x10, 0xA6, 0x88))         # rep #$10 / ldx $88 (full struct)
     h += bytes((0xB5, 0x01, 0xC9, 0x03, 0xB0, 0x00)); fpop8 = len(h) - 1  # act>=3? bcs pop8
