@@ -57,10 +57,18 @@ the SMS S/A/R conventions in the full pass.)
   observed), spec3 = its mirror/heavy variant, spec4 = d,db,b+light = **QCB**
   (nibble 8 ✓ = the wave special), spec5 = b,db,d,df,f,b+button =
   **412364+P — the desperation** (matches Fighter S's documented "Death Drive
-  Break" input!). Triggering it live still fails in BOTH games with scripted
-  input (per-step threshold timing not yet calibrated) — no crash either way;
-  the SMS danger-idle act 0x21 (HP≤0x18) does NOT block specials (qcf fires
-  from it). Remaining: threshold semantics + live desperation measurement.
+  Break" input!). **Desperation trigger: OPEN** after a deep attempt (v0.8.0 session). What is
+  known: recognizer states live at +0x5B..+0x64 ([timer,step] per rec); the
+  per-frame walk short-circuits at the FIRST commit (list order = priority, the
+  qcf outranks the desperation and eats 412364+P's tail); button-wait steps
+  time out at 15f. Measured anomaly: rec5 advances through its 5 direction
+  steps correctly, then its state FREEZES at [00,05] — timer stops counting
+  entirely (not a reset, not a commit) — before any other rec commits; no
+  delay/speed/shape variation (11 tried) triggers it in either game. Next
+  session: single-step the matcher on rec5's step-5 processing (suspects: the
+  0xFE hold-accumulator path ending the walk early, or step-6 semantics beyond
+  the [threshold,dir] model). Her desperation ACT handlers are ported but
+  unverified. The SMS danger-idle act 0x21 (HP≤0x18) does NOT block specials.
 - Button-map record $C1:174E `02 00 04 08 06 00 0a`; special gating records per
   supers_map §Character architecture.
 
@@ -96,6 +104,10 @@ normal). **Close 5HK CONFIRMED FIXED in the SMS port (v0.7.0 flow suite): held
 guard at 24px → pre-block 0x0C → blockstun 0x0E, zero damage** — the shared
 pose-0x1D fix covers it as predicted.
 
+**P2 projectile graphics note (v0.8.0 session)**: P2-Saturn's fireball uses
+tile base **0x130** (second OAM name space, VRAM ≈$7300) — loaded by a
+SEPARATE transfer from the P1 effects DMA (not yet traced; needed for the P2
+in-ROM select path).
 **Throws VERIFIED in the SMS port (v0.7.0)**: close 6HP → her throw acts
 **0x68/0x69** (P2 held 0x1C → damaged into hitstun; the acts-68/69 sound site id
 0x20 = the throw sfx). She takes throws normally (victim acts 1C/1D/1E).

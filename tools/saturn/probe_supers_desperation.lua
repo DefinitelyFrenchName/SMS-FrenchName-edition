@@ -25,7 +25,7 @@ emu.addEventCallback(function()
   if t >= q and t < q + 18 then
     p1 = PL.pad(seq[math.floor((t - q) / 3) + 1])
   elseif t >= q + 18 and t <= q + 20 then
-    p1 = PL.pad({ left = true, y = true })
+    p1 = PL.pad({ left = true, x = true })
   end
   emu.setInput(p1, 0, 0); emu.setInput(PL.pad(), 0, 1)
 end, emu.eventType.inputPolled)

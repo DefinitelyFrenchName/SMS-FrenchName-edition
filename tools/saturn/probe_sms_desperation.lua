@@ -25,7 +25,7 @@ emu.addEventCallback(function()
   if t >= q and t < q + 18 then
     p1 = PL.pad(seq[math.floor((t - q) / 3) + 1])
   elseif t >= q + 18 and t <= q + 20 then
-    p1 = PL.pad({ left = true, y = true })
+    p1 = PL.pad({ left = true, x = true })
   end
   emu.setInput(p1, 0, 0); emu.setInput(PL.pad(), 0, 1)
 end, emu.eventType.inputPolled)
@@ -38,6 +38,12 @@ emu.addEventCallback(function()
     wr(0x1049, 0x14)
   end
   if t == 395 then log(string.format("pre-motion act=%02X hp=%d", ram(0x1001), ram(0x1049))) end
+  if t >= 399 and t <= 428 then
+    log(string.format("t=%03d dir00=%02X st1[%02X %02X] st2[%02X %02X] st3[%02X %02X] st4[%02X %02X] st5[%02X %02X]",
+      t, ram(0x00),
+      ram(0x105B), ram(0x105C), ram(0x105D), ram(0x105E), ram(0x105F), ram(0x1060),
+      ram(0x1061), ram(0x1062), ram(0x1063), ram(0x1064)))
+  end
   if t > 400 and t <= 560 then acts[ram(0x1001)] = true end
   if t == 560 then
     local l = {}
