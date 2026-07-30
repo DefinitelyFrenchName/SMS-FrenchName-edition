@@ -61,6 +61,19 @@ reach) — REMAINING MEASUREMENT.
 Other [W] flags to verify: "weird throws"; S-tier above Uranus (Zam 2020 tier list);
 no documented Saturn infinite (the Uranus infinite carries over from SMS unchanged).
 
+## 3b. Attack classes / damage (measured)
+
+Her +0x44 attack classes are TEXTBOOK SMS: lights cls=0x00, heavies cls=0x04
+(damages: 5LP 2, 5LK 3, far 5HP 6, close 5HP 7, 5HK 8). The
+"class-overflow causes the unblockable" hypothesis is REFUTED — her classes fit
+the on-hit tables fine; the guard bug lives in guard-success data/logic elsewhere.
+
+## 3c. Sprite cels (port budget seed)
+
+Cels stream uncompressed from ROM per frame (see supers_map §pipeline). Known so
+far: **5HP cels at $DD:7C60-9600 (~6.6 KB)**. Full census: run
+probe_supers_dmacensus.lua while driving each move (next session, mechanical).
+
 ## 4. Reference: what changed around her in Super S [W]
 
 Projectiles/desperations nerfed across the shared cast; Neptune charge-input

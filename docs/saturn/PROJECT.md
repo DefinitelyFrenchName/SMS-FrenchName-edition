@@ -74,6 +74,12 @@ was in SMS.
   probes named `probe_supers_*`). SMS-targeted code keeps the rule.
 - The maintainer's dedup rule: common tooling centralized, game-/patch-specific
   logic standalone.
+- **Doc separation (maintainer, 2026-07-30):** Saturn-the-character material →
+  `saturn_notes.md`; Super S EXTRA assets (stages/music/etc.) → `supers_assets.md`;
+  shared engine/ROM facts → `supers_map.md`. Keep them apart.
+- **ROM space:** ~1 MB free today. Removing STORY MODE entirely (tournament-edition
+  style) is on the table if space runs out, but **requires explicit maintainer
+  approval before execution** — never assume it.
 
 ## Definition of done (whole project)
 

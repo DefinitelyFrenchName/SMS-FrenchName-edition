@@ -47,7 +47,8 @@ emu.addEventCallback(function()
   end
   if t >= PRESS - 1 and t <= PRESS + 70 then
     local a, hb, hub, a2 = ram(0x1001), ram(0x1040), ram(0x1041), ram(0x1081)
-    rec[#rec + 1] = { t = t - PRESS, a = a, hb = hb, hub = hub, a2 = a2 }
+    rec[#rec + 1] = { t = t - PRESS, a = a, hb = hb, hub = hub, a2 = a2,
+                      cls = ram(0x1044), dmg = ram(0x1045) }
   end
   if t == PRESS + 71 then
     -- summarize: act sequence + active window (hb ~= 0)
@@ -62,10 +63,15 @@ emu.addEventCallback(function()
       if firstAct and r.t > (lastAct or 0) and r.a == 0x00 and not endAct then endAct = r.t end
     end
     local p2hit = false
-    for _, r in ipairs(rec) do if r.a2 >= 0x0E and r.a2 <= 0x16 then p2hit = true end end
-    log(string.format("%s %-5s: acts[%s] active=%s..%s neutral@%s p2hit/block=%s",
+    local clsmax, dmgseen = 0, 0
+    for _, r in ipairs(rec) do
+      if r.a2 >= 0x0E and r.a2 <= 0x16 then p2hit = true end
+      if r.a ~= 0x00 and r.cls > clsmax then clsmax = r.cls end
+      if r.a ~= 0x00 and r.dmg > dmgseen then dmgseen = r.dmg end
+    end
+    log(string.format("%s %-5s: acts[%s] active=%s..%s neutral@%s p2hit/block=%s cls=%02X dmg=%d",
       cur.close and "CLOSE" or "FAR ", cur.btn:upper(),
-      table.concat(seq, " "), tostring(firstAct), tostring(lastAct), tostring(endAct), tostring(p2hit)))
+      table.concat(seq, " "), tostring(firstAct), tostring(lastAct), tostring(endAct), tostring(p2hit), clsmax, dmgseen))
     rec = {}; idx = idx + 1
     if not ATTEMPTS[idx] then log("DONE"); emu.stop(0) end
     needLoad = true; t = -1

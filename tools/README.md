@@ -209,7 +209,12 @@ is the optional knob file `<name>.lua` loads. See HANDOFF.md §4 for the harness
 - `probe_smsenv.lua` — self-test for sms_env.lua discovery.
 - `probe_soak.lua`
 - `probe_soak_cfg.lua`
+- `probe_supers_animload.lua` — locate Super S's per-character animation payload.
+- `probe_supers_animload2.lua` — anim-payload hunt, take 2. The $6A00 fill is invisible
+- `probe_supers_animload3.lua` — anim/sprite hunt, take 3 (method inverted):
+- `probe_supers_dmacensus.lua` — in-match DMA traffic census on the Saturn fixture:
 - `probe_supers_saturn.lua` — Super S recon: reach a VS match with P1 = SATURN (charID
+- `probe_supers_streamer.lua` — identify the sprite-cel streamer: log the PC that
 - `probe_title.lua`
 - `probe_title_ppu.lua` — dump PPU state (bg mode, tilemap/CHR bases) at the title screen.
 - `probe_title_shot.lua` — boot to the title screen and save screenshots.

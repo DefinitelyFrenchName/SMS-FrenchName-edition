@@ -84,3 +84,20 @@ Super S: UNKNOWN (runtime method: read-watch the `$7E:6A00` expansion during loa
 joy_read demonstrates code equality despite byte inequality). Handler-block
 identification/sizing therefore needs disassembly along Saturn's act dispatch,
 not byte matching. Largest contiguous novel runs are ≤0x250 B (scattered).
+
+## Sprite/animation pipeline [P 07-30, DMA census + streamer probes]
+
+- **Cel graphics STREAM per-frame from ROM, uncompressed** — no decompressed anim
+  buffer (the WRAM $6A00 write-watch caught nothing; the manifest anim field is
+  vestigial — never read during load; $E0:F328 never read at all).
+- Two fixed streamer sites configure the per-player cel DMA every frame:
+  **P1 `$80:A244`, P2 `$80:A29F`** ($43n4 bank writes, B-bus $2118). Sources roam
+  ROM banks by animation: fighters observed streaming from banks **$D6, $DD, $DE**
+  (~1.2 KB/frame each); effects/projectiles from $DF; OAM shadow $7E:0200 → $2104,
+  CGRAM shadow $7E:0500 → $2122, each DMA'd per frame.
+- **Saturn's 5HP cels: bank $DD, src 0x7C60..0x9600** (attack-window census).
+  Full per-move cel census = drive each move under probe_supers_dmacensus.lua.
+- NEXT: Dispel `$80:A244/A29F` to find the per-frame cel-address tables (per
+  act/step) — that table + the cel blocks + the animation scripts are the Route A
+  port unit for graphics. (Callback gotcha recorded: register bus watches on BOTH
+  bank $00 and $80 mirrors — $80-DB writes land at $80xxxx bus addresses.)

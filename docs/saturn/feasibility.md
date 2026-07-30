@@ -104,15 +104,23 @@ enumerate the behavior deltas.
    both per-char tables are SMS's structures widened to 11 entries, and her
    recognizer record has the exact SMS shape (5 specials + FFFF). Sizing needs
    Dispel along her act dispatch — mechanical, method known. Route A confidence: up.
-2. **Anim payload**: manifest's anim field was REPURPOSED in Super S (all ten point
-   at a shared `$E0:F328`); the per-char payload must be located at runtime
-   (read-watch `$7E:6A00` during her load). Route A cost: one focused probe before
-   the port budget is known. Honest unknown.
+2. **Anim/sprite pipeline: RESOLVED.** The manifest anim field is dead in Super S
+   (never read; $E0:F328 never read either). Cel graphics stream uncompressed from
+   ROM per frame via two fixed streamer routines (P1 $80:A244 / P2 $80:A29F);
+   Saturn's 5HP cels located ($DD:7C60-9600). Route A's graphics port unit =
+   cel blocks + the per-frame cel-address tables those routines read + the
+   animation scripts; remaining work is enumeration (census per move) and
+   disassembly of the two streamers — mechanical, methods proven.
 3. **Guard-proximity**: her unblockable far 5HK confirmed vs BOTH stand and crouch
    block (34-44px; blockable ≥48). Not a hitbox-flag anomaly — the guard-success
    data/logic is elsewhere; locating it is the next probe and is required for
    Route A regardless (she must ship with sane guard data).
-4. **Sprite CHR census**: deferred with the anim-payload question (same pipeline).
+4. **Sprite CHR census**: method proven (DMA census probe, idle/attack windows);
+   first data point in saturn_notes §3c. Full enumeration next session.
 
-Net: recommendation UNCHANGED (Route A), with one flagged unknown (anim/sprite
-pipeline location) that the next session resolves first.
+Also refuted en route: the "attack-class table overflow" hypothesis for her
+unblockables (her classes are textbook SMS — see saturn_notes §3b).
+
+Net: recommendation UNCHANGED (Route A); the flagged pipeline unknown is RESOLVED.
+Remaining next-session work is enumerative (cel census, streamer disasm, guard-
+success location, handler sizing) — no open architectural unknowns.
