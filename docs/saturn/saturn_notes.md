@@ -43,6 +43,13 @@ the SMS S/A/R conventions in the full pass.)
   crouch LP/LK recoveries; 0x59/0x5B/0x61/0x63 unmeasured (jump/dash normals?).
 - Her attack acts start ≈0x40 (SMS characters' start ≈0x2B) — numbering differs from
   every SMS cast member; do not assume SMS universal-act boundaries above 0x2A.
+- **Specials: acts 0x6E-0x7C** (act list at $C1:0955-0968). First one driven live:
+  **qcf+LP → act 0x6E** (then 0x70 follow-through), spawns a projectile object
+  (proc dispatcher $C1:280B, act table $281D) — Silence Buster presumably. The
+  other four recognizers (specs at $C1:145E/15F1/15FA/1603/160C; the last is the
+  desperation per its gating bit) still need inputs + measurement for the dossier.
+- Button-map record $C1:174E `02 00 04 08 06 00 0a`; special gating records per
+  supers_map §Character architecture.
 
 ## 3. The broken tools — ROOT CAUSE FOUND + FIX VALIDATED (2026-07-30)
 

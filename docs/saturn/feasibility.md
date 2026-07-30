@@ -99,11 +99,16 @@ enumerate the behavior deltas.
 
 ## De-risk probe results (run 2026-07-30, same session)
 
-1. **Handler block**: not sized yet — byte-shingle isolation is defeated by operand
-   shifts (see supers_map §Bank $C1). BUT her dispatch integration is now mapped:
-   both per-char tables are SMS's structures widened to 11 entries, and her
-   recognizer record has the exact SMS shape (5 specials + FFFF). Sizing needs
-   Dispel along her act dispatch — mechanical, method known. Route A confidence: up.
+1. **Handler block: RESOLVED (same day, later session) — it doesn't exist.** The
+   engine is data-driven end-to-end (supers_map §Character architecture): +0x51
+   move-request register fed by per-char button-map records ($C1:16F9) and motion
+   specs ($C1:13CC), consumed by the generic special starter $C1:096B against
+   per-char act-list+gating records; acts animate via the generic script
+   interpreter. Exec-coverage diff (Saturn attacking vs Uranus attacking) bounds
+   Saturn-exclusive CODE at ~630 bytes (per-object projectile/special procs; 1 of
+   5 specials driven; extrapolated ≤ ~2-3 KB). External calls are generic engine
+   routines with 1:1 SMS twins. Route A's feared "code port" collapses into a
+   data port + a few hundred bytes of relinked procs.
 2. **Anim/sprite pipeline: FULLY DECODED (same day, later session).** All three
    layers disassembled and cross-validated live (supers_map §pipeline): animation
    scripts (interpreter $80:A381, char table $C0:0000, 2-byte [dur,pose] steps),

@@ -77,6 +77,41 @@ pointers, but the final 3-byte field is `$E0:F328` for ALL characters — NOT th
 per-char anim payload SMS stores there. Per-char animation payload location in
 Super S: UNKNOWN (runtime method: read-watch the `$7E:6A00` expansion during load).
 
+## Character architecture — the move pipeline [P 07-30, movereq/coverage probes]
+
+**Characters are DATA + shared engine code; there is no per-char "handler block".**
+The move-request register is **+0x51** (low nibble = requested move, consumed and
+cleared each frame at `$C1:0280/0284`); three producers:
+
+1. **Button handler `$C1:161F`** (JSL): `charID*2` → table `$C1:16F9` (11 e.) →
+   7-byte per-char button-map record (Saturn `$C1:174E` = `02 00 04 08 06 00 0a`);
+   fresh-press masks ($68/$6A/$6B) select a nibble → +0x51. Also owns the
+   double-tap (dash) counters +0x5B..+0x5E.
+2. **Command recognizers `$C1:1264`** (via `$13CC` per-char list → spec records,
+   e.g. Saturn `$1452` → 5 motion specs; matcher `$C1:1290`, per-recognizer
+   progress at +0x5B..): on full match, `$C1:1339` writes the recognizer ordinal
+   nibble → +0x51 (`sta $51,X` at `$1352`; +bit0 if button variant).
+3. (Universal states write acts directly via the generic act-setter `$C1:0226`.)
+
+**Special starter `$C1:096B`**: consumes the +0x51 nibble against a per-char record
+(act list + per-special 16-bit gating flags — observed bits: 0x01 air-only-ish
+(+0x16 bit7 & +0x32), 0x02 ground-only, 0x04 projectile slot must be free (checker
+`$C1:04EA` tests $1100/$1180), 0x08 desperation gate (mode≠4, clock/$1F5C, HP≤0x18)).
+Saturn's special-act lists sit at `$C1:0940-0968` (normals 4C..59, specials
+**0x6E-0x7C**); qcf+LP verified live → act 0x6E (request nibble 04 via `$1352`).
+Projectile OBJECTS dispatch per-frame at `$C1:1755` via `jsr ($00A6,X)` by the
+projectile's own object id → per-object-type act procs (e.g. `$C1:280B` dispatcher
++ `$281D` act table for the qcf-special's projectile).
+
+**Exec-coverage measurement** (probe_supers_coverage.lua; bank $C1, idle baseline vs
+Saturn attacking vs Uranus attacking-and-connecting): Saturn-exclusive execution =
+**299 addrs ≈ 630 bytes**, dominated by per-object procs (`$C1:280B-28D2`,
+`$C1:8711-8752`, `$C1:CC7A-CE64`, `$C1:D6FA-D76B`) — with only 1 of her 5 specials
+driven; extrapolated per-char code ≤ ~2-3 KB. External call targets are generic
+engine routines (`$0226` act-set, `$038B` momentum, `$0206/$0231` object mgmt) that
+exist 1:1 in SMS. **Route A's "handler port" reduces to: port data records + a few
+hundred bytes of per-object procs + relink a handful of generic-routine calls.**
+
 ## Bank $C1 comparison note [P 07-30]
 
 16-byte shingle analysis: 25% of Super S bank $C1 exists verbatim in SMS's, 63%
