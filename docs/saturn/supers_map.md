@@ -85,6 +85,37 @@ joy_read demonstrates code equality despite byte inequality). Handler-block
 identification/sizing therefore needs disassembly along Saturn's act dispatch,
 not byte matching. Largest contiguous novel runs are ≤0x250 B (scattered).
 
+## Pose records & the proximity-guard system [P 07-30, guardfind/posetiming/guardfix probes]
+
+The per-frame box/status writer is `$C0:9FC1` (JSL; loops objects $1000..$1180, data
+bank $84). Per object: `charID*2` indexes a **pointer table `$84:809F`** (12 entries,
+null+11) → per-character **pose-record array**, 4 bytes per pose, indexed by the pose
+id in `+0x05` (×4): `[class → +0x18, hit idx → +0x40, hurt idx → +0x41, coll idx →
++0x42]`. Pose ids are set by the animation scripts; the records are the single source
+for boxes AND the pose "class".
+
+- **Class byte vocabulary** (byte0, observed whole-roster): {0,2,4,6,8,9,11,13}.
+  **Class 9 = attack-threat**: arms the opponent's proximity guard (Uranus has 17
+  hitbox-less class-9 poses — startup announcements). The defender holding away enters
+  pre-block act 0x0C/0x0D the same frame the attacker's pose class turns 9.
+- **Guard success is decided attacker-side at hit resolution** and requires the
+  defender to ALREADY be in act 0x0C/0x0D: block verdict writer `$80:C43B` (writes
+  pending code 02/04), hit verdict writer `$80:C2ED` (codes 06+). Hit resolution runs
+  BEFORE the `$C1:0000` object update within a frame, so a threat announced only on
+  the first active frame loses the race and the move hits through held guard.
+- **Victim reaction applier `$C1:0E2B`** (JSL; per player): consumes pending-hit code
+  `+0x47`, dispatches through 3 jump tables — `$C1:0E88` (standing), `$C1:0EA4`
+  (crouching, +0x54 bit2), `$C1:0EC0` (guard-incapable, +0x16 bit7 clear) — whose
+  entries are act stubs (block 0x0E/0x0F, hitstun 0x10-0x16, knockdowns 0x17-0x1B)
+  ending in the commit hub `$C1:10AE` (`sta $01,X` etc.).
+- Pose-record arrays (bank $84): Moon `80E5`, Mercury `82D1`, Mars `84B1`, Jupiter
+  `86B5`, Venus `88B9`, Uranus `8A99`, Neptune `8C79`, Pluto `8EB9`, Chibi `9071`,
+  **Saturn `9209` (126 poses)**, end `9401`.
+- Zero-size "marker" hit boxes exist (e.g. Saturn hit[0x1A-0x1C], w=h=0): carried by
+  some startup poses alongside class 9; they never connect (no area) — the guard
+  trigger is the CLASS byte, not the box (A/B-proven: marker box alone ≠ trigger,
+  class 9 alone = trigger).
+
 ## Sprite/animation pipeline [P 07-30, DMA census + streamer probes]
 
 - **Cel graphics STREAM per-frame from ROM, uncompressed** — no decompressed anim

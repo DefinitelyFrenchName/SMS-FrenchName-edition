@@ -111,10 +111,13 @@ enumerate the behavior deltas.
    cel blocks + the per-frame cel-address tables those routines read + the
    animation scripts; remaining work is enumeration (census per move) and
    disassembly of the two streamers — mechanical, methods proven.
-3. **Guard-proximity**: her unblockable far 5HK confirmed vs BOTH stand and crouch
-   block (34-44px; blockable ≥48). Not a hitbox-flag anomaly — the guard-success
-   data/logic is elsewhere; locating it is the next probe and is required for
-   Route A regardless (she must ship with sane guard data).
+3. **Guard-proximity: RESOLVED (same day, later session).** The proximity-guard
+   trigger is the pose-record class byte (+0x18, class 9 = threat; system mapped in
+   supers_map §Pose records). Saturn's far 5HK/5LK startup poses are the roster's
+   only class-0 attack poses → the guard pose loses the race to hit resolution.
+   **Fix = 1 byte per move ($84:9289 / $84:927D byte0 00→09), A/B-validated:
+   blocked when guarded, still hits otherwise.** Far 5LK unblockable also now
+   CONFIRMED empirically (@24px). Balance knob #1 settled; she can ship fixed.
 4. **Sprite CHR census**: method proven (DMA census probe, idle/attack windows);
    first data point in saturn_notes §3c. Full enumeration next session.
 

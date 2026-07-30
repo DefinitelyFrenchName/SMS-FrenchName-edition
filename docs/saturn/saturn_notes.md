@@ -44,19 +44,37 @@ the SMS S/A/R conventions in the full pass.)
 - Her attack acts start ≈0x40 (SMS characters' start ≈0x2B) — numbering differs from
   every SMS cast member; do not assume SMS universal-act boundaries above 0x2A.
 
-## 3. The broken tools (measured + [W])
+## 3. The broken tools — ROOT CAUSE FOUND + FIX VALIDATED (2026-07-30)
 
-**Far 5HK is empirically unblockable — against BOTH guards.** With P2 holding
-away (stand block) OR down-away (crouch block), visibly in pre-block pose: HIT at
-34-44 px; first blocked at 48 px. Control: 5LP at identical spacings blocks both
-ways. So it is not a high/low issue and not a hitbox-flag anomaly (her kick boxes
-carry the cast-normal flags vocabulary {02,03,05}; the only flags outlier in the
-whole game is Mercury hit[3]=0x3B, unrelated). The defect lives in whatever decides
-guard SUCCESS per move (guard-range/level data) — locating that table is
-next-session probe #3 and balance knob #1. [W] attributes it to mismatched guard-distance data ("poor
-coding") and also lists **far 5LK** as fully unblockable and close 5HK as guardable
-only at 25-37 (stand) / 25-32 (crouch); our 5LK test needs spacings <34 px (its
-reach) — REMAINING MEASUREMENT.
+**Both far kicks confirmed unblockable, root-caused to two malformed pose records,
+and fixed with ONE BYTE each (A/B-proven in-emulator, probe_supers_guardfix.lua):**
+
+| Move | Startup pose | Record @ file | Vanilla | Fix | A/B result |
+|---|---|---|---|---|---|
+| far 5HK | 0x20 | `0x049289` ($84:9289) | `00 00 17 00` | byte0 `00→09` | HIT@40px → BLOCKED; still HITS vs no-block |
+| far 5LK | 0x1D | `0x04927D` ($84:927D) | `00 00 14 00` | byte0 `00→09` | HIT@24px → BLOCKED; still HITS vs no-block |
+
+Mechanism (full chain in supers_map §Pose records & proximity guard): the defender
+only enters pre-block pose (act 0x0C/0x0D) when the attacker's current pose has
+**class 9** (pose-record byte0, live in +0x18) — that's the "guard-proximity data".
+Guard success then requires already being in the pose when hit resolution (which runs
+BEFORE the object update each frame) resolves the contact. Saturn's far-kick startup
+poses are the ONLY class-0 attack poses in the roster (every other startup announces
+class 9), so the guard pose and the hit race on the first active frame and the hit
+wins → unblockable at any range her first active frame reaches (5HK: 34-44 px band;
+blocked ≥48 because contact then happens one frame after activation).
+
+Refuted along the way: hitbox-flag anomaly (§3, flags are normal), attack-class
+overflow (§3b), and the "startup threat-marker BOX arms the guard" variant — poking a
+zero-size marker box (0x1B) into the startup pose does NOT trigger guard; the class
+byte alone does. (5LP's startup pose 0x6B is `09 1B 50 02` — class 9 plus a
+vestigial zero-size box; the box is inert.)
+
+Balance knob #1 is therefore settled: 2 bytes, minimal and playbook-preserving (the
+kicks keep range/damage/frame data; they just become guardable like every other
+normal). REMAINING: close 5HK's odd guard band (guardable only 25-37 stand /25-32
+crouch [W]) — check its startup pose class + timing; likely the same authoring slop
+in milder form.
 
 Other [W] flags to verify: "weird throws"; S-tier above Uranus (Zam 2020 tier list);
 no documented Saturn infinite (the Uranus infinite carries over from SMS unchanged).
