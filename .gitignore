@@ -1,16 +1,30 @@
+# macOS / Python noise
 .DS_Store
+__pycache__/
+
+# runtime outputs (key savestates are force-added)
 traces/
+
+# local toolchain drops (never tracked; see HANDOFF §2 / docs)
 tools/Mesen.app/
 tools/mesen.zip
 tools/Mesen.app.zip
 tools/*.cpp
-build/# ROMs (copyrighted source + built) — never track
-*.sfc
 tools/Dispel/
-vendor/
 tools/Flips/
-# ROMs (copyrighted source + built) — never track
-*.sfc
-!*.bps
-*.zip
+vendor/
 mockups/
+
+# ROMs — copyrighted, never track, under ANY name or extension
+roms/
+*.sfc
+*.smc
+*.fig
+
+# build/ holds only patch files: ignore everything, allow-list .bps/.ips back in
+build/*
+!build/*.bps
+!build/*.ips
+
+# archives (distribution zips are generated; force-add deliberately if ever needed)
+*.zip

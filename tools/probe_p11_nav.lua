@@ -6,7 +6,7 @@ local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: too
 local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_nav.txt", "w"))
 local frames, step, sf = 0, 1, 0
-local pulse = {}
+local pulse, live = {}, false
 local function ram(a) return emu.read(a, emu.memType.snesWorkRam) end
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local function snap(tag)
@@ -42,18 +42,28 @@ local STEPS = {
   function() pulse[1]=beat({a=true}); return sf>60 end,                  -- P2 confirm (may be n/a)
   function() return sf>240 end,
   function() pulse[0]=beat({start=true}); pulse[1]=beat({start=true})    -- through config screens
-             return (ram(0x1000)==6 and ram(0x1001)==0 and ram(0x1080)~=0) or sf>600 end,
+             if ram(0x1000)==6 and ram(0x1001)==0 and ram(0x1080)~=0 then live = true; return true end
+             if sf>600 then snap("NAV-TIMEOUT (no match reached)"); emu.stop(1) end
+             return false end,
   function() return sf>120 end,                                          -- settle in-match
 }
 
 local save = false
 emu.addMemoryCallback(function()
   if save then
+    -- refuse to clobber the tracked fixture unless NAV_FORCE is set (issue #48)
+    local target = TRACE .. "training_p11.mss"
+    local existing = io.open(target, "rb")
+    if existing and not NAV_FORCE then
+      existing:close()
+      target = TRACE .. "training_p11_new.mss"
+      log("target exists; writing " .. target .. " instead (set NAV_FORCE=true to overwrite)")
+    elseif existing then existing:close() end
     local ss = emu.createSavestate()
-    local so = io.open(TRACE .. "training_p11.mss", "wb"); so:write(ss); so:close()
+    local so = io.open(target, "wb"); so:write(ss); so:close()
     local sp = io.open(TRACE .. "p11_nav.png", "wb"); sp:write(emu.takeScreenshot()); sp:close()
     snap("SAVED")
-    log(string.format("savestate len=%d", #ss))
+    log(string.format("savestate len=%d -> %s", #ss, target))
     emu.stop(0)
   end
 end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)
@@ -65,7 +75,7 @@ emu.addEventCallback(function()
   if frames % 20 == 0 then snap("tick") end
   local fn = STEPS[step]
   if fn and fn() then snap("STEP->" .. (step+1)); step = step + 1; sf = 0; pulse = {} end
-  if not STEPS[step] then save = true end
+  if not STEPS[step] and live then save = true end
   if frames > 4500 then snap("TIMEOUT"); emu.stop(1) end
 end, emu.eventType.endFrame)
 

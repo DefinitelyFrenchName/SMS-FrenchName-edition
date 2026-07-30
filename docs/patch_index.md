@@ -4,9 +4,12 @@
 notes — the at-a-glance map when the per-patch detail in `docs/patch_notes.md` is too
 much. Update THIS file whenever a patch is added, revised, or deprecated.
 
-All patches are independent stackable BPS files built by `tools/mkpatchN.py`,
-byte-disjoint by design (any install order; regression-guarded by
-`tools/test_regression.lua`, which auto-detects which are present).
+All patches are built by `tools/mkpatchN.py`. The *builders* stack in any order (each
+re-detects the next free bank), but the standalone **BPS files do NOT** — every
+bank-appending BPS (4, 10/10b, 11, 12, 13, 14) is diffed against the clean ROM and
+targets the same first-free bank, so chained BPS application corrupts the earlier
+patch (see the ⚠️ note below). Custom combos: chain the builders, diff once.
+Regression-guarded by `tools/test_regression.lua` (auto-detects which are present).
 Current all-patches build: **v0.22** (`19a7fc0d…`, rebuilt 2026-07-30 with the patch-4
 credit line; pre-credit hash `52bc7e38…`). Also current: the **REF v.1 reference
 bundle** (`sms_reference_v1.bps`, ROM `7ab26db4…`, title tell "FrenchName REF v.1";
