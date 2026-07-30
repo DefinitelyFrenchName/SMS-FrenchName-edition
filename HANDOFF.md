@@ -106,13 +106,22 @@ contiguous $DD:0D40-$DF:34E0; (4) **"handler block" doesn't exist** — the engi
 data-driven (+0x51 move-request pipeline, generic starters/interpreters); exec-
 coverage bounds her exclusive code at ~630 B (1 of 5 specials driven; ≤2-3 KB
 extrapolated). New probes: probe_supers_guardfind/guardpose/posetiming/guardfix/
-movereq/coverage.lua. Route A confidence: HIGH — the port is data + a few hundred
-bytes of per-object procs. SMS's three animation-layer twins located +
-live-verified (scripts $C0:0000 / poses $84:809C / cels $CB:0000;
+movereq/coverage.lua. Route A confidence: HIGH. SMS's three animation-layer twins
+located + live-verified (scripts $C0:0000 / poses $84:809C / cels $CB:0000;
 probe_sms_animtables.lua 241/241 ALL PASS; Uranus content byte-identical across
-games). **Port bundle extractor: `tools/extract_saturn_unit.py`** → 18 components,
-141.4 KB, `build/saturn_unit/` (gitignored) with manifest (rebase rules, guard-fix
+games). **Port bundle extractor: `tools/extract_saturn_unit.py`** → 19 components,
+157 KB, `build/saturn_unit/` (gitignored) with manifest (rebase rules, guard-fix
 offsets, TODOs); tripwire-asserted against the measured ground truth.
+
+**2026-07-30 (same day, smoke milestone) — SATURN ANIMATES + RENDERS IN SMS:**
+`tools/mksaturn_smoke.py` (from-clean scaffold builder, NOT a patch) injects her
+four data layers as free object id 0x1C; `probe_sms_saturn_smoke.lua` = 228/228
+ALL PASS, idle/walk animate, sprites fully coherent (traces/saturn_smoke_*.png,
+committed; Uranus palette — palettes unported). En route: a 4TH animation layer
+(OAM sprite layout, $84:8000 table system) discovered + decoded + extracted, and
+a CORRECTION: per-char proc blocks DO exist (~4.3 KB each; Saturn $C1:C6F7; the
+07-30 'no handler block' claim was a baseline-contaminated measurement). Full
+detail: feasibility §Smoke, supers_map §OAM + §per-char proc blocks.
 
 **2026-07-25 — patch 10 field report fixed + REF v.1 bundle:**
 - Maintainer reported the combo counter never appears and status labels never disappear

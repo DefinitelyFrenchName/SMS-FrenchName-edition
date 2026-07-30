@@ -99,16 +99,15 @@ enumerate the behavior deltas.
 
 ## De-risk probe results (run 2026-07-30, same session)
 
-1. **Handler block: RESOLVED (same day, later session) — it doesn't exist.** The
-   engine is data-driven end-to-end (supers_map §Character architecture): +0x51
-   move-request register fed by per-char button-map records ($C1:16F9) and motion
-   specs ($C1:13CC), consumed by the generic special starter $C1:096B against
-   per-char act-list+gating records; acts animate via the generic script
-   interpreter. Exec-coverage diff (Saturn attacking vs Uranus attacking) bounds
-   Saturn-exclusive CODE at ~630 bytes (per-object projectile/special procs; 1 of
-   5 specials driven; extrapolated ≤ ~2-3 KB). External calls are generic engine
-   routines with 1:1 SMS twins. Route A's feared "code port" collapses into a
-   data port + a few hundred bytes of relinked procs.
+1. **Handler block: RESOLVED with a correction (smoke-test session).** The move
+   REQUEST pipeline is data-driven as described (+0x51 register, button-map/
+   recognizer/gating records, generic starters) — but **per-char proc blocks DO
+   exist**: the main object loop dispatches by id (`$C1:0080 jsr ($00A6,X)`) into
+   ~4.2-5.3 KB per-character procs; **Saturn's is $C1:C6F7, ≈4.3 KB** (supers_map
+   §per-char proc blocks; the earlier 630 B figure was a baseline-contaminated
+   measurement — idle already executes the block). Still bounded, enumerable, and
+   modest; the smoke test borrows Uranus's proc for universal acts, proving the
+   surrounding architecture holds. Port cost: one block relocation + call fixups.
 2. **Anim/sprite pipeline: FULLY DECODED (same day, later session).** All three
    layers disassembled and cross-validated live (supers_map §pipeline): animation
    scripts (interpreter $80:A381, char table $C0:0000, 2-byte [dur,pose] steps),
@@ -134,3 +133,26 @@ unblockables (her classes are textbook SMS — see saturn_notes §3b).
 Net: recommendation UNCHANGED (Route A); the flagged pipeline unknown is RESOLVED.
 Remaining next-session work is enumerative (cel census, streamer disasm, guard-
 success location, handler sizing) — no open architectural unknowns.
+
+## SMOKE TEST: SATURN ANIMATES IN SMS (2026-07-30, third session)
+
+`tools/mksaturn_smoke.py` builds a from-clean SMS ROM with Saturn's four data
+layers injected (scripts CMD-stripped into $E8, pose records guard-FIXED into $E9,
+cel tables into $EA + cels $EB-$ED, OAM layout into $EE via the $AE mirror), as
+**object id 0x1C** (a free id — no roster surgery needed for smoke), plus two tiny
+engine accommodations (recognizer-guard stub; main-proc entry borrowing Uranus's
+proc for universal acts). `tools/probe_sms_saturn_smoke.lua`: **SMOKE PASS —
+228/228 frames**, idle poses cycle per her script, walk works, and she RENDERS
+(traces/saturn_smoke_idle.png — Silence Glaive and all; Uranus palette, palettes
+not yet ported). Hard-won engine rules now documented in supers_map: the object-id
+namespace is shared across SEVEN id-indexed tables (scripts/poses/cels/OAM/procs/
+recognizers/buttons — miss one and the machine walks into data), and DB-swap
+patches only work for banks whose low half mirrors WRAM when the code writes
+WRAM via DB-absolute addressing.
+
+**Remaining for the real port** (beyond smoke): her proc block ($C1:C6F7, 4.3 KB)
+relocated with call fixups; box ptr tables (hit/hurt/coll) for id 0x1C; palettes +
+manifest; button-map/recognizer/gating records ported (specials); sounds (CMD
+back-port or table); char-select/roster integration (the original §Route A list);
+REF-patch coexistence (bank layout: smoke claims $E8-$EE, patches also start at
+$E8 — the final builder must chain).

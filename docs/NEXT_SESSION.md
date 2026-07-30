@@ -131,11 +131,20 @@ cross-checked 30/30 vs supers_all_boxes.json. Extractor TODOs recorded in the
 manifest: palette sizes ASSUMED 0x20; recognizer motion-spec format partial;
 special act-list per-char indexing + gating-record base not yet located.
 
-Next: the §Route A table relocations (11th roster entries; six tables + ~12 reader
-sites already enumerated in feasibility §Route A), then a first in-SMS smoke test
-(inject her three animation layers + boxes, poke charID 10, expect idle/walk to
-animate). Dossier: drive her remaining 4 specials (inputs unknown — try Fighter S
-wiki inputs), throws, desperation.
+**SMOKE TEST DONE — SATURN ANIMATES AND RENDERS IN SMS** (feasibility §Smoke):
+`mksaturn_smoke.py` + `probe_sms_saturn_smoke.lua`, 228/228 ALL PASS, screenshots
+traces/saturn_smoke_idle.png / _walk.png (committed). Object id 0x1C, four data
+layers injected (a 4TH layer — OAM sprite layout, $84:8000 system — was found
+when she rendered invisible; supers_map §OAM). CORRECTION landed: per-char proc
+blocks DO exist (~4.3 KB; Saturn $C1:C6F7; main dispatch $C1:0080/($00A6,X) —
+entry 0000 recurses = crash). Two engine rules learned: 7 id-indexed tables share
+the object-id namespace; DB-swap patches need WRAM-mirror banks ($80-$BF) when
+code writes WRAM DB-absolute (use $A8+n mirrors of appended banks).
+Next: port her proc block (relocate $C1:C6F7 + call fixups) to replace the
+borrowed Uranus proc; box ptr tables; palettes; specials records; then roster/
+char-select integration and REF-bundle bank-layout reconciliation. Dossier: her
+remaining 4 specials (inputs unknown — try Fighter S wiki inputs), throws,
+desperation.
 
 ## Open threads (unchanged backlog)
 

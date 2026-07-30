@@ -54,6 +54,7 @@ BOXES = {"hit": (0x2FEC3A, 30 * 8), "hurt": (0x2FED2A, 93 * 16), "coll": (0x2FF2
 RECOG_LO, RECOG_HI = 0x011452, 0x01161A          # $C1:1452..161A
 BTNMAP_LO, BTNMAP_N = 0x01174E, 7                # $C1:174E
 ACTLIST_LO, ACTLIST_HI = 0x010940, 0x010968      # $C1:0940..0968
+OAM_LO, OAM_HI = 0x078000, 0x07BE5E              # $87:8000 OAM sprite-layout blob
 MANIFEST_LO, MANIFEST_N = 0x20AC6A, 16           # $E0:AC6A
 PALETTES = {"pal1": 0x20B0C8, "pal2": 0x20B0A8, "icon": 0x20B270, "obj": 0x20B208}
 PAL_N = 0x20                                     # ASSUMED (16 colors x 2B)
@@ -179,6 +180,15 @@ def extract(rom, outdir):
         todo="per-char indexing of these lists + the gating-flag record base "
              "not yet located (consumer $C1:096B gets Y from caller)")
 
+    # 6b) OAM sprite-layout (4th animation layer; found during the smoke test)
+    oam = rom[OAM_LO:OAM_HI]
+    p2c_words = [oam[2 * i] | oam[2 * i + 1] << 8 for i in range(132)]
+    nvalid = sum(1 for w in p2c_words if 0x8000 <= w < OAM_HI - 0x070000)
+    put("oam_layout", oam, "$87:8000", pose_words_valid=nvalid,
+        rebase="pose->list words are in-bank absolute: keep in-bank offset 0x8000 in "
+               "the destination bank. Char-table entry bank byte MUST be a $80-$BF "
+               "WRAM-mirror bank (emitters write the OAM shadow via DB-absolute).")
+
     # 7) manifest + palettes
     put("manifest_record", rom[MANIFEST_LO:MANIFEST_LO + MANIFEST_N], "$E0:AC6A",
         note="d48=1 (first_hit_defense) + 4 palette ptrs + vestigial anim field")
@@ -186,9 +196,9 @@ def extract(rom, outdir):
         put(f"palette_{tag}", rom[lo:lo + PAL_N], f"$E0:{lo & 0xFFFF:04X}",
             todo="size 0x20 ASSUMED — confirm against SMS palette port (mkpatch3)")
 
-    notes.append("NOT in this bundle (code, ported separately): per-object procs "
-                 "(~630 B measured: $C1:280B-28D2 projectile proc + 3 clusters), "
-                 "the 0xC0 CMD handler $80:FBB4 if back-ported")
+    notes.append("NOT in this bundle (code, ported separately): her per-char proc "
+                 "block $C1:C6F7+ (~4.3 KB, main-dispatch table $C1:00A6-twin entry "
+                 "10) + projectile procs, and the 0xC0 CMD handler $80:FBB4")
 
     # ---- ground-truth tripwires (measured 2026-07-30, saturn_notes.md) ----
     pr = rom[POSES_LO:POSES_HI]

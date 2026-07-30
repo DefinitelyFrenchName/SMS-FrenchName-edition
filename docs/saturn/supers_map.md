@@ -106,14 +106,44 @@ Projectile OBJECTS dispatch per-frame at `$C1:1755` via `jsr ($00A6,X)` by the
 projectile's own object id → per-object-type act procs (e.g. `$C1:280B` dispatcher
 + `$281D` act table for the qcf-special's projectile).
 
-**Exec-coverage measurement** (probe_supers_coverage.lua; bank $C1, idle baseline vs
-Saturn attacking vs Uranus attacking-and-connecting): Saturn-exclusive execution =
-**299 addrs ≈ 630 bytes**, dominated by per-object procs (`$C1:280B-28D2`,
-`$C1:8711-8752`, `$C1:CC7A-CE64`, `$C1:D6FA-D76B`) — with only 1 of her 5 specials
-driven; extrapolated per-char code ≤ ~2-3 KB. External call targets are generic
-engine routines (`$0226` act-set, `$038B` momentum, `$0206/$0231` object mgmt) that
-exist 1:1 in SMS. **Route A's "handler port" reduces to: port data records + a few
-hundred bytes of per-object procs + relink a handful of generic-routine calls.**
+**Per-char proc blocks — CORRECTION (2026-07-30, smoke-test session).** The main
+object loop (`JSL $C1:0000`, both games) dispatches EVERY object by id:
+`jsr ($00A6,X)` at `$C1:0080` (SMS; same table addr in Super S). **Table entries
+1-9/10 are per-character proc blocks of ~4.2-5.3 KB each** (SMS: Moon `$270B` …
+Chibi `$AE47`; Super S adds **Saturn `$C6F7`**, ≈4.3 KB, ids 11+ = projectile
+procs). The earlier "no handler block exists" conclusion was WRONG — the
+exec-coverage diff missed the blocks because the idle BASELINE already executes
+them (they're the character's per-frame state driver); the 630 B "exclusive"
+figure was only the paths idle doesn't touch. The earlier coverage clusters
+`$C1:C9C4-CE64`/`$C1:D6FA-D76B` are fragments of Saturn's block. Route A porting
+cost: her ~4.3 KB proc block relocated + call fixups (still bounded and
+enumerable; the smoke test borrows Uranus's proc for universal acts meanwhile).
+An id with a 0000 proc entry `jsr $0000` = recursive main-loop re-entry = stack
+overflow (measured the hard way).
+
+## OAM sprite-layout — the 4TH animation layer [P 07-30, smoke-test session]
+
+Boxes/cels alone don't render a fighter; the OAM layout is a separate id-indexed
+layer (found when smoke-test Saturn was invisible):
+
+- **Renderer** (SMS `$C0:9A0E`, per frame): walks the draw-order list at `$0B00`
+  with **DB=$84**; `object id ×3` indexes **char table `$84:8000`** (52 entries,
+  3 B each: `[ptr16, bank]`) → `plb bank` → `pose ×2` indexes the pose→spritelist
+  table at `ptr` → list = `[count, count × 6-byte records]`. Super S twin
+  `$C0:9AA0` (long-pointer plumbing, same data shapes).
+- **Record format** (6 B): `[x_off, x_off_flipped, y_off, attr-ish, tile, 
+  attr-ish_flipped]`; consumed by emitters (SMS `$80:9B17` normal / `$80:9BCB`
+  X-flip; Super S `$9C47`/`$9CF1`): OAM tile word = bytes[3..4] XBA'd (bit 0x0800
+  = size flag, stripped) + the struct tile/attr base (+0x0A word, attr bits from
+  +0x08<<9); screen pos = record offset + struct +0x28/+0x2A.
+- **Per-char blobs**: each char's `[bank:ptr]` points at a self-contained blob in
+  its own bank (SMS Jupiter `$87:8000`, Uranus `$8A:8000`…; **Super S Saturn
+  `$87:8000`-`$87:BE5E`, 15.6 KB**, ~19-25 sprites/pose).
+- **CRITICAL mirror rule**: the emitters WRITE the OAM shadow (`sta $0200,X` etc.)
+  and the renderer reads the draw list via DB-absolute addressing → the entry's
+  bank byte MUST be a **$80-$BF bank** (low half mirrors WRAM). Appended-bank data
+  is reachable via the mirror: bank `$E8+n` upper half ≡ bank `$A8+n` upper half.
+  (Smoke bug: bank byte $EE silently discarded every OAM write into ROM.)
 
 ## Bank $C1 comparison note [P 07-30]
 
