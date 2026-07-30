@@ -17,6 +17,12 @@ local ci, t, needLoad = 1, -1, true
 local seen, sawHit, maxX, shot = {}, false, 0, false
 local PRESS = 140
 
+local function uploadPalette()
+  local PRG = emu.memType.snesPrgRom
+  for i = 0, 31 do
+    emu.write(0x0600 + i, emu.read(0x2EC000 + i, PRG), emu.memType.snesWorkRam)
+  end
+end
 local function uploadTiles()
   local f = io.open(ENV.TRACE .. "saturn/supers_effecttiles.bin", "rb")
   if not f then log("WARN: no effect tiles dump; fireball will use Uranus tiles") return end
@@ -52,6 +58,7 @@ emu.addEventCallback(function()
     wr(0x1000, 0x1C)
     for _, o in ipairs({ 0x01, 0x02, 0x04, 0x05, 0x06, 0x07 }) do wr(0x1000 + o, 0) end
     uploadTiles()
+    uploadPalette()
   end
   if t == PRESS - 12 then
     local px = ram(0x1021) + 256 * ram(0x1022)

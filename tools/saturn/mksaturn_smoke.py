@@ -276,12 +276,16 @@ def main():
             pad = 0x10000 - len(blob)
             data[bankbase + len(blob):bankbase + 0x10000] = bytes(pad)
 
-    # ---- bank $EE: OAM sprite-layout blob at in-bank 0x8000 ----
+    # ---- bank $EE: OAM sprite-layout blob at 0x8000 + her palettes at 0xC000 ----
     bankbase, bank = next_bank(data)
     assert bank == 0xEE, f"bank layout drift: ${bank:02X}"
-    write_bank(data, bankbase, bytes(0x8000) + sup[OAM_BLOB_LO:OAM_BLOB_HI])
-    pad = 0x10000 - 0x8000 - (OAM_BLOB_HI - OAM_BLOB_LO)
-    data[bankbase + 0x10000 - pad:bankbase + 0x10000] = bytes(pad)
+    ee = bytearray(0x10000)
+    ee[0x8000:0x8000 + (OAM_BLOB_HI - OAM_BLOB_LO)] = sup[OAM_BLOB_LO:OAM_BLOB_HI]
+    # pal1 ($E0:B0C8) + pal2 ($E0:B0A8), 32 B each — consumed by the tester/probes
+    # (written into the CGRAM shadow row $0600 = OBJ palette 0 = P1's fighter pal)
+    ee[0xC000:0xC020] = sup[0x20B0C8:0x20B0C8 + 32]
+    ee[0xC020:0xC040] = sup[0x20B0A8:0x20B0A8 + 32]
+    write_bank(data, bankbase, bytes(ee))
 
     # ---- bank $EF: full SMS-$C1 copy + Saturn's ported proc block ----
     import port_saturn_proc as PSP

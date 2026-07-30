@@ -159,7 +159,7 @@ Window on the mksaturn_smoke ROM — auto-transforms P1 at round start; header h
 instructions + known gaps). **PROJECTILES PORTED (same session):** fireballs are VISIBLE, travel, hit,
 and despawn (supers_map §Projectile objects; effect tiles are compressed in
 ROM → smoke uploads a fixture VRAM dump at runtime, see saturn_test.lua
-header). Next: palettes, sfx (needs an SMS sound-API map), throws/desperation
+header). Palettes DONE (embedded in $EE:C000, tester injects CGRAM shadow $0600). Next: sfx (needs an SMS sound-API map), throws/desperation
 verification, close-5HK guard-band check, then roster/char-select + REF bank
 reconciliation (note: smoke claims banks $E8-$F0).
 

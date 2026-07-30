@@ -12,9 +12,11 @@
 -- For the fireball GRAPHICS, generate the effect-tile dump once (needs the
 -- Super S ROM):  ROM=<SuperS> tools/run.sh tools/saturn/probe_supers_effecttiles.lua 60
 -- (without it the fireball renders with Uranus's effect tiles — still visible).
+-- Her REAL PALETTE is applied automatically (embedded in the ROM, injected into
+-- the CGRAM shadow at transform).
 -- KNOWN GAPS: her moves are SILENT (Super S sound handler has no SMS twin yet);
--- she wears URANUS'S COLORS (palettes not ported); throws/desperation
--- unverified; P2 stays whoever you picked.
+-- throws/desperation unverified; win-pose/dizzy/etc. cosmetics may glitch;
+-- P2 stays whoever you picked.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local WRAM = emu.memType.snesWorkRam
 local function r(a) return emu.read(a, WRAM) end
@@ -22,6 +24,12 @@ local function w(a, v) emu.write(a, v, WRAM) end
 
 local wasSaturn = false
 local tilesDone = false
+local function uploadPalette()
+  local PRG = emu.memType.snesPrgRom
+  for i = 0, 31 do
+    emu.write(0x0600 + i, emu.read(0x2EC000 + i, PRG), emu.memType.snesWorkRam)
+  end
+end
 local function uploadTiles()
   local f = io.open(ENV.TRACE .. "saturn/supers_effecttiles.bin", "rb")
   if not f then return false end
@@ -41,6 +49,7 @@ emu.addEventCallback(function()
       for _, o in ipairs({ 0x01, 0x02, 0x04, 0x05, 0x06, 0x07 }) do w(0x1000 + o, 0) end
       wasSaturn = true
       tilesDone = uploadTiles()
+      uploadPalette()
     end
   end
   if wasSaturn then
