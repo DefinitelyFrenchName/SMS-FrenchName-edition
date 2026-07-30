@@ -205,6 +205,21 @@ Verified: qcf fireball travels ~90 px, animates poses 0-3, hits at range from a
 REAL pad motion, despawns; wave special (both strengths) completes; remaining
 free ids keep the despawn placeholder.
 
+## Effect tiles — load path found [P 07-30, effectload probe]
+
+The static OBJ effect tiles (VRAM $6A00+, tiles 0xA0-0xFF — fireball art etc.)
+are loaded at match start: DECOMPRESSED into WRAM **$7F:0000** (0x1040 bytes)
+then DMA'd to VRAM $6A00 (one ch0 transfer). The decompressor drives a
+RAM-resident `MVN $7F,$E2 / RTL` stub at $00:00C8 (LZ/RLE with MVN literal
+bursts); Saturn's compressed source sits in **bank $E2 (~$E2:FC42)**. The
+per-char source pointer table is not yet located. STRONG HYPOTHESIS for the
+SMS side: the manifest record's final field (the "anim payload" pointer,
+decompressed via `$C0:916B` to $7E:6A00 per CLAUDE.md's original notes) is
+SMS's own compressed effect-tile blob — i.e. the char-load integration point
+for her effects is the 10th manifest entry + an appended compressed blob (or a
+raw-copy patch of the loader). Until then the smoke uses the fixture VRAM dump
+at runtime. Verify the SMS hypothesis before building on it.
+
 ## OAM sprite-layout — the 4TH animation layer [P 07-30, smoke-test session]
 
 Boxes/cels alone don't render a fighter; the OAM layout is a separate id-indexed
