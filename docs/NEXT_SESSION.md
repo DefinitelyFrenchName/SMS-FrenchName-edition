@@ -30,6 +30,17 @@ re-verified byte-for-byte vs tracked BPS; T1–T10 + regression green. Three sta
 hashes found & fixed (p11/p13/p14). New: `demo_link_headless.lua` (logs the connect
 window to a file, exits — use for verification instead of GUI demo_link).
 
+**ROM location now configurable** (`tools/smspaths.py`, mirrored in `run.sh`):
+`$SMS_ROM_DIR` → `roms/` → `../roms/` (above the tree = maintainer's preferred layout,
+zero commit risk). All three paths + missing-ROM errors verified; builder hash audit
+green post-refactor.
+
+**Cross-platform status:** analysis done (2026-07-30, in-chat): Phase 1 Linux / Phase 2
+Windows are approved-in-principle but BLOCKED on test OS access (maintainer will provide
+Windows first, later); Phase 3 (pure-Python BPS, MesenCE question) out of scope. Local
+toolchain is Apple-Silicon-only (Mesen.app/Flips/Dispel arm64, untracked). Mesen pinned
+2.1.1 (upstream archived June 2026; successor MesenCE).
+
 ## What shipped this session (2026-07-25)
 
 **Patch 10 field report fixed** (maintainer: combo counter never appears — in 1P-vs-COM,

@@ -22,6 +22,10 @@ Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),
 clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c` (HiROM+FastROM, headerless,
 file offset = SNES addr & 0x3FFFFF).
 
+ROMs are never tracked in git. The tooling looks for them in `$SMS_ROM_DIR`, then
+`roms/` inside the tree, then `../roms/` **above** the tree — the recommended spot, so
+no ROM can end up in a commit.
+
 | Patch **(located in build/ )**                                    | What                                                         | Builder                              | Standalone BPS                                         | Patched SHA-1 |
 | --------------------------------------------- | ------------------------------------------------------------ | ------------------------------------ | ------------------------------------------------------ | ------------- |
 | 1. 1f-meaty **(not true link)**                    | Uranus infinite → **1-frame meaty** (N=6): exactly one press connects, and it's an unblockable-by-block meaty (escapable by invincible reversal / jump) | `tools/mkpatch.py 0x04`              | `build/sms_uranus_infinite_1f.bps` (+`.ips`)           | `c773d99a…`   |

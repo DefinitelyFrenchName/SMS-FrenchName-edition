@@ -48,6 +48,12 @@ exposed three STALE doc hashes, now fixed (p11 `42add705`→`574d4948`, p13
 `04e13428`→`6be3d788`, p14 `b90b8fd6`→`0ce0806f` — the BPS had been rebuilt in later
 QA rounds without updating the docs; the tracked BPS were always self-consistent).
 
+**2026-07-30 — configurable ROM location:** the clean/Big Zam ROM directory is now
+resolved at runtime (`tools/smspaths.py` + `run.sh`): `$SMS_ROM_DIR` → `roms/` →
+`../roms/` (above the tree, the maintainer's preferred anti-commit layout). All three
+paths + the missing-ROM error verified; full 16-output builder hash audit green after
+the refactor.
+
 **2026-07-25 — patch 10 field report fixed + REF v.1 bundle:**
 - Maintainer reported the combo counter never appears and status labels never disappear
   (v0.21 + p10 standalone). Two root causes, both fixed in `mkpatch10.py` and A/B-verified
@@ -146,8 +152,15 @@ The historical cumulative BPS these rows name (`sms_full*`, the v1.x line, all-p
 
 ## 2. How to build
 
-All builders are Python, run from the repo root, and take `(src, out)` positionals (stacking
+All builders are Python, run from any cwd, and take `(src, out)` positionals (stacking
 onto any input ROM). `mkpatch.py` reads the clean ROM only. BPS via `tools/Flips/flips`.
+
+**ROM location (never tracked in git):** builders and `run.sh` resolve the ROM directory
+as **`$SMS_ROM_DIR` → `<repo>/roms/` → `<repo>/../roms/`** (`tools/smspaths.py`; first
+dir actually containing the clean ROM wins). Keeping the ROM folder *above* the working
+tree (`../roms/`) is the maintainer's preferred layout — no ROM can ever be committed by
+accident. The filenames are fixed (clean + Big Zam, exact names in `smspaths.py`); only
+the directory moves.
 
 ```bash
 CLEAN="roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
@@ -374,7 +387,7 @@ ROM="build/sms_taunt.sfc" tools/run.sh tools/test_p12_taunt.lua 200          # M
 ## 7. Repo layout (post-reorg)
 ```
 CLAUDE.md, HANDOFF.md, README.md, .gitignore   ← root only
-roms/     clean JP ROM + Big Zam ROM (source assets; gitignored contents but tracked)
+roms/     clean JP ROM + Big Zam ROM (gitignored; may live in ../roms/ or $SMS_ROM_DIR instead — see §2)
 docs/     patch_notes.md, annotations.md, sms_uranus_rom_map.md, sms_all_boxes.json, spec, PDF
 tools/    mkpatch*.py, all test/demo .lua, run.sh, coltest, texttiles, Dispel/, Mesen.app, Flips/
 traces/   savestates (.mss) + trace outputs (gitignored; key states force-added)

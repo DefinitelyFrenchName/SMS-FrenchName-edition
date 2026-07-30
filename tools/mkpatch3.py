@@ -22,12 +22,14 @@ from hashlib import sha1
 
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
+sys.path.insert(0, str(REPO / "tools"))
+from smspaths import clean_rom, bigzam_rom  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 sys.path.insert(0, str(REPO / "vendor/sms-training-mode"))
 from sms_patcher import apply_patch, PATCH_PAL, read_int  # noqa: E402
 
-CLEAN = str(REPO / "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc")
+CLEAN = clean_rom()
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
-BIGZAM = str(REPO / "roms/sailor moon s big zam edition (hack).sfc")
+BIGZAM = bigzam_rom()
 BZ_PAL_BASE = 0x2A0000  # palette block in the Big Zam ROM
 TITLE = b"FrenchName "  # 11 chars, space-padded
 

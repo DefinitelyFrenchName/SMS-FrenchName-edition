@@ -40,9 +40,10 @@ import sys
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
+from smspaths import clean_rom  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 import asm65816 as A  # noqa: E402
 
-CLEAN = str(REPO / "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc")
+CLEAN = clean_rom()
 
 # apply-site tails (site+6 of the toss/tick sites patch 13 hooks at +0)
 TOSS_TAIL = 0x10835

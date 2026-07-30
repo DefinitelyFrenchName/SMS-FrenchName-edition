@@ -18,7 +18,9 @@ from hashlib import sha1
 
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
-CLEAN = str(REPO / "roms/Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc")
+sys.path.insert(0, str(REPO / "tools"))
+from smspaths import clean_rom  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+CLEAN = clean_rom()
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 SITE = 0x188E9              # LDA #$0B00  (dash X-speed)
 OLD = bytes.fromhex("a9000b")
