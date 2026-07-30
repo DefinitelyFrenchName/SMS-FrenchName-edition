@@ -43,11 +43,18 @@ the SMS S/A/R conventions in the full pass.)
   crouch LP/LK recoveries; 0x59/0x5B/0x61/0x63 unmeasured (jump/dash normals?).
 - Her attack acts start ≈0x40 (SMS characters' start ≈0x2B) — numbering differs from
   every SMS cast member; do not assume SMS universal-act boundaries above 0x2A.
-- **Specials: acts 0x6E-0x7C** (act list at $C1:0955-0968). First one driven live:
-  **qcf+LP → act 0x6E** (then 0x70 follow-through), spawns a projectile object
-  (proc dispatcher $C1:280B, act table $281D) — Silence Buster presumably. The
-  other four recognizers (specs at $C1:145E/15F1/15FA/1603/160C; the last is the
-  desperation per its gating bit) still need inputs + measurement for the dossier.
+- **Specials: acts 0x6E-0x7C** (act list at $C1:0955-0968). Measured (Super S
+  qcf+LP live + the SMS proc-port request sweep, probe_sms_saturn_attacks.lua):
+  request nibble 04 → **acts 0x6E→0x70** (qcf+LP), 05 → **0x6F→0x71** (HP
+  version) — both spawn **projectile OBJECT id 0x20** (a fully-defined 7-table
+  object in Super S: proc $C1:280B/table $281D, script $C0:2715, cel ptrs
+  $CB:9A03/$CB:CB9A, poses $84:9575, OAM $84:B4A6-B6DA) — Silence Buster
+  presumably. Nibbles 08/09 → **acts 0x6A→0x6C / 0x6B→0x6D** spawning
+  **projectile id 0x22** (second special). Her "wait" acts (0x70/71, 0x6C/6D)
+  re-force themselves each frame until the projectile slot clears. Remaining
+  recognizers (specs $C1:145E/15F1/15FA/1603/160C; one is the desperation per
+  its gating bit — likely nibbles 06/07, inert at full HP) need inputs +
+  measurement.
 - Button-map record $C1:174E `02 00 04 08 06 00 0a`; special gating records per
   supers_map §Character architecture.
 

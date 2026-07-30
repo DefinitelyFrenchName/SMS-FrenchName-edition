@@ -141,11 +141,20 @@ blocks DO exist (~4.3 KB; Saturn $C1:C6F7; main dispatch $C1:0080/($00A6,X) —
 entry 0000 recurses = crash). Two engine rules learned: 7 id-indexed tables share
 the object-id namespace; DB-swap patches need WRAM-mirror banks ($80-$BF) when
 code writes WRAM DB-absolute (use $A8+n mirrors of appended banks).
-Next: port her proc block (relocate $C1:C6F7 + call fixups) to replace the
-borrowed Uranus proc; box ptr tables; palettes; specials records; then roster/
-char-select integration and REF-bundle bank-layout reconciliation. Dossier: her
-remaining 4 specials (inputs unknown — try Fighter S wiki inputs), throws,
-desperation.
+**PROC BLOCK PORTED (2026-07-30 fourth session; supers_map §Saturn's proc
+block):** `tools/port_saturn_proc.py` recursive-descent disassembles her 4.4 KB
+block ($C1:C6F7-DA3C, self-contained incl. inline records), fixes 384 external
+operands via the verified Super S→SMS target map, grafts into bank $EF (full
+SMS-$C1 copy) behind a 7-byte main-dispatch hook. Verified: idle/walk 228/228
+via her real proc; FOUR special variants complete end-to-end (6E/70, 6F/71 →
+projectile id 0x20; 6A/6C, 6B/6D → id 0x22); all 15 request nibbles return to
+neutral. Projectile spawns self-clear via despawn placeholder entries
+(ids 0x1D-0x2F → $C1:0E23) — fireballs invisible until the projectile-object
+port. Her sfx silenced ($80:FBB0 CMD/sound handler has no SMS twin — stubbed).
+Next: port projectile objects 0x20/0x22 (7-table units, all source addresses
+known); box ptr tables for ids 0x1C/0x20/0x22; palettes; button-map/recognizer
+records (real inputs); then roster/char-select + REF bank reconciliation.
+Dossier: remaining specials/desperation (gated nibbles 06/07?), throws.
 
 ## Open threads (unchanged backlog)
 

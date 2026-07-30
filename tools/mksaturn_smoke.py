@@ -52,12 +52,24 @@ SITE_CEL_T2 = 0x09FD4         # $C0:9FD3 lda $0002,Y -> $2002,Y
 SITE_RECOG = 0x1125F          # $C1:125F 11-byte head -> JSL stub + NOPs
 RECOG_HEAD = bytes.fromhex("B50029FF000AA8B9C713A8")
 EMPTY_LIST = 0x0AFD           # $C1:0AFD..0B04 = 8x FF (verified)
-# main object-proc dispatch $C1:0080 jsr ($00A6,X): ids 1-9 = per-char proc blocks
-# (~4-5 KB each — the REAL per-char code; Saturn's Super S block is $C1:C6F7+).
-# Entry 0x1C is 0000 -> jsr $0000 recurses the main loop = stack-overflow crash.
-# Smoke: borrow URANUS's proc ($79F2) — valid for universal acts (idle/walk only).
-SITE_PROC_ENTRY = 0x100A6 + 2 * SAT_ID
-URANUS_PROC = 0x79F2
+# Her REAL proc block (ported 2026-07-30, tools/port_saturn_proc.py): grafted into
+# bank $EF = full SMS-$C1 copy + her block at its Super S in-bank offsets
+# ($C6F7-$DC00 window; self-contained incl. data pockets $C806-C922/$D9F3-DA3B).
+# Entry: 7-byte hook at the main dispatch $C1:007C -> JSL $EF:helper; helper routes
+# id 0x1C to her dispatch (PB=$EF: engine jsr's hit the copied SMS routines, her
+# records read via phk/plb readers resolve to the graft) and everything else back
+# through a 4-byte $C1 stub (jsr ($00A6,X)/rtl) in the $C1:0AFD FF-run tail.
+SITE_PROC_HOOK = 0x1007C      # $C1:007C: sep #$30 / asl / tax / jsr ($00A6,X)
+PROC_HOOK_OLD = bytes.fromhex("E2300AAAFCA600")
+STUB2 = 0x0B01                # $C1:0B01 (last 4 FF of the 0AFD run)
+EF_HELPER = 0xDB00            # in-bank, inside the graft window, past block end
+# Her specials spawn projectile OBJECTS with Super S ids (0x20 qcf LP/HP, 0x22,
+# possibly more) — all in SMS's free id range 0x1D-0x2F. Until the projectile
+# objects are ported (7-table units each), EVERY free-id proc entry points at the
+# engine's despawn tail (stz $00,X / rts @ $C1:0E23) so spawns self-clear and her
+# "wait for projectile" act handlers complete. TODO: full projectile port.
+PROJ_IDS = [i for i in range(0x1D, 0x30)]
+PROJ_DESPAWN = 0x0E23
 # 4th layer: OAM sprite-layout. Renderer $C0:9A0E walks the draw list with DB=$84
 # (lda #$84 @ $C0:9A29): char table $84:8000, 3B/id [ptr16, bank] -> per-pose word ->
 # [count, 6B sprite records]. Saturn's Super S blob: $87:8000-$87:BE5E (15.6 KB,
@@ -207,6 +219,22 @@ def main():
     pad = 0x10000 - 0x8000 - (OAM_BLOB_HI - OAM_BLOB_LO)
     data[bankbase + 0x10000 - pad:bankbase + 0x10000] = bytes(pad)
 
+    # ---- bank $EF: full SMS-$C1 copy + Saturn's ported proc block ----
+    import port_saturn_proc as PSP
+    blk, rep = PSP.patched_block(sup, bytes(data[:0x280000]))
+    if rep["unresolved"]:
+        raise SystemExit(f"error: proc port has unresolved refs: {rep['unresolved']}")
+    bankbase, bank = next_bank(data)
+    assert bank == 0xEF, f"bank layout drift: ${bank:02X}"
+    ef = bytearray(data[0x10000:0x20000])            # SMS bank $C1 copy (pre-patch)
+    ef[PSP.BLOCK_LO:PSP.BLOCK_HI] = blk
+    # helper: sep #$30 / cmp #SAT_ID / beq sat / asl / tax / JSL $C1:stub2 / rtl
+    #         sat: jsr $C6F7 / rtl          (entered with 8-bit A=id via the hook)
+    helper = bytes.fromhex("E230C91CF0070AAA") + \
+        bytes((0x22, STUB2 & 0xFF, STUB2 >> 8, 0xC1, 0x6B, 0x20, 0xF7, 0xC6, 0x6B))
+    ef[EF_HELPER:EF_HELPER + len(helper)] = helper
+    write_bank(data, bankbase, bytes(ef))
+
     # ---- engine patches ----
     data[SITE_INTERP_DB] = 0xE8
     # bank byte $AE (not $EE): the emitter WRITES the OAM shadow via DB-absolute
@@ -220,8 +248,16 @@ def main():
     data[SITE_CEL_T2:SITE_CEL_T2 + 2] = bytes(((EA_TABLE + 2) & 0xFF, (EA_TABLE + 2) >> 8))
     hook = bytes((0x22, E8_STUB & 0xFF, E8_STUB >> 8, 0xE8)) + b"\xEA" * 7
     data[SITE_RECOG:SITE_RECOG + 11] = hook
-    expect(SITE_PROC_ENTRY, b"\x00\x00", "proc-table entry 0x1C (must be free)")
-    data[SITE_PROC_ENTRY:SITE_PROC_ENTRY + 2] = bytes((URANUS_PROC & 0xFF, URANUS_PROC >> 8))
+    expect(SITE_PROC_HOOK, PROC_HOOK_OLD, "main proc-dispatch head")
+    data[SITE_PROC_HOOK:SITE_PROC_HOOK + 7] = \
+        bytes((0x22, EF_HELPER & 0xFF, EF_HELPER >> 8, 0xEF)) + b"\xEA" * 3
+    expect(0x10000 + STUB2, b"\xFF\xFF\xFF\xFF", "stub2 slot (FF-run tail)")
+    data[0x10000 + STUB2:0x10000 + STUB2 + 4] = bytes.fromhex("FCA6006B")
+    expect(0x10000 + PROJ_DESPAWN, bytes.fromhex("740060"), "despawn tail")
+    for pid in PROJ_IDS:
+        site = 0x100A6 + 2 * pid
+        expect(site, b"\x00\x00", f"proc-table entry {pid:#04x} (must be free)")
+        data[site:site + 2] = bytes((PROJ_DESPAWN & 0xFF, PROJ_DESPAWN >> 8))
 
     fix_checksum(data)
     open(out_path, "wb").write(data)

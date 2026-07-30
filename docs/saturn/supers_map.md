@@ -121,6 +121,40 @@ enumerable; the smoke test borrows Uranus's proc for universal acts meanwhile).
 An id with a 0000 proc entry `jsr $0000` = recursive main-loop re-entry = stack
 overflow (measured the hard way).
 
+## Saturn's proc block — PORTED [P 07-30, proc-port session]
+
+Her ~4.4 KB per-char proc block ($C1:C6F7-$DA3C + act jump table $C706, 86 per-act
+procs) is ported by `tools/port_saturn_proc.py`:
+
+- **Recursive-descent disassembly** from the dispatch + all act-table targets
+  (M/X tracked via REP/SEP; 1788 instructions reached; data pockets between procs
+  preserved byte-exact). The block is **self-contained**: its per-move records
+  (special gating/act-lists at $C806-C922, misfire/extra records at $D9F3-DA3B)
+  live inside it and are referenced by `ldy #imm` — all internal.
+- **384 external operands fixed up** (48 unique bank-$C1 targets, mapped to SMS by
+  signature/skeleton match at regional deltas −2/−25/−5; two JSLs: $80:C115 →
+  $80:BFBB (the box-data helper; only operand bytes differ incl. box bank
+  $AF→$8A) and $80:FBB0 → $80:9FB7 bare-RTL stub ($FBB0→$FBB4 is the Super S
+  sound/CMD handler with NO SMS twin — her sfx are silenced, TODO).
+- **Graft**: appended bank $EF = full SMS-$C1 copy + her fixed block at its
+  original in-bank offsets. Internal refs verbatim; engine jsr's hit the copied
+  SMS routines (PB=$EF, plain rts works); phk/plb data readers (special starter,
+  ochame dispatcher $0B49) resolve to her grafted records. Entry: 7-byte hook at
+  the main dispatch $C1:007C → JSL $EF:DB00 helper (id 0x1C → jsr $C6F7; others →
+  4-byte $C1 stub `jsr ($00A6,X)/rtl` at $C1:0B01, the 0AFD FF-run tail).
+- **Projectiles**: her specials SPAWN objects with Super S ids (0x20 = qcf
+  LP/HP fireball — a fully-defined 7-table object in Super S; 0x22 = another).
+  Until those objects are ported, all free-id proc entries (0x1D-0x2F) point at
+  the engine despawn tail ($C1:0E23 `stz $00,X/rts`): spawns self-clear, and her
+  "hold act until projectile dies" handlers complete. Her act-0x70/71 waiters
+  otherwise re-force the act every frame — an inert projectile wedges the move
+  (measured).
+
+Verified: idle/walk 228/228 ALL PASS through her real proc; specials qcf-LP
+(6E→70) and qcf-HP (6F→71) complete with projectile spawn/despawn; act handlers
+return to neutral. Request-nibble → act map measured via +0x51 pokes
+(probe_sms_saturn_attacks.lua).
+
 ## OAM sprite-layout — the 4TH animation layer [P 07-30, smoke-test session]
 
 Boxes/cels alone don't render a fighter; the OAM layout is a separate id-indexed
