@@ -16,8 +16,8 @@ Apply one of the BPS patches (with Flips or any BPS patcher) to the **clean** Ja
 | Patch file | Contents | Result ROM SHA-1 |
 |---|---|---|
 | `build/sms_trainingplus.bps` | clean + patch 11 only | `e9ac2205…` |
-| `build/sms_full11_trainingplus.bps` | canonical v0.7 (patches 1-5) + 11 | `09106a07…` |
-| `build/sms_allpatches_v1.1.bps` | **everything** (patches 1-11), title shows "v.1.1" | `be2cb752…` |
+| ~~`build/sms_full11_trainingplus.bps`~~ | HISTORICAL (deleted in the 2026-07-19 prune) — rebuild by chaining builders | `09106a07…` |
+| ~~`build/sms_allpatches_v1.1.bps`~~ | HISTORICAL (deleted in the 2026-07-19 prune) — the current all-patches bundle includes p11 | `be2cb752…` |
 
 Or rebuild from source: `python3 tools/mkpatch11.py [src] [out]` — the builder stacks on
 *any* patch 1-10 ROM in any order (its two hook sites are byte-disjoint from every other

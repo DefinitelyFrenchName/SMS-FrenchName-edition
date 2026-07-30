@@ -23,9 +23,9 @@ reference combination (true-combo gate; no p6/p10/p11).
 | **2** | No reversal-dash invuln | Removes the invincibility of Uranus's guard-cancel ("reversal") Shadow Dash | CANONICAL | `sms_dashfix.bps` |
 | **3** | Palettes + header | Big Zam extended color palettes + "FrenchName" internal header | CANONICAL (cosmetic) | `sms_palettes.bps` |
 | **4** | Title subtitle | Title-screen version text (doubles as the naked-eye build tell, e.g. "v.0.19"); since 2026-07-30 also swaps copyright line 1 to BZ's "©MOONLIGHT FIGHT SOCIETY" (line 2 "©ANGEL 1994" untouched; `--no-credit` to opt out) | CANONICAL (cosmetic) | `sms_title.bps` |
-| **5** | Dash distance | Uranus forward-dash distance −1/3 (~145 → ~89px) | CANONICAL | `sms_dashdist.bps` |
+| **5** | Dash distance | Uranus forward-dash distance −1/3 (121px → 82px — the builder constants are the source of truth; see patch_notes.md) | CANONICAL | `sms_dashdist.bps` |
 | 6 | Dash i-frames | Uranus forward dash gains ~6 strike-invuln frames mid-move | EXPERIMENTAL — tension with patch 2's nerf intent; deprecation candidate | `sms_dashinvuln.bps` |
-| 7 | Pluto 5HP vs crouchers | Extends c.HP's active box down so the semi-overhead hits every croucher except Chibi | OPTIONAL | `sms_pluto5hp.bps` |
+| 7 | Pluto 5HP vs crouchers | Extends Pluto's 5HP active box down so it connects vs crouching opponents (every croucher except Chibi) | OPTIONAL | `sms_pluto5hp.bps` |
 | 8 | Venus throw tech | Venus 6HP throw mash-escape window 6f → 13f (standard-ish) | OPTIONAL | `sms_venustech.bps` |
 | 9 | Neptune fireball fix | Deep Submerge hitbox tracks the descending sprite (was stuck at head level) | OPTIONAL (bugfix-flavored) | `sms_neptune_ds.bps` |
 | 10 | Combo counter | Live in-match combo counter rendered by the base game (no overlay); 2026-07-25: now also shows vs the CPU (mode-gate fix) | OPTIONAL | `sms_combocounter.bps` |

@@ -4,7 +4,7 @@ Verified against the clean Japan ROM, SHA-1 `bc0e29ee383574443226695215496eb0d09
 (No-Intro verified dump; no copier header; HiROM + FastROM; file offset = SNES address & 0x3FFFFF).
 
 ## Character IDs
-1 Moon · 2 Mercury · 3 Mars · 4 Jupiter · 5 Venus · **6 Uranus** · 7 Neptune · 8 Pluto · 9 Chibimoon · 10 Saturn
+1 Moon · 2 Mercury · 3 Mars · 4 Jupiter · 5 Venus · **6 Uranus** · 7 Neptune · 8 Pluto · 9 Chibimoon · (10 Saturn = Super S carry-over — NOT in this game, tables undefined)
 
 ## Player object (WRAM, 0x80 bytes each)
 P1 `$7E:1000` · P2 `$7E:1080` · P1 projectile `$7E:1100` · P2 projectile `$7E:1180`
@@ -22,7 +22,7 @@ P1 `$7E:1000` · P2 `$7E:1080` · P1 projectile `$7E:1100` · P2 projectile `$7E
 | +0x40 | **Attack hitbox index** (0 = none) |
 | +0x41 | **Hurtbox pair index** |
 | +0x42 | **Collision (push) box index** |
-| +0x43 | Hitstop/busy counter |
+| +0x43 | attack_connected latch (NOT hitstop — that is +0x4D; resolved, see sms_engine_internals.md §objects) |
 | +0x44 | Attack ID (indexes damage tables) |
 | +0x46 | Hurt state |
 | +0x48 | First-hit defense (loaded from char manifest) |

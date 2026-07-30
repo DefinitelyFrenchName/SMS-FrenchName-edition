@@ -10,7 +10,7 @@ game, not just look up an address.
 - `docs/annotations.md` — the flat address→label reference (the "phone book"). Every address
   here is (or should be) there too; that file is the source of truth for exact addresses.
 - `docs/sms_uranus_rom_map.md` — the original verified ROM map ("the bible"), terse.
-- `docs/patch_notes.md` — per-patch detail (what each of the 11 patches changed and why).
+- `docs/patch_notes.md` — per-patch detail (what each patch changed and why; the count grows — docs/patch_index.md is the registry).
 - `docs/sms_all_boxes.json` — extracted per-character/​object hit/hurt/coll box tables.
 - `docs/sms_acs_system.md` — the A.C.S. stat system, damage matrix and misfire mechanic, complete.
 

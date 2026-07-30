@@ -16,6 +16,21 @@ Everything implemented relies on a suite of in-emulator end-to-end tests, both a
 Any patch listed as not fully tested has been tested using the automated test suite but the extent of human double-checks does not reach my quality bar... yet.
 
 
+## Get started (applying a patch)
+
+1. Obtain the clean ROM: *Bishoujo Senshi Sailor Moon S: Jougai Rantou!?* (SFC, Japan) —
+   verify SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`. ROMs are never distributed here.
+2. Get [Floating IPS (flips)](https://github.com/Alcaro/Flips) (or any BPS patcher).
+3. Apply a `.bps` from `build/` to the clean ROM, e.g.
+   `flips --apply build/sms_allpatches_v0.22.bps "<clean>.sfc" out.sfc`
+4. Verify the output SHA-1 against the tables below / [docs/patch_index.md](docs/patch_index.md).
+
+Deeper docs: [docs/patch_index.md](docs/patch_index.md) (one-line registry, status,
+lifecycle), [docs/patch_notes.md](docs/patch_notes.md) (per-patch mechanism + verification),
+[HANDOFF.md](HANDOFF.md) (operational map: build, test, gotchas),
+[docs/sms_engine_internals.md](docs/sms_engine_internals.md) (how the engine works).
+Training mode (pure Lua, no ROM patching): [docs/training_install.md](docs/training_install.md).
+
 ## Deliverables & how they stack
 
 Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),

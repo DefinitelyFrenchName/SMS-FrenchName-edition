@@ -15,7 +15,7 @@ Everything below assumes the script is running (see `training_install.md`).
 | `R` | **Record** toggle: arm recording into the current slot (pad-swap turns on; recording starts at your first input) / stop & save |
 | `T` | **Playback** toggle: play the current slot (or stop playback) |
 | `Y` | Cycle **recording slot** 1–4 (shows length) |
-| `U` | Cycle **playback trigger**: manual → loop → wakeup → blockstun → hitstun → random |
+| `U` | Cycle **playback trigger**: manual → loop → wakeup → blockstun → hitstun → random → gc |
 | `Q` / `E` | **Save / restore position state** (in-memory savestate — repeatable, survives nothing but the session) |
 | `G` | Freeze/unfreeze the **frame meter** (inspect the last exchange; works with pause + frame advance) |
 | `P` | Manual **pad swap** (your pad drives P2 until pressed again) |

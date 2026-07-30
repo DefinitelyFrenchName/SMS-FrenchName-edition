@@ -18,14 +18,14 @@ from hashlib import sha1
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, require_source, check_not_inplace  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace, BUNDLE_VERSION  # noqa: E402
 import texttiles as T  # noqa: E402
 
 CLEAN = clean_rom()
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 HOOK = 0x3B81F           # JSL $808C43 in the title CHR loader tail
 HOOK_OLD = bytes.fromhex("22438c80")
-TEXT = "FrenchName ver. 0.4"   # default subtitle; override with --text
+TEXT = f"FrenchName v.{BUNDLE_VERSION}"   # default subtitle (single source: smspaths.BUNDLE_VERSION); override with --text
 STYLE = "white_red"            # default treatment;  override with --style
 
 # 6 contiguous VRAM runs covering the 42 subtitle tiles (tile ids -> VMADD word = id*16).
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     ap.add_argument("src", nargs="?", default=CLEAN, help="input ROM (clean or combined build)")
     ap.add_argument("out", nargs="?", default=str(REPO / "build/sms_title.sfc"), help="output ROM path")
     ap.add_argument("--text", default=TEXT,
-                    help=f'subtitle text, <=21 chars (default: "{TEXT}")')
+                    help=f'subtitle text, must fit the 168px strip (proportional font; default: "{TEXT}")')
     ap.add_argument("--style", default=STYLE, choices=["white_red", "red_white", "red"],
                     help=f"glyph treatment (default: {STYLE})")
     ap.add_argument("--no-credit", action="store_true",

@@ -28,7 +28,7 @@ Deliverable = a BPS/IPS patch against the clean ROM + a writeup of what bytes ch
 - Player structs: P1 `$7E:1000`, P2 `$7E:1080` (0x80 bytes).
   +0x00 charID, +0x01 actionID, +0x02 step, +0x06/07 tick/frame,
   +0x40 hitbox idx, +0x41 hurtbox idx, +0x42 collision idx,
-  +0x43 hitstop, +0x44 attackID, +0x47 hitstun?, +0x49 HP.
+  +0x43 attack_connected latch (hitstop is +0x4D), +0x44 attackID, +0x47 hitstun?, +0x49 HP.
 - Uranus box data (ROM, bank $8A): hit `0xAE3E1` (21×8B), hurt `0xAE489` (81×16B),
   coll `0xAE999` (6×8B). Box = [x_off_R, w_R, x_off_L, w_L, y_off, h, flags, ?].
 - Hit resolution: `$C0:BFC0`; on-hit tables `[dmg, hitstun, level, flags]` at

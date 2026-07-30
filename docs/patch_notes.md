@@ -26,7 +26,7 @@ the operational map (current state, deliverables, tooling, findings, gotchas).
 | 7. Pluto 5HP **(OPTIONAL)** | Pluto 5HP hitbox extended down to hit crouchers (all but Chibi) | `tools/mkpatch7.py` | `build/sms_pluto5hp.bps` | `fc757936…` |
 | 8. Venus throw tech **(OPTIONAL)** | Venus 6HP throw mash-escape window 6f → 13f (standard-ish; Jupiter=15f) | `tools/mkpatch8.py` | `build/sms_venustech.bps` | `63ce0748…` |
 | 9. Neptune fireball **(OPTIONAL)** | Deep Submerge fireball hitbox tracks the descending sprite (was stuck at head level) | `tools/mkpatch9.py` | `build/sms_neptune_ds.bps` | `d5ee12a3…` |
-| 10. In-match combo counter **(OPTIONAL)** | Live combo-hit counter rendered by the base game under each attacker's bar (no overlay needed) | `tools/mkpatch10.py` | `build/sms_combocounter.bps` | `be072a5e…` |
+| 10. In-match combo counter **(OPTIONAL)** | Live combo-hit counter rendered by the base game under each attacker's bar (no overlay needed; 2026-07-25 fix: also shows vs the CPU) | `tools/mkpatch10.py` | `build/sms_combocounter.bps` | `be072a5e…` |
 | 10b. + status labels **(variant of 10)** | Counter + GC/REVERSAL/PUNISH/TECH event text (MEATY label removed 2026-07-20) | `tools/mkpatch10.py --events labels` | `build/sms_combolabels.bps` | `920652df…` |
 | 11. Training+ **(OPTIONAL)** | In-ROM training-mode upgrade: L+R menu, dummy control (pose/guard/wakeup/tech), recording+playback, damage/regen/refill, input+ADV display | `tools/mkpatch11.py` | `build/sms_trainingplus.bps` | `e9ac2205…` |
 | 12. Taunts **(OPTIONAL)** | Taunt on L: each character's native misfire ("ochame") pratfall, fully vulnerable | `tools/mkpatch12.py` | `build/sms_taunt.bps` | `614f318e…` |

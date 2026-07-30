@@ -1,3 +1,9 @@
+> **SUPERSEDED (moved to docs/history/ 2026-07-30, issue #55).** This is the ORIGINAL
+> project brief, kept as a record of how the ROM map was derived. Its setup
+> instructions are obsolete: there is no `./assets/` — the vendor Lua lives in
+> `vendor/sms-training-mode/` and ROM location is resolved by `tools/smspaths.py`.
+> Current operational docs: HANDOFF.md, docs/patch_index.md, docs/sms_engine_internals.md.
+
 # Claude Code spec — SMS (SFC) animation-script reversing: Uranus frame data
 
 ## Goal

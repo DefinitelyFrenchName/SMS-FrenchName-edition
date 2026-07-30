@@ -24,7 +24,7 @@ and findings made in this project (marked NEW, with evidence).
 | +0x40 | hitbox idx | attack box index, 0=none; indexes bank $8A tables | ground truth |
 | +0x41 | hurtbox idx | pair index (16B entries) | ground truth |
 | +0x42 | collision idx | push box | ground truth |
-| +0x43 | hitstop? | per CLAUDE.md; training Lua instead marks +0x4D hitstop | both, unresolved |
+| +0x43 | attack_connected | latch, set on connect (NOT hitstop — that is +0x4D); resolved 2026-07-30, see line ~191 + sms_engine_internals.md | ground truth |
 | +0x44 | attackID | indexes damage tables at $C0:CDD5+ via (id>>1)*4 | ground truth |
 | +0x46 | hurt_state | | training Lua |
 | +0x47 | hitstun? | per CLAUDE.md | ground truth |

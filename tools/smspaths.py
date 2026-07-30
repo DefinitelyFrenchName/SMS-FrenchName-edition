@@ -19,6 +19,9 @@ REPO = Path(__file__).resolve().parent.parent
 CLEAN_NAME = "Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
 BIGZAM_NAME = "sailor moon s big zam edition (hack).sfc"
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
+# Single version source (issue #40): mkpatch4's default subtitle and the bundle build
+# script both derive from this — bump it here when cutting a new all-patches build.
+BUNDLE_VERSION = "0.22"
 
 
 def rom_dir():

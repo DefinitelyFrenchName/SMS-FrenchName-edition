@@ -4,6 +4,11 @@
 # (SMS_ROOT exported here is one of its fallbacks).
 # Default ROM (when $ROM is unset) resolves like tools/smspaths.py:
 #   $SMS_ROM_DIR -> roms/ -> ../roms/   (ROMs are never tracked in git)
+# resolve caller-relative paths BEFORE the cd (issue #52: `cd tools && ./run.sh x.lua`
+# used to resolve the script against the repo root instead of the caller's cwd)
+abspath() { python3 -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "$1"; }
+SCRIPT="$(abspath "$1")"
+[ -n "${ROM:-}" ] && ROM="$(abspath "$ROM")"
 cd "$(dirname "$0")/.."
 export SMS_ROOT="$(pwd)"
 CLEAN_NAME="Bishoujo Senshi Sailormoon S - Jougai Rantou! Shuyaku Soudatsusen (Japan).sfc"
@@ -21,4 +26,4 @@ exec ./tools/Mesen.app/Contents/MacOS/Mesen --testrunner --timeout=${2:-300} \
   --debug.scriptWindow.allowIoOsAccess=true --debug.scriptWindow.scriptTimeout=300 \
   --snes.port1.type=SnesController --snes.port2.type=SnesController \
   --snes.ramPowerOnState=AllZeros \
-  "$ROM" "$1"
+  "$ROM" "$SCRIPT"

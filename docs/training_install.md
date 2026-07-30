@@ -6,8 +6,10 @@ or any experimental build): all game knowledge is read from RAM/ROM at runtime.
 
 ## Requirements
 
-- **Mesen 2** (the repo ships `tools/Mesen.app` for macOS; any Mesen 2 build with the Lua
-  script window works — Windows/Linux included).
+- **Mesen 2.1.1** — NOT shipped in the repo (`tools/Mesen.app/` is a gitignored local
+  drop-in). Download from https://github.com/SourMesen/Mesen2/releases (archived at
+  2.1.1; successor: nesdev-org/MesenCE) and place the app at `tools/Mesen.app` (macOS).
+  Any Mesen 2 build with the Lua script window works — Windows/Linux included.
 - The game ROM (any of the builds above).
 - No BizHawk, no Snes9x, no ROM patching.
 

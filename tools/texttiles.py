@@ -118,6 +118,10 @@ def render(text, mode="red_white", ncells=21, gap=1):
     for ch in text:
         glyphs.append(_glyph_cols(ch))
     total = sum(len(g) for g in glyphs) + gap*(len(glyphs)-1)
+    if total > W:
+        raise SystemExit(f"error: text {text!r} renders {total}px wide but the subtitle "
+                         f"strip is {W}px — shorten it (the limit is pixels, not "
+                         "characters; issue #40)")
     x0 = max(0, (W - total)//2)
     core = [[0]*W for _ in range(16)]
     x = x0

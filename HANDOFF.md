@@ -169,7 +169,7 @@ after projectile-special damage (framedata move machine stuck; see §4 and
 The historical cumulative BPS these rows name (`sms_full*`, the v1.x line, all-patches
 < v0.19) were deleted in the 2026-07-19 prune — rebuild any lineage by chaining the
 `mkpatchN.py` builders (§2). Kept BPS: the per-patch standalones + the current bundles
-(`sms_allpatches_v0.22.bps`, `sms_reference_v1.bps`; `sms_allpatches_v0.21.bps` historical).
+(`sms_allpatches_v0.22.bps`, `sms_reference_v1.bps`).
 
 ---
 
@@ -292,7 +292,7 @@ A modern training mode: **SF6-style frame meter** (per-frame classes both player
 counts, advantage badge, hitstop dimmed, invuln/cancel strips, freeze model), **recordable
 dummy** (4 facing-normalized slots, triggers: manual/loop/wakeup/blockstun/hitstun/random),
 dummy layers (guard/tech-mash/wakeup/pose), **input piano roll**, event labels
-(MEATY/REVERSAL/PUNISH/COUNTER/THROW TECH/THROWN/TRADE), combo counter (reset-aware),
+(GC/REVERSAL/PUNISH/THROW TECH/THROWN/TRADE — generated from labels.lua), combo counter (reset-aware),
 **hitbox viewer** (live bank-$8A reads, pixel-verified), keyboard menu (M) + pad controls
 (hold R = drive dummy, Select = record). Frame-data conventions: S excludes the first
 active frame (Dustloop; toggle to SF6 display in menu), counts exclude hitstop, advantage
