@@ -86,9 +86,9 @@ vestigial zero-size box; the box is inert.)
 
 Balance knob #1 is therefore settled: 2 bytes, minimal and playbook-preserving (the
 kicks keep range/damage/frame data; they just become guardable like every other
-normal). REMAINING: close 5HK's odd guard band (guardable only 25-37 stand /25-32
-crouch [W]) — check its startup pose class + timing; likely the same authoring slop
-in milder form.
+normal). **Close 5HK CONFIRMED FIXED in the SMS port (v0.7.0 flow suite): held
+guard at 24px → pre-block 0x0C → blockstun 0x0E, zero damage** — the shared
+pose-0x1D fix covers it as predicted.
 
 **Throws VERIFIED in the SMS port (v0.7.0)**: close 6HP → her throw acts
 **0x68/0x69** (P2 held 0x1C → damaged into hitstun; the acts-68/69 sound site id

@@ -20,10 +20,11 @@ Versions before 0.6.0 are retroactive labels for the historical lineage
 | 0.6.0 | `601920bc…` | `1beaad9` | VERSIONED BUILDS: version string embedded at $EE:C040, shown on-screen by saturn_test.lua; builder writes versioned filename by default. No gameplay changes vs 0.5.0. |
 | **0.7.0** | `a0822027…` | (this) | SOUND: interpreter CMD case back-ported (audit: 757 SMS scripts have no 0xC0+ ctrl bytes — provably neutral); her scripts now CMD-INTACT (exact Super S timing); normals play whooshes (5LP/light 0x05, 5HK/heavy 0x06 via script CMD args), specials play the native starter sfx (0x08), hit sounds already worked; $EF:DB50 translator covers her proc's direct sound calls (throw/desperation acts). VERIFIED this build: throws both directions (her 6HP throw = acts 68/69; she can be thrown, victim acts 1C/1D/1E); low-HP dizzy correctly blocks specials. |
 
-## Known gaps (as of 0.6.0)
+## Known gaps (as of 0.7.0)
 
-- Desperation + KO/round-flow verification in progress; win-pose/dizzy cosmetics
-  unverified visually (dizzy STATE verified working).
+- Desperation not yet triggered (its motion is unknown; low-HP requests are
+  correctly refused during the danger act — no crash path). KO/round flow
+  verified crash-free; win-pose visuals unchecked.
 - Sound mapping is approximate (SMS whoosh/starter sfx for her Super S commands);
   refine per-move later if it feels off.
 - Fireball art needs the one-time effect-tile dump (see saturn_test.lua header);
