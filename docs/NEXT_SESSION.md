@@ -103,13 +103,20 @@ on it). Title verified by screenshot.
 **Read `docs/saturn/PROJECT.md` first** (the brief), then `docs/saturn/feasibility.md`
 (evidence + Route A recommendation: port Saturn INTO SMS), `docs/saturn/supers_map.md`
 (verified Super S map — same engine, globally shifted; every Rosetta claim probed),
-`docs/saturn/saturn_notes.md` (first measurements: her normals' act map 0x40-0x4F,
-box tables extracted, **far 5HK empirically unblockable at 34-44px** — guard-proximity
-data bug, the #1 balance knob). Fixture: `traces/saturn_vs_uranus_supers.mss`
-(force-added). Tools: `smspaths.supers_rom()`, `extract_supers_boxes.py`,
-`probe_supers_saturn.lua`, `probe_saturn_moves.lua`, `probe_saturn_unblockable.lua`.
-Next-session probes (feasibility.md §Next): locate her $C1 handler block + size it,
-decode anim payload ($E0:F328), find the guard-proximity table, sprite CHR census.
+`docs/saturn/saturn_notes.md` (dossier: act map, box tables, broken normals + fix).
+Fixture: `traces/saturn_vs_uranus_supers.mss` (force-added). Tools:
+`smspaths.supers_rom()`, `extract_supers_boxes.py`, `probe_supers_*.lua`,
+`probe_saturn_*.lua`.
+
+**All four de-risk unknowns RESOLVED (2026-07-30 later session; HANDOFF §1):**
+guard bug = pose-record class byte, **fixed with 1 byte/move A/B-proven** ($84:9289,
+$84:927D — the second also fixes close 5HK); animation pipeline fully decoded
+(scripts $C0:0000 / pose records $84:809F / cel tables $CB:0000); cel census 137 KB
+contiguous; no per-char handler block exists (~630 B measured exclusive code).
+**Route A is GO.** Natural next steps: locate SMS's three animation-layer tables
+(twin of box-writer $C0:9CCD known), then start the port scaffold (table
+relocations from the §Route A list); dossier: drive her remaining 4 specials
+(inputs unknown — try Fighter S wiki inputs), throws, desperation.
 
 ## Open threads (unchanged backlog)
 

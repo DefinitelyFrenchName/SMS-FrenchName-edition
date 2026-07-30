@@ -94,6 +94,21 @@ identical contents; WRAM identical — all probed); Saturn loads via char-select
 port Saturn into SMS** (docs/saturn/feasibility.md has the evidence + de-risk probes).
 Saturn-reference rule §5 has a scoped exception for this project.
 
+**2026-07-30 (later session) — all four Route A de-risk unknowns RESOLVED:**
+(1) **Guard bug root-caused + fixed**: proximity guard is armed by the pose-record
+class byte (class 9 = threat; system in docs/saturn/supers_map.md §Pose records);
+Saturn's far-kick startup poses are the roster's only class-0 attack poses. **Fix =
+1 byte per move** ($84:9289 far 5HK / $84:927D far 5LK+close 5HK, 00→09),
+A/B-validated: blocked when guarded, still hits when not. (2) **Animation pipeline
+fully decoded** (3 layers: scripts $C0:0000 → pose records $84:809F → cel tables
+$CB:0000 + DMA kicker $80:A21A); (3) **Saturn cel census done**: 115 cels, 136.7 KB
+contiguous $DD:0D40-$DF:34E0; (4) **"handler block" doesn't exist** — the engine is
+data-driven (+0x51 move-request pipeline, generic starters/interpreters); exec-
+coverage bounds her exclusive code at ~630 B (1 of 5 specials driven; ≤2-3 KB
+extrapolated). New probes: probe_supers_guardfind/guardpose/posetiming/guardfix/
+movereq/coverage.lua. Route A confidence: HIGH — the port is data + a few hundred
+bytes of per-object procs.
+
 **2026-07-25 — patch 10 field report fixed + REF v.1 bundle:**
 - Maintainer reported the combo counter never appears and status labels never disappear
   (v0.21 + p10 standalone). Two root causes, both fixed in `mkpatch10.py` and A/B-verified
