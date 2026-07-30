@@ -4,9 +4,9 @@
 --   * CPU writes to $420B (DMA trigger) — dump every enabled channel's config; flag
 --     channels targeting $2180 (WMDATA = WRAM fill) and log their A-bus SOURCE.
 -- Armed through the whole Saturn load. ROM=<Super S> tools/run.sh ... 120
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "supers_animload2.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/supers_animload2.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 local frames, step, sf = 0, 1, 0

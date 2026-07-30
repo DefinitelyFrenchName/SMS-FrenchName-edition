@@ -70,8 +70,13 @@ was in SMS.
   byte-identity audits after refactors; suites green before shipping.
 - ROMs never tracked; resolution via `tools/smspaths.py`.
 - The repo-wide "no Saturn references in code" rule (HANDOFF §5) has a **scoped
-  exception**: `docs/saturn/**` and Super-S-targeted tools (`tools/*supers*`,
-  probes named `probe_supers_*`). SMS-targeted code keeps the rule.
+  exception**, and everything not bound to the original SMS lives in dedicated
+  `saturn/` subfolders mirroring `docs/saturn/`: **`tools/saturn/`** (all
+  Saturn/Super-S probes, extractors, port tools, builders — their Lua bootstrap
+  uses `/../sms_env.lua`), **`traces/saturn/`** (Super S fixtures, Saturn
+  screenshots, probe outputs), **`build/saturn/`** (the smoke ROM + the
+  ROM-derived `unit/` bundle; all gitignored via `build/*`). SMS-targeted code
+  keeps the rule and the flat layout.
 - The maintainer's dedup rule: common tooling centralized, game-/patch-specific
   logic standalone.
 - **Doc separation (maintainer, 2026-07-30):** Saturn-the-character material →

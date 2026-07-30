@@ -2,10 +2,10 @@
 -- move-request nibble poked into +0x51 (bypassing the unported button-map table),
 -- record which act her proc starts, the poses/hitboxes seen, and that she returns
 -- to neutral (act 0/2) without wedging the engine. P2 parked far away.
--- ROM=build/SailorMoonS_saturn_smoke.sfc tools/run.sh tools/probe_sms_saturn_attacks.lua 600
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=build/saturn/SailorMoonS_saturn_smoke.sfc tools/run.sh tools/saturn/probe_sms_saturn_attacks.lua 600
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "saturn_attacks.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/saturn_attacks.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 
@@ -46,7 +46,7 @@ emu.addEventCallback(function()
     if not shotDone and (a == 0x6E or a == 0x70) and h ~= 0 then
       shotDone = true
       local png = emu.takeScreenshot()
-      local f = assert(io.open(ENV.TRACE .. "saturn_special.png", "wb"))
+      local f = assert(io.open(ENV.TRACE .. "saturn/saturn_special.png", "wb"))
       f:write(png); f:close()
     end
   end

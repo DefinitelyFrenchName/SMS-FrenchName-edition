@@ -136,14 +136,14 @@ success location, handler sizing) — no open architectural unknowns.
 
 ## SMOKE TEST: SATURN ANIMATES IN SMS (2026-07-30, third session)
 
-`tools/mksaturn_smoke.py` builds a from-clean SMS ROM with Saturn's four data
+`tools/saturn/mksaturn_smoke.py` builds a from-clean SMS ROM with Saturn's four data
 layers injected (scripts CMD-stripped into $E8, pose records guard-FIXED into $E9,
 cel tables into $EA + cels $EB-$ED, OAM layout into $EE via the $AE mirror), as
 **object id 0x1C** (a free id — no roster surgery needed for smoke), plus two tiny
 engine accommodations (recognizer-guard stub; main-proc entry borrowing Uranus's
-proc for universal acts). `tools/probe_sms_saturn_smoke.lua`: **SMOKE PASS —
+proc for universal acts). `tools/saturn/probe_sms_saturn_smoke.lua`: **SMOKE PASS —
 228/228 frames**, idle poses cycle per her script, walk works, and she RENDERS
-(traces/saturn_smoke_idle.png — Silence Glaive and all; Uranus palette, palettes
+(traces/saturn/saturn_smoke_idle.png — Silence Glaive and all; Uranus palette, palettes
 not yet ported). Hard-won engine rules now documented in supers_map: the object-id
 namespace is shared across SEVEN id-indexed tables (scripts/poses/cels/OAM/procs/
 recognizers/buttons — miss one and the machine walks into data), and DB-swap

@@ -1,10 +1,10 @@
 -- probe_sms_saturn_pad.lua — PAD-INPUT test for Saturn in SMS: real buttons through
 -- the hooked button-map, a real qcf motion through the grafted recognizers, and box
 -- checks (her 5LP connects on Jupiter; Jupiter's 5LP connects on her).
--- ROM=build/SailorMoonS_saturn_smoke.sfc tools/run.sh tools/probe_sms_saturn_pad.lua 400
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=build/saturn/SailorMoonS_saturn_smoke.sfc tools/run.sh tools/saturn/probe_sms_saturn_pad.lua 400
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "saturn_pad.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/saturn_pad.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 

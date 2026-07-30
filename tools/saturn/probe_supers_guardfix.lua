@@ -5,10 +5,10 @@
 -- Runs far 5HK and far 5LK, each unpatched then with the pose-record THREAT CLASS
 -- (byte0, read into +0x18) poked 00->09 (pose 0x20 @ file 0x049289, 0x1D @ 0x04927D).
 -- Expect: 5HK HIT -> BLOCKED. 5LK tested at 24px (inside its <34px reach).
--- ROM=<Super S> tools/run.sh tools/probe_supers_guardfix.lua 400 -> traces/supers_guardfix.txt
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=<Super S> tools/run.sh tools/saturn/probe_supers_guardfix.lua 400 -> traces/saturn/supers_guardfix.txt
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "supers_guardfix.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/supers_guardfix.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 
@@ -28,7 +28,7 @@ local PRESS = 240
 
 emu.addMemoryCallback(function()
   if needLoad then
-    local f = assert(io.open(ENV.TRACE .. "saturn_vs_uranus_supers.mss", "rb"))
+    local f = assert(io.open(ENV.TRACE .. "saturn/saturn_vs_uranus_supers.mss", "rb"))
     emu.loadSavestate(f:read("*a")); f:close(); needLoad = false; t = 0
     -- reset both fix bytes to vanilla, then apply this attempt's patch
     emu.write(FIX_5HK, 0x00, PL.PRG)

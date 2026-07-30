@@ -3,7 +3,7 @@
 
 Injects Saturn's three animation layers + a benign engine hook into a clean SMS ROM
 so that an object with her new id animates idle/walk in a live match (poked by
-tools/probe_sms_saturn_smoke.lua — she is NOT on the char select).
+tools/saturn/probe_sms_saturn_smoke.lua — she is NOT on the char select).
 
 Design (docs/saturn/supers_map.md §pipeline + §Character architecture):
   * Saturn takes OBJECT ID 0x1C (28) — free in SMS's object-id namespace
@@ -29,11 +29,11 @@ NOT covered (smoke scope; tolerated garbage or unused paths):
   button-map table $169B (garbage record; probe presses no buttons/double-taps),
   palettes (Uranus's), char-select/loader, sound. See NEXT_SESSION for the list.
 
-Usage: python3 tools/mksaturn_smoke.py <out.sfc>   (reads clean SMS + Super S ROMs)
+Usage: python3 tools/saturn/mksaturn_smoke.py <out.sfc>   (reads clean SMS + Super S ROMs)
 """
 import sys
 from pathlib import Path as _P
-REPO = _P(__file__).resolve().parent.parent
+REPO = _P(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO / "tools"))
 from smspaths import clean_rom, supers_rom, require_source, SUPERS_SHA1, \
     fix_checksum, next_bank, write_bank  # noqa: E402
@@ -52,7 +52,7 @@ SITE_CEL_T2 = 0x09FD4         # $C0:9FD3 lda $0002,Y -> $2002,Y
 SITE_RECOG = 0x1125F          # $C1:125F 11-byte head -> JSL stub + NOPs
 RECOG_HEAD = bytes.fromhex("B50029FF000AA8B9C713A8")
 EMPTY_LIST = 0x0AFD           # $C1:0AFD..0B04 = 8x FF (verified)
-# Her REAL proc block (ported 2026-07-30, tools/port_saturn_proc.py): grafted into
+# Her REAL proc block (ported 2026-07-30, tools/saturn/port_saturn_proc.py): grafted into
 # bank $EF = full SMS-$C1 copy + her block at its Super S in-bank offsets
 # ($C6F7-$DC00 window; self-contained incl. data pockets $C806-C922/$D9F3-DA3B).
 # Entry: 7-byte hook at the main dispatch $C1:007C -> JSL $EF:helper; helper routes

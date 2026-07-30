@@ -1,9 +1,9 @@
 -- probe_sms_smokedbg.lua — debug the smoke ROM: after the Saturn poke, does the
 -- cel resolver ($80:9FB8) run? who writes +0x05/+0x06/+0x0C? why is the script stuck?
--- ROM=build/SailorMoonS_saturn_smoke.sfc tools/run.sh tools/probe_sms_smokedbg.lua 120
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=build/saturn/SailorMoonS_saturn_smoke.sfc tools/run.sh tools/saturn/probe_sms_smokedbg.lua 120
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "smokedbg.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/smokedbg.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 

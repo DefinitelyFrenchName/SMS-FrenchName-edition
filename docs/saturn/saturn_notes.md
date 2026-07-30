@@ -1,7 +1,7 @@
 # saturn_notes.md — Sailor Saturn (Super S) dossier
 
-Measured in-emulator on the Super S ROM (fixture `traces/saturn_vs_uranus_supers.mss`,
-P1 Saturn vs P2 Uranus; probes `tools/probe_saturn_moves.lua` /
+Measured in-emulator on the Super S ROM (fixture `traces/saturn/saturn_vs_uranus_supers.mss`,
+P1 Saturn vs P2 Uranus; probes `tools/saturn/probe_saturn_moves.lua` /
 `probe_saturn_unblockable.lua`) unless tagged [W] (web, newchallenger.net Super S page)
 or [L] (vendor Lua). This grows into the Uranus-grade balance dossier (template §5).
 

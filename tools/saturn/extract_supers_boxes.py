@@ -7,12 +7,12 @@ $AF:B000 (hit) / $AF:B046 (hurt) / $AF:B05C (coll), charIDs 1..10 (10 = Sailor
 Saturn — playable in THIS game). Same 8-byte box format and interleaved per-char
 layout as SMS; the bounds-inversion guard will catch it if that assumption fails.
 
-Usage: python3 tools/extract_supers_boxes.py [rom] [--json out.json] [--force]
+Usage: python3 tools/saturn/extract_supers_boxes.py [rom] [--json out.json] [--force]
 Defaults to smspaths.supers_rom(), SHA-verified.
 """
 import sys, json, struct, hashlib
 from pathlib import Path as _P
-REPO = _P(__file__).resolve().parent.parent
+REPO = _P(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO / "tools"))
 from smspaths import supers_rom, SUPERS_SHA1  # noqa: E402
 

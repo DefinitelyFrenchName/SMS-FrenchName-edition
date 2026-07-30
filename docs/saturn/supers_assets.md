@@ -18,7 +18,7 @@ character port is underway.
   `vendor/sms-training-mode/asm/charatheme.asm` (9 entries — Saturn's theme needs a
   10th). Super S sound engine vs SMS sound engine compatibility: UNKNOWN.
 - **Observed so far** (incidental): the Saturn-vs-Uranus fixture runs on a Super S
-  city stage that has no SMS equivalent (see `traces/saturn_vs_uranus_supers.png`);
+  city stage that has no SMS equivalent (see `traces/saturn/saturn_vs_uranus_supers.png`);
   Super S title/menus structurally identical to SMS (`traces/titlevram_supers_700.png`).
 
 ## ROM-space policy

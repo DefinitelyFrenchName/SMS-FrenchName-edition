@@ -88,7 +88,7 @@ closed. Key operational changes:
 done. Super S ROM validated (SHA 1ada3417…, resolved via smspaths.supers_rom());
 engines proven same-but-shifted (char loader +0x18, on-hit +0x12A, matrix +0x148 with
 identical contents; WRAM identical — all probed); Saturn loads via char-select poke
-(fixture traces/saturn_vs_uranus_supers.mss), her box tables extracted
+(fixture traces/saturn/saturn_vs_uranus_supers.mss), her box tables extracted
 (docs/saturn/supers_all_boxes.json), her far-5HK unblockable CONFIRMED empirically
 (hits through held guard 34-44px; 5LP control blocks). Route recommendation: **A —
 port Saturn into SMS** (docs/saturn/feasibility.md has the evidence + de-risk probes).
@@ -109,14 +109,14 @@ extrapolated). New probes: probe_supers_guardfind/guardpose/posetiming/guardfix/
 movereq/coverage.lua. Route A confidence: HIGH. SMS's three animation-layer twins
 located + live-verified (scripts $C0:0000 / poses $84:809C / cels $CB:0000;
 probe_sms_animtables.lua 241/241 ALL PASS; Uranus content byte-identical across
-games). **Port bundle extractor: `tools/extract_saturn_unit.py`** → 19 components,
-157 KB, `build/saturn_unit/` (gitignored) with manifest (rebase rules, guard-fix
+games). **Port bundle extractor: `tools/saturn/extract_saturn_unit.py`** → 19 components,
+157 KB, `build/saturn/unit/` (gitignored) with manifest (rebase rules, guard-fix
 offsets, TODOs); tripwire-asserted against the measured ground truth.
 
 **2026-07-30 (same day, smoke milestone) — SATURN ANIMATES + RENDERS IN SMS:**
-`tools/mksaturn_smoke.py` (from-clean scaffold builder, NOT a patch) injects her
+`tools/saturn/mksaturn_smoke.py` (from-clean scaffold builder, NOT a patch) injects her
 four data layers as free object id 0x1C; `probe_sms_saturn_smoke.lua` = 228/228
-ALL PASS, idle/walk animate, sprites fully coherent (traces/saturn_smoke_*.png,
+ALL PASS, idle/walk animate, sprites fully coherent (traces/saturn/saturn_smoke_*.png,
 committed; Uranus palette — palettes unported). En route: a 4TH animation layer
 (OAM sprite layout, $84:8000 table system) discovered + decoded + extracted, and
 a CORRECTION: per-char proc blocks DO exist (~4.3 KB each; Saturn $C1:C6F7; the
@@ -430,9 +430,10 @@ Submerge fireball demos.
   digging); pre-2026-07-30 extractor versions invented a bogus "Saturn" JSON entry from
   projectile-table bytes (fixed, issue #38). Rule: no SMS-targeted code refers to
   Saturn except explicit warnings like this one. **Scoped exception (2026-07-30): the
-  "SMS + Saturn" project** — `docs/saturn/**` and Super-S-targeted tools
-  (`tools/*supers*`, `probe_supers_*`) legitimately deal in Saturn/Super S; see
-  `docs/saturn/PROJECT.md`.
+  "SMS + Saturn" project** — everything Saturn/Super-S lives in dedicated
+  subfolders: `docs/saturn/`, `tools/saturn/`, `traces/saturn/`, `build/saturn/`
+  (see `docs/saturn/PROJECT.md` §conventions). Saturn Lua tools bootstrap with
+  `/../sms_env.lua`; `sms_env.lua` root discovery walks up from subfolders.
 - **Box-index writer order:** `$C0:9CCD` sets `+0x41` (hurtbox) every frame from animation data,
   and it runs a per-object batch. To override a hurtbox you must write it *after* that (patch 6
   hooks the writer itself). Frame counters: the forward-dash frame index is `+0x5D` (1..14; read

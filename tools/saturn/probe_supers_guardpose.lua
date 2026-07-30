@@ -2,10 +2,10 @@
 -- pose (act 0x0C) in Super S. On every $1081 <= 0x0C write (setter is common code
 -- $C1:022E), dump SP + raw stack bytes so the JSR/JSL return chain identifies the
 -- guard-proximity decision site. One case is enough (far 5HK @ 40px).
--- ROM=<Super S> tools/run.sh tools/probe_supers_guardpose.lua 200 -> traces/supers_guardpose.txt
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=<Super S> tools/run.sh tools/saturn/probe_supers_guardpose.lua 200 -> traces/saturn/supers_guardpose.txt
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "supers_guardpose.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/supers_guardpose.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 
@@ -14,7 +14,7 @@ local PRESS = 240
 
 emu.addMemoryCallback(function()
   if needLoad then
-    local f = assert(io.open(ENV.TRACE .. "saturn_vs_uranus_supers.mss", "rb"))
+    local f = assert(io.open(ENV.TRACE .. "saturn/saturn_vs_uranus_supers.mss", "rb"))
     emu.loadSavestate(f:read("*a")); f:close(); needLoad = false; t = 0
   end
 end, emu.callbackType.exec, 0x808347, 0x808347, emu.cpuType.snes, emu.memType.snesMemory)

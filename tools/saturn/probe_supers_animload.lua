@@ -3,10 +3,10 @@
 -- WRAM $7E:6A00+ (the SMS expansion target; WRAM layout is game-identical) during
 -- Saturn's character load and log the WRITER's PC + registers. Nav = same autopilot
 -- as probe_supers_saturn (P1=Saturn, P2=Uranus).
--- ROM=<Super S> tools/run.sh tools/probe_supers_animload.lua 120 -> traces/supers_animload.txt
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=<Super S> tools/run.sh tools/saturn/probe_supers_animload.lua 120 -> traces/saturn/supers_animload.txt
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "supers_animload.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/supers_animload.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 local frames, step, sf = 0, 1, 0

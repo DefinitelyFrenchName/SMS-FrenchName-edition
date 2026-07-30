@@ -104,7 +104,7 @@ on it). Title verified by screenshot.
 (evidence + Route A recommendation: port Saturn INTO SMS), `docs/saturn/supers_map.md`
 (verified Super S map — same engine, globally shifted; every Rosetta claim probed),
 `docs/saturn/saturn_notes.md` (dossier: act map, box tables, broken normals + fix).
-Fixture: `traces/saturn_vs_uranus_supers.mss` (force-added). Tools:
+Fixture: `traces/saturn/saturn_vs_uranus_supers.mss` (force-added). Tools:
 `smspaths.supers_rom()`, `extract_supers_boxes.py`, `probe_supers_*.lua`,
 `probe_saturn_*.lua`.
 
@@ -122,8 +122,8 @@ across games (cel addr24s relocated only). Port recipe per layer in supers_map
 §pipeline (note: SMS interpreter lacks Super S's 0xC0 CMD extension — strip or
 back-port Saturn's CMD steps; her scripts carry 67 CMD steps).
 
-**Data-unit extractor DONE (`tools/extract_saturn_unit.py`):** 18 components,
-141.4 KB → `build/saturn_unit/` (gitignored — ROM-derived; manifest.json carries
+**Data-unit extractor DONE (`tools/saturn/extract_saturn_unit.py`):** 18 components,
+141.4 KB → `build/saturn/unit/` (gitignored — ROM-derived; manifest.json carries
 addresses/sha1s/rebase rules/TODOs). Validations: act table = exactly 128 slots
 (0x2105-0x2205), 110 scripted acts all parse in-slice; pose records bounds-checked;
 cel census re-derived (115 cels, 140000 streamed bytes); ground-truth tripwires
@@ -134,7 +134,7 @@ special act-list per-char indexing + gating-record base not yet located.
 
 **SMOKE TEST DONE — SATURN ANIMATES AND RENDERS IN SMS** (feasibility §Smoke):
 `mksaturn_smoke.py` + `probe_sms_saturn_smoke.lua`, 228/228 ALL PASS, screenshots
-traces/saturn_smoke_idle.png / _walk.png (committed). Object id 0x1C, four data
+traces/saturn/saturn_smoke_idle.png / _walk.png (committed). Object id 0x1C, four data
 layers injected (a 4TH layer — OAM sprite layout, $84:8000 system — was found
 when she rendered invisible; supers_map §OAM). CORRECTION landed: per-char proc
 blocks DO exist (~4.3 KB; Saturn $C1:C6F7; main dispatch $C1:0080/($00A6,X) —
@@ -142,7 +142,7 @@ entry 0000 recurses = crash). Two engine rules learned: 7 id-indexed tables shar
 the object-id namespace; DB-swap patches need WRAM-mirror banks ($80-$BF) when
 code writes WRAM DB-absolute (use $A8+n mirrors of appended banks).
 **PROC BLOCK PORTED (2026-07-30 fourth session; supers_map §Saturn's proc
-block):** `tools/port_saturn_proc.py` recursive-descent disassembles her 4.4 KB
+block):** `tools/saturn/port_saturn_proc.py` recursive-descent disassembles her 4.4 KB
 block ($C1:C6F7-DA3C, self-contained incl. inline records), fixes 384 external
 operands via the verified Super S→SMS target map, grafts into bank $EF (full
 SMS-$C1 copy) behind a 7-byte main-dispatch hook. Verified: idle/walk 228/228
@@ -154,7 +154,7 @@ port. Her sfx silenced ($80:FBB0 CMD/sound handler has no SMS twin — stubbed).
 **PAD-PLAYABLE (same session):** button-map hook + recognizer graft + box
 tables landed (supers_map §proc block / pad-input layer): real buttons give all
 normals (standing/crouch/air), real qcf motion gives the special, hits connect
-both ways. **Tester entry point: `tools/saturn_test.lua`** (Mesen GUI Script
+both ways. **Tester entry point: `tools/saturn/saturn_test.lua`** (Mesen GUI Script
 Window on the mksaturn_smoke ROM — auto-transforms P1 at round start; header has
 instructions + known gaps). Next: projectile objects 0x20/0x22 (fireballs
 visible; 7-table units, source addresses in saturn_notes), palettes, sfx

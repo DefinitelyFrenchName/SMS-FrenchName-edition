@@ -3,10 +3,10 @@
 --     on Saturn's manifest record (file 0x20AC6A..+15) — identifies the consumers.
 --   * DMA->VRAM ($2118/2119 B-bus) logger during the load — A-bus sources = her
 --     sprite/CHR data locations (the CHR census for the port budget).
--- ROM=<Super S> tools/run.sh tools/probe_supers_animload3.lua 120
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=<Super S> tools/run.sh tools/saturn/probe_supers_animload3.lua 120
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "supers_animload3.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/supers_animload3.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 local frames, step, sf = 0, 1, 0

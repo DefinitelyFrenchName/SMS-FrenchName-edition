@@ -6,10 +6,10 @@
 --   5LP     @ 40px  -> BLOCKED                  (control)
 -- The blockstun writer (0x0E/0x0F) vs hit writer (0x10+) PCs bracket the decision
 -- branch; the pre-block pose writer (0x0C/0x0D) is the proximity-guard trigger.
--- ROM=<Super S> tools/run.sh tools/probe_supers_guardfind.lua 300 -> traces/supers_guardfind.txt
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=<Super S> tools/run.sh tools/saturn/probe_supers_guardfind.lua 300 -> traces/saturn/supers_guardfind.txt
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "supers_guardfind.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/supers_guardfind.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 
@@ -32,7 +32,7 @@ end
 
 emu.addMemoryCallback(function()
   if needLoad then
-    local f = assert(io.open(ENV.TRACE .. "saturn_vs_uranus_supers.mss", "rb"))
+    local f = assert(io.open(ENV.TRACE .. "saturn/saturn_vs_uranus_supers.mss", "rb"))
     emu.loadSavestate(f:read("*a")); f:close(); needLoad = false; t = 0
   end
 end, emu.callbackType.exec, 0x808347, 0x808347, emu.cpuType.snes, emu.memType.snesMemory)

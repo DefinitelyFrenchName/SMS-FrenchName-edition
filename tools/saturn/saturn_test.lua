@@ -1,7 +1,7 @@
 -- saturn_test.lua — PAD-TEST helper for the Saturn-in-SMS smoke ROM.
 --
 -- HOW TO USE (Mesen GUI):
---   1. Build the ROM:  python3 tools/mksaturn_smoke.py build/SailorMoonS_saturn_smoke.sfc
+--   1. Build the ROM:  python3 tools/saturn/mksaturn_smoke.py build/saturn/SailorMoonS_saturn_smoke.sfc
 --   2. Open it in Mesen, start a match (2P VS or vs COM; pick ANY character as P1).
 --   3. Load this script in the Script Window. When the round starts, P1 becomes
 --      SAILOR SATURN automatically. Re-transforms every round.
@@ -13,7 +13,7 @@
 -- instantly (projectile objects not ported yet); her moves are SILENT (Super S
 -- sound handler has no SMS twin yet); she wears URANUS'S COLORS (palettes not
 -- ported); throws/desperation unverified; P2 stays whoever you picked.
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local WRAM = emu.memType.snesWorkRam
 local function r(a) return emu.read(a, WRAM) end
 local function w(a, v) emu.write(a, v, WRAM) end

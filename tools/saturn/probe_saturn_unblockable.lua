@@ -3,10 +3,10 @@
 -- Per attempt: reload fixture, park P2 at a swept distance HOLDING AWAY (block input),
 -- Saturn presses one kick; classify BLOCKED (P2 reaches 0x0C-0x0F) vs HIT (0x10-0x16)
 -- vs WHIFF. Control: the same sweep with 5LP (blockable) proves the rig detects guard.
--- ROM=<Super S> tools/run.sh tools/probe_saturn_unblockable.lua 400 -> traces/saturn_unblk.txt
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=<Super S> tools/run.sh tools/saturn/probe_saturn_unblockable.lua 400 -> traces/saturn/saturn_unblk.txt
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "saturn_unblk.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/saturn_unblk.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 
@@ -23,7 +23,7 @@ local PRESS = 240
 
 emu.addMemoryCallback(function()
   if needLoad then
-    local f = assert(io.open(ENV.TRACE .. "saturn_vs_uranus_supers.mss", "rb"))
+    local f = assert(io.open(ENV.TRACE .. "saturn/saturn_vs_uranus_supers.mss", "rb"))
     emu.loadSavestate(f:read("*a")); f:close(); needLoad = false; t = 0
   end
 end, emu.callbackType.exec, 0x808347, 0x808347, emu.cpuType.snes, emu.memType.snesMemory)

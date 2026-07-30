@@ -3,10 +3,10 @@
 -- P1 act transitions + hit/hurt box indices per frame to derive S/A/R.
 -- Buttons swept: Y(LP) X(HP) B(LK) A(HK) at the fixture's spacing (128px = far),
 -- then the same with P2 parked close (32px) for close variants.
--- ROM=<Super S> tools/run.sh tools/probe_saturn_moves.lua 240 -> traces/saturn_moves.txt
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=<Super S> tools/run.sh tools/saturn/probe_saturn_moves.lua 240 -> traces/saturn_moves.txt
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "saturn_moves.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/saturn_moves.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 
@@ -22,7 +22,7 @@ local PRESS = 240  -- fixture: intro ends ~t=68, clock live from ~t=186
 
 emu.addMemoryCallback(function()
   if needLoad then
-    local f = assert(io.open(ENV.TRACE .. "saturn_vs_uranus_supers.mss", "rb"))
+    local f = assert(io.open(ENV.TRACE .. "saturn/saturn_vs_uranus_supers.mss", "rb"))
     emu.loadSavestate(f:read("*a")); f:close(); needLoad = false; t = 0
   end
 end, emu.callbackType.exec, 0x808347, 0x808347, emu.cpuType.snes, emu.memType.snesMemory)

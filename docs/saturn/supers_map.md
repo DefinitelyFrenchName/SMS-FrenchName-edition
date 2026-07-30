@@ -124,7 +124,7 @@ overflow (measured the hard way).
 ## Saturn's proc block — PORTED [P 07-30, proc-port session]
 
 Her ~4.4 KB per-char proc block ($C1:C6F7-$DA3C + act jump table $C706, 86 per-act
-procs) is ported by `tools/port_saturn_proc.py`:
+procs) is ported by `tools/saturn/port_saturn_proc.py`:
 
 - **Recursive-descent disassembly** from the dispatch + all act-table targets
   (M/X tracked via REP/SEP; 1788 instructions reached; data pockets between procs

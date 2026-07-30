@@ -1,9 +1,9 @@
 -- probe_sms_oamdump.lua — smoke ROM: dump P1 Saturn's live OAM entries vs the
 -- expected sprite records from the ported $EE blob, for one idle frame.
--- ROM=build/SailorMoonS_saturn_smoke.sfc tools/run.sh tools/probe_sms_oamdump.lua 120
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=build/saturn/SailorMoonS_saturn_smoke.sfc tools/run.sh tools/saturn/probe_sms_oamdump.lua 120
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "oamdump.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/oamdump.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, rom, wr = PL.ram, PL.rom, PL.wr
 

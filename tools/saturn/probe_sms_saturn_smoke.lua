@@ -6,10 +6,10 @@
 -- P2 (Jupiter, id 4) doubles as a copy-fidelity canary: her chain must match the
 -- ORIGINAL $84/$CB tables. Also asserts +0x51 stays 0 (recognizer stub works).
 -- Holds right t=150..230 for walk; screenshots idle/walk to traces/.
--- ROM=build/SailorMoonS_saturn_smoke.sfc tools/run.sh tools/probe_sms_saturn_smoke.lua 200
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=build/saturn/SailorMoonS_saturn_smoke.sfc tools/run.sh tools/saturn/probe_sms_saturn_smoke.lua 200
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "saturn_smoke.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/saturn_smoke.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, rom, wr = PL.ram, PL.rom, PL.wr
 

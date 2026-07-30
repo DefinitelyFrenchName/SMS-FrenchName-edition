@@ -2,7 +2,7 @@
 """Extract Sailor Saturn's complete data unit from Super S — the Route A port bundle.
 
 Pulls every DATA component the SMS port needs (docs/saturn/supers_map.md has the
-decoded systems; docs/saturn/saturn_notes.md the dossier) into build/saturn_unit/
+decoded systems; docs/saturn/saturn_notes.md the dossier) into build/saturn/unit/
 as raw .bin blobs + manifest.json (addresses, sizes, sha1s, rebase rules, TODOs).
 ROM-derived output stays in build/ (gitignored) — never commit the bundle.
 
@@ -27,13 +27,13 @@ Rebase rules (manifest carries them machine-readable):
   * pose_records/pose_to_cels/boxes/button_map: verbatim.
   * guard fix (ships-fixed policy): pose_records offsets 0x74/0x80 byte0 00->09.
 
-Usage: python3 tools/extract_saturn_unit.py [--out DIR] [--check]
+Usage: python3 tools/saturn/extract_saturn_unit.py [--out DIR] [--check]
 Reads smspaths.supers_rom(), SHA-verified unconditionally. --check re-parses the
 extracted blobs and cross-validates against the ROM (also run by default).
 """
 import sys, json, hashlib, argparse
 from pathlib import Path as _P
-REPO = _P(__file__).resolve().parent.parent
+REPO = _P(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO / "tools"))
 from smspaths import supers_rom, SUPERS_SHA1  # noqa: E402
 
@@ -215,7 +215,7 @@ def extract(rom, outdir):
 
 def main():
     ap = argparse.ArgumentParser(description="Extract Saturn's Route A data bundle")
-    ap.add_argument("--out", default=str(REPO / "build" / "saturn_unit"))
+    ap.add_argument("--out", default=str(REPO / "build" / "saturn" / "unit"))
     ap.add_argument("--check", action="store_true", help="validate only, write nothing")
     args = ap.parse_args()
 
@@ -241,7 +241,7 @@ def main():
     manifest = {
         "what": "Sailor Saturn data unit extracted from Super S (Route A port bundle)",
         "source_rom_sha1": SUPERS_SHA1, "char_id": CID,
-        "extracted_by": "tools/extract_saturn_unit.py",
+        "extracted_by": "tools/saturn/extract_saturn_unit.py",
         "docs": ["docs/saturn/supers_map.md", "docs/saturn/saturn_notes.md"],
         "components": comps, "notes": notes, "total_bytes": total,
     }

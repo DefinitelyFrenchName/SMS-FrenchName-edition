@@ -2,17 +2,17 @@
 -- writes a sprite-bank value ($D0-$DF) into any DMA A-bus bank register ($43n4),
 -- plus the configured source. That PC's routine consumes the per-frame cel table
 -- (the animation-script successor of SMS's manifest anim payload).
--- ROM=<Super S> tools/run.sh tools/probe_supers_streamer.lua 60
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=<Super S> tools/run.sh tools/saturn/probe_supers_streamer.lua 60
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "supers_streamer.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/supers_streamer.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local BUS = emu.memType.snesMemory
 local t, needLoad, events = -1, true, 0
 
 emu.addMemoryCallback(function()
   if needLoad then
-    local f = assert(io.open(ENV.TRACE .. "saturn_vs_uranus_supers.mss", "rb"))
+    local f = assert(io.open(ENV.TRACE .. "saturn/saturn_vs_uranus_supers.mss", "rb"))
     emu.loadSavestate(f:read("*a")); f:close(); needLoad = false; t = 0
   end
 end, emu.callbackType.exec, 0x808347, 0x808347, emu.cpuType.snes, emu.memType.snesMemory)

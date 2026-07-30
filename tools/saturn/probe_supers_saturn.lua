@@ -1,11 +1,11 @@
 -- probe_supers_saturn.lua — Super S recon: reach a VS match with P1 = SATURN (charID
 -- 10, poked at char select) vs P2 = Uranus (6); verify the WRAM-identity claims
 -- (player structs / mode vars, per docs/saturn/supers_map.md); dump a savestate
--- fixture + screenshot. ROM=<Super S> tools/run.sh tools/probe_supers_saturn.lua 120
--- Output: traces/supers_saturn.txt, traces/saturn_vs_uranus_supers.{mss,png}
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- fixture + screenshot. ROM=<Super S> tools/run.sh tools/saturn/probe_supers_saturn.lua 120
+-- Output: traces/saturn/supers_saturn.txt, traces/saturn/saturn_vs_uranus_supers.{mss,png}
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "supers_saturn.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/supers_saturn.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 local frames, step, sf = 0, 1, 0
@@ -55,8 +55,8 @@ emu.addMemoryCallback(function()
     end
     log(string.format("mode 8D=%02X inmatch 70=%02X clock=%02X%02X frame=%02X", ram(0x8D), ram(0x70), ram(0x804), ram(0x803), ram(0x802)))
     local ss = emu.createSavestate()
-    local so = io.open(ENV.TRACE .. "saturn_vs_uranus_supers.mss", "wb"); so:write(ss); so:close()
-    local sp = io.open(ENV.TRACE .. "saturn_vs_uranus_supers.png", "wb"); sp:write(emu.takeScreenshot()); sp:close()
+    local so = io.open(ENV.TRACE .. "saturn/saturn_vs_uranus_supers.mss", "wb"); so:write(ss); so:close()
+    local sp = io.open(ENV.TRACE .. "saturn/saturn_vs_uranus_supers.png", "wb"); sp:write(emu.takeScreenshot()); sp:close()
     log("savestate len=" .. #ss)
     emu.stop(0)
   end

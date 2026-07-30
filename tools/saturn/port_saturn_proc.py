@@ -20,7 +20,7 @@ Outputs (as a library for mksaturn_smoke; runnable standalone for the report):
 """
 import sys
 from pathlib import Path as _P
-REPO = _P(__file__).resolve().parent.parent
+REPO = _P(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO / "tools"))
 
 BANK = 0x010000                  # file base of bank $C1 (both games)

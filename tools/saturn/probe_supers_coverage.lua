@@ -4,10 +4,10 @@
 --   / B: Uranus (P2) attacks (LP,LK,HK,HP + a qcf+LP attempt).
 -- Saturn-exclusive = A - baseline - B. If the engine is data-driven, this should be
 -- tiny (projectile/special procs at most) — the Route A code-port budget.
--- ROM=<Super S> tools/run.sh tools/probe_supers_coverage.lua 400 -> traces/supers_coverage.txt
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=<Super S> tools/run.sh tools/saturn/probe_supers_coverage.lua 400 -> traces/saturn/supers_coverage.txt
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "supers_coverage.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/supers_coverage.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram = PL.ram
 
@@ -17,7 +17,7 @@ local cov = { base = {}, A = {}, B = {} }
 
 emu.addMemoryCallback(function()
   if needLoad then
-    local f = assert(io.open(ENV.TRACE .. "saturn_vs_uranus_supers.mss", "rb"))
+    local f = assert(io.open(ENV.TRACE .. "saturn/saturn_vs_uranus_supers.mss", "rb"))
     emu.loadSavestate(f:read("*a")); f:close(); needLoad = false; t = 0
   end
 end, emu.callbackType.exec, 0x808347, 0x808347, emu.cpuType.snes, emu.memType.snesMemory)

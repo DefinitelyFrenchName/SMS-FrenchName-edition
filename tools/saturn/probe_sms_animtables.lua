@@ -6,10 +6,10 @@
 --   celA/celB via $CB:0000[cid] pose->cels + 5B cel records -> +0x0C..0x0E,+0x12/13
 -- and compare against the live struct. Runs on the CLEAN SMS ROM with the
 -- uranus_vs_jupiter_f5 fixture; drives 5LP and 2HP to cover attack poses.
--- ROM=<clean SMS> tools/run.sh tools/probe_sms_animtables.lua 200 -> traces/sms_animtables.txt
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=<clean SMS> tools/run.sh tools/saturn/probe_sms_animtables.lua 200 -> traces/sms_animtables.txt
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "sms_animtables.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/sms_animtables.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, rom = PL.ram, PL.rom
 

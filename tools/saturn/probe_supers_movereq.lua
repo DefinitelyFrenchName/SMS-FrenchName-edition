@@ -2,10 +2,10 @@
 -- (written by the button handler $C1:161F and the command recognizers $C1:1339).
 -- Logs reads of $1051 with reader PC while Saturn presses 5LP then attempts a
 -- fireball motion (236+P), plus resulting act changes.
--- ROM=<Super S> tools/run.sh tools/probe_supers_movereq.lua 200 -> traces/supers_movereq.txt
-local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+-- ROM=<Super S> tools/run.sh tools/saturn/probe_supers_movereq.lua 200 -> traces/saturn/supers_movereq.txt
+local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "supers_movereq.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/supers_movereq.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram = PL.ram
 
@@ -24,7 +24,7 @@ end
 
 emu.addMemoryCallback(function()
   if needLoad then
-    local f = assert(io.open(ENV.TRACE .. "saturn_vs_uranus_supers.mss", "rb"))
+    local f = assert(io.open(ENV.TRACE .. "saturn/saturn_vs_uranus_supers.mss", "rb"))
     emu.loadSavestate(f:read("*a")); f:close(); needLoad = false; t = 0
   end
 end, emu.callbackType.exec, 0x808347, 0x808347, emu.cpuType.snes, emu.memType.snesMemory)

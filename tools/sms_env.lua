@@ -28,11 +28,16 @@ local function is_root(dir)
 end
 
 local function find_root()
-  -- 1. the directory Mesen registered for the running script (…/tools)
+  -- 1. the directory Mesen registered for the running script (…/tools or a
+  --    subfolder like …/tools/saturn) — walk up until the repo root is found
   local sdir = package.path:match("([^;]+)%?%.lua$")
   if sdir then
-    local parent = sdir:gsub("/+$", ""):match("^(.*)/[^/]+$")
-    if is_root(parent) then return parent end
+    local dir = sdir:gsub("/+$", "")
+    for _ = 1, 4 do
+      dir = dir:match("^(.*)/[^/]+$")
+      if not dir then break end
+      if is_root(dir) then return dir end
+    end
   end
   -- 2./3. environment
   for _, var in ipairs({ "SMS_ROOT", "PWD" }) do
