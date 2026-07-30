@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.7.0"
+SATURN_VERSION = "0.8.0"
 
 SAT_ID = 0x1C
 
@@ -68,7 +68,7 @@ EMPTY_LIST = 0x0AFD           # $C1:0AFD..0B04 = 8x FF (verified)
 SITE_PROC_HOOK = 0x1007C      # $C1:007C: sep #$30 / asl / tax / jsr ($00A6,X)
 PROC_HOOK_OLD = bytes.fromhex("E2300AAAFCA600")
 STUB2 = 0x0B01                # $C1:0B01 (last 4 FF of the 0AFD run)
-EF_HELPER = 0xDB00            # in-bank, inside the graft window, past block end
+EF_HELPER = 0xDB70            # in-bank, clear of tramp(DB20)/tramp3(DB30)/snd(DB50)
 # Her specials spawn projectile OBJECTS with Super S ids (0x20 qcf LP/HP, 0x22,
 # possibly more) — all in SMS's free id range 0x1D-0x2F. Until the projectile
 # objects are ported (7-table units each), EVERY free-id proc entry points at the
@@ -111,6 +111,18 @@ SITE_INTERP_CMD = 0x0A0AA
 INTERP_CMD_OLD = bytes.fromhex("29C0F00F2980D005")
 E8_CMDSTUB = 0x2900
 CMD_SND_MAP = {0x15: 0x05, 0x14: 0x06, 0x0E: 0x06, 0x20: 0x06}
+# v0.8.0 — IN-ROM SATURN SELECT (P1): hold L+R while a round loads -> flag
+# $7E:1F60 set; the effects-DMA helper hook ($C0:92A4, generic VRAM-DMA kick,
+# filtered on $30==0x6A00/$36==$7F) also overrides the $7F:0000 staging with her
+# raw tiles ($EE:D000, embedded from traces/saturn/supers_effecttiles.bin when
+# present); the $EF proc helper transforms P1 at neutral + injects her palette.
+# Hold SELECT at a round load to clear. Flag persists across rounds. P2 stays
+# Lua-only (its effect-buffer layout unmapped).
+SITE_DMA_KICK = 0x092A4
+DMA_KICK_OLD = bytes.fromhex("A0018C00438C0B42")
+E8_DMASTUB = 0x2980
+SATURN_FLAG = 0x1F60
+EE_TILES = 0xD000
 # Box tables: appended bank $F0 = full bank-$8A copy read via WRAM-mirror $B0
 # (6x plb #$8A -> #$B0); widened ptr tables (0x30 entries) + Saturn's box data
 # grafted into the copy's upper half; 7 table-read operands repointed.
@@ -276,6 +288,33 @@ def main():
     stub += bytes((0xB1, 0x10))                          # cmd: lda ($10),Y = arg
     stub += cmd_tail
     e8 += bytes(stub)
+    e8 += bytes(E8_DMASTUB - len(e8))
+    # DMA-kick stub: filter effects transfer, manage the flag, override staging
+    d = bytearray()
+    d += bytes((0x08, 0xC2, 0x30))                       # php / rep #$30
+    d += bytes((0x48, 0xDA, 0x5A))                       # pha / phx / phy (16-bit)
+    d += bytes((0xA5, 0x30, 0xC9, 0x00, 0x6A, 0xD0, 0x00))  # lda $30/cmp #$6A00/bne orig
+    fx1 = len(d) - 1
+    d += bytes((0xE2, 0x20))                             # sep #$20
+    d += bytes((0xA5, 0x36, 0xC9, 0x7F, 0xD0, 0x00))     # lda $36/cmp #$7F/bne orig
+    fx2 = len(d) - 1
+    d += bytes((0xAD, 0x18, 0x42, 0x29, 0x30, 0xC9, 0x30, 0xD0, 0x05))  # $4218 L+R held?
+    d += bytes((0xA9, 0x01, 0x8D, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8))  # sta flag
+    d += bytes((0xAD, 0x19, 0x42, 0x29, 0x20, 0xF0, 0x03))  # $4219 SELECT held?
+    d += bytes((0x9C, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8))       # stz flag
+    d += bytes((0xAD, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, 0xF0, 0x00))  # flag? beq orig
+    fx3 = len(d) - 1
+    d += bytes((0xC2, 0x30))                             # rep #$30
+    d += bytes((0xA2, 0x00, EE_TILES >> 8, 0xA0, 0x00, 0x00,      # ldx #tiles/ldy #0
+                0xA9, 0xFF, 0x0B, 0x8B, 0x54, 0x7F, 0xEE, 0xAB))  # lda #$0BFF/phb/mvn/plb
+    orig = len(d)
+    d[fx1] = orig - (fx1 + 1)
+    d[fx2] = orig - (fx2 + 1)
+    d[fx3] = orig - (fx3 + 1)
+    d += bytes((0xC2, 0x30, 0x7A, 0xFA, 0x68, 0x28))     # rep #$30/ply/plx/pla/plp
+    d += bytes((0xA0, 0x01, 0x8C, 0x00, 0x43, 0x8C, 0x0B, 0x42))  # original 8 bytes
+    d += bytes((0x6B,))                                  # rtl
+    e8 += bytes(d)
     e8[2 * SAT_ID] = E8_SATURN_ACTTBL & 0xFF          # id -> act-table entry
     e8[2 * SAT_ID + 1] = E8_SATURN_ACTTBL >> 8
     assert len(e8) > PROJ_SCRIPTS_HI
@@ -342,6 +381,14 @@ def main():
     ee[0xC020:0xC040] = sup[0x20B0A8:0x20B0A8 + 32]
     ver = ("SATURN v" + SATURN_VERSION).encode()
     ee[0xC040:0xC040 + len(ver) + 1] = ver + b"\x00"
+    tiles = REPO / "traces" / "saturn" / "supers_effecttiles.bin"
+    if tiles.is_file():
+        tb = tiles.read_bytes()[:0xC00]
+        ee[EE_TILES:EE_TILES + len(tb)] = tb
+    else:
+        print("WARNING: no effect-tile dump (traces/saturn/supers_effecttiles.bin);"
+              " in-ROM L+R select will show wrong fireball art. Generate with:"
+              " ROM=<SuperS> tools/run.sh tools/saturn/probe_supers_effecttiles.lua 60")
     write_bank(data, bankbase, bytes(ee))
 
     # ---- bank $EF: full SMS-$C1 copy + Saturn's ported proc block ----
@@ -355,9 +402,48 @@ def main():
     ef[PSP.BLOCK_LO:PSP.BLOCK_HI] = blk
     # helper: sep #$30 / cmp #SAT_ID / beq sat / asl / tax / JSL $C1:stub2 / rtl
     #         sat: jsr $C6F7 / rtl          (entered with 8-bit A=id via the hook)
-    helper = bytes.fromhex("E230C91CF0070AAA") + \
-        bytes((0x22, STUB2 & 0xFF, STUB2 >> 8, 0xC1, 0x6B, 0x20, 0xF7, 0xC6, 0x6B))
-    ef[EF_HELPER:EF_HELPER + len(helper)] = helper
+    # helper v2 (at EF_HELPER): id test + P1 in-ROM transform (flag $1F60)
+    h = bytearray()
+    h += bytes((0xE2, 0x30))                     # sep #$30
+    h += bytes((0xC9, 0x1C, 0xF0, 0x00)); fsat1 = len(h) - 1   # beq sat
+    h += bytes((0xE0, 0x00, 0xD0, 0x00)); fnorm1 = len(h) - 1  # cpx #$00 (P1?) bne normal
+    h += bytes((0x48,))                          # pha (save id)
+    h += bytes((0xAD, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, 0xF0, 0x00))
+    fpop = len(h) - 1                            # beq pop_normal
+    h += bytes((0xAD, 0x04, 0x1E, 0xD0, 0x00)); fg1 = len(h) - 1   # $1E04!=0 -> pop (intro)
+    h += bytes((0xAD, 0x03, 0x08, 0x0D, 0x04, 0x08, 0xF0, 0x00))   # clock==0 -> pop (loading)
+    fg2 = len(h) - 1
+    h += bytes((0xC2, 0x10, 0xA6, 0x88))         # rep #$10 / ldx $88 (full struct)
+    h += bytes((0xB5, 0x01, 0xC9, 0x03, 0xB0, 0x00)); fpop8 = len(h) - 1  # act>=3? bcs pop8
+    h += bytes((0xA9, 0x1C, 0x95, 0x00))         # id = Saturn
+    for o in (0x01, 0x02, 0x04, 0x05, 0x06, 0x07):
+        h += bytes((0x74, o))                    # stz o,X
+    h += bytes((0xDA, 0xA2, 0x1F, 0x00))         # phx / ldx #$001F
+    lp = len(h)
+    h += bytes((0xBF, 0x00, 0xC0, 0xEE))         # lda $EEC000,X
+    h += bytes((0x9D, 0x00, 0x06))               # sta $0600,X
+    h += bytes((0xCA, 0x10, (lp - (len(h) + 3)) & 0xFF))  # dex / bpl lp
+    h += bytes((0xFA,))                          # plx
+    h += bytes((0x68, 0xA9, 0x1C, 0xE2, 0x10))   # pla / lda #$1C / sep #$10
+    h += bytes((0x80, 0x00)); fsat2 = len(h) - 1 # bra sat
+    pop8 = len(h)
+    h += bytes((0xE2, 0x10))                     # pop_normal8: sep #$10
+    popn = len(h)
+    h += bytes((0x68,))                          # pop_normal: pla
+    norm = len(h)
+    h += bytes((0x0A, 0xAA))                     # normal: asl / tax
+    h += bytes((0x22, STUB2 & 0xFF, STUB2 >> 8, 0xC1, 0x6B))
+    sat = len(h)
+    h += bytes((0x20, 0xF7, 0xC6, 0x6B))         # sat: jsr $C6F7 / rtl
+    h[fsat1] = sat - (fsat1 + 1)
+    h[fnorm1] = norm - (fnorm1 + 1)
+    h[fpop] = popn - (fpop + 1)
+    h[fg1] = popn - (fg1 + 1)
+    h[fg2] = popn - (fg2 + 1)
+    h[fpop8] = pop8 - (fpop8 + 1)
+    h[fsat2] = sat - (fsat2 + 1)
+    assert len(h) <= 0x90, f"helper too big: {len(h)}"
+    ef[EF_HELPER:EF_HELPER + len(h)] = h
     # recognizer graft: payload at original offsets; copied-table entry -> her list
     ef[0x1452:0x1452 + (RECOG_PAYLOAD_HI - RECOG_PAYLOAD_LO)] = \
         sup[RECOG_PAYLOAD_LO:RECOG_PAYLOAD_HI]
@@ -429,6 +515,9 @@ def main():
     expect(SITE_INTERP_CMD, INTERP_CMD_OLD, "interpreter ctrl decode")
     data[SITE_INTERP_CMD:SITE_INTERP_CMD + 8] = \
         bytes((0x22, E8_CMDSTUB & 0xFF, E8_CMDSTUB >> 8, 0xE8)) + b"\xEA" * 4
+    expect(SITE_DMA_KICK, DMA_KICK_OLD, "generic VRAM-DMA kick")
+    data[SITE_DMA_KICK:SITE_DMA_KICK + 8] = \
+        bytes((0x22, E8_DMASTUB & 0xFF, E8_DMASTUB >> 8, 0xE8)) + b"\xEA" * 4
     # bank byte $AE (not $EE): the emitter WRITES the OAM shadow via DB-absolute
     # $0200,X — only $80-$BF banks mirror WRAM in the low half; $AE:8000+ mirrors
     # the same ROM bytes as $EE:8000+ (file 0x2E8000).

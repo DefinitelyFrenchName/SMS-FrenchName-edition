@@ -3,8 +3,9 @@
 -- HOW TO USE (Mesen GUI):
 --   1. Build the ROM:  python3 tools/saturn/mksaturn_smoke.py build/saturn/SailorMoonS_saturn_smoke.sfc
 --   2. Open it in Mesen, start a match (2P VS or vs COM; pick ANY character as P1).
---   3. Load this script in the Script Window. When the round starts, P1 becomes
---      SAILOR SATURN automatically. Re-transforms every round.
+--   3. EITHER just hold L+R while the round loads (in-ROM select, v0.8.0+;
+--      SELECT-hold at a round load reverts) OR load this script in the Script
+--      Window for auto-transform + P2 mirror support + the version label.
 --
 -- WHAT SHOULD WORK: idle/walk, all normals (standing/crouch/air; Y=LP X=HP
 -- B=LK A=HK), qcf+P specials with a VISIBLE traveling fireball that hits, the

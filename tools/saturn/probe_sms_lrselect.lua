@@ -6,7 +6,7 @@
 -- ROM=<clean SMS> tools/run.sh tools/saturn/probe_sms_effectload.lua 300
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local LOG = assert(io.open(ENV.TRACE .. "saturn/sms_effectload.txt", "w"))
+local LOG = assert(io.open(ENV.TRACE .. "saturn/lrselect.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 local frames, step, sf = 0, 1, 0
@@ -85,16 +85,33 @@ local STEPS = {
   function() return sf>240 end,
   function() pulse[0]=beat({start=true}); pulse[1]=beat({start=true})
              return (ram(0x1000)==6 and ram(0x1080)~=0) or sf>600 end,
-  function() return sf>150 end,
+  function() return sf>500 and ram(0x1001) <= 2 end,
 }
 
 emu.addEventCallback(function()
   frames = frames + 1; sf = sf + 1
+  if frames > 1500 and frames % 25 == 0 then
+    log(string.format("f=%d p1 id=%02X act=%02X mode70=%02X clock=%02X%02X flag=%02X e04=%02X e3d=%02X",
+      frames, ram(0x1000), ram(0x1001), ram(0x70), ram(0x804), ram(0x803), ram(0x1F60), ram(0x1E04), ram(0x1E3D)))
+  end
   local fn = STEPS[step]
   if fn and fn() then step = step + 1; sf = 0; pulse = {} end
   if not STEPS[step] then
-    log(string.format("IN-MATCH; pad vars: 5C=%02X%02X 5E=%02X%02X 1050=%02X%02X 01FA=%02X",
-      ram(0x5D), ram(0x5C), ram(0x5F), ram(0x5E), ram(0x1051), ram(0x1050), ram(0x1FA)))
+    -- verify: P1 became Saturn IN ROM (no pokes); tiles + palette correct
+    local V = emu.memType.snesVideoRam
+    local tf = io.open(ENV.TRACE .. "saturn/supers_effecttiles.bin", "rb")
+    local match, total = 0, 0
+    if tf then
+      local d = tf:read("*a"); tf:close()
+      for i = 1, 256 do
+        total = total + 1
+        if emu.read(0x6A00 * 2 + i - 1, V) == d:byte(i) then match = match + 1 end
+      end
+    end
+    log(string.format("IN-MATCH: p1 id=%02X act=%02X pose=%02X flag1F60=%02X pal0600=%02X%02X tiles %d/%d",
+      ram(0x1000), ram(0x1001), ram(0x1005), ram(0x1F60),
+      ram(0x601), ram(0x600), match, total))
+    log(ram(0x1000) == 0x1C and "LR-SELECT PASS" or "LR-SELECT FAIL")
     log("done"); emu.stop(0)
   end
   if frames > 4500 then log("TIMEOUT"); emu.stop(1) end
