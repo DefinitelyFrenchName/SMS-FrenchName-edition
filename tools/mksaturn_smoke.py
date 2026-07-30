@@ -70,6 +70,32 @@ EF_HELPER = 0xDB00            # in-bank, inside the graft window, past block end
 # "wait for projectile" act handlers complete. TODO: full projectile port.
 PROJ_IDS = [i for i in range(0x1D, 0x30)]
 PROJ_DESPAWN = 0x0E23
+# Button-map hook: same 11-byte head shape as the recognizer dispatch, at $C1:15C4.
+# Both hooks use RETURN-ADDRESS SURGERY (stub adds N to the JSL return on the
+# stack): the 7 post-JSL bytes never execute -> the recognizer hook's 7 bytes at
+# $C1:1263 hold Saturn's BUTTON RECORD (02 00 04 08 06 00 0a) as pure data.
+SITE_BTN = 0x115C4
+BTN_HEAD = bytes.fromhex("B50029FF000AA8B99B16A8")
+BTN_RECORD_ADDR = 0x1263            # = the recognizer hook's data slot
+SATURN_BTN_RECORD = bytes.fromhex("0200040806000A")
+E8_BTNSTUB = 0x2740
+# Recognizer graft: her payload ($C1:1452-1615 Super S) goes into the $EF copy at
+# original offsets; copied table entry [0x1C] ($EF:13FF) -> $1452; the recognizer
+# stub runs the FULL copied dispatch via an $EF trampoline (balanced phb/plb) and
+# skips the real dispatch remainder entirely (surgery +0x26 to $C1:1289 plb/rts).
+RECOG_PAYLOAD_LO, RECOG_PAYLOAD_HI = 0x011452, 0x011616
+EF_TRAMP = 0xDB20
+# Box tables: appended bank $F0 = full bank-$8A copy read via WRAM-mirror $B0
+# (6x plb #$8A -> #$B0); widened ptr tables (0x30 entries) + Saturn's box data
+# grafted into the copy's upper half; 7 table-read operands repointed.
+BOX_PLB_SITES = (0xBFD2, 0xC004, 0xC36F, 0xC3A8, 0xC3E6, 0xC74F)
+BOX_READS = {  # site -> (old operand, new operand)
+    0xBFDF: (0xC1F1, 0x8100), 0xC37C: (0xC1F1, 0x8100), 0xC3B7: (0xC1F1, 0x8100),
+    0xC015: (0xC229, 0x8160), 0xC3F7: (0xC229, 0x8160),
+    0xC764: (0xC23D, 0x81C0), 0xC795: (0xC23D, 0x81C0),
+}
+F0_HIT_T, F0_HURT_T, F0_COLL_T = 0x8100, 0x8160, 0x81C0
+F0_HIT_D, F0_HURT_D, F0_COLL_D = 0x8230, 0x8330, 0x8910
 # 4th layer: OAM sprite-layout. Renderer $C0:9A0E walks the draw list with DB=$84
 # (lda #$84 @ $C0:9A29): char table $84:8000, 3B/id [ptr16, bank] -> per-pose word ->
 # [count, 6B sprite records]. Saturn's Super S blob: $87:8000-$87:BE5E (15.6 KB,
@@ -151,6 +177,11 @@ def main():
     expect(SITE_CEL_T2 - 1, b"\xB9\x02\x00", "cel-table read 2")
     expect(SITE_RECOG, RECOG_HEAD, "recognizer dispatch head")
     expect(0x10000 + EMPTY_LIST, b"\xFF" * 8, "empty-list FF run")
+    expect(SITE_BTN, BTN_HEAD, "button-handler head")
+    for site in BOX_PLB_SITES:
+        expect(site, b"\xA9\x8A\x48\xAB", f"box plb site {site:#x}")
+    for site, (old, new) in BOX_READS.items():
+        expect(site, bytes((0xB9, old & 0xFF, old >> 8)), f"box read site {site:#x}")
 
     # ---- bank $E8: scripts ----
     bankbase, bank = next_bank(data)
@@ -161,11 +192,25 @@ def main():
     e8 += sat_tbl
     assert len(e8) <= E8_STUB, "Saturn scripts overrun the stub slot"
     e8 += bytes(E8_STUB - len(e8))
-    # lda $00,X / and #$00FF / cmp #SAT_ID / beq sat / asl / tay / lda $13C7,Y
-    # / tay / rtl / sat: lda #EMPTY_LIST / tay / rtl        (M=0 at the hook site)
-    stub = bytes.fromhex("B50029FF00C91C00F0070AA8B9C713A86B") \
-        + bytes((0xA9, EMPTY_LIST & 0xFF, EMPTY_LIST >> 8, 0xA8, 0x6B))
+    # recognizer stub (M=0 at hook): id != Saturn -> skip the 7 data bytes
+    # (surgery +7) and emulate the original head; id == Saturn -> skip the whole
+    # real dispatch remainder (surgery +0x26 lands at $C1:1289 plb/rts) and run
+    # the full COPIED dispatch in $EF (her grafted specs) via the trampoline.
+    stub = (bytes.fromhex("B50029FF00C91C00F014")        # lda/and/cmp/beq sat
+            + bytes.fromhex("A3011869070083 01".replace(" ", ""))  # skip data bytes
+            + bytes.fromhex("B50029FF000AA8B9C713A86B")  # original head + rtl
+            # sat:
+            + bytes.fromhex("A3011869260083 01".replace(" ", ""))  # skip remainder
+            + bytes((0x22, EF_TRAMP & 0xFF, EF_TRAMP >> 8, 0xEF, 0x6B)))
+    assert len(stub) <= E8_BTNSTUB - E8_STUB, "recognizer stub overruns button stub"
     e8 += stub
+    e8 += bytes(E8_STUB + (E8_BTNSTUB - E8_STUB) - len(e8))
+    # button stub: skip the 7 data bytes; Saturn -> Y = her record (in the
+    # recognizer hook's data slot); others -> original head
+    btnstub = (bytes.fromhex("A3011869070083 01".replace(" ", ""))
+               + bytes.fromhex("B50029FF00C91C00F0070AA8B99B16A86B")
+               + bytes((0xA9, BTN_RECORD_ADDR & 0xFF, BTN_RECORD_ADDR >> 8, 0xA8, 0x6B)))
+    e8 += btnstub
     e8[2 * SAT_ID] = E8_SATURN_ACTTBL & 0xFF          # id -> act-table entry
     e8[2 * SAT_ID + 1] = E8_SATURN_ACTTBL >> 8
     write_bank(data, bankbase, bytes(e8))
@@ -233,7 +278,31 @@ def main():
     helper = bytes.fromhex("E230C91CF0070AAA") + \
         bytes((0x22, STUB2 & 0xFF, STUB2 >> 8, 0xC1, 0x6B, 0x20, 0xF7, 0xC6, 0x6B))
     ef[EF_HELPER:EF_HELPER + len(helper)] = helper
+    # recognizer graft: payload at original offsets; copied-table entry -> her list
+    ef[0x1452:0x1452 + (RECOG_PAYLOAD_HI - RECOG_PAYLOAD_LO)] = \
+        sup[RECOG_PAYLOAD_LO:RECOG_PAYLOAD_HI]
+    ef[0x13C7 + 2 * SAT_ID:0x13C7 + 2 * SAT_ID + 2] = bytes((0x52, 0x14))
+    # trampoline: jsr the copied dispatch AT ITS OWN PROLOGUE ($125C phb/phk/plb;
+    # phk in bank $EF sets DB=$EF) so its tail plb/rts self-balances; then rtl
+    ef[EF_TRAMP:EF_TRAMP + 4] = bytes.fromhex("205C126B")
     write_bank(data, bankbase, bytes(ef))
+
+    # ---- bank $F0: bank-$8A copy + widened box ptr tables + Saturn's boxes ----
+    bankbase, bank = next_bank(data)
+    assert bank == 0xF0, f"bank layout drift: ${bank:02X}"
+    f0 = bytearray(data[0x0A0000:0x0B0000])
+    for src, dst, n in ((0xC1F1, F0_HIT_T, 28), (0xC229, F0_HURT_T, 10), (0xC23D, F0_COLL_T, 10)):
+        f0[dst:dst + 0x60] = bytes(0x60)
+        f0[dst:dst + 2 * n] = data[0x0A0000 + src:0x0A0000 + src + 2 * n]
+    for tbl, addr in ((F0_HIT_T, F0_HIT_D), (F0_HURT_T, F0_HURT_D), (F0_COLL_T, F0_COLL_D)):
+        f0[tbl + 2 * SAT_ID:tbl + 2 * SAT_ID + 2] = bytes((addr & 0xFF, addr >> 8))
+    hitb = sup[X.BOXES["hit"][0]:X.BOXES["hit"][0] + X.BOXES["hit"][1]]
+    hurtb = sup[X.BOXES["hurt"][0]:X.BOXES["hurt"][0] + X.BOXES["hurt"][1]]
+    collb = sup[X.BOXES["coll"][0]:X.BOXES["coll"][0] + X.BOXES["coll"][1]]
+    f0[F0_HIT_D:F0_HIT_D + len(hitb)] = hitb
+    f0[F0_HURT_D:F0_HURT_D + len(hurtb)] = hurtb
+    f0[F0_COLL_D:F0_COLL_D + len(collb)] = collb
+    write_bank(data, bankbase, bytes(f0))
 
     # ---- engine patches ----
     data[SITE_INTERP_DB] = 0xE8
@@ -253,6 +322,18 @@ def main():
         bytes((0x22, EF_HELPER & 0xFF, EF_HELPER >> 8, 0xEF)) + b"\xEA" * 3
     expect(0x10000 + STUB2, b"\xFF\xFF\xFF\xFF", "stub2 slot (FF-run tail)")
     data[0x10000 + STUB2:0x10000 + STUB2 + 4] = bytes.fromhex("FCA6006B")
+    # recognizer hook data slot = Saturn's button record (skipped via surgery)
+    data[0x10000 + BTN_RECORD_ADDR:0x10000 + BTN_RECORD_ADDR + 7] = SATURN_BTN_RECORD
+    import os as _os
+    if _os.environ.get("SATURN_SKIP") != "btn":
+        data[SITE_BTN:SITE_BTN + 11] = \
+            bytes((0x22, E8_BTNSTUB & 0xFF, E8_BTNSTUB >> 8, 0xE8)) + b"\xFF" * 7
+    import os
+    if os.environ.get("SATURN_SKIP") != "box":
+        for site in BOX_PLB_SITES:
+            data[site + 1] = 0xB0
+        for site, (old, new) in BOX_READS.items():
+            data[site + 1:site + 3] = bytes((new & 0xFF, new >> 8))
     expect(0x10000 + PROJ_DESPAWN, bytes.fromhex("740060"), "despawn tail")
     for pid in PROJ_IDS:
         site = 0x100A6 + 2 * pid

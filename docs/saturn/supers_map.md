@@ -155,6 +155,28 @@ Verified: idle/walk 228/228 ALL PASS through her real proc; specials qcf-LP
 return to neutral. Request-nibble → act map measured via +0x51 pokes
 (probe_sms_saturn_attacks.lua).
 
+**Pad-input layer (same session): PLAYABLE.** Three more integrations, all
+verified by probe_sms_saturn_pad.lua (buttons → correct normals 40-4D + crouch
+58/59/64/65 + air 53; real qcf motion → special 6E/70; her hits CONNECT and she
+takes hits):
+- **Button-map hook**: 11-byte head at `$C1:15C4` → JSL $E8 stub. Both this and
+  the recognizer hook use RETURN-ADDRESS SURGERY (stub adds N to the JSL return
+  on the stack) — the recognizer hook's 7 post-JSL bytes at `$C1:1263` become a
+  DATA slot holding her button record `02 00 04 08 06 00 0a`.
+- **Recognizer graft**: her motion specs ($C1:1452-1615) grafted into the $EF
+  bank-copy at original offsets; copied-table entry $EF:13FF → her list; for id
+  0x1C the stub skips the REAL dispatch entirely (surgery +0x26 to its plb/rts —
+  avoids per-frame +0x5B state stomps) and runs the FULL copied dispatch via a
+  4-byte $EF trampoline entering at the routine's OWN prologue $125C (phk in
+  bank $EF sets DB=$EF; its tail plb/rts self-balances — entering past the
+  prologue corrupts the stack, measured).
+- **Box tables**: appended bank $F0 = full bank-$8A copy read via WRAM-mirror
+  DB $B0 (6× `plb #$8A`→`#$B0` at $BFD2/$C004/$C36F/$C3A8/$C3E6/$C74F); widened
+  0x30-entry ptr tables at $F0:8100/8160/81C0 (7 read-operand patches at
+  $BFDF/$C37C/$C3B7/$C015/$C3F7/$C764/$C795) + her box data at $F0:8230+.
+  NOTE for final integration: p7/p9 patch box data in REAL $8A — the copy must
+  be taken AFTER their edits when stacking.
+
 ## OAM sprite-layout — the 4TH animation layer [P 07-30, smoke-test session]
 
 Boxes/cels alone don't render a fighter; the OAM layout is a separate id-indexed

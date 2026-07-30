@@ -151,10 +151,15 @@ projectile id 0x20; 6A/6C, 6B/6D → id 0x22); all 15 request nibbles return to
 neutral. Projectile spawns self-clear via despawn placeholder entries
 (ids 0x1D-0x2F → $C1:0E23) — fireballs invisible until the projectile-object
 port. Her sfx silenced ($80:FBB0 CMD/sound handler has no SMS twin — stubbed).
-Next: port projectile objects 0x20/0x22 (7-table units, all source addresses
-known); box ptr tables for ids 0x1C/0x20/0x22; palettes; button-map/recognizer
-records (real inputs); then roster/char-select + REF bank reconciliation.
-Dossier: remaining specials/desperation (gated nibbles 06/07?), throws.
+**PAD-PLAYABLE (same session):** button-map hook + recognizer graft + box
+tables landed (supers_map §proc block / pad-input layer): real buttons give all
+normals (standing/crouch/air), real qcf motion gives the special, hits connect
+both ways. **Tester entry point: `tools/saturn_test.lua`** (Mesen GUI Script
+Window on the mksaturn_smoke ROM — auto-transforms P1 at round start; header has
+instructions + known gaps). Next: projectile objects 0x20/0x22 (fireballs
+visible; 7-table units, source addresses in saturn_notes), palettes, sfx
+(needs an SMS sound-API map), throws/desperation verification, then roster/
+char-select + REF bank reconciliation (note: smoke claims banks $E8-$F0).
 
 ## Open threads (unchanged backlog)
 
