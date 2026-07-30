@@ -52,7 +52,11 @@ local FALSE = { a=false,b=false,x=false,y=false,l=false,r=false,
 local DEF = (THROWER == 0) and 1 or 0            -- defender port
 local thrBase = (THROWER == 0) and 0x1000 or 0x1080
 local defBase = (THROWER == 0) and 0x1080 or 0x1000
-local fwd = (THROWER == 0) and "right" or "left" -- P1 starts left side, P2 right side
+-- side is derived from live positions at each attempt start (issue #47) — a fixed
+-- "P1 left / P2 right" assumption gives false NOTHROW on crossed-up savestates
+local function posx(b) return r(b + 0x21) + 256 * r(b + 0x22) end
+local fwd = "right"
+local function deriveSide() fwd = (posx(thrBase) <= posx(defBase)) and "right" or "left" end
 
 local function throwerBtn(t)
   local b = {}; for k,v in pairs(FALSE) do b[k]=v end
@@ -95,8 +99,7 @@ end
 
 emu.addMemoryCallback(function()
   if needLoad then
-    local f = io.open(TRACE .. STATE, "rb")
-    if not f then return end
+    local f = assert(io.open(TRACE .. STATE, "rb"), "techsweep: missing savestate " .. TRACE .. STATE)
     local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss)
     needLoad = false; t = 0; resetAttempt()
@@ -121,7 +124,7 @@ end
 emu.addEventCallback(function()
   if t < 0 then return end
   if t == 5 then emu.write(0x1021, 0xE8, WRAM) end  -- point-blank spacing
-  if t == TFRAME - 1 then hpRef = r(defBase + 0x49) end
+  if t == TFRAME - 1 then hpRef = r(defBase + 0x49); deriveSide() end
   if t >= TFRAME - 1 then
     local da = r(defBase + 0x01)
     if da == 0x1C then sawHeld = true; if not connectFrame then connectFrame = t end end

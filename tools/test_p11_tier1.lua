@@ -11,8 +11,10 @@ local function wr(a, v) emu.write(a, v, WRAM) end
 local function st(off) return ram(0x1F000 + off) end
 local function stw(off, v) wr(0x1F000 + off, v) end
 local function vword(w) return emu.read(w * 2, emu.memType.snesVideoRam) + 256 * emu.read(w * 2 + 1, emu.memType.snesVideoRam) end
-local fails = 0
+local fails, checks = 0, 0
+local EXPECTED_CHECKS = 62  -- issue #7: a check that never runs must fail the suite
 local function check(name, ok, detail)
+  checks = checks + 1
   log((ok and "PASS " or "FAIL ") .. name .. (detail and (" " .. detail) or ""))
   if not ok then fails = fails + 1 end
 end
@@ -325,7 +327,11 @@ emu.addEventCallback(function()
     phase = phase + 1
     saw = {}; pulse = {}
     if phase > #PHASES then
-      log(fails == 0 and "ALL PASS" or (fails .. " FAILURES"))
+      if checks ~= EXPECTED_CHECKS then
+        fails = fails + 1
+        log(string.format("FAIL check-count %d != expected %d (a check was skipped)", checks, EXPECTED_CHECKS))
+      end
+      log(fails == 0 and ("ALL PASS (" .. checks .. ")") or (fails .. " FAILURES"))
       emu.stop(fails == 0 and 0 or 1)
       return
     end

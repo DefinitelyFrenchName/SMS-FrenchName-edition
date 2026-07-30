@@ -32,11 +32,13 @@ def assemble(lines, org, bank):
             return 2
         if mn in ("inc","dec","stz","lda","sta","cmp","ldx","stx","ldy","sty","adc","sbc","and","ora","eor","asl","lsr","cpx","cpy","bit"):
             if op.startswith("#"):
+                if mn not in A_IMM and mn not in X_IMM:
+                    raise ValueError(f"{mn} has no immediate form: {mn} {op}")
                 if mn in A_IMM:
+                    if m is None: raise ValueError(f"immediate width unknown after plp — sep/rep before `{mn} {op}`")
                     return 2 if m else 3
-                if mn in X_IMM:
-                    return 2 if x else 3
-                return 2  # other immediates default 8-bit
+                if x is None: raise ValueError(f"immediate width unknown after plp — sep/rep before `{mn} {op}`")
+                return 2 if x else 3
             return 3  # absolute
         if mn in ("jml","jmp"):
             return 4 if mn == "jml" else 3
@@ -49,11 +51,14 @@ def assemble(lines, org, bank):
         raise ValueError(f"size: unknown {mn} {op}")
 
     def apply_flags(mn, op, m, x):
-        if mn.lower() in ("sep", "rep"):
+        ml = mn.lower()
+        if ml in ("sep", "rep"):
             bits = int(op[1:].replace("$", ""), 16)
-            val = 1 if mn.lower() == "sep" else 0
+            val = 1 if ml == "sep" else 0
             if bits & 0x20: m = val
             if bits & 0x10: x = val
+        elif ml == "plp":
+            m, x = None, None   # width unknown until the next sep/rep (issue #11)
         return m, x
 
     labels = {}
@@ -94,7 +99,7 @@ def assemble(lines, org, bank):
            "stx":(None,0x8E),"ldy":(0xA0,0xAC),"sty":(None,0x8C),"adc":(0x69,0x6D),
            "sbc":(0xE9,0xED),"and":(0x29,0x2D),"ora":(0x09,0x0D),"eor":(0x49,0x4D),"inc":(None,0xEE),
            "dec":(None,0xCE),"stz":(None,0x9C),"asl":(None,0x0E),"lsr":(None,0x4E),
-           "cpx":(0xE0,0xEC),"cpy":(0xC0,0xCC)}
+           "cpx":(0xE0,0xEC),"cpy":(0xC0,0xCC),"bit":(0x89,0x2C)}
     for ln in lines:
         s = ln.split(";")[0].strip()
         if not s or s.endswith(":"):
@@ -108,9 +113,12 @@ def assemble(lines, org, bank):
         elif mn in ("sep","rep"):
             out += bytes([0xE2 if mn == "sep" else 0xC2, int(op[1:].replace("$",""),16)]); pc += 2
         elif mn in BR:
+            if op not in labels:
+                raise ValueError(f"branch to undefined label: {mn} {op}")
             target = labels[op]
             rel = target - (pc + 2)
-            assert -128 <= rel <= 127, f"branch out of range: {op} ({rel})"
+            if not (-128 <= rel <= 127):
+                raise ValueError(f"branch out of range: {op} ({rel})")
             out += bytes([BR[mn], rel & 0xFF]); pc += 2
         elif mn in ("jml","jmp"):
             if op in labels:
@@ -131,10 +139,13 @@ def assemble(lines, org, bank):
         elif mn in OPS:
             imm_op, abs_op = OPS[mn]
             if op.startswith("#"):
-                assert imm_op is not None, f"{mn} has no immediate form"
+                if imm_op is None:
+                    raise ValueError(f"{mn} has no immediate form")
                 if mn in A_IMM: width16 = (m == 0)
                 elif mn in X_IMM: width16 = (x == 0)
                 else: width16 = False
+                if (mn in A_IMM and m is None) or (mn in X_IMM and x is None):
+                    raise ValueError(f"immediate width unknown after plp — sep/rep before `{mn} {op}`")
                 ib = imm_bytes(op, width16)
                 out.append(imm_op); out += bytes(ib); pc += 1 + len(ib)
             else:

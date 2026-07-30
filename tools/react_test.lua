@@ -90,7 +90,7 @@ end
 
 emu.addMemoryCallback(function()
   if needLoad then
-    local f = io.open(STATE, "rb"); if not f then return end
+    local f = assert(io.open(STATE, "rb"), "react_test: missing savestate " .. STATE)
     local ss = f:read("*a"); f:close(); emu.loadSavestate(ss)
     needLoad=false; t=0; hpStart=nil; hitFrame=nil; p2AtHit=nil; moveSeen=nil; p1Hurt=nil; sawBlock=false
   end

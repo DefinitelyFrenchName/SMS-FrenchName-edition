@@ -1,5 +1,6 @@
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE = ENV.TRACE
+pcall(dofile, ENV.TOOLS .. "probe_mode_cfg.lua")  -- optional STATE override (issue #49)
 local st = STATE or "uranus_vs_jupiter_v07.mss"
 local t, needLoad = -1, true
 emu.addMemoryCallback(function()

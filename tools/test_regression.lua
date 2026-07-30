@@ -36,7 +36,7 @@ local function rom(a) return emu.read(a, PRG) end
 
 -- ===== Layer 0: fingerprints =====
 local SIGS = {
-  p1 = { { 0x01874D, 0x20 }, { 0x01874E, 0xBE }, { 0x01BE22, 0xC9 }, { 0x01BE23, 0x04 } },
+  p1 = { { 0x01874D, 0x20 }, { 0x01874E, 0xBE }, { 0x01BE22, 0xC9 } },  -- gate byte handled below (#29)
   p2 = { { 0x0188ED, 0x2A }, { 0x0188EE, 0xBE }, { 0x01BE2A, 0x20 } },
   p3 = { { 0x00884B, 0xA9 }, { 0x00884C, 0x0C }, { 0x00884F, 0x65 } },
   p4 = { { 0x00FFC8, 0x20 }, { 0x00FFC9, 0x46 }, { 0x00FFCA, 0x72 } },  -- " Fr(enchName)"
@@ -74,6 +74,7 @@ local t, needLoad, stateFile = -1, false, nil
 local results, curTest, testT0 = {}, nil, 0
 local pulse = {}
 local hits = {}
+local hpSeed = {}   -- live HP at test start, per address (issue #16)
 
 emu.addMemoryCallback(function()
   if needLoad and stateFile then
@@ -146,11 +147,18 @@ local function motion(api, player, mstr, btn, pt0, neutralBtn, stepf)
     pulse[player - 1] = nil
   end
 end
-local function total()
-  local tot, byk, prev = 0, {}, 0x60
+-- Per-address damage streams (issue #16): each player's HP walk is tracked against
+-- its own previous value, seeded from live RAM at test start (testT0) rather than a
+-- hardcoded 0x60. total() sums both players by default; total(1)/total(2) isolate one.
+local function total(player)
+  local tot, byk = 0, {}
+  local prev = { [0x1049] = hpSeed[0x1049] or 0x60, [0x10C9] = hpSeed[0x10C9] or 0x60 }
+  local want = player and ((player == 1) and 0x1049 or 0x10C9) or nil
   for _, h in ipairs(hits) do
-    local d = prev - h.v; prev = h.v
-    if d > 0 then tot = tot + d; byk[h.kind] = (byk[h.kind] or 0) + d end
+    local d = (prev[h.addr] or 0x60) - h.v; prev[h.addr] = h.v
+    if d > 0 and (not want or h.addr == want) then
+      tot = tot + d; byk[h.kind] = (byk[h.kind] or 0) + d
+    end
   end
   return tot, byk
 end
@@ -1003,9 +1011,33 @@ emu.addEventCallback(function()
       for _, s in ipairs(sig) do if rom(s[1]) ~= s[2] then ok = false break end end
       has[pn] = ok
     end
+    -- issue #29: the p1 stub is shared by both gate variants (0x04 meaty / 0x05 true
+    -- combo); detect either and record which, so 1b bundles (REF v.1) read as present
+    if has.p1 then
+      local g = rom(0x01BE23)
+      has.p1 = (g == 0x04 or g == 0x05)
+      has.p1gate = has.p1 and g or nil
+    end
     local det = {}
     for i = 1, 14 do det[#det + 1] = "p" .. i .. "=" .. (has["p" .. i] and "Y" or "-") end
+    if has.p1gate then det[1] = det[1] .. string.format("(gate %02X)", has.p1gate) end
     log("detect: " .. table.concat(det, " "))
+    -- pre-flight (#4): every savestate the selected tests reference must exist,
+    -- reported all at once, before any test runs
+    local missing, seen = {}, {}
+    for _, tst in ipairs(T) do
+      local wanted = (not tst.need or tst.need()) and (not ONLY or tst.name:find(ONLY, 1, true))
+      if wanted and tst.state and not seen[tst.state] then
+        seen[tst.state] = true
+        local f = io.open(TRACE .. tst.state, "rb")
+        if f then f:close() else missing[#missing + 1] = tst.state end
+      end
+    end
+    if #missing > 0 then
+      log("MISSING FIXTURES (" .. #missing .. "): " .. table.concat(missing, ", "))
+      log("aborting — restore them from git (traces/*.mss are force-added) before running")
+      emu.stop(1); return
+    end
     local nfail = 0
     for r, exp in pairs(MATRIX_ROWS) do
       for c = 0, 15 do
@@ -1057,7 +1089,7 @@ emu.addEventCallback(function()
       local np, nf = 0, 0
       for _, r in ipairs(results) do if r.ok then np = np + 1 else nf = nf + 1; log("  FAILED: " .. r.name .. " — " .. r.msg) end end
       log(nf == 0 and ("ALL PASS (" .. np .. ")") or ("FAILURES (" .. nf .. "/" .. (np + nf) .. ")"))
-      emu.stop(0); return
+      emu.stop(nf == 0 and 0 or 1); return
     end
     stateFile = T[idx].state; needLoad = true
     phase = "settle"; settle = 0
@@ -1067,6 +1099,7 @@ emu.addEventCallback(function()
     settle = settle + 1
     if not needLoad and settle >= 3 then
       phase = "run"; testT0 = t; hits = {}; pulse = {}
+      hpSeed = { [0x1049] = ram(0x1049), [0x10C9] = ram(0x10C9) }
       curTest = T[idx]; curTest.mem = {}
     end
     return

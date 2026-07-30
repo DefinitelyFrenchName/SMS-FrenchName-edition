@@ -23,7 +23,11 @@ Ground truth (probe-verified, docs/annotations.md "patch 13 RE"):
     the final rolled value, exactly as intended.
   * VS round transition signature: both players' HP jump to max AND both acts reset to 0
     on the same frame (nothing else changes) — the per-round reset signal. Immune to
-    patch 11's single-player REGEN/REFILL heals.
+    patch 11's single-player REGEN/REFILL heals. Two edges implement it: the KO edge
+    (a player's shadowed prev-HP was 0, now at max) and, since 2026-07-30 (issue #21),
+    the TIMEOUT edge (both at max now, at least one shadowed prev-HP below max) —
+    before that fix, Guts levels survived a timed-out round (A/B-proven in-emulator,
+    tools/probe_p13_timeout.lua).
   * All 9 characters' misfire acts chain misfire-act -> 0x2A (embarrassed) -> neutral.
 
 Hooks (byte-disjoint from patches 1-12):
@@ -205,10 +209,25 @@ inited:
   jmp rsig
 rs2:
   lda_l ${PREVHP[1]:06X}
+  bne tmo
+  lda $10C9
+  cmp $10CA
+  bne tmo
+  jmp rsig
+tmo:
+  lda $1049
+  cmp $104A
   bne nr
   lda $10C9
   cmp $10CA
   bne nr
+  lda_l ${PREVHP[0]:06X}
+  cmp $104A
+  bne rsig
+  lda_l ${PREVHP[1]:06X}
+  cmp $10CA
+  bne rsig
+  bra nr
 rsig:
   lda $1001
   bne nr

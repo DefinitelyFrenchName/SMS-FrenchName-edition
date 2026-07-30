@@ -15,9 +15,9 @@
 --     infinite is locking P2; if it flashes between reps, there's a gap.
 --
 -- CHANGING THE P2 DUMMY MODE
---   Easiest / always works: edit `local MODE = 1` below to 1..6 and press Run again.
+--   Easiest / always works: edit `local MODE = 1` below to 1..7 and press Run again.
 --   Or use hotkeys (number row, while the emulator window is focused):
---     1..6  select P2 dummy behaviour (see MODES below)
+--     1..7  select P2 dummy behaviour (see MODES below)
 --     0     reset both players to neutral, mid-screen, point blank
 --     9     toggle the HUD on/off
 --   (Hotkeys are pcall-guarded — if a key name isn't recognised on your build the
@@ -145,8 +145,8 @@ local function driveP2()
     -- crude: if P1 is standing/close and P2 free, sweep; if P1 knocked down, jab as it wakes
     local a1 = r(0x1001)
     if canAct(a2) then
-      if inDown(a1) then btn = { down = true, a = true }   -- 2HK meaty on wakeup
-      else btn = { down = true, a = true } end
+      if inDown(a1) then btn = { down = true, y = true }   -- 2LP jab as P1 wakes (meaty)
+      else btn = { down = true, a = true } end             -- 2HK sweep while P1 stands
     end
   elseif MODE == 7 then                              -- Mars ground fireball, repeated
     -- REVERSAL TEST — P2 must be MARS. HCF (41236) + LK(B), ~every 24 frames.

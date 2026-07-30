@@ -96,8 +96,9 @@ tests.T2H = {
     { t = 140, fn = function(ctx)
         local m = ctx.lastMove[1]
         if not m then return false, "t140 no lastMove" end
-        return m.S == 8 and m.A == 12 and m.act == 0x55,
-               string.format("t140 2HP act=%02X S%d A%d R%d (want 55 8/12/-)", m.act, m.S, m.A, m.R) end },
+        -- R==7 is the HANDOFF oracle (2HP S8 A12 R7); asserted since issue #28
+        return m.S == 8 and m.A == 12 and m.R == 7 and m.act == 0x55,
+               string.format("t140 2HP act=%02X S%d A%d R%d (want 55 8/12/7)", m.act, m.S, m.A, m.R) end },
     { t = 155, fn = function(ctx)
         local a = ctx.lastAdv
         if not a then return false, "t155 no lastAdv (2HP)" end
@@ -552,12 +553,32 @@ ctxRef.onFirstExec = function(ctx)
   ctx.anchor.loadreq = T._state
 end
 
+-- Only PASS/FAIL lines count as checks; DBG/trace lines are written uncounted
+-- (issue #7: `ran` used to count every line, and a check that never fired was
+-- indistinguishable from a passing one).
 local function logLine(s)
-  ran = ran + 1
-  if s:sub(1, 4) == "FAIL" then fails = fails + 1 end
+  local p4 = s:sub(1, 4)
+  if p4 == "PASS" or p4 == "FAIL" then
+    ran = ran + 1
+    if p4 == "FAIL" then fails = fails + 1 end
+  end
   log:write(s .. "\n"); log:flush()
 end
 local function finish()
+  -- a scheduled check that never fired is a FAILURE, not a silent pass
+  local unfired = {}
+  for _, chk in ipairs(T.CHECKS) do
+    if not chk._fired then unfired[#unfired + 1] = tostring(chk.t) end
+  end
+  if #unfired > 0 then
+    fails = fails + 1
+    log:write(string.format("FAIL: %d scheduled check(s) never fired (t=%s) — DONE too early or frame drift\n",
+      #unfired, table.concat(unfired, ",")))
+  end
+  if T.EXPECT and ran ~= T.EXPECT then
+    fails = fails + 1
+    log:write(string.format("FAIL: check count %d != EXPECT %d\n", ran, T.EXPECT))
+  end
   log:write(string.format("%s: %d checks, %d failed\n", TEST, ran, fails))
   log:close()
   emu.stop(fails == 0 and 0 or 1)
@@ -571,7 +592,8 @@ table.insert(ctxRef.hooks.frame, function(ctx)
     end
   end
   for _, chk in ipairs(T.CHECKS) do
-    if chk.t == ctx.t then
+    if chk.t == ctx.t and not chk._fired then
+      chk._fired = true
       local ok, msg = chk.fn(ctx)
       logLine((ok and "PASS: " or "FAIL: ") .. (msg or ""))
     end
