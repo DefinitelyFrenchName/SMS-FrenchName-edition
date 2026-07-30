@@ -11,9 +11,11 @@ local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 
 local ATTEMPTS = {}
-for _, b in ipairs({ "b", "a", "y" }) do          -- 5LK, 5HK, 5LP control
-  for _, d in ipairs({ 34, 36, 38, 40, 44, 48 }) do
-    ATTEMPTS[#ATTEMPTS + 1] = { btn = b, dist = d }
+for _, c in ipairs({ false, true }) do            -- stand-block, crouch-block
+  for _, b in ipairs({ "a", "y" }) do             -- 5HK, 5LP control
+    for _, d in ipairs({ 36, 40, 44 }) do
+      ATTEMPTS[#ATTEMPTS + 1] = { btn = b, dist = d, crouch = c }
+    end
   end
 end
 local idx, t, needLoad = 1, -1, true
@@ -30,8 +32,9 @@ emu.addEventCallback(function()
   local cur = ATTEMPTS[idx]
   local p1 = PL.pad()
   if cur and t >= PRESS and t <= PRESS + 1 then p1 = PL.pad({ [cur.btn] = true }) end
-  -- P2 on the right holds AWAY (right) from t=200 — the block input
-  local p2 = (t >= 200) and PL.pad({ right = true }) or PL.pad()
+  -- P2 on the right blocks from t=200: away (stand) or down-away (crouch) per attempt
+  local hold = cur and (cur.crouch and { right = true, down = true } or { right = true }) or {}
+  local p2 = (t >= 200) and PL.pad(hold) or PL.pad()
   emu.setInput(p1, 0, 0); emu.setInput(p2, 0, 1)
 end, emu.eventType.inputPolled)
 
@@ -58,8 +61,8 @@ emu.addEventCallback(function()
                     or sawBlockstun and "BLOCKED"
                     or sawBlock and "GUARD-POSE-ONLY"
                     or "WHIFF"
-    log(string.format("%s d=%3d p1act=%02X: preblock=%s blockstun=%s hit=%s -> %s",
-      cur.btn:upper(), cur.dist, cur.p1act or 0, tostring(sawBlock), tostring(sawBlockstun), tostring(sawHit), verdict))
+    log(string.format("%s %s d=%3d p1act=%02X: preblock=%s blockstun=%s hit=%s -> %s",
+      cur.btn:upper(), cur.crouch and "CRB" or "STB", cur.dist, cur.p1act or 0, tostring(sawBlock), tostring(sawBlockstun), tostring(sawHit), verdict))
     sawBlock, sawHit, sawBlockstun = false, false, false
     idx = idx + 1
     if not ATTEMPTS[idx] then log("DONE"); emu.stop(0) end

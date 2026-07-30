@@ -96,3 +96,23 @@ enumerate the behavior deltas.
 3. Find the guard-proximity data (the far-5HK bug) — both a balance knob and a
    Rosetta probe for the on-hit/guard tables.
 4. Sprite CHR location/size census for the porting budget.
+
+## De-risk probe results (run 2026-07-30, same session)
+
+1. **Handler block**: not sized yet — byte-shingle isolation is defeated by operand
+   shifts (see supers_map §Bank $C1). BUT her dispatch integration is now mapped:
+   both per-char tables are SMS's structures widened to 11 entries, and her
+   recognizer record has the exact SMS shape (5 specials + FFFF). Sizing needs
+   Dispel along her act dispatch — mechanical, method known. Route A confidence: up.
+2. **Anim payload**: manifest's anim field was REPURPOSED in Super S (all ten point
+   at a shared `$E0:F328`); the per-char payload must be located at runtime
+   (read-watch `$7E:6A00` during her load). Route A cost: one focused probe before
+   the port budget is known. Honest unknown.
+3. **Guard-proximity**: her unblockable far 5HK confirmed vs BOTH stand and crouch
+   block (34-44px; blockable ≥48). Not a hitbox-flag anomaly — the guard-success
+   data/logic is elsewhere; locating it is the next probe and is required for
+   Route A regardless (she must ship with sane guard data).
+4. **Sprite CHR census**: deferred with the anim-payload question (same pipeline).
+
+Net: recommendation UNCHANGED (Route A), with one flagged unknown (anim/sprite
+pipeline location) that the next session resolves first.

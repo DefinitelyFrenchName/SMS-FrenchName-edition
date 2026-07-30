@@ -20,6 +20,8 @@ ROM: `SailorMoonSuperS Vol2`, HiROM+FastROM, 0x300000, file offset = SNES & 0x3F
 | Coll-box ptr table | `$8A:C23D` (10 e.) | `$AF:B05C` (11 e.) | [P 07-30] |
 | Input-read hook (exec PC) | `$80:8373` | `$80:8347` — SAME instruction bytes (c2 20 a5 5c), relocated −0x2C | [P 07-30] |
 | Object update entry | `$C1:0000` | `$C1:0000` | [L] UNVERIFIED |
+| State-proc A dispatch | code `$C1:125F`, table `$C1:13C7` (28 e.) | code `$C1:1264`, table `$C1:13CC` | [P 07-30] |
+| State-proc B dispatch | code `$C1:15C4`, table `$C1:169B` (10 e.) | code `$C1:1622`, table `$C1:16F9` (**11 e.** — widened for Saturn) | [P 07-30] |
 | Saturn (cid 10) box ptrs | — | hit `$AF:EC3A` (30 boxes) / hurt `$AF:ED2A` (93 pairs) / coll `$AF:F2FA` (6) | [P 07-30] |
 
 ## WRAM (claimed identical to SMS by [L] — verify per row before use)
@@ -67,3 +69,18 @@ data banks <13% (globally shifted, locally identical where hunted).
 
 `$E0:AC6A` (via ptr table idx 10): **first_hit_defense = 1** (only Jupiter=1,
 Neptune=2 in SMS), pal1 `$E0:B0C8`, anim payload `$E0:F328`.
+
+## Manifest semantics delta [P 07-30]
+
+Super S manifest records keep SMS's 16-byte layout for d48 + the four palette
+pointers, but the final 3-byte field is `$E0:F328` for ALL characters — NOT the
+per-char anim payload SMS stores there. Per-char animation payload location in
+Super S: UNKNOWN (runtime method: read-watch the `$7E:6A00` expansion during load).
+
+## Bank $C1 comparison note [P 07-30]
+
+16-byte shingle analysis: 25% of Super S bank $C1 exists verbatim in SMS's, 63%
+"novel" — but the novelty is dominated by shifted absolute operands (the identical
+joy_read demonstrates code equality despite byte inequality). Handler-block
+identification/sizing therefore needs disassembly along Saturn's act dispatch,
+not byte matching. Largest contiguous novel runs are ≤0x250 B (scattered).

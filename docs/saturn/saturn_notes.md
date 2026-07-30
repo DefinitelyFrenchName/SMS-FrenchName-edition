@@ -13,8 +13,16 @@ or [L] (vendor Lua). This grows into the Uranus-grade balance dossier (template 
 - Box tables (extracted, `docs/saturn/supers_all_boxes.json`): **30 hit boxes**
   (`$AF:EC3A`), **93 hurt pairs** (`$AF:ED2A`), **6 collision** (`$AF:F2FA`).
   Same 8-byte box format as SMS.
-- Manifest `$E0:AC6A`: **first_hit_defense = 1** (SMS: only Jupiter=1, Neptune=2 —
-  relevant to the first-hit damage rule), palettes `$E0:B0C8`, anim payload `$E0:F328`.
+- Manifest `$E0:AC6A`: **first_hit_defense = 1** (SMS: only Jupiter=1, Neptune=2),
+  palettes pal1 `$E0:B0C8` / pal2 `$E0:B0A8` / icon `$E0:B270` / obj `$E0:B208`.
+  NOTE: the record's last field is `$E0:F328` for ALL TEN characters — in Super S it
+  is NOT the per-char anim payload (SMS semantics changed); the real payload location
+  is an open question (find it at runtime: watch what fills `$7E:6A00` during her load).
+- Dispatch entries (both tables are SMS's structures widened to 11): recognizer record
+  `$C1:1452` = `145E 15F1 15FA 1603 160C FFFF` — **5 command recognizers, the exact
+  SMS shape** (Uranus has 5+FFFF too); state-proc-B record `$C1:174E` (7 bytes,
+  `02 00 04 08 06 00 0a`). Dispatch tables: `$C1:13CC` (SMS `$13C7`+5) and `$C1:16F9`
+  (SMS `$169B`; exactly 11 entries — the roster-widening signature).
 
 ## 2. Act map (measured so far)
 
@@ -38,11 +46,14 @@ the SMS S/A/R conventions in the full pass.)
 
 ## 3. The broken tools (measured + [W])
 
-**Far 5HK is empirically unblockable in its effective range.** With P2 HOLDING away
-and visibly in pre-block pose (act 0x0C/0x0D): HIT at spacing 34/36/38/40/44 px;
-first BLOCKED at 48 px. Control: her 5LP at the same spacings is blocked normally
-(P2 reaches blockstun 0x0E/0x0F) — so this is a per-move guard-proximity data bug,
-not a rig artifact. [W] attributes it to mismatched guard-distance data ("poor
+**Far 5HK is empirically unblockable — against BOTH guards.** With P2 holding
+away (stand block) OR down-away (crouch block), visibly in pre-block pose: HIT at
+34-44 px; first blocked at 48 px. Control: 5LP at identical spacings blocks both
+ways. So it is not a high/low issue and not a hitbox-flag anomaly (her kick boxes
+carry the cast-normal flags vocabulary {02,03,05}; the only flags outlier in the
+whole game is Mercury hit[3]=0x3B, unrelated). The defect lives in whatever decides
+guard SUCCESS per move (guard-range/level data) — locating that table is
+next-session probe #3 and balance knob #1. [W] attributes it to mismatched guard-distance data ("poor
 coding") and also lists **far 5LK** as fully unblockable and close 5HK as guardable
 only at 25-37 (stand) / 25-32 (crouch); our 5LK test needs spacings <34 px (its
 reach) — REMAINING MEASUREMENT.
