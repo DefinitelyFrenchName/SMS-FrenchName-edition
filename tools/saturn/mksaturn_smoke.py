@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.6.0"
+SATURN_VERSION = "0.7.0"
 
 SAT_ID = 0x1C
 
@@ -91,6 +91,26 @@ E8_BTNSTUB = 0x2840
 # skips the real dispatch remainder entirely (surgery +0x26 to $C1:1289 plb/rts).
 RECOG_PAYLOAD_LO, RECOG_PAYLOAD_HI = 0x011452, 0x011616
 EF_TRAMP = 0xDB20
+# Sound: SMS sfx API = one-shot WRAM slots forwarded to the APU by NMI ($C0:D4F2):
+# DP $78 = effect channel (whoosh 0x05 light / 0x06 heavy), $1078/$10F8 = per-
+# player voice. Super S instead calls a command handler ($80:FBB0->FBB4, no SMS
+# twin); her blocks' JSLs (mapped to a bare RTL by the port) are re-pointed to a
+# translator at $EF:DB50 that plays an SMS sfx for known command ids and stays
+# silent otherwise. Normals' whooshes were script CMD steps (stripped) — their
+# restoration needs an interpreter CMD back-port: TODO, see BUILDS.md gaps.
+SND_MAP = {0x0E: 0x06, 0x20: 0x06}   # her special-move command ids -> SMS heavy whoosh
+EF_SND = 0xDB50
+# Interpreter CMD back-port: the SMS interpreter lacks Super S's 0xC0 command
+# step. AUDIT (2026-07-30): all 757 SMS scripts contain NO byte >=0xC0 in a
+# duration/ctrl position -> adding the case is behavior-neutral for SMS content.
+# Hook: 8 bytes at $80:A0AA (the ctrl decode) -> JSL $E8:2900 stub which decodes
+# plain/hold/loop via return-address surgery and handles CMD inline (script CMD
+# args translated to SMS sfx: 0x15->0x05 light whoosh, 0x14->0x06 heavy; her
+# scripts are now kept CMD-INTACT for exact Super S timing).
+SITE_INTERP_CMD = 0x0A0AA
+INTERP_CMD_OLD = bytes.fromhex("29C0F00F2980D005")
+E8_CMDSTUB = 0x2900
+CMD_SND_MAP = {0x15: 0x05, 0x14: 0x06, 0x0E: 0x06, 0x20: 0x06}
 # Box tables: appended bank $F0 = full bank-$8A copy read via WRAM-mirror $B0
 # (6x plb #$8A -> #$B0); widened ptr tables (0x30 entries) + Saturn's box data
 # grafted into the copy's upper half; 7 table-read operands repointed.
@@ -146,7 +166,8 @@ def build_saturn_scripts(sup, new_base):
             blob = bytearray()
             for kind, a, b in steps:
                 if kind == "cmd":
-                    continue                 # SMS interpreter has no CMD case
+                    blob += bytes((a, b))    # kept: CMD case is back-ported
+                    continue
                 if kind == "step":
                     blob += bytes((a - 1, b))
                 elif kind == "loop":
@@ -228,6 +249,33 @@ def main():
                + bytes.fromhex("B50029FF00C91C00F0070AA8B99B16A86B")
                + bytes((0xA9, BTN_RECORD_ADDR & 0xFF, BTN_RECORD_ADDR >> 8, 0xA8, 0x6B)))
     e8 += btnstub
+    e8 += bytes(E8_CMDSTUB - len(e8))
+    # cmd stub: A=raw ctrl byte, Y=arg cursor, DB=$E8, M=1; stack: [A][PCL PCH][PB]
+    def _setret(target):                 # rep/lda #target-1/sta $02,S/sep/pla/rtl
+        t = target - 1
+        return bytes((0xC2, 0x20, 0xA9, t & 0xFF, t >> 8, 0x83, 0x02,
+                      0xE2, 0x20, 0x68, 0x6B))
+    cmd_tail = bytearray()
+    for cid, sfx in CMD_SND_MAP.items():
+        cmd_tail += bytes((0xC9, cid, 0xD0, 0x04, 0xA9, sfx, 0x85, 0x78))
+    cmd_tail += _setret(0xA076)          # reprocess next step
+    stub = bytearray()
+    stub += bytes((0x48,))                               # pha
+    stub += bytes((0x29, 0xC0, 0xC9, 0xC0, 0xF0, 0x00))  # and/cmp #$C0/beq cmd
+    fx_cmd = len(stub) - 1
+    stub += bytes((0xC9, 0x80, 0xF0, 0x00))              # cmp #$80/beq hold
+    fx_hold = len(stub) - 1
+    stub += bytes((0xC9, 0x40, 0xF0, 0x00))              # cmp #$40/beq loop
+    fx_loop = len(stub) - 1
+    stub += _setret(0xA0BD)                              # plain
+    stub[fx_hold] = len(stub) - (fx_hold + 1)
+    stub += _setret(0xA0B7)                              # hold
+    stub[fx_loop] = len(stub) - (fx_loop + 1)
+    stub += _setret(0xA0B2)                              # loop
+    stub[fx_cmd] = len(stub) - (fx_cmd + 1)
+    stub += bytes((0xB1, 0x10))                          # cmd: lda ($10),Y = arg
+    stub += cmd_tail
+    e8 += bytes(stub)
     e8[2 * SAT_ID] = E8_SATURN_ACTTBL & 0xFF          # id -> act-table entry
     e8[2 * SAT_ID + 1] = E8_SATURN_ACTTBL >> 8
     assert len(e8) > PROJ_SCRIPTS_HI
@@ -328,6 +376,30 @@ def main():
     # / jsr $29A6 / rtl / p20: jsr $280B / rtl / p21: jsr $28D3 / rtl
     tramp3 = bytes.fromhex("C210A688B500C920F008C921F00820A6296B200B286B20D3286B")
     ef[0xDB30:0xDB30 + len(tramp3)] = tramp3
+    # sound translator: sep #$20 / pha / (cmp #id / beq)* / pla / rtl;
+    # per-id tails: lda #sfx / sta $78 / pla?? -> keep A-restoring tails
+    snd = bytearray(bytes.fromhex("E22048"))
+    tails = bytearray()
+    fixups = []
+    for cid, sfx in SND_MAP.items():
+        snd += bytes((0xC9, cid, 0xF0, 0x00))       # beq -> patched below
+        fixups.append((len(snd) - 1, len(tails)))
+        tails += bytes((0xA9, sfx, 0x85, 0x78, 0x68, 0x6B))
+    snd += bytes((0x68, 0x6B))                      # default: pla / rtl
+    base_tails = len(snd)
+    for off, tpos in fixups:
+        snd[off] = base_tails + tpos - (off + 1)    # rel8 from after the beq operand
+    snd += tails
+    ef[EF_SND:EF_SND + len(snd)] = snd
+    # re-point all silenced sound JSLs (JSL $80:9FB7 stub) to the translator
+    old, new = bytes((0x22, 0xB7, 0x9F, 0x80)), bytes((0x22, EF_SND & 0xFF, EF_SND >> 8, 0xEF))
+    cnt = 0
+    i = ef.find(old)
+    while i != -1:
+        ef[i:i + 4] = new
+        cnt += 1
+        i = ef.find(old, i + 1)
+    assert cnt >= 6, f"expected 6+ reached sound JSL sites, found {cnt}"
     write_bank(data, bankbase, bytes(ef))
 
     # ---- bank $F0: bank-$8A copy + widened box ptr tables + Saturn's boxes ----
@@ -354,6 +426,9 @@ def main():
 
     # ---- engine patches ----
     data[SITE_INTERP_DB] = 0xE8
+    expect(SITE_INTERP_CMD, INTERP_CMD_OLD, "interpreter ctrl decode")
+    data[SITE_INTERP_CMD:SITE_INTERP_CMD + 8] = \
+        bytes((0x22, E8_CMDSTUB & 0xFF, E8_CMDSTUB >> 8, 0xE8)) + b"\xEA" * 4
     # bank byte $AE (not $EE): the emitter WRITES the OAM shadow via DB-absolute
     # $0200,X — only $80-$BF banks mirror WRAM in the low half; $AE:8000+ mirrors
     # the same ROM bytes as $EE:8000+ (file 0x2E8000).
@@ -402,7 +477,7 @@ def main():
     fix_checksum(data)
     open(out_path, "wb").write(data)
     print(f"wrote {out_path}: saturn-smoke v{SATURN_VERSION}, {len(data):#x} bytes, "
-          f"Saturn object id {SAT_ID:#04x}, {nscripts} scripts (CMD-stripped)")
+          f"Saturn object id {SAT_ID:#04x}, {nscripts} scripts (CMD-intact)")
     print("sha1", hashlib.sha1(bytes(data)).hexdigest())
 
 

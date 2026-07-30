@@ -90,7 +90,10 @@ normal). REMAINING: close 5HK's odd guard band (guardable only 25-37 stand /25-3
 crouch [W]) — check its startup pose class + timing; likely the same authoring slop
 in milder form.
 
-Other [W] flags to verify: "weird throws"; S-tier above Uranus (Zam 2020 tier list);
+**Throws VERIFIED in the SMS port (v0.7.0)**: close 6HP → her throw acts
+**0x68/0x69** (P2 held 0x1C → damaged into hitstun; the acts-68/69 sound site id
+0x20 = the throw sfx). She takes throws normally (victim acts 1C/1D/1E).
+Other [W] flags to verify: "weird throws" semantics vs SMS conventions; S-tier above Uranus (Zam 2020 tier list);
 no documented Saturn infinite (the Uranus infinite carries over from SMS unchanged).
 
 ## 3b. Attack classes / damage (measured)
