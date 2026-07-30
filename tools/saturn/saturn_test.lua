@@ -24,6 +24,17 @@ local function w(a, v) emu.write(a, v, WRAM) end
 
 local wasSaturn = false
 local tilesDone = false
+local buildVer = nil
+local function readVersion()
+  local PRG = emu.memType.snesPrgRom
+  local out = {}
+  for i = 0, 23 do
+    local b = emu.read(0x2EC040 + i, PRG)
+    if b == 0 then break end
+    out[#out + 1] = string.char(b)
+  end
+  return #out > 0 and table.concat(out) or "UNVERSIONED BUILD"
+end
 local function uploadPalette()
   local PRG = emu.memType.snesPrgRom
   for i = 0, 31 do
@@ -53,8 +64,9 @@ emu.addEventCallback(function()
     end
   end
   if wasSaturn then
-    emu.drawString(8, 12, tilesDone and "P1 = SAILOR SATURN (smoke build)"
-      or "P1 = SATURN (no effect tiles - see script header)", 0xFFFFFF, 0x000000)
+    buildVer = buildVer or readVersion()
+    emu.drawString(8, 12, "P1 = SAILOR SATURN [" .. buildVer .. "]"
+      .. (tilesDone and "" or " (no effect tiles - see header)"), 0xFFFFFF, 0x000000)
   end
 end, emu.eventType.endFrame)
 print("saturn_test loaded — start a match; P1 becomes Saturn at round start")

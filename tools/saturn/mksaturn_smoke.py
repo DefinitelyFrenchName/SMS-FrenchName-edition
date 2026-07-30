@@ -40,6 +40,12 @@ from smspaths import clean_rom, supers_rom, require_source, SUPERS_SHA1, \
 import hashlib  # noqa: E402
 import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser)
 
+# Build version (semver). Bump MINOR per feature batch, PATCH per fix; registry
+# with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
+# embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
+# tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
+SATURN_VERSION = "0.6.0"
+
 SAT_ID = 0x1C
 
 # ---- SMS patch sites (all byte-asserted before writing) ----
@@ -160,9 +166,10 @@ def build_saturn_scripts(sup, new_base):
 
 
 def main():
-    if len(sys.argv) != 2:
+    if len(sys.argv) > 2:
         raise SystemExit(__doc__.strip().splitlines()[-1])
-    out_path = sys.argv[1]
+    out_path = sys.argv[1] if len(sys.argv) == 2 else \
+        str(REPO / "build" / "saturn" / f"SailorMoonS_saturn_v{SATURN_VERSION}.sfc")
 
     sms_path = clean_rom()
     require_source(sms_path)                 # smoke always builds from clean
@@ -285,6 +292,8 @@ def main():
     # (written into the CGRAM shadow row $0600 = OBJ palette 0 = P1's fighter pal)
     ee[0xC000:0xC020] = sup[0x20B0C8:0x20B0C8 + 32]
     ee[0xC020:0xC040] = sup[0x20B0A8:0x20B0A8 + 32]
+    ver = ("SATURN v" + SATURN_VERSION).encode()
+    ee[0xC040:0xC040 + len(ver) + 1] = ver + b"\x00"
     write_bank(data, bankbase, bytes(ee))
 
     # ---- bank $EF: full SMS-$C1 copy + Saturn's ported proc block ----
@@ -392,8 +401,8 @@ def main():
 
     fix_checksum(data)
     open(out_path, "wb").write(data)
-    print(f"wrote {out_path}: {len(data):#x} bytes, Saturn object id {SAT_ID:#04x}, "
-          f"{nscripts} scripts (CMD-stripped)")
+    print(f"wrote {out_path}: saturn-smoke v{SATURN_VERSION}, {len(data):#x} bytes, "
+          f"Saturn object id {SAT_ID:#04x}, {nscripts} scripts (CMD-stripped)")
     print("sha1", hashlib.sha1(bytes(data)).hexdigest())
 
 

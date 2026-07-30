@@ -154,7 +154,7 @@ port. Her sfx silenced ($80:FBB0 CMD/sound handler has no SMS twin — stubbed).
 **PAD-PLAYABLE (same session):** button-map hook + recognizer graft + box
 tables landed (supers_map §proc block / pad-input layer): real buttons give all
 normals (standing/crouch/air), real qcf motion gives the special, hits connect
-both ways. **Tester entry point: `tools/saturn/saturn_test.lua`** (Mesen GUI Script
+both ways. **Build registry + tester instructions: `docs/saturn/BUILDS.md`** (versioned ROMs, on-screen version tell). Tester: `tools/saturn/saturn_test.lua` (Mesen GUI Script
 Window on the mksaturn_smoke ROM — auto-transforms P1 at round start; header has
 instructions + known gaps). **PROJECTILES PORTED (same session):** fireballs are VISIBLE, travel, hit,
 and despawn (supers_map §Projectile objects; effect tiles are compressed in

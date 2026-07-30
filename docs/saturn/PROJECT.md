@@ -4,7 +4,7 @@
 > same role CLAUDE.md played for the original infinite patch. Companion docs in this
 > directory: `feasibility.md` (route decision, evidence), `supers_map.md` (the Super S
 > ROM/RAM map — verified facts only), `saturn_notes.md` (Saturn's kit, act IDs, frame
-> data, balance hooks). Session state: repo `HANDOFF.md` / `docs/NEXT_SESSION.md`.
+> data, balance hooks). Session state: repo `HANDOFF.md` / `docs/NEXT_SESSION.md`; test-ROM registry `BUILDS.md`.
 
 ## Objective
 

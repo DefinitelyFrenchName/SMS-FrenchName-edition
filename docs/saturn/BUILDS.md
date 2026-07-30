@@ -1,0 +1,42 @@
+# BUILDS.md — Saturn test-ROM registry (saturn-smoke series)
+
+Builder: `python3 tools/saturn/mksaturn_smoke.py` → writes
+`build/saturn/SailorMoonS_saturn_v<VERSION>.sfc` (version = `SATURN_VERSION` in
+the builder; bump MINOR per feature batch, PATCH per fix). **The version is
+embedded in the ROM ($EE:C040) and shown on-screen by `tools/saturn/
+saturn_test.lua`** — quote it (or the SHA-1) in any regression report.
+All builds read the clean SMS + Super S ROMs; same inputs ⇒ byte-identical ROM.
+
+Versions before 0.6.0 are retroactive labels for the historical lineage
+(rebuild any of them by checking out the commit; SHAs recorded at build time).
+
+| Ver | ROM SHA-1 | Commit | Contents / changes |
+|---|---|---|---|
+| 0.1.0 | `f9e01364…` | `9c1f86f` | First smoke: Saturn as object id 0x1C; 3 animation layers (scripts CMD-stripped, pose records guard-FIXED, cels); idle/walk animate 228/228 — but INVISIBLE (no OAM layer) and universal acts via a borrowed Uranus proc. |
+| 0.2.0 | `4cdec502…` | `9c1f86f` | She RENDERS: 4th layer (OAM sprite layout, $84:8000 system) found + ported; $AE WRAM-mirror fix for the emitter writes. Screenshots: idle/walk. |
+| 0.3.0 | `8d1f7dc3…` | `0b4656b`/`8cded65` | PAD-PLAYABLE: her real ~4.4 KB proc block ported (recursive-descent + 384 operand fixups, bank $EF graft); button-map hook; recognizer graft (real qcf motion); box tables (bank $F0 via $B0 mirror) — hits connect both ways. All normals (stand/crouch/air) + 4 special variants. Projectiles self-despawn (invisible); Uranus palette; silent. **= the first build handed to the maintainer.** |
+| 0.4.0 | `5cd44404…` | `8cf4adc` | PROJECTILES: objects 0x20/0x21/0x22 fully ported (procs $280B-$2B60 into $EF, scripts/poses/OAM/hit-boxes); fireball travels, hits at range, despawns; wave special both strengths. Effect tiles via runtime VRAM upload (probe_supers_effecttiles.lua dump). |
+| 0.5.0 | `4cb02c5f…` | `43dc342` | REAL PALETTE: pal1/pal2 embedded at $EE:C000/C020; tester injects CGRAM shadow $0600 (OBJ pal 0) at transform. |
+| **0.6.0** | `601920bc…` | (this) | VERSIONED BUILDS: version string embedded at $EE:C040, shown on-screen by saturn_test.lua; builder writes versioned filename by default. No gameplay changes vs 0.5.0. |
+
+## Known gaps (as of 0.6.0)
+
+- Her moves are SILENT (Super S CMD/sound handler `$80:FBB4` has no SMS twin —
+  JSLs stubbed to RTL; needs an SMS sound-API map).
+- Throws and desperation unverified; win-pose/dizzy/etc. cosmetics may glitch.
+- Fireball art needs the one-time effect-tile dump (see saturn_test.lua header);
+  without it the fireball renders with Uranus's effect tiles.
+- She exists only via the tester's P1 transform (no char-select entry); P2 can't
+  be Saturn. Bank layout claims $E8-$F0 — REF-patch reconciliation pending.
+
+## How to test
+
+```bash
+git pull
+python3 tools/saturn/mksaturn_smoke.py          # -> build/saturn/SailorMoonS_saturn_v<ver>.sfc
+# one-time, for correct fireball art (needs the Super S ROM):
+ROM=<SuperS.sfc> tools/run.sh tools/saturn/probe_supers_effecttiles.lua 60
+```
+Open the ROM in Mesen, start a match (any P1), load
+`tools/saturn/saturn_test.lua` in the Script Window. The on-screen label shows
+the build version.
