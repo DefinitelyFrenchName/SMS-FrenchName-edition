@@ -34,6 +34,19 @@ or [L] (vendor Lua). This grows into the Uranus-grade balance dossier (template 
 | 0x48 → 0x49 | 5LK | reach < 34px (never connected at 34+); active 5..11 far |
 | 0x4C → 0x4D | far 5HK | **the broken one** — see §3; active 9..19, neutral @33 |
 | 0x4E → 0x4F | close 5HK | comes out at ≤32px |
+| 0x74 → 0x76 | **j.632K air special** | spawns projectile id **0x21**; wait-act 0x76 until it clears (was the 0.11.0 crash — see BUILDS 0.11.1) |
+
+- **No forward step-dash**: 66 walks, in Super S too (measured 2026-07-31) —
+  the engine's double-tap dash is per-char proc behavior and her proc has none.
+  Backdash (universal act 0x26) works.
+- **Movement sounds are script-CMD driven** (unlike SMS chars, whose engine
+  plays them): CMD args 0x02=jump, 0x06=backdash, 0x08=landing, 0x22=(unused
+  fwd-dash-ish act 0x24); mapped in CMD_SND_MAP to SMS natives (0x0C/0x2D/0x0D,
+  measured via probe_sms_dashsfx_sat.lua). Hit-reaction args (0x05/0x11/0x12/
+  0x16) + starter args (0x23/0x24/0x25) deliberately unmapped (engine paths
+  already cover those sounds).
+- **Projectiles use OAM palette 2** in both games (attrs x34/x74/xB4/xF4,
+  measured mid-flight); Super S's effects palette lives at $E0:B208 (blue).
 
 ("active" = frames with nonzero hitbox index +0x40 after press; refine vs hitstop and
 the SMS S/A/R conventions in the full pass.)

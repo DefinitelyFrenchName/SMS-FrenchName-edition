@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.11.0"
+SATURN_VERSION = "0.11.1"
 
 # Build variant (maintainer request 2026-07-31, "hidden like Gouki in SF2"):
 #   default        -> VISIBLE slot 10 on the select screen (0.10.0 behavior)
@@ -129,7 +129,13 @@ EF_SND = 0xDB50
 SITE_INTERP_CMD = 0x0A0AA
 INTERP_CMD_OLD = bytes.fromhex("29C0F00F2980D005")
 E8_CMDSTUB = 0x2900
-CMD_SND_MAP = {0x15: 0x05, 0x14: 0x06, 0x0E: 0x06, 0x20: 0x06}
+# v0.11.1 (field report: backdash silent): her movement sounds are script-CMD
+# driven too — natively measured SMS values (probe_sms_dashsfx): dash/backdash
+# whoosh 0x2D, jump 0x0C, landing 0x0D. Hit-reaction args (0x05/0x11/0x12/0x16)
+# and special-starter args (0x23/0x24/0x25) stay unmapped — those sounds come
+# from the engine's hit-resolution/starter paths and would double.
+CMD_SND_MAP = {0x15: 0x05, 0x14: 0x06, 0x0E: 0x06, 0x20: 0x06,
+               0x02: 0x0C, 0x06: 0x2D, 0x22: 0x2D, 0x08: 0x0D}
 # v0.8.0 — IN-ROM SATURN SELECT (P1): hold L+R while a round loads -> flag
 # $7E:1F60 set; the effects-DMA helper hook ($C0:92A4, generic VRAM-DMA kick,
 # filtered on $30==0x6A00/$36==$7F) also overrides the $7F:0000 staging with her
@@ -196,6 +202,11 @@ CHARSEL_SHELL = 0x06          # shell charID stored on confirm (Uranus)
 EE_DRAW1 = 0xC1A0             # draw-blk1 reimpl (+marker call)
 EE_CONFIRM = 0xC220           # confirm stub: slot-10 translation + flags
 EE_MARKER = 0xC2A0            # shared marker-sprite enqueuer (jsr'd by the draws)
+EE_PALCOPY = 0xC300           # transform palette copier (JSL'd by the $EF helper:
+                              # fighter row -> $0600+hint($0E), effects row ->
+                              # $0640; moved out of the helper in v0.11.1 — the
+                              # helper's slot is only $EF:DB70-DC00 and the
+                              # in-line loops overflowed it into the live C1 copy)
 EMIT_GADGET = 0xA782          # jsr $9B17 / rtl — carved from dead draw-blk1 body
 # Box tables: appended bank $F0 = full bank-$8A copy read via WRAM-mirror $B0
 # (6x plb #$8A -> #$B0); widened ptr tables (0x30 entries) + Saturn's box data
@@ -348,9 +359,18 @@ def main():
         t = target - 1
         return bytes((0xC2, 0x20, 0xA9, t & 0xFF, t >> 8, 0x83, 0x02,
                       0xE2, 0x20, 0x68, 0x6B))
+    # each entry: cmp #cid / bne +4 / lda #sfx / bra store — a match jumps
+    # PAST the remaining compares (v0.11.1: the old fallthrough left A=sfx in
+    # the later compares; harmless for the original 4-entry map, but the
+    # movement sfx values collide with cids in the 8-entry map)
     cmd_tail = bytearray()
+    fx_store = []
     for cid, sfx in CMD_SND_MAP.items():
-        cmd_tail += bytes((0xC9, cid, 0xD0, 0x04, 0xA9, sfx, 0x85, 0x78))
+        cmd_tail += bytes((0xC9, cid, 0xD0, 0x04, 0xA9, sfx, 0x80, 0x00))
+        fx_store.append(len(cmd_tail) - 1)
+    for pos in fx_store:
+        cmd_tail[pos] = len(cmd_tail) - (pos + 1)
+    cmd_tail += bytes((0x85, 0x78))      # store: sta $78
     cmd_tail += _setret(0xA076)          # reprocess next step
     stub = bytearray()
     stub += bytes((0x48,))                               # pha
@@ -502,6 +522,14 @@ def main():
     # (written into the CGRAM shadow row $0600 = OBJ palette 0 = P1's fighter pal)
     ee[0xC000:0xC020] = sup[0x20B0C8:0x20B0C8 + 32]
     ee[0xC020:0xC040] = sup[0x20B0A8:0x20B0A8 + 32]
+    # v0.11.1 (field report: red fireballs): both games draw projectiles with
+    # OAM PALETTE 2 (attrs x34/x74/xB4/xF4, measured mid-flight in both) —
+    # Super S loads a blue EFFECTS palette there ($E0:B208), SMS's row 2 holds
+    # the shell game's effect colors (fire-orange ramp) -> red fireballs. The
+    # helper injects this row into shadow $0640 at transform. Tradeoff: OBJ
+    # pal 2 is shared, so a non-Saturn opponent's own projectile art recolors
+    # slightly while a Saturn is in play.
+    ee[0xC060:0xC080] = sup[0x20B208:0x20B208 + 32]
     ver = ("SATURN v" + VARIANT_STR).encode()
     ee[0xC040:0xC040 + len(ver) + 1] = ver + b"\x00"
     # -- char-select 10th-slot stubs (consumed by the v0.10.0 hooks below) --
@@ -611,6 +639,20 @@ def main():
     assert len(c) <= 0x100, f"confirm stub too big: {len(c)}"
     ee[EE_CONFIRM:EE_CONFIRM + len(c)] = c
 
+    # transform palette copier (see EE_PALCOPY): fighter row + effects row
+    pc_ = bytearray()
+    pc_ += bytes((0x64, 0x0D, 0xA5, 0x0E, 0x18, 0x69, 0x00, 0x85, 0x0C,
+                  0xA9, 0x06, 0x85, 0x0D))       # $0C/0D = $06:row
+    pc_ += bytes((0xDA, 0xA0, 0x1F, 0x00))       # phx / ldy #$001F
+    pc_ += bytes((0xBB, 0xBF, 0x00, 0xC0, 0xEE, 0x91, 0x0C,
+                  0x88, 0x10, (0x100 - 10) & 0xFF))   # fighter row loop
+    pc_ += bytes((0xA9, 0x40, 0x85, 0x0C))       # -> $0640 (OBJ pal 2)
+    pc_ += bytes((0xA0, 0x1F, 0x00))
+    pc_ += bytes((0xBB, 0xBF, 0x60, 0xC0, 0xEE, 0x91, 0x0C,
+                  0x88, 0x10, (0x100 - 10) & 0xFF))   # effects row loop
+    pc_ += bytes((0xFA, 0x6B))                   # plx / rtl
+    ee[EE_PALCOPY:EE_PALCOPY + len(pc_)] = pc_
+
     tiles = REPO / "traces" / "saturn" / "supers_effecttiles.bin"
     if tiles.is_file():
         tb = tiles.read_bytes()[:0xC00]
@@ -658,17 +700,8 @@ def main():
     h += bytes((0xA9, 0x1C, 0x95, 0x00))
     for o in (0x01, 0x02, 0x04, 0x05, 0x06, 0x07):
         h += bytes((0x74, o))
-    # palette copy to $0600+row ($0E): sta $0600,X won't do variable dest ->
-    # use $0E as the low byte via (dp),Y addressing: $0C/0D = 0x0600+row ptr
-    h += bytes((0x64, 0x0D, 0xA5, 0x0E, 0x18, 0x69, 0x00, 0x85, 0x0C,
-                0xA9, 0x06, 0x85, 0x0D))         # $0C/0D = $06:row (16-bit ptr build, 8-bit ops)
-    h += bytes((0xDA, 0xC2, 0x10, 0xA0, 0x1F, 0x00))  # phx / rep #$10 / ldy #$001F
-    _lbl("plp2")
-    h += bytes((0xBB,))                          # tyx
-    h += bytes((0xBF, 0x00, 0xC0, 0xEE))         # lda $EEC000,X
-    h += bytes((0x91, 0x0C))                     # sta ($0C),Y
-    h += bytes((0x88, 0x10, (0x100 - 10) & 0xFF)) # dey / bpl plp2 (-10)
-    h += bytes((0xFA,))                          # plx
+    # palette copy moved to $EE (EE_PALCOPY) — the helper slot is 0x90 bytes
+    h += bytes((0x22, EE_PALCOPY & 0xFF, EE_PALCOPY >> 8, 0xEE))
     h += bytes((0x68, 0xA9, 0x1C, 0xE2, 0x10)); _br(0x80, "sat")
     _lbl("pop8")
     h += bytes((0xE2, 0x10))
@@ -681,7 +714,7 @@ def main():
     h += bytes((0x20, 0xF7, 0xC6, 0x6B))
     for pos, name in fixups:
         h[pos] = (labels[name] - (pos + 1)) & 0xFF
-    assert len(h) <= 0x100, f"helper too big: {len(h)}"
+    assert len(h) <= 0x90, f"helper overflows its DB70-DC00 slot: {len(h)}"
     ef[EF_HELPER:EF_HELPER + len(h)] = h
     # recognizer graft: payload at original offsets; copied-table entry -> her list
     ef[0x1452:0x1452 + (RECOG_PAYLOAD_HI - RECOG_PAYLOAD_LO)] = \

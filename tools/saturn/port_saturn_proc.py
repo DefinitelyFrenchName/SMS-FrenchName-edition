@@ -62,6 +62,7 @@ ABS_CODE = {0x20: "jsr", 0x4C: "jmp", 0x7C: "jmpX", 0xFC: "jsrX", 0x6C: "jmpI"}
 # 2026-07-30. Regional deltas: -2 (< $0700), -25 ($0960-$0A9D), -5 ($0AAE-$1141).
 EXT_MAP = {
     0x0138: 0x0136, 0x0155: 0x0153, 0x0200: 0x01FE, 0x0206: 0x0204, 0x0226: 0x0224,
+    0x024D: 0x024B, 0x0231: 0x022F,
     0x02E1: 0x02DF, 0x02F5: 0x02F3, 0x0309: 0x0307, 0x0313: 0x0311, 0x0321: 0x031F,
     0x0338: 0x0336, 0x034A: 0x0348, 0x035E: 0x035C, 0x0370: 0x036E, 0x038B: 0x0389,
     0x03A6: 0x03A4, 0x03B4: 0x03B2, 0x03DE: 0x03DC, 0x03ED: 0x03EB, 0x0418: 0x0416,
@@ -188,8 +189,14 @@ def disassemble(sup, block_lo=BLOCK_LO, block_hi=BLOCK_HI, entries=None):
                     break
             elif op in (0x60, 0x6B, 0x40):
                 break
-            elif op in (0x5C, 0x6C, 0x7C, 0xFC, 0xDC):
+            elif op in (0x5C, 0x6C, 0x7C, 0xDC):
                 break
+            # 0xFC jsr (abs,X): the dispatched handler RETURNS (via the common
+            # tails' rts), so the continuation at +3 is live code — falling
+            # through. (v0.11.1 fix: treating it as a stop left the id-0x21
+            # projectile's post-dispatch `jmp $024D` unreached and UNFIXED ->
+            # entered the SMS twin 2 bytes late, skipping its rep #$30 -> the
+            # 16-bit cmp misdecoded as cmp+BRK -> the j.632K black-screen.)
             addr += ln
     return code
 
