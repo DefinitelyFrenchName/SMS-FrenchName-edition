@@ -3,7 +3,7 @@
 -- HOW TO USE (Mesen GUI):
 --   1. Build the ROM:  python3 tools/saturn/mksaturn_smoke.py build/saturn/SailorMoonS_saturn_smoke.sfc
 --   2. Open it in Mesen, start a match (2P VS or vs COM; pick ANY character as P1).
---   3. HIDDEN build (v0.11.0 ..._-hidden.sfc): no visible slot — hold L+R
+--   3. HIDDEN build (the DEFAULT since the 2026-07-31 consensus): hold L+R
 --      while CONFIRMING any character at the select screen; that character
 --      becomes Saturn at round load (P1/P2/practice dummy; confirming without
 --      the code un-picks). VISIBLE build: since v0.10.0 Saturn is ON THE

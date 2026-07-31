@@ -46,9 +46,10 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
 SATURN_VERSION = "0.11.5"
 
-# Build variant (maintainer request 2026-07-31, "hidden like Gouki in SF2"):
-#   default        -> VISIBLE slot 10 on the select screen (0.10.0 behavior)
-#   SATURN_HIDDEN=1 -> NO visible trace (no marker sprite, no navigable slot);
+# Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
+# canonical character-select — it is now the DEFAULT build.
+#   default          -> HIDDEN (no visible trace: no marker, no navigable slot);
+#   SATURN_VISIBLE=1 -> the 0.10.0 visible slot 10 (kept buildable for A/B);
 #                      instead HOLD L+R WHILE CONFIRMING any character at the
 #                      select screen -> that character becomes Saturn at round
 #                      load. Every confirm press re-decides (no code held =
@@ -61,7 +62,7 @@ SATURN_VERSION = "0.11.5"
 # Ship-time balance call: keep whichever variant fits (filenames + version
 # strings differ: v<ver> vs v<ver>-hidden / "SATURN v<ver>H").
 import os as _osv
-SATURN_HIDDEN = _osv.environ.get("SATURN_HIDDEN") == "1"
+SATURN_HIDDEN = _osv.environ.get("SATURN_VISIBLE") != "1"
 SATURN_STACKED = bool(_osv.environ.get("SATURN_BASE"))
 VARIANT_FILE = f"{SATURN_VERSION}-hidden" if SATURN_HIDDEN else SATURN_VERSION
 VARIANT_STR = SATURN_VERSION + ("H" if SATURN_HIDDEN else "") + ("R" if SATURN_STACKED else "")
