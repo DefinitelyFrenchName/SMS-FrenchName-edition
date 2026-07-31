@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.11.2"
+SATURN_VERSION = "0.11.3"
 
 # Build variant (maintainer request 2026-07-31, "hidden like Gouki in SF2"):
 #   default        -> VISIBLE slot 10 on the select screen (0.10.0 behavior)
@@ -213,6 +213,30 @@ EE_PALCOPY = 0xC300           # transform palette copier (JSL'd by the $EF helpe
                               # $0640; moved out of the helper in v0.11.1 — the
                               # helper's slot is only $EF:DB70-DC00 and the
                               # in-line loops overflowed it into the live C1 copy)
+# v0.11.3 — WIN SCREEN (found via win-pose verification): the round-result
+# screen loads per-WINNER-id far pointers from packed tables in bank $82 and
+# long-DMAs the records to VRAM ($C0:8C4D consumer, header [vram16,rowlen16,
+# rows16]): name-plate table $82:E008+id*2 (4 read sites) and win-quote table
+# $82:E01C+id*2 -> 7-word per-char pointer array -> quote records (2 read
+# sites; slot 0 = no quote, engine skips on $74==0). Id 0x1C indexed far past
+# both tables -> garbage pointer -> the row-count word became a huge DMA loop
+# inside the sequencer = BLACK SCREEN HANG after any round Saturn wins.
+# Fix: hook all 6 sites (byte-identical load sequences) with two $EE stubs
+# that serve id 0x1C from ported Super S records (name plate @$82:E894,
+# quote array @$82:E2C4 — 4 real quotes; tile indices verified to exist in
+# SMS's win-screen tileset; attrs kept verbatim). Records live in $EE — the
+# consumer reads via [$74] long, any bank works.
+WIN_NP_SITES = (0x0DC37, 0x0DC60, 0x0DF53, 0x0DF8D)
+WIN_NP_OLD = bytes.fromhex("BF08E0828574A0828476")
+WIN_QT_SITES = (0x0DDDB, 0x0DE0A)
+WIN_QT_OLD = bytes.fromhex("BF1CE0828510AD091E29FE0018651085 10A982008512A7108574A0828476".replace(" ", ""))
+SUP_WIN_NP = 0xE894           # Super S $82:E894 (126 B)
+SUP_WIN_QARR = 0xE2C4         # Super S $82:E2C4 (7 words)
+EE_WINSTUB_NP = 0xC500
+EE_WINSTUB_QT = 0xC540
+EE_WIN_NP = 0xC5A0
+EE_WIN_QARR = 0xC620
+EE_WIN_QREC = 0xC630
 EMIT_GADGET = 0xA782          # jsr $9B17 / rtl — carved from dead draw-blk1 body
 # Box tables: appended bank $F0 = full bank-$8A copy read via WRAM-mirror $B0
 # (6x plb #$8A -> #$B0); widened ptr tables (0x30 entries) + Saturn's box data
@@ -659,6 +683,57 @@ def main():
     pc_ += bytes((0xFA, 0x6B))                   # plx / rtl
     ee[EE_PALCOPY:EE_PALCOPY + len(pc_)] = pc_
 
+    # -- win-screen records + stubs (v0.11.3, see WIN_* constants) --
+    def _win_rec(p_):
+        h_ = sup[0x020000 + p_:0x020000 + p_ + 6]
+        rl_, rows_ = h_[2] | h_[3] << 8, h_[4] | h_[5] << 8
+        assert 0 < rl_ <= 0x40 and 0 < rows_ <= 8, f"win rec {p_:#x} shape {rl_}x{rows_}"
+        return bytes(sup[0x020000 + p_:0x020000 + p_ + 6 + rl_ * rows_])
+    np_ = _win_rec(SUP_WIN_NP)
+    assert len(np_) == 126
+    ee[EE_WIN_NP:EE_WIN_NP + len(np_)] = np_
+    qcur = EE_WIN_QREC
+    qarr = bytearray()
+    for qi in range(7):
+        w = sup[0x020000 + SUP_WIN_QARR + 2 * qi] | sup[0x020000 + SUP_WIN_QARR + 2 * qi + 1] << 8
+        if w == 0:
+            qarr += bytes((0, 0))
+            continue
+        r = _win_rec(w)
+        ee[qcur:qcur + len(r)] = r
+        qarr += bytes((qcur & 0xFF, qcur >> 8))
+        qcur += len(r)
+    assert qcur <= 0xC800, f"quote records overrun: {qcur:#x}"
+    ee[EE_WIN_QARR:EE_WIN_QARR + 14] = qarr
+
+    # name-plate stub (M=16, X=8 at entry; X = winner id*2)
+    w1, lbl, br, fix = _asm()
+    w1 += bytes((0xE0, 0x38)); br(0xD0, "orig")          # cpx #$38
+    w1 += bytes((0xA9, EE_WIN_NP & 0xFF, EE_WIN_NP >> 8, 0x85, 0x74))
+    w1 += bytes((0xA0, 0xEE, 0x84, 0x76, 0x6B))
+    lbl("orig")
+    w1 += bytes((0xBF, 0x08, 0xE0, 0x82, 0x85, 0x74))
+    w1 += bytes((0xA0, 0x82, 0x84, 0x76, 0x6B))
+    fix()
+    assert len(w1) <= EE_WINSTUB_QT - EE_WINSTUB_NP
+    ee[EE_WINSTUB_NP:EE_WINSTUB_NP + len(w1)] = w1
+
+    # quote stub: replicates table+variant-select+deref through the bank store
+    w2, lbl, br, fix = _asm()
+    w2 += bytes((0xE0, 0x38)); br(0xD0, "orig")
+    w2 += bytes((0xAD, 0x09, 0x1E, 0x29, 0xFE, 0x00, 0x18))   # lda $1E09/and/clc
+    w2 += bytes((0x69, EE_WIN_QARR & 0xFF, EE_WIN_QARR >> 8, 0x85, 0x10))
+    w2 += bytes((0xA9, 0xEE, 0x00, 0x85, 0x12))
+    w2 += bytes((0xA7, 0x10, 0x85, 0x74, 0xA0, 0xEE, 0x84, 0x76, 0x6B))
+    lbl("orig")
+    w2 += bytes((0xBF, 0x1C, 0xE0, 0x82, 0x85, 0x10))
+    w2 += bytes((0xAD, 0x09, 0x1E, 0x29, 0xFE, 0x00, 0x18, 0x65, 0x10, 0x85, 0x10))
+    w2 += bytes((0xA9, 0x82, 0x00, 0x85, 0x12))
+    w2 += bytes((0xA7, 0x10, 0x85, 0x74, 0xA0, 0x82, 0x84, 0x76, 0x6B))
+    fix()
+    assert len(w2) <= EE_WIN_NP - EE_WINSTUB_QT
+    ee[EE_WINSTUB_QT:EE_WINSTUB_QT + len(w2)] = w2
+
     tiles = REPO / "traces" / "saturn" / "supers_effecttiles.bin"
     if tiles.is_file():
         tb = tiles.read_bytes()[:0xC00]
@@ -847,6 +922,15 @@ def main():
         data[POS1_10:POS1_10 + 2] = bytes(SLOT10_XY)
         expect(POS2_10, b"\x00\x00", "blk2 char-10 word")
         data[POS2_10:POS2_10 + 2] = bytes((SLOT10_XY[0] + 0x10, SLOT10_XY[1]))
+    # -- v0.11.3 win-screen per-id table hooks --
+    for site in WIN_NP_SITES:
+        expect(site, WIN_NP_OLD, f"win nameplate site {site:#x}")
+        data[site:site + 10] = \
+            bytes((0x22, EE_WINSTUB_NP & 0xFF, EE_WINSTUB_NP >> 8, 0xEE)) + b"\xEA" * 6
+    for site in WIN_QT_SITES:
+        expect(site, WIN_QT_OLD, f"win quote site {site:#x}")
+        data[site:site + 30] = \
+            bytes((0x22, EE_WINSTUB_QT & 0xFF, EE_WINSTUB_QT >> 8, 0xEE)) + b"\xEA" * 26
     expect(0x10000 + PROJ_DESPAWN, bytes.fromhex("740060"), "despawn tail")
     for pid in PROJ_IDS:
         site = 0x100A6 + 2 * pid
