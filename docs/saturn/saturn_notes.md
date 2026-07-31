@@ -69,19 +69,31 @@ the SMS S/A/R conventions in the full pass.)
   [threshold, button-mask] + FF: spec2 = d,df,f+light = **QCF** (nibble 4 ✓
   observed), spec3 = its mirror/heavy variant, spec4 = d,db,b+light = **QCB**
   (nibble 8 ✓ = the wave special), spec5 = b,db,d,df,f,b+button =
-  **412364+P — the desperation** (matches Fighter S's documented "Death Drive
-  Break" input!). **Desperation trigger: OPEN** after a deep attempt (v0.8.0 session). What is
-  known: recognizer states live at +0x5B..+0x64 ([timer,step] per rec); the
-  per-frame walk short-circuits at the FIRST commit (list order = priority, the
-  qcf outranks the desperation and eats 412364+P's tail); button-wait steps
-  time out at 15f. Measured anomaly: rec5 advances through its 5 direction
-  steps correctly, then its state FREEZES at [00,05] — timer stops counting
-  entirely (not a reset, not a commit) — before any other rec commits; no
-  delay/speed/shape variation (11 tried) triggers it in either game. Next
-  session: single-step the matcher on rec5's step-5 processing (suspects: the
-  0xFE hold-accumulator path ending the walk early, or step-6 semantics beyond
-  the [threshold,dir] model). Her desperation ACT handlers are ported but
-  unverified. The SMS danger-idle act 0x21 (HP≤0x18) does NOT block specials.
+  **412364+HP — the desperation — RESOLVED 2026-07-31 (v0.11.2)**: input
+  412364 (~8f per direction is comfortable; each step waits up to 15f) then
+  **HP** (the spec button mask 0x40 = HP only; punches are 0x10/0x40, kicks
+  0x20/0x80 — spec2 qcf mask 0x50 = both P, spec3 mask 0xA0 = both K), at
+  HP≤0x18 (the starter's desperation gate). Commit writes request nibble
+  0x0A|1 = 0x0B. Full nibble map (ordinal = rec index*2+2, +bit0 heavy):
+  2=double-tap-back (spec1), 4/5=qcf+P (spec2), 6/7=632+K (spec3 — the AIR
+  special), 8/9=qcb+P (spec4), A/B=desperation (spec5). On startup act 0x78
+  (whiffs with quick recovery at range); ON HIT → **act 0x79: a full-screen
+  multi-hit rushing sequence** (8 hits, ~15 dmg, P2 in hitstun act 13
+  throughout) — verified FRAME-IDENTICAL to Super S (same acts/poses/hitbox
+  indices/damage cadence; probe_sms_desp3 vs probe_desp3_supers). Point-blank
+  the back+HP ending is eaten by throw priority (authentic).
+  **The old "rec5 freezes at [00,05]" mystery**: the port's recognizer payload
+  copy was TRUNCATED (HI=0x1616, but spec5's 7 pairs + FF end at 0x161A) —
+  pair index 5 read SMS-copy leftovers whose nonzero threshold routed the
+  matcher into its hold path, which never increments the timer on a mismatch
+  at timer=0. One-line fix: RECOG_PAYLOAD_HI → 0x161B. Super S never froze
+  (the old session's Super-S "freeze" was input timing — taps too fast for
+  the per-step 15f windows to catch the final back).
+  Matcher semantics (decoded $C1:1290): pair [b0,b1]; b0=0 → 15f-timeout step
+  (b1=0 neutral-exact, b1 low-nibble=0 button-mask, else dir-exact); b0>0 →
+  HOLD dir for ≥b0 frames; b0≥0x80 → dir-BITMASK overlap. Commit when the
+  byte after the matched pair is 0xFF; spec head 0xFE = hold-accumulator
+  ($C1:1361, reads $69).
 - Button-map record $C1:174E `02 00 04 08 06 00 0a`; special gating records per
   supers_map §Character architecture.
 

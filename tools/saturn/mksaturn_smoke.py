@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.11.1"
+SATURN_VERSION = "0.11.2"
 
 # Build variant (maintainer request 2026-07-31, "hidden like Gouki in SF2"):
 #   default        -> VISIBLE slot 10 on the select screen (0.10.0 behavior)
@@ -108,7 +108,13 @@ E8_BTNSTUB = 0x2840
 # original offsets; copied table entry [0x1C] ($EF:13FF) -> $1452; the recognizer
 # stub runs the FULL copied dispatch via an $EF trampoline (balanced phb/plb) and
 # skips the real dispatch remainder entirely (surgery +0x26 to $C1:1289 plb/rts).
-RECOG_PAYLOAD_LO, RECOG_PAYLOAD_HI = 0x011452, 0x011616
+# v0.11.2: HI was 0x011616 — but spec5 (the desperation, 412364+HP) is the
+# longest record: 7 pairs + FF ending at 0x161A inclusive. The truncation left
+# its pair index 5 reading SMS-copy leftovers at $EF:1616 -> the matcher's
+# hold path parked the timer at 0 forever = the long-standing "rec5 freezes at
+# [00,05]" mystery. ($EF:1616-161A in the SMS copy is dead code tail of SMS's
+# own button handler, never executed from $EF - safe to overwrite.)
+RECOG_PAYLOAD_LO, RECOG_PAYLOAD_HI = 0x011452, 0x01161B
 EF_TRAMP = 0xDB20
 # Sound: SMS sfx API = one-shot WRAM slots forwarded to the APU by NMI ($C0:D4F2):
 # DP $78 = effect channel (whoosh 0x05 light / 0x06 heavy), $1078/$10F8 = per-

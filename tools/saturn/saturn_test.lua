@@ -17,7 +17,11 @@
 --
 -- WHAT SHOULD WORK: idle/walk, all normals (standing/crouch/air; Y=LP X=HP
 -- B=LK A=HK), qcf+P specials with a VISIBLE traveling fireball that hits, the
--- second special (try motions!), hits connect both ways, guard, pushback.
+-- qcb+P wave, the j.632+K air projectile, throws, and since v0.11.2 her
+-- DESPERATION: at low HP (red life), 412364+HP (roughly SF half-circle-back
+-- then back again, unhurried — each step has a 15f window; must end with
+-- HEAVY PUNCH) -> rushing 8-hit super. Hits connect both ways, guard,
+-- pushback. NOTE she has NO forward step-dash (Super S is the same).
 -- For the fireball GRAPHICS, generate the effect-tile dump once (needs the
 -- Super S ROM):  ROM=<SuperS> tools/run.sh tools/saturn/probe_supers_effecttiles.lua 60
 -- (without it the fireball renders with Uranus's effect tiles — still visible).
