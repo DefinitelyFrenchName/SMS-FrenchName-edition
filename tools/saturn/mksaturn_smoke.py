@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.11.3"
+SATURN_VERSION = "0.11.4"
 
 # Build variant (maintainer request 2026-07-31, "hidden like Gouki in SF2"):
 #   default        -> VISIBLE slot 10 on the select screen (0.10.0 behavior)
@@ -456,7 +456,7 @@ def main():
     copy = len(d)
     d += bytes((0xC2, 0x30))                             # rep #$30
     d += bytes((0xA2, 0x00, EE_TILES >> 8, 0xA0, 0x00, 0x00,
-                0xA9, 0xFF, 0x0B, 0x8B, 0x54, 0x7F, 0xEE, 0xAB))
+                0xA9, 0x3F, 0x10, 0x8B, 0x54, 0x7F, 0xEE, 0xAB))
     orig = len(d)
     d[fp1] = p1eff - (fp1 + 1)
     d[fp2] = p2eff - (fp2 + 1)
@@ -734,14 +734,18 @@ def main():
     assert len(w2) <= EE_WIN_NP - EE_WINSTUB_QT
     ee[EE_WINSTUB_QT:EE_WINSTUB_QT + len(w2)] = w2
 
-    tiles = REPO / "traces" / "saturn" / "supers_effecttiles.bin"
-    if tiles.is_file():
-        tb = tiles.read_bytes()[:0xC00]
-        ee[EE_TILES:EE_TILES + len(tb)] = tb
-    else:
-        print("WARNING: no effect-tile dump (traces/saturn/supers_effecttiles.bin);"
-              " in-ROM L+R select will show wrong fireball art. Generate with:"
-              " ROM=<SuperS> tools/run.sh tools/saturn/probe_supers_effecttiles.lua 60")
+    # v0.11.4: effect tiles decompressed straight from the Super S ROM — no
+    # more fixture dependency, and the FULL 0x1040-byte sheet (the old 0xC00
+    # dump undercut the P1 transfer by 0x440 bytes). Decompressor + job-table
+    # knowledge: tools/saturn/supers_lz.py (validated byte-exact vs live
+    # staging). Her jobs: table idx 57 (P1, VRAM $6A00) / 67 (P2, $7300),
+    # both -> stream $E3:FA09.
+    import supers_lz
+    tb = supers_lz.lz_decompress(sup, supers_lz.SATURN_FX_SRC)
+    assert len(tb) == 0x1040, f"effect sheet size drift: {len(tb):#x}"
+    src_chk, vram_chk, _fl = supers_lz.job_entry(sup, 57)
+    assert src_chk == supers_lz.SATURN_FX_SRC and vram_chk == 0x6A00, "job table drift"
+    ee[EE_TILES:EE_TILES + len(tb)] = tb
     write_bank(data, bankbase, bytes(ee))
 
     # ---- bank $EF: full SMS-$C1 copy + Saturn's ported proc block ----

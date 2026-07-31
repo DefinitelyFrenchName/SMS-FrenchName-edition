@@ -181,7 +181,7 @@ takes hits):
 
 Projectiles do NOT stream cels (both games): their tiles are STATIC in the OBJ
 effects VRAM region (tile base 0xA0 = VRAM $6A00; loaded at match start,
-COMPRESSED in ROM — source/decompressor unmapped, smoke uses a fixture VRAM dump
+COMPRESSED in ROM — SOLVED v0.11.4: decompressor + job table fully decoded
 uploaded at runtime: probe_supers_effecttiles.lua → traces/saturn/
 supers_effecttiles.bin). Saturn's fireball = 6 OAM sprites (tiles 0xA0/0xEE ×
 flip variants).
@@ -219,6 +219,21 @@ SMS's own compressed effect-tile blob — i.e. the char-load integration point
 for her effects is the 10th manifest entry + an appended compressed blob (or a
 raw-copy patch of the loader). Until then the smoke uses the fixture VRAM dump
 at runtime. Verify the SMS hypothesis before building on it.
+
+## Graphics LZSS + decompression job table [P 07-31, v0.11.4 session]
+
+The per-char compressed-graphics system (both games, twins): jobs from a
+6-byte-entry table at `$80:EEF1` (`[src16, srcbank, vramlo, vramhi, flags]`);
+decompressor `$C0:EE30` (stream = `[token_count16][data]`, ctrl bytes LSB
+first: run of K 1-bits = K literals, 0-bit = 2-byte backref `[dist12:len4]`,
+len+3, MVN semantics) writes to `$7F:0000` via the RAM gadget `$00:00C8`
+(`MVN $7F,$xx / RTL`, bank operand self-modified on source bank cross), then
+one DMA to the entry's VRAM address. **Python twin: `tools/saturn/supers_lz.py`
+(validated byte-exact vs live staging + full trajectory).** Character
+effect-tile jobs: idx 47+charID (P1, VRAM $6A00) / 57+charID (P2, $7300);
+Saturn = idx 57/67 → stream `$E3:FA09`, 0x1040 bytes. The match-load runs
+~11 jobs (fighters' sheets, portraits, UI, effects — the job list is the map
+of every compressed asset a screen needs; useful for the stage exploration).
 
 ## OAM sprite-layout — the 4TH animation layer [P 07-30, smoke-test session]
 
