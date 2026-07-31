@@ -14,7 +14,11 @@ local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, rom, wr = PL.ram, PL.rom, PL.wr
 
 local SAT_ID = 0x1C
-local E8, E9, EA = 0x280000, 0x290000, 0x2A0000
+-- appended banks are layout-dependent (clean base: first free = file 0x280000;
+-- REF-stacked: 0x300000). Derive from ROM size (v0.11.5).
+local romsize = emu.getMemorySize(emu.memType.snesPrgRom)
+local NB = romsize - 9 * 0x10000          -- first Saturn bank (9 appended)
+local E8, E9, EA = NB, NB + 0x10000, NB + 0x20000
 local t, needLoad = -1, true
 local ok, bad, req51bad = 0, 0, 0
 local actsSeen, posesSeen = {}, {}
@@ -92,8 +96,9 @@ emu.addEventCallback(function()
     log(string.format("frames: %d OK / %d MISMATCH; req51 violations: %d", ok, bad, req51bad))
     log("acts seen: " .. table.concat(acts, " "))
     log("poses seen: " .. table.concat(poses, " "))
-    log((bad == 0 and req51bad == 0) and "SMOKE PASS" or "SMOKE FAIL")
-    emu.stop(0)
+    local verdict = (bad == 0 and req51bad == 0)
+    log(verdict and "SMOKE PASS" or "SMOKE FAIL")
+    emu.stop(verdict and 0 or 1)
   end
 end, emu.eventType.endFrame)
 print("probe_sms_saturn_smoke loaded")

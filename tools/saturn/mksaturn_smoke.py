@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.11.4"
+SATURN_VERSION = "0.11.5"
 
 # Build variant (maintainer request 2026-07-31, "hidden like Gouki in SF2"):
 #   default        -> VISIBLE slot 10 on the select screen (0.10.0 behavior)
@@ -62,8 +62,10 @@ SATURN_VERSION = "0.11.4"
 # strings differ: v<ver> vs v<ver>-hidden / "SATURN v<ver>H").
 import os as _osv
 SATURN_HIDDEN = _osv.environ.get("SATURN_HIDDEN") == "1"
+SATURN_STACKED = bool(_osv.environ.get("SATURN_BASE"))
 VARIANT_FILE = f"{SATURN_VERSION}-hidden" if SATURN_HIDDEN else SATURN_VERSION
-VARIANT_STR = SATURN_VERSION + ("H" if SATURN_HIDDEN else "")
+VARIANT_STR = SATURN_VERSION + ("H" if SATURN_HIDDEN else "") + ("R" if SATURN_STACKED else "")
+ROM_STEM = "SailorMoonS_REFsaturn" if SATURN_STACKED else "SailorMoonS_saturn"
 
 SAT_ID = 0x1C
 
@@ -329,11 +331,27 @@ def main():
     if len(sys.argv) > 2:
         raise SystemExit(__doc__.strip().splitlines()[-1])
     out_path = sys.argv[1] if len(sys.argv) == 2 else \
-        str(REPO / "build" / "saturn" / f"SailorMoonS_saturn_v{VARIANT_FILE}.sfc")
+        str(REPO / "build" / "saturn" / f"{ROM_STEM}_v{VARIANT_FILE}.sfc")
 
-    sms_path = clean_rom()
-    require_source(sms_path)                 # smoke always builds from clean
-    data = bytearray(open(sms_path, "rb").read())
+    base_path = _osv.environ.get("SATURN_BASE")
+    if base_path:
+        require_source(base_path, stacked=True)
+        data = bytearray(open(base_path, "rb").read())
+    else:
+        sms_path = clean_rom()
+        require_source(sms_path)             # default: build from clean
+        data = bytearray(open(sms_path, "rb").read())
+    # ---- appended-bank layout, derived from the actual base (v0.11.5:
+    # REF-stackable — on the REF v.1 bundle the first free bank is $F0) ----
+    nb = 0xC0 + len(data) // 0x10000
+    assert nb + 8 <= 0xFF, f"no room: first free bank ${nb:02X} (+9 banks needed)"
+    B_SCR = nb          # scripts        (clean-base: $E8)
+    B_POSE = nb + 1     # pose records   ($E9)
+    B_CELT = nb + 2     # cel tables     ($EA)
+    B_CEL0, B_CEL1, B_CEL2 = nb + 3, nb + 4, nb + 5   # cels ($EB-$ED)
+    B_MISC = nb + 6     # OAM blob/palettes/stubs/records ($EE)
+    B_C1 = nb + 7       # full C1 copy + graft ($EF)
+    B_BOX = nb + 8      # bank-$8A copy ($F0)
     sup = open(supers_rom(), "rb").read()
     if len(sup) % 0x8000 == 0x200:
         sup = sup[0x200:]
@@ -362,7 +380,7 @@ def main():
 
     # ---- bank $E8: scripts ----
     bankbase, bank = next_bank(data)
-    assert bank == 0xE8, f"first free bank is ${bank:02X}, expected $E8 (clean src)"
+    assert bank == B_SCR, f"bank layout drift: ${bank:02X}"
     e8 = bytearray(data[0x00000:0x02800])            # FULL $C0 script region copy
     # recognizer stub (M=0 at hook): id != Saturn -> skip the 7 data bytes
     # (surgery +7) and emulate the original head; id == Saturn -> skip the whole
@@ -373,7 +391,7 @@ def main():
             + bytes.fromhex("B50029FF000AA8B9C713A86B")  # original head + rtl
             # sat:
             + bytes.fromhex("A3011869260083 01".replace(" ", ""))  # skip remainder
-            + bytes((0x22, EF_TRAMP & 0xFF, EF_TRAMP >> 8, 0xEF, 0x6B)))
+            + bytes((0x22, EF_TRAMP & 0xFF, EF_TRAMP >> 8, B_C1, 0x6B)))
     assert len(stub) <= E8_BTNSTUB - E8_STUB, "recognizer stub overruns button stub"
     e8 += stub
     e8 += bytes(E8_STUB + (E8_BTNSTUB - E8_STUB) - len(e8))
@@ -381,7 +399,7 @@ def main():
     # recognizer hook's data slot); others -> original head
     btnstub = (bytes.fromhex("A3011869070083 01".replace(" ", ""))
                + bytes.fromhex("B50029FF00C91C00F0070AA8B99B16A86B")
-               + bytes((0xA9, BTN_RECORD_ADDR & 0xFF, BTN_RECORD_ADDR >> 8, 0xA8, 0x6B)))
+               + bytes((0xA9, BTN_RECORD_ADDR & 0xFF, BTN_RECORD_ADDR >> 8, B_SCR - 0x40, 0x6B)))
     e8 += btnstub
     e8 += bytes(E8_CMDSTUB - len(e8))
     # cmd stub: A=raw ctrl byte, Y=arg cursor, DB=$E8, M=1; stack: [A][PCL PCH][PB]
@@ -456,7 +474,7 @@ def main():
     copy = len(d)
     d += bytes((0xC2, 0x30))                             # rep #$30
     d += bytes((0xA2, 0x00, EE_TILES >> 8, 0xA0, 0x00, 0x00,
-                0xA9, 0x3F, 0x10, 0x8B, 0x54, 0x7F, 0xEE, 0xAB))
+                0xA9, 0x3F, 0x10, 0x8B, 0x54, 0x7F, B_MISC, 0xAB))
     orig = len(d)
     d[fp1] = p1eff - (fp1 + 1)
     d[fp2] = p2eff - (fp2 + 1)
@@ -524,7 +542,7 @@ def main():
     ea[ent:ent + 4] = bytes((EA_P2C & 0xFF, EA_P2C >> 8, EA_CELREC & 0xFF, EA_CELREC >> 8))
     ea[EA_P2C:EA_P2C + (X.P2C_HI - X.P2C_LO)] = sup[X.P2C_LO:X.P2C_HI]
     crec = bytearray(sup[X.CELREC_LO:X.CELREC_LO + X.NCELS * 5])
-    bankmap = {0xDD: 0xEB, 0xDE: 0xEC, 0xDF: 0xED}
+    bankmap = {0xDD: B_CEL0, 0xDE: B_CEL1, 0xDF: B_CEL2}
     for c in range(X.NCELS):
         sz = crec[5 * c + 3] | crec[5 * c + 4] << 8
         if sz == 0:
@@ -545,7 +563,7 @@ def main():
 
     # ---- bank $EE: OAM sprite-layout blob at 0x8000 + her palettes at 0xC000 ----
     bankbase, bank = next_bank(data)
-    assert bank == 0xEE, f"bank layout drift: ${bank:02X}"
+    assert bank == B_MISC, f"bank layout drift: ${bank:02X}"
     ee = bytearray(0x10000)
     ee[0x8000:0x8000 + (OAM_BLOB_HI - OAM_BLOB_LO)] = sup[OAM_BLOB_LO:OAM_BLOB_HI]
     # pal1 ($E0:B0C8) + pal2 ($E0:B0A8), 32 B each — consumed by the tester/probes
@@ -581,6 +599,18 @@ def main():
     # same cursor def ($AADA), parked at the slot-10 photo spot. The emitter
     # is reached via the EMIT_GADGET (jsr $9B17 / rtl) carved from the dead
     # body of the hooked draw-blk1 routine — PB=$80 exactly like the original.
+    # confirm-site chaining (v0.11.5): on a REF base the site holds patch 5's
+    # 4-byte JSL (alt-palette/default-stage hook), which itself replicates the
+    # displaced head (rep #$30 / lda [$FE]). Our stub's tail then CALLS that
+    # displaced JSL instead of replicating the head, preserving both hooks.
+    conf_head = bytes(data[CHARSEL_CONFIRM:CHARSEL_CONFIRM + 4])
+    if conf_head == CHARSEL_CONFIRM_OLD:
+        confirm_tail = bytes((0xC2, 0x30, 0xA7, 0xFE))
+    elif conf_head[0] == 0x22:
+        confirm_tail = conf_head                      # chain the displaced JSL
+    else:
+        raise SystemExit(f"error: unrecognized confirm head {conf_head.hex()}")
+
     if not SATURN_HIDDEN:
         mk = bytearray()
         mk += bytes((0xA9, SLOT10_XY[0], 0x85, 0x01, 0x64, 0x02))  # x
@@ -631,7 +661,7 @@ def main():
         lbl("p2f")
         c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, 0x7E))
         lbl("finish")
-        c += bytes((0xC2, 0x30, 0xA7, 0xFE, 0x6B))  # rep #$30 / lda [$FE] / rtl
+        c += confirm_tail + bytes((0x6B,))   # original head or chained JSL / rtl
         fix()
     else:
         # confirm stub (HIDDEN variant, Gouki-style): no slot, no marker — a
@@ -664,7 +694,7 @@ def main():
         lbl("p2f")
         c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, 0x7E))
         lbl("finish")
-        c += bytes((0xC2, 0x30, 0xA7, 0xFE, 0x6B))  # rep #$30 / lda [$FE] / rtl
+        c += confirm_tail + bytes((0x6B,))   # original head or chained JSL / rtl
         fix()
     assert len(c) <= 0x100, f"confirm stub too big: {len(c)}"
     ee[EE_CONFIRM:EE_CONFIRM + len(c)] = c
@@ -674,11 +704,11 @@ def main():
     pc_ += bytes((0x64, 0x0D, 0xA5, 0x0E, 0x18, 0x69, 0x00, 0x85, 0x0C,
                   0xA9, 0x06, 0x85, 0x0D))       # $0C/0D = $06:row
     pc_ += bytes((0xDA, 0xA0, 0x1F, 0x00))       # phx / ldy #$001F
-    pc_ += bytes((0xBB, 0xBF, 0x00, 0xC0, 0xEE, 0x91, 0x0C,
+    pc_ += bytes((0xBB, 0xBF, 0x00, 0xC0, B_MISC, 0x91, 0x0C,
                   0x88, 0x10, (0x100 - 10) & 0xFF))   # fighter row loop
     pc_ += bytes((0xA9, 0x40, 0x85, 0x0C))       # -> $0640 (OBJ pal 2)
     pc_ += bytes((0xA0, 0x1F, 0x00))
-    pc_ += bytes((0xBB, 0xBF, 0x60, 0xC0, 0xEE, 0x91, 0x0C,
+    pc_ += bytes((0xBB, 0xBF, 0x60, 0xC0, B_MISC, 0x91, 0x0C,
                   0x88, 0x10, (0x100 - 10) & 0xFF))   # effects row loop
     pc_ += bytes((0xFA, 0x6B))                   # plx / rtl
     ee[EE_PALCOPY:EE_PALCOPY + len(pc_)] = pc_
@@ -710,7 +740,7 @@ def main():
     w1, lbl, br, fix = _asm()
     w1 += bytes((0xE0, 0x38)); br(0xD0, "orig")          # cpx #$38
     w1 += bytes((0xA9, EE_WIN_NP & 0xFF, EE_WIN_NP >> 8, 0x85, 0x74))
-    w1 += bytes((0xA0, 0xEE, 0x84, 0x76, 0x6B))
+    w1 += bytes((0xA0, B_MISC, 0x84, 0x76, 0x6B))
     lbl("orig")
     w1 += bytes((0xBF, 0x08, 0xE0, 0x82, 0x85, 0x74))
     w1 += bytes((0xA0, 0x82, 0x84, 0x76, 0x6B))
@@ -723,8 +753,8 @@ def main():
     w2 += bytes((0xE0, 0x38)); br(0xD0, "orig")
     w2 += bytes((0xAD, 0x09, 0x1E, 0x29, 0xFE, 0x00, 0x18))   # lda $1E09/and/clc
     w2 += bytes((0x69, EE_WIN_QARR & 0xFF, EE_WIN_QARR >> 8, 0x85, 0x10))
-    w2 += bytes((0xA9, 0xEE, 0x00, 0x85, 0x12))
-    w2 += bytes((0xA7, 0x10, 0x85, 0x74, 0xA0, 0xEE, 0x84, 0x76, 0x6B))
+    w2 += bytes((0xA9, B_MISC, 0x00, 0x85, 0x12))
+    w2 += bytes((0xA7, 0x10, 0x85, 0x74, 0xA0, B_MISC, 0x84, 0x76, 0x6B))
     lbl("orig")
     w2 += bytes((0xBF, 0x1C, 0xE0, 0x82, 0x85, 0x10))
     w2 += bytes((0xAD, 0x09, 0x1E, 0x29, 0xFE, 0x00, 0x18, 0x65, 0x10, 0x85, 0x10))
@@ -754,7 +784,7 @@ def main():
     if rep["unresolved"]:
         raise SystemExit(f"error: proc port has unresolved refs: {rep['unresolved']}")
     bankbase, bank = next_bank(data)
-    assert bank == 0xEF, f"bank layout drift: ${bank:02X}"
+    assert bank == B_C1, f"bank layout drift: ${bank:02X}"
     ef = bytearray(data[0x10000:0x20000])            # SMS bank $C1 copy (pre-patch)
     ef[PSP.BLOCK_LO:PSP.BLOCK_HI] = blk
     # helper: sep #$30 / cmp #SAT_ID / beq sat / asl / tax / JSL $C1:stub2 / rtl
@@ -786,7 +816,7 @@ def main():
     for o in (0x01, 0x02, 0x04, 0x05, 0x06, 0x07):
         h += bytes((0x74, o))
     # palette copy moved to $EE (EE_PALCOPY) — the helper slot is 0x90 bytes
-    h += bytes((0x22, EE_PALCOPY & 0xFF, EE_PALCOPY >> 8, 0xEE))
+    h += bytes((0x22, EE_PALCOPY & 0xFF, EE_PALCOPY >> 8, B_MISC))
     h += bytes((0x68, 0xA9, 0x1C, 0xE2, 0x10)); _br(0x80, "sat")
     _lbl("pop8")
     h += bytes((0xE2, 0x10))
@@ -835,7 +865,7 @@ def main():
     snd += tails
     ef[EF_SND:EF_SND + len(snd)] = snd
     # re-point all silenced sound JSLs (JSL $80:9FB7 stub) to the translator
-    old, new = bytes((0x22, 0xB7, 0x9F, 0x80)), bytes((0x22, EF_SND & 0xFF, EF_SND >> 8, 0xEF))
+    old, new = bytes((0x22, 0xB7, 0x9F, 0x80)), bytes((0x22, EF_SND & 0xFF, EF_SND >> 8, B_C1))
     cnt = 0
     i = ef.find(old)
     while i != -1:
@@ -847,7 +877,7 @@ def main():
 
     # ---- bank $F0: bank-$8A copy + widened box ptr tables + Saturn's boxes ----
     bankbase, bank = next_bank(data)
-    assert bank == 0xF0, f"bank layout drift: ${bank:02X}"
+    assert bank == B_BOX, f"bank layout drift: ${bank:02X}"
     f0 = bytearray(data[0x0A0000:0x0B0000])
     for src, dst, n in ((0xC1F1, F0_HIT_T, 28), (0xC229, F0_HURT_T, 10), (0xC23D, F0_COLL_T, 10)):
         f0[dst:dst + 0x60] = bytes(0x60)
@@ -868,27 +898,27 @@ def main():
     write_bank(data, bankbase, bytes(f0))
 
     # ---- engine patches ----
-    data[SITE_INTERP_DB] = 0xE8
+    data[SITE_INTERP_DB] = B_SCR
     expect(SITE_INTERP_CMD, INTERP_CMD_OLD, "interpreter ctrl decode")
     data[SITE_INTERP_CMD:SITE_INTERP_CMD + 8] = \
-        bytes((0x22, E8_CMDSTUB & 0xFF, E8_CMDSTUB >> 8, 0xE8)) + b"\xEA" * 4
+        bytes((0x22, E8_CMDSTUB & 0xFF, E8_CMDSTUB >> 8, B_SCR)) + b"\xEA" * 4
     expect(SITE_DMA_KICK, DMA_KICK_OLD, "generic VRAM-DMA kick")
     data[SITE_DMA_KICK:SITE_DMA_KICK + 8] = \
-        bytes((0x22, E8_DMASTUB & 0xFF, E8_DMASTUB >> 8, 0xE8)) + b"\xEA" * 4
+        bytes((0x22, E8_DMASTUB & 0xFF, E8_DMASTUB >> 8, B_SCR)) + b"\xEA" * 4
     # bank byte $AE (not $EE): the emitter WRITES the OAM shadow via DB-absolute
     # $0200,X — only $80-$BF banks mirror WRAM in the low half; $AE:8000+ mirrors
     # the same ROM bytes as $EE:8000+ (file 0x2E8000).
-    data[SITE_OAM_ENTRY:SITE_OAM_ENTRY + 3] = bytes((0x00, 0x80, 0xAE))  # -> $AE:8000
-    data[SITE_POSE_DB] = 0xE9
+    data[SITE_OAM_ENTRY:SITE_OAM_ENTRY + 3] = bytes((0x00, 0x80, B_MISC - 0x40))  # WRAM-mirror bank
+    data[SITE_POSE_DB] = B_POSE
     data[SITE_POSE_TBL:SITE_POSE_TBL + 2] = bytes((E9_TABLE & 0xFF, E9_TABLE >> 8))
-    data[SITE_CEL_DB] = 0xEA
+    data[SITE_CEL_DB] = B_CELT
     data[SITE_CEL_T1:SITE_CEL_T1 + 2] = bytes((EA_TABLE & 0xFF, EA_TABLE >> 8))
     data[SITE_CEL_T2:SITE_CEL_T2 + 2] = bytes(((EA_TABLE + 2) & 0xFF, (EA_TABLE + 2) >> 8))
-    hook = bytes((0x22, E8_STUB & 0xFF, E8_STUB >> 8, 0xE8)) + b"\xEA" * 7
+    hook = bytes((0x22, E8_STUB & 0xFF, E8_STUB >> 8, B_SCR)) + b"\xEA" * 7
     data[SITE_RECOG:SITE_RECOG + 11] = hook
     expect(SITE_PROC_HOOK, PROC_HOOK_OLD, "main proc-dispatch head")
     data[SITE_PROC_HOOK:SITE_PROC_HOOK + 7] = \
-        bytes((0x22, EF_HELPER & 0xFF, EF_HELPER >> 8, 0xEF)) + b"\xEA" * 3
+        bytes((0x22, EF_HELPER & 0xFF, EF_HELPER >> 8, B_C1)) + b"\xEA" * 3
     expect(0x10000 + STUB2, b"\xFF\xFF\xFF\xFF", "stub2 slot (FF-run tail)")
     data[0x10000 + STUB2:0x10000 + STUB2 + 4] = bytes.fromhex("FCA6006B")
     # recognizer hook data slot = Saturn's button record (skipped via surgery)
@@ -899,21 +929,21 @@ def main():
         # target at $C1:15C8): JSL $EF:DB30 (tramp3) / RTS
         data[SITE_BTN:SITE_BTN + 11] = \
             bytes((0x22, E8_BTNSTUB & 0xFF, E8_BTNSTUB >> 8, 0xE8)) \
-            + bytes((0x22, 0x30, 0xDB, 0xEF, 0x60)) + b"\xFF" * 2
+            + bytes((0x22, 0x30, 0xDB, B_C1, 0x60)) + b"\xFF" * 2
     import os
     if os.environ.get("SATURN_SKIP") != "box":
         for site in BOX_PLB_SITES:
-            data[site + 1] = 0xB0
+            data[site + 1] = B_BOX - 0x40
         for site, (old, new) in BOX_READS.items():
             data[site + 1:site + 3] = bytes((new & 0xFF, new >> 8))
     # -- v0.10.0 char-select 10th slot / v0.11.0 hidden-code variant --
-    expect(CHARSEL_CONFIRM, CHARSEL_CONFIRM_OLD, "charsel confirm head")
+    assert bytes(data[CHARSEL_CONFIRM:CHARSEL_CONFIRM + 4]) == conf_head
     data[CHARSEL_CONFIRM:CHARSEL_CONFIRM + 4] = \
-        bytes((0x22, EE_CONFIRM & 0xFF, EE_CONFIRM >> 8, 0xEE))
+        bytes((0x22, EE_CONFIRM & 0xFF, EE_CONFIRM >> 8, B_MISC))
     if not SATURN_HIDDEN:
         expect(CHARSEL_DRAW1, CHARSEL_DRAW1_OLD, "draw-blk1 head")
         data[CHARSEL_DRAW1:CHARSEL_DRAW1 + 5] = \
-            bytes((0x22, EE_DRAW1 & 0xFF, EE_DRAW1 >> 8, 0xEE, 0x60))
+            bytes((0x22, EE_DRAW1 & 0xFF, EE_DRAW1 >> 8, B_MISC, 0x60))
         expect(EMIT_GADGET, bytes.fromhex("85016402"), "gadget slot (dead blk1 body)")
         data[EMIT_GADGET:EMIT_GADGET + 4] = bytes((0x20, 0x17, 0x9B, 0x6B))
         expect(T1_IDX10, b"\x00\x00\x00\x00", "t1 row 10 (t2 dead row 0)")
@@ -930,11 +960,11 @@ def main():
     for site in WIN_NP_SITES:
         expect(site, WIN_NP_OLD, f"win nameplate site {site:#x}")
         data[site:site + 10] = \
-            bytes((0x22, EE_WINSTUB_NP & 0xFF, EE_WINSTUB_NP >> 8, 0xEE)) + b"\xEA" * 6
+            bytes((0x22, EE_WINSTUB_NP & 0xFF, EE_WINSTUB_NP >> 8, B_MISC)) + b"\xEA" * 6
     for site in WIN_QT_SITES:
         expect(site, WIN_QT_OLD, f"win quote site {site:#x}")
         data[site:site + 30] = \
-            bytes((0x22, EE_WINSTUB_QT & 0xFF, EE_WINSTUB_QT >> 8, 0xEE)) + b"\xEA" * 26
+            bytes((0x22, EE_WINSTUB_QT & 0xFF, EE_WINSTUB_QT >> 8, B_MISC)) + b"\xEA" * 26
     expect(0x10000 + PROJ_DESPAWN, bytes.fromhex("740060"), "despawn tail")
     for pid in PROJ_IDS:
         site = 0x100A6 + 2 * pid
@@ -947,7 +977,7 @@ def main():
     for pid in PROJ_SCRIPT_ENTRIES:
         site = 0x048000 + 3 * pid
         expect(site, b"\x00\x00\x00", f"OAM entry {pid:#04x} (must be free)")
-        data[site:site + 3] = bytes((0xA6, 0xB4, 0xB0))
+        data[site:site + 3] = bytes((0xA6, 0xB4, B_BOX - 0x40))
 
     fix_checksum(data)
     open(out_path, "wb").write(data)
