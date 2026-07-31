@@ -44,7 +44,26 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.10.0"
+SATURN_VERSION = "0.11.0"
+
+# Build variant (maintainer request 2026-07-31, "hidden like Gouki in SF2"):
+#   default        -> VISIBLE slot 10 on the select screen (0.10.0 behavior)
+#   SATURN_HIDDEN=1 -> NO visible trace (no marker sprite, no navigable slot);
+#                      instead HOLD L+R WHILE CONFIRMING any character at the
+#                      select screen -> that character becomes Saturn at round
+#                      load. Every confirm press re-decides (no code held =
+#                      flag cleared), so stale flags self-clean per select.
+#                      The physical pad is chosen from the confirm handler's
+#                      own [$FE] pad pointer ($60=P1 pad, $62=P2 pad), so in
+#                      practice mode P1 holding L+R while confirming the DUMMY
+#                      correctly makes the dummy Saturn. L+R-at-load and the
+#                      0.10.0 latent-bug fixes are in BOTH variants.
+# Ship-time balance call: keep whichever variant fits (filenames + version
+# strings differ: v<ver> vs v<ver>-hidden / "SATURN v<ver>H").
+import os as _osv
+SATURN_HIDDEN = _osv.environ.get("SATURN_HIDDEN") == "1"
+VARIANT_FILE = f"{SATURN_VERSION}-hidden" if SATURN_HIDDEN else SATURN_VERSION
+VARIANT_STR = SATURN_VERSION + ("H" if SATURN_HIDDEN else "")
 
 SAT_ID = 0x1C
 
@@ -269,7 +288,7 @@ def main():
     if len(sys.argv) > 2:
         raise SystemExit(__doc__.strip().splitlines()[-1])
     out_path = sys.argv[1] if len(sys.argv) == 2 else \
-        str(REPO / "build" / "saturn" / f"SailorMoonS_saturn_v{SATURN_VERSION}.sfc")
+        str(REPO / "build" / "saturn" / f"SailorMoonS_saturn_v{VARIANT_FILE}.sfc")
 
     sms_path = clean_rom()
     require_source(sms_path)                 # smoke always builds from clean
@@ -483,7 +502,7 @@ def main():
     # (written into the CGRAM shadow row $0600 = OBJ palette 0 = P1's fighter pal)
     ee[0xC000:0xC020] = sup[0x20B0C8:0x20B0C8 + 32]
     ee[0xC020:0xC040] = sup[0x20B0A8:0x20B0A8 + 32]
-    ver = ("SATURN v" + SATURN_VERSION).encode()
+    ver = ("SATURN v" + VARIANT_STR).encode()
     ee[0xC040:0xC040 + len(ver) + 1] = ver + b"\x00"
     # -- char-select 10th-slot stubs (consumed by the v0.10.0 hooks below) --
     def _asm():
@@ -504,60 +523,91 @@ def main():
     # same cursor def ($AADA), parked at the slot-10 photo spot. The emitter
     # is reached via the EMIT_GADGET (jsr $9B17 / rtl) carved from the dead
     # body of the hooked draw-blk1 routine — PB=$80 exactly like the original.
-    mk = bytearray()
-    mk += bytes((0xA9, SLOT10_XY[0], 0x85, 0x01, 0x64, 0x02))  # x
-    mk += bytes((0xA9, SLOT10_XY[1], 0x85, 0x03, 0x64, 0x04))  # y
-    mk += bytes((0x64, 0x06, 0xA9, 0x30, 0x85, 0x07))          # attr/prio
-    mk += bytes((0xAF, 0xD9, 0xAA, 0xC0, 0x85, 0x00))          # count ($AAD9)
-    mk += bytes((0xA9, 0xDA, 0x85, 0x12, 0xA9, 0xAA, 0x85, 0x13))  # def $AADA
-    mk += bytes((0x22, EMIT_GADGET & 0xFF, EMIT_GADGET >> 8, 0x80))
-    mk += bytes((0x60,))
-    ee[EE_MARKER:EE_MARKER + len(mk)] = mk
+    if not SATURN_HIDDEN:
+        mk = bytearray()
+        mk += bytes((0xA9, SLOT10_XY[0], 0x85, 0x01, 0x64, 0x02))  # x
+        mk += bytes((0xA9, SLOT10_XY[1], 0x85, 0x03, 0x64, 0x04))  # y
+        mk += bytes((0x64, 0x06, 0xA9, 0x30, 0x85, 0x07))          # attr/prio
+        mk += bytes((0xAF, 0xD9, 0xAA, 0xC0, 0x85, 0x00))          # count ($AAD9)
+        mk += bytes((0xA9, 0xDA, 0x85, 0x12, 0xA9, 0xAA, 0x85, 0x13))  # def $AADA
+        mk += bytes((0x22, EMIT_GADGET & 0xFF, EMIT_GADGET >> 8, 0x80))
+        mk += bytes((0x60,))
+        ee[EE_MARKER:EE_MARKER + len(mk)] = mk
 
-    # draw reimpls: original routine body with long position reads (so char-10
-    # rows exist), emitter via the gadget, then the marker call; plain rtl —
-    # the hooked site's trailing rts returns to the caller.
-    def _draw_stub(pos_lo, pos_hi):
-        d = bytearray()
-        d += bytes((0xE2, 0x30))               # sep #$30
-        d += bytes((0xDA, 0xBB))               # phx / tyx
-        d += bytes((0xBF, pos_lo & 0xFF, (pos_lo >> 8) & 0xFF, pos_lo >> 16, 0x85, 0x01, 0x64, 0x02))
-        d += bytes((0xBF, pos_hi & 0xFF, (pos_hi >> 8) & 0xFF, pos_hi >> 16, 0x85, 0x03))
-        d += bytes((0x64, 0x04, 0x64, 0x06))
-        d += bytes((0xA9, 0x30, 0x85, 0x07))   # attr/prio template
-        d += bytes((0xAF, 0xD9, 0xAA, 0xC0, 0x85, 0x00))  # count byte ($AAD9)
-        d += bytes((0xA9, 0xDA, 0x85, 0x12, 0xA9, 0xAA, 0x85, 0x13))  # def $AADA
-        d += bytes((0xFA,))                    # plx
-        d += bytes((0x22, EMIT_GADGET & 0xFF, EMIT_GADGET >> 8, 0x80))  # cursor
-        d += bytes((0x20, EE_MARKER & 0xFF, EE_MARKER >> 8))            # marker
-        d += bytes((0x6B,))
-        return d
-    d1 = _draw_stub(0xC0AA9D, 0xC0AA9E)                   # blk1: original table
-    assert len(d1) <= EE_CONFIRM - EE_DRAW1, f"draw1 stub too big: {len(d1)}"
-    ee[EE_DRAW1:EE_DRAW1 + len(d1)] = d1
+        # draw reimpl: original routine body with long position reads (so the
+        # char-10 row exists), emitter via the gadget, then the marker call;
+        # plain rtl — the hooked site's trailing rts returns to the caller.
+        d1 = bytearray()
+        d1 += bytes((0xE2, 0x30))               # sep #$30
+        d1 += bytes((0xDA, 0xBB))               # phx / tyx
+        d1 += bytes((0xBF, 0x9D, 0xAA, 0xC0, 0x85, 0x01, 0x64, 0x02))
+        d1 += bytes((0xBF, 0x9E, 0xAA, 0xC0, 0x85, 0x03))
+        d1 += bytes((0x64, 0x04, 0x64, 0x06))
+        d1 += bytes((0xA9, 0x30, 0x85, 0x07))   # attr/prio template
+        d1 += bytes((0xAF, 0xD9, 0xAA, 0xC0, 0x85, 0x00))  # count byte ($AAD9)
+        d1 += bytes((0xA9, 0xDA, 0x85, 0x12, 0xA9, 0xAA, 0x85, 0x13))  # def $AADA
+        d1 += bytes((0xFA,))                    # plx
+        d1 += bytes((0x22, EMIT_GADGET & 0xFF, EMIT_GADGET >> 8, 0x80))  # cursor
+        d1 += bytes((0x20, EE_MARKER & 0xFF, EE_MARKER >> 8))            # marker
+        d1 += bytes((0x6B,))
+        assert len(d1) <= EE_CONFIRM - EE_DRAW1, f"draw1 stub too big: {len(d1)}"
+        ee[EE_DRAW1:EE_DRAW1 + len(d1)] = d1
 
-    # confirm stub: slot-10 translation + flag maintenance; ends by
-    # replicating the replaced head (rep #$30 / lda [$FE]) and rtl.
-    c, lbl, br, fix = _asm()
-    c += bytes((0xC2, 0x30))                   # rep #$30
-    c += bytes((0xC0, 0x40, 0x1B)); br(0xF0, "known")   # cpy #$1B40
-    c += bytes((0xC0, 0x80, 0x1B)); br(0xD0, "finish")  # cpy #$1B80
-    lbl("known")
-    c += bytes((0xB9, 0x02, 0x00)); br(0xD0, "finish")  # already confirmed
-    c += bytes((0xB9, 0x00, 0x00, 0xC9, 0x0A, 0x00)); br(0xF0, "on10")
-    c += bytes((0xE2, 0x20, 0xA9, 0x00)); br(0x80, "setflag")  # browsing: clear
-    lbl("on10")
-    c += bytes((0xA7, 0xFE, 0x29, 0xC0, 0xD0)); br(0xF0, "finish")  # press?
-    c += bytes((0xA9, CHARSEL_SHELL, 0x00, 0x99, 0x00, 0x00))  # cursor -> shell
-    c += bytes((0xE2, 0x20, 0xA9, 0x01))
-    lbl("setflag")
-    c += bytes((0xC0, 0x40, 0x1B)); br(0xD0, "p2f")
-    c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, 0x7E)); br(0x80, "finish")
-    lbl("p2f")
-    c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, 0x7E))
-    lbl("finish")
-    c += bytes((0xC2, 0x30, 0xA7, 0xFE, 0x6B))  # rep #$30 / lda [$FE] / rtl
-    fix()
+        # confirm stub (VISIBLE variant): slot-10 translation + flag
+        # maintenance; ends by replicating the replaced head and rtl.
+        c, lbl, br, fix = _asm()
+        c += bytes((0xC2, 0x30))                   # rep #$30
+        c += bytes((0xC0, 0x40, 0x1B)); br(0xF0, "known")   # cpy #$1B40
+        c += bytes((0xC0, 0x80, 0x1B)); br(0xD0, "finish")  # cpy #$1B80
+        lbl("known")
+        c += bytes((0xB9, 0x02, 0x00)); br(0xD0, "finish")  # already confirmed
+        c += bytes((0xB9, 0x00, 0x00, 0xC9, 0x0A, 0x00)); br(0xF0, "on10")
+        c += bytes((0xE2, 0x20, 0xA9, 0x00)); br(0x80, "setflag")  # browsing: clear
+        lbl("on10")
+        c += bytes((0xA7, 0xFE, 0x29, 0xC0, 0xD0)); br(0xF0, "finish")  # press?
+        c += bytes((0xA9, CHARSEL_SHELL, 0x00, 0x99, 0x00, 0x00))  # cursor -> shell
+        c += bytes((0xE2, 0x20, 0xA9, 0x01))
+        lbl("setflag")
+        c += bytes((0xC0, 0x40, 0x1B)); br(0xD0, "p2f")
+        c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, 0x7E)); br(0x80, "finish")
+        lbl("p2f")
+        c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, 0x7E))
+        lbl("finish")
+        c += bytes((0xC2, 0x30, 0xA7, 0xFE, 0x6B))  # rep #$30 / lda [$FE] / rtl
+        fix()
+    else:
+        # confirm stub (HIDDEN variant, Gouki-style): no slot, no marker — a
+        # confirm press with L+R HELD on the confirming pad picks Saturn for
+        # that player; without the code the flag is cleared (per-press
+        # re-decision, so stale flags self-clean). Held state comes from the
+        # autopoll regs; the physical pad follows the handler's own [$FE]
+        # pointer low byte ($60 = P1 pad, $62 = P2 pad) so the practice dummy
+        # (P1-driven, Y=$1B80) reads P1's pad.
+        c, lbl, br, fix = _asm()
+        c += bytes((0xC2, 0x30))                   # rep #$30
+        c += bytes((0xC0, 0x40, 0x1B)); br(0xF0, "known")   # cpy #$1B40
+        c += bytes((0xC0, 0x80, 0x1B)); br(0xD0, "finish")  # cpy #$1B80
+        lbl("known")
+        c += bytes((0xB9, 0x02, 0x00)); br(0xD0, "finish")  # already confirmed
+        c += bytes((0xA7, 0xFE, 0x29, 0xC0, 0xD0)); br(0xF0, "finish")  # press?
+        c += bytes((0xE2, 0x20))                   # sep #$20
+        c += bytes((0xA5, 0xFE, 0xC9, 0x62)); br(0xF0, "p2pad")  # pad ptr low
+        c += bytes((0xAF, 0x18, 0x42, 0x00)); br(0x80, "got")    # JOY1L
+        lbl("p2pad")
+        c += bytes((0xAF, 0x1A, 0x42, 0x00))                     # JOY2L
+        lbl("got")
+        c += bytes((0x29, 0x30, 0xC9, 0x30)); br(0xD0, "noflag") # L+R held?
+        c += bytes((0xA9, 0x01)); br(0x80, "store")
+        lbl("noflag")
+        c += bytes((0xA9, 0x00))
+        lbl("store")
+        c += bytes((0xC0, 0x40, 0x1B)); br(0xD0, "p2f")
+        c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, 0x7E)); br(0x80, "finish")
+        lbl("p2f")
+        c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, 0x7E))
+        lbl("finish")
+        c += bytes((0xC2, 0x30, 0xA7, 0xFE, 0x6B))  # rep #$30 / lda [$FE] / rtl
+        fix()
     assert len(c) <= 0x100, f"confirm stub too big: {len(c)}"
     ee[EE_CONFIRM:EE_CONFIRM + len(c)] = c
 
@@ -738,25 +788,26 @@ def main():
             data[site + 1] = 0xB0
         for site, (old, new) in BOX_READS.items():
             data[site + 1:site + 3] = bytes((new & 0xFF, new >> 8))
-    # -- v0.10.0 char-select 10th slot --
-    expect(CHARSEL_DRAW1, CHARSEL_DRAW1_OLD, "draw-blk1 head")
-    data[CHARSEL_DRAW1:CHARSEL_DRAW1 + 5] = \
-        bytes((0x22, EE_DRAW1 & 0xFF, EE_DRAW1 >> 8, 0xEE, 0x60))
-    expect(EMIT_GADGET, bytes.fromhex("85016402"), "gadget slot (dead blk1 body)")
-    data[EMIT_GADGET:EMIT_GADGET + 4] = bytes((0x20, 0x17, 0x9B, 0x6B))
+    # -- v0.10.0 char-select 10th slot / v0.11.0 hidden-code variant --
     expect(CHARSEL_CONFIRM, CHARSEL_CONFIRM_OLD, "charsel confirm head")
     data[CHARSEL_CONFIRM:CHARSEL_CONFIRM + 4] = \
         bytes((0x22, EE_CONFIRM & 0xFF, EE_CONFIRM >> 8, 0xEE))
-    expect(T1_IDX10, b"\x00\x00\x00\x00", "t1 row 10 (t2 dead row 0)")
-    data[T1_IDX10:T1_IDX10 + 4] = bytes((0x05, 0x0A, 0x09, 0x0A))
-    expect(T1_ID9_RIGHT, b"\x09", "t1 Chibimoon right")
-    data[T1_ID9_RIGHT] = 0x0A
-    expect(T1_ID5_DOWN, b"\x05", "t1 Venus down")
-    data[T1_ID5_DOWN] = 0x0A
-    expect(POS1_10, b"\x00\x00", "blk1 char-10 word")
-    data[POS1_10:POS1_10 + 2] = bytes(SLOT10_XY)
-    expect(POS2_10, b"\x00\x00", "blk2 char-10 word")
-    data[POS2_10:POS2_10 + 2] = bytes((SLOT10_XY[0] + 0x10, SLOT10_XY[1]))
+    if not SATURN_HIDDEN:
+        expect(CHARSEL_DRAW1, CHARSEL_DRAW1_OLD, "draw-blk1 head")
+        data[CHARSEL_DRAW1:CHARSEL_DRAW1 + 5] = \
+            bytes((0x22, EE_DRAW1 & 0xFF, EE_DRAW1 >> 8, 0xEE, 0x60))
+        expect(EMIT_GADGET, bytes.fromhex("85016402"), "gadget slot (dead blk1 body)")
+        data[EMIT_GADGET:EMIT_GADGET + 4] = bytes((0x20, 0x17, 0x9B, 0x6B))
+        expect(T1_IDX10, b"\x00\x00\x00\x00", "t1 row 10 (t2 dead row 0)")
+        data[T1_IDX10:T1_IDX10 + 4] = bytes((0x05, 0x0A, 0x09, 0x0A))
+        expect(T1_ID9_RIGHT, b"\x09", "t1 Chibimoon right")
+        data[T1_ID9_RIGHT] = 0x0A
+        expect(T1_ID5_DOWN, b"\x05", "t1 Venus down")
+        data[T1_ID5_DOWN] = 0x0A
+        expect(POS1_10, b"\x00\x00", "blk1 char-10 word")
+        data[POS1_10:POS1_10 + 2] = bytes(SLOT10_XY)
+        expect(POS2_10, b"\x00\x00", "blk2 char-10 word")
+        data[POS2_10:POS2_10 + 2] = bytes((SLOT10_XY[0] + 0x10, SLOT10_XY[1]))
     expect(0x10000 + PROJ_DESPAWN, bytes.fromhex("740060"), "despawn tail")
     for pid in PROJ_IDS:
         site = 0x100A6 + 2 * pid
@@ -773,7 +824,7 @@ def main():
 
     fix_checksum(data)
     open(out_path, "wb").write(data)
-    print(f"wrote {out_path}: saturn-smoke v{SATURN_VERSION}, {len(data):#x} bytes, "
+    print(f"wrote {out_path}: saturn-smoke v{VARIANT_STR}, {len(data):#x} bytes, "
           f"Saturn object id {SAT_ID:#04x}, {nscripts} scripts (CMD-intact)")
     print("sha1", hashlib.sha1(bytes(data)).hexdigest())
 
