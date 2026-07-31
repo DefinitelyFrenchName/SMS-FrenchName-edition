@@ -15,7 +15,7 @@ end, emu.eventType.inputPolled)
 emu.addEventCallback(function()
   if t < 0 then return end
   t = t + 1
-  if t == 60 then wr(0x1F60, 1); wr(0x1F62, 1) end
+  if t == 60 then emu.write(0x7FF100, 1, emu.memType.snesMemory); emu.write(0x7FF102, 1, emu.memType.snesMemory) end
   if t == 200 then
     local f = assert(io.open(ENV.TRACE .. "saturn/vram_fx.bin", "wb"))
     local b = {}

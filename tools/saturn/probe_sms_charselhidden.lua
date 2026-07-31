@@ -20,6 +20,8 @@ local pulse = {}
 local fails = 0
 local code = {}          -- per-pad L+R hold overlay
 
+local function flag(a) return emu.read(a, emu.memType.snesMemory) end
+
 local function chk(cond, msg)
   if cond then log("PASS " .. msg) else fails = fails + 1; log("FAIL " .. msg) end
 end
@@ -57,8 +59,8 @@ local function confirmstep(pad, cur, confvar, withcode, flagaddr, flagwant, tag)
       pulse[pad] = {}
       code[pad] = nil
       chk(ram(confvar) == 1, tag .. " confirmed")
-      chk(ram(flagaddr) == flagwant,
-        string.format("%s flag=%02X (want %02X)", tag, ram(flagaddr), flagwant))
+      chk(flag(flagaddr) == flagwant,
+        string.format("%s flag=%02X (want %02X)", tag, flag(flagaddr), flagwant))
       return true
     end
     return false
@@ -106,7 +108,7 @@ if MODE == "vs" then
   add(navstep(0, "up", 0x1B40, 1))
   add(navstep(0, "up", 0x1B40, 7))
   add(navstep(0, "right", 0x1B40, 6))
-  add(confirmstep(0, nil, 0x1B42, true, 0x1F60, 1, "P1(Uranus+code)"))
+  add(confirmstep(0, nil, 0x1B42, true, 0x7FF100, 1, "P1(Uranus+code)"))
   add(function()
     chk(ram(0x1B40) == 6, string.format("P1 cursor stays Uranus (=%02X)", ram(0x1B40)))
     return true
@@ -114,7 +116,7 @@ if MODE == "vs" then
   -- P2 to Jupiter (1 left->3, 3 left->4) without code
   add(navstep(1, "left", 0x1B80, 3))
   add(navstep(1, "left", 0x1B80, 4))
-  add(confirmstep(1, nil, 0x1B82, false, 0x1F61, 0, "P2(Jupiter nocode)"))
+  add(confirmstep(1, nil, 0x1B82, false, 0x7FF101, 0, "P2(Jupiter nocode)"))
   add(function()  -- through VS config into the match (no L+R held anywhere)
     pulse[0] = (sf % 20 < 3) and {start=true} or {}
     if ram(0x70) == 4 and ram(0x1000) ~= 0 then return true end
@@ -133,11 +135,11 @@ else -- practice
   add(function() pulse[0]=(frames % 9 < 3) and {start=true} or {}; return sf>40 end)
   add(function() return sf>300 end)
   add(nomarker("practice"))
-  add(confirmstep(0, nil, 0x1B42, false, 0x1F60, 0, "P1(Moon nocode)"))
+  add(confirmstep(0, nil, 0x1B42, false, 0x7FF100, 0, "P1(Moon nocode)"))
   -- dummy: move to Jupiter (1 left->3 left->4), confirm with code on the P1 pad
   add(navstep(0, "left", 0x1B80, 3))
   add(navstep(0, "left", 0x1B80, 4))
-  add(confirmstep(0, nil, 0x1B82, true, 0x1F61, 1, "dummy(Jupiter+code)"))
+  add(confirmstep(0, nil, 0x1B82, true, 0x7FF101, 1, "dummy(Jupiter+code)"))
   add(function()  -- into the match
     pulse[0] = (sf % 14 < 3) and {a = true}
       or ((sf % 14 >= 7 and sf % 14 < 10) and {start = true} or {})

@@ -111,6 +111,15 @@ Menu handler consumes 1-frame press edges ($60) only on some frames; period-4 pr
 pulses can phase-lock and never register. Use period-7 (3 on / 4 off) pulses — verified
 every pulse registers at the title menu.
 
+## WRAM: $7E:1F5A-$1F63 is MENU STATE, not free (2026-07-31)
+Bank $C3 (title/char-select/VS-config screens) keeps state there: writers
+`$C3:B904` (`$1F60`=1), `$C3:B973` (`$1F61`), `$C3:B9F5` (`$1F62`),
+`$C3:BA57` (`$1F63`); readers incl. `$C3:89D2`, `$C3:A84B`. Also `$1F5A`
+(read at `$C3:89D7`). **Do not use for patch state** — Saturn's select flags
+did until v0.11.6 and were exposed to menu clobber. Verified-free alternative:
+`$7F:F100+` (only the frame-9 boot RAM clear touches it in a full session;
+patch 11 already lives at `$7F:F000-F065`).
+
 ## Character select / VS flow (NEW)
 | Address | Label | Comment |
 |---|---|---|

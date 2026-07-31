@@ -55,7 +55,7 @@ emu.addEventCallback(function()
   if hold and frames % 25 == 0 then
     log(string.format("f=%d mode8D=%02X in70=%02X clock=%02X%02X e04=%02X flag=%02X p1=%02X act=%02X",
       frames, ram(0x8D), ram(0x70), ram(0x804), ram(0x803), ram(0x1E04),
-      ram(0x1F60), ram(0x1000), ram(0x1001)))
+      emu.read(0x7FF100, emu.memType.snesMemory), ram(0x1000), ram(0x1001)))
   end
   local fn = STEPS[step]
   if fn and fn() then step = step + 1; sf = 0; pulse = {} end

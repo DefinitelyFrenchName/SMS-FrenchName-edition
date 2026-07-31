@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.11.5"
+SATURN_VERSION = "0.11.6"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -155,8 +155,20 @@ CMD_SND_MAP = {0x15: 0x05, 0x14: 0x06, 0x0E: 0x06, 0x20: 0x06,
 SITE_DMA_KICK = 0x092A4
 DMA_KICK_OLD = bytes.fromhex("A0018C00438C0B42")
 E8_DMASTUB = 0x2980
-SATURN_FLAG = 0x1F60      # P1; P2 flag = +1. v0.9.0: P2 in-ROM select — the same
-SATURN_FLAG2 = 0x1F61     # DMA site also runs P2's effects transfer (VRAM $7300
+# v0.11.6 COLLISION FIX (found while REing the config screen): $7E:1F60-$1F63
+# is NOT free — bank $C3 (menus/VS-config) writes all four ($C3:B904 sets
+# $1F60=1, $C3:B973 $1F61, $C3:B9F5 $1F62, $C3:BA57 $1F63) and reads them
+# ($C3:89D2 …). Our select flags + per-round latches squatted exactly there:
+# the VS-config screen sits BETWEEN char select and the round load, i.e.
+# between where the hidden code sets a flag and where the DMA stub latches it
+# — a stray menu path could silently arm or disarm Saturn.
+# Relocated to $7F:F100-F103, empirically verified untouched by a full vanilla
+# session (boot→charselect→config→match→KO→win; the only writes are the
+# frame-9 boot RAM clear) and a page clear of patch 11's $7F:F000-F065 block.
+# Access cost: long addressing in the stubs (the DMA/proc stubs already run
+# with a known DB, so lda/sta long is a 1-byte-per-site change).
+SATURN_FLAG = 0xF100      # P1 select flag  ($7F bank — see above)
+SATURN_FLAG2 = 0xF101     # P2 select flag
 EE_TILES = 0xD000         # <- $7F:0000 staging reused); P2 pad = $421A/B.
 # v0.10.0 FIX (latent since 0.8.0): the $EF helper must NOT transform on the
 # user flag directly — story-mode load screens pass its act/$1FA gates on
@@ -167,8 +179,9 @@ EE_TILES = 0xD000         # <- $7F:0000 staging reused); P2 pad = $421A/B.
 # latches flag -> per-round ARM ($1F62/63) at that proven-safe moment, and the
 # helper transforms on the latch. Pre-set flags thereby behave exactly like
 # held-L+R: they take effect at the shell char's effects DMA, never earlier.
-SATURN_LATCH = 0x1F62     # P1 armed-this-round latch; P2 = +1
-SATURN_LATCH2 = 0x1F63
+SATURN_LATCH = 0xF102     # P1 armed-this-round latch
+SATURN_LATCH2 = 0xF103    # P2 armed-this-round latch
+SATURN_BANK = 0x7F        # bank byte for all four (long addressing)
 # v0.10.0 — CHAR-SELECT 10TH SLOT (placeholder graphic): the select screen is a
 # group photo with table-driven spatial cursor movement. Decoded (charsel probes
 # 2026-07-31, code runs from the $80 FastROM mirror):
@@ -446,12 +459,12 @@ def main():
         b += bytes((0xE2, 0x20))                             # sep #$20
         b += bytes((0xA5, 0x36, 0xC9, 0x7F, 0xD0, 0x00))     # $36!=7F -> orig
         j1 = len(b) - 1
-        b += bytes((0xAD, pad_lo & 0xFF, pad_lo >> 8, 0x29, 0x30, 0xC9, 0x30, 0xD0, 0x05))
-        b += bytes((0xA9, 0x01, 0x8D, flag & 0xFF, flag >> 8))
-        b += bytes((0xAD, pad_hi & 0xFF, pad_hi >> 8, 0x29, 0x20, 0xF0, 0x03))
-        b += bytes((0x9C, flag & 0xFF, flag >> 8))
-        b += bytes((0xAD, flag & 0xFF, flag >> 8))           # lda flag
-        b += bytes((0x8D, latch & 0xFF, latch >> 8))         # arm this round
+        b += bytes((0xAD, pad_lo & 0xFF, pad_lo >> 8, 0x29, 0x30, 0xC9, 0x30, 0xD0, 0x06))
+        b += bytes((0xA9, 0x01, 0x8F, flag & 0xFF, flag >> 8, SATURN_BANK))
+        b += bytes((0xAD, pad_hi & 0xFF, pad_hi >> 8, 0x29, 0x20, 0xF0, 0x06))
+        b += bytes((0xA9, 0x00, 0x8F, flag & 0xFF, flag >> 8, SATURN_BANK))
+        b += bytes((0xAF, flag & 0xFF, flag >> 8, SATURN_BANK))    # lda long flag
+        b += bytes((0x8F, latch & 0xFF, latch >> 8, SATURN_BANK))  # arm this round
         b += bytes((0xF0, 0x00))
         j2 = len(b) - 1
         return b, (j1, j2)
@@ -658,9 +671,9 @@ def main():
         c += bytes((0xE2, 0x20, 0xA9, 0x01))
         lbl("setflag")
         c += bytes((0xC0, 0x40, 0x1B)); br(0xD0, "p2f")
-        c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, 0x7E)); br(0x80, "finish")
+        c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK)); br(0x80, "finish")
         lbl("p2f")
-        c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, 0x7E))
+        c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK))
         lbl("finish")
         c += confirm_tail + bytes((0x6B,))   # original head or chained JSL / rtl
         fix()
@@ -691,9 +704,9 @@ def main():
         c += bytes((0xA9, 0x00))
         lbl("store")
         c += bytes((0xC0, 0x40, 0x1B)); br(0xD0, "p2f")
-        c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, 0x7E)); br(0x80, "finish")
+        c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK)); br(0x80, "finish")
         lbl("p2f")
-        c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, 0x7E))
+        c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK))
         lbl("finish")
         c += confirm_tail + bytes((0x6B,))   # original head or chained JSL / rtl
         fix()
@@ -802,10 +815,10 @@ def main():
     h += bytes((0xE0, 0x00)); _br(0xF0, "p1chk")
     h += bytes((0xE0, 0x80)); _br(0xD0, "normal")
     # P2 check
-    h += bytes((0x48, 0xAD, SATURN_LATCH2 & 0xFF, SATURN_LATCH2 >> 8)); _br(0xF0, "popn")
+    h += bytes((0x48, 0xAF, SATURN_LATCH2 & 0xFF, SATURN_LATCH2 >> 8, SATURN_BANK)); _br(0xF0, "popn")
     h += bytes((0xA9, 0x20)); _br(0x80, "gates") # A=palette-row hint 0x20 -> $0620
     _lbl("p1chk")
-    h += bytes((0x48, 0xAD, SATURN_LATCH & 0xFF, SATURN_LATCH >> 8)); _br(0xF0, "popn")
+    h += bytes((0x48, 0xAF, SATURN_LATCH & 0xFF, SATURN_LATCH >> 8, SATURN_BANK)); _br(0xF0, "popn")
     h += bytes((0xA9, 0x00))                     # palette row 0x00 -> $0600
     _lbl("gates")
     h += bytes((0x85, 0x0E))                     # sta $0E (palette-dest low byte)

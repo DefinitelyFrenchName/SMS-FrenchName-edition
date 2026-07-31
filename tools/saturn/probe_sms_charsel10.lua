@@ -18,6 +18,8 @@ local frames, step, sf = 0, 1, 0
 local pulse = {}
 local fails = 0
 
+local function flag(a) return emu.read(a, emu.memType.snesMemory) end
+
 local function chk(cond, msg)
   if cond then log("PASS " .. msg) else fails = fails + 1; log("FAIL " .. msg) end
 end
@@ -55,7 +57,7 @@ local function confirmstep(pad, cur, confvar, flagaddr, tag)
         chk(ram(cur) == 6, string.format("%s cursor translated to shell 6 (=%02X)", tag, ram(cur)))
       end
       if flagaddr then
-        chk(ram(flagaddr) == 1, string.format("%s flag set (=%02X)", tag, ram(flagaddr)))
+        chk(flag(flagaddr) == 1, string.format("%s flag set (=%02X)", tag, flag(flagaddr)))
       end
       return true
     end
@@ -89,7 +91,7 @@ if MODE == "vs" then
   add(function() return sf>300 end)
   add(function()
     chk(ram(0x1B40) == 1 and ram(0x1B80) == 1, "at charselect")
-    chk(ram(0x1F60) == 0 and ram(0x1F61) == 0, "flags clear at entry")
+    chk(emu.read(0x7FF100, emu.memType.snesMemory) == 0 and emu.read(0x7FF101, emu.memType.snesMemory) == 0, "flags clear at entry")
     return true
   end)
   -- P1: 1 -down-> 9 -right-> 10, nav sanity up/down, then confirm
@@ -99,13 +101,13 @@ if MODE == "vs" then
   add(navstep(0, "up", 0x1B40, 5))       -- row-10 up -> Venus
   add(navstep(0, "down", 0x1B40, 10))    -- Venus down -> 10
   add(navstep(0, "left", 0x1B40, 9))     -- row-10 left -> Chibimoon
-  add(function() chk(ram(0x1F60) == 0, "P1 flag cleared while browsing"); return true end)
+  add(function() chk(emu.read(0x7FF100, emu.memType.snesMemory) == 0, "P1 flag cleared while browsing"); return true end)
   add(navstep(0, "right", 0x1B40, 10))
-  add(confirmstep(0, 0x1B40, 0x1B42, 0x1F60, "P1"))
+  add(confirmstep(0, 0x1B40, 0x1B42, 0x7FF100, "P1"))
   -- P2: same trip
   add(navstep(1, "down", 0x1B80, 9))
   add(navstep(1, "right", 0x1B80, 10))
-  add(confirmstep(1, 0x1B80, 0x1B82, 0x1F61, "P2"))
+  add(confirmstep(1, 0x1B80, 0x1B82, 0x7FF101, "P2"))
   add(function()  -- through VS config into the match
     pulse[0] = (sf % 20 < 3) and {start=true} or {}
     if ram(0x70) == 4 and ram(0x1000) ~= 0 then return true end
@@ -127,14 +129,14 @@ elseif MODE == "practice" then
   add(confirmstep(0, nil, 0x1B42, nil, "P1(Moon)"))
   add(function()
     chk(ram(0x1B40) == 1, string.format("P1 cursor stays Moon (=%02X)", ram(0x1B40)))
-    chk(ram(0x1F60) == 0, "P1 flag stays clear")
+    chk(emu.read(0x7FF100, emu.memType.snesMemory) == 0, "P1 flag stays clear")
     return true
   end)
   -- dummy cursor (Y=1B80, P1 pad): to slot 10
   add(navstep(0, "down", 0x1B80, 9))
   add(navstep(0, "right", 0x1B80, 10))
   add(markercheck("practice"))
-  add(confirmstep(0, 0x1B80, 0x1B82, 0x1F61, "dummy"))
+  add(confirmstep(0, 0x1B80, 0x1B82, 0x7FF101, "dummy"))
   add(function()  -- into the match
     pulse[0] = (sf % 14 < 3) and {a = true}
       or ((sf % 14 >= 7 and sf % 14 < 10) and {start = true} or {})
@@ -175,7 +177,7 @@ else -- vscpu / story: slot 10 must stay UNREACHABLE (outer-senshi policy),
   end)
   add(confirmstep(0, nil, 0x1B42, nil, "P1(story Chibimoon)"))
   add(function()
-    chk(ram(0x1F60) == 0, "story flag stays clear")
+    chk(emu.read(0x7FF100, emu.memType.snesMemory) == 0, "story flag stays clear")
     return true
   end)
   add(function()  -- into the story fight

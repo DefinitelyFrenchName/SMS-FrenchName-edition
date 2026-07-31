@@ -92,7 +92,7 @@ emu.addEventCallback(function()
   frames = frames + 1; sf = sf + 1
   if frames > 1500 and frames % 25 == 0 then
     log(string.format("f=%d p1 id=%02X act=%02X mode70=%02X clock=%02X%02X flag=%02X e04=%02X fa=%02X",
-      frames, ram(0x1000), ram(0x1001), ram(0x70), ram(0x804), ram(0x803), ram(0x1F60), ram(0x1E04), ram(0x1FA)))
+      frames, ram(0x1000), ram(0x1001), ram(0x70), ram(0x804), ram(0x803), emu.read(0x7FF100, emu.memType.snesMemory), ram(0x1E04), ram(0x1FA)))
   end
   local fn = STEPS[step]
   if fn and fn() then step = step + 1; sf = 0; pulse = {} end
@@ -109,7 +109,7 @@ emu.addEventCallback(function()
       end
     end
     log(string.format("IN-MATCH: p1 id=%02X act=%02X pose=%02X flag1F60=%02X pal0600=%02X%02X tiles %d/%d",
-      ram(0x1000), ram(0x1001), ram(0x1005), ram(0x1F60),
+      ram(0x1000), ram(0x1001), ram(0x1005), emu.read(0x7FF100, emu.memType.snesMemory),
       ram(0x601), ram(0x600), match, total))
     log(string.format("p2 id=%02X pal0620=%02X%02X", ram(0x1080), ram(0x621), ram(0x620)))
     log((ram(0x1000) == 0x1C and ram(0x1080) == 0x1C) and "LR-BOTH PASS" or "LR-BOTH FAIL")
