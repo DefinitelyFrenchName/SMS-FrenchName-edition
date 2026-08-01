@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.11.7"
+SATURN_VERSION = "0.11.8"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -96,6 +96,19 @@ EF_HELPER = 0xDB70            # in-bank, clear of tramp(DB20)/tramp3(DB30)/snd(D
 # objects are ported (7-table units each), EVERY free-id proc entry points at the
 # engine's despawn tail (stz $00,X / rts @ $C1:0E23) so spawns self-clear and her
 # "wait for projectile" act handlers complete. TODO: full projectile port.
+# v0.11.8 — CROSS-GAME OBJECT-ID SHIFT (the "crashed while fighting" bug).
+# The two games' ENGINE object-id tables ($C1:00A6) differ by one entry in the
+# effect range: Super S id N is SMS id N-1 for N >= 0x31 (verified by proc
+# byte-match: SUP 31/32/33/34 -> SMS 30/31/32/33 at 35..42 of 48 bytes).
+# Saturn's proc SPAWNS engine effect objects from 6-byte records in her data
+# pocket ([id16 (id in the LOW byte, flags high), x16, y16] consumed by
+# $C1:1141 -> $80:839D). Her KO handler (act 0x1E) spawns TWO id-0x34 objects;
+# in SMS that id is a DIFFERENT object type whose proc never returns, so the
+# whole frame update stops — game frozen, music still playing, screen fades to
+# black. Reproduced deterministically: any KO with Saturn as the VICTIM.
+# Fix: shift the ids in her spawn records. (Her projectile ids 0x20-0x22 are
+# below the shift range and are objects we ported ourselves — untouched.)
+SPAWN_ID_FIX = {0xD9F3: (0x33, 0x32), 0xD9F9: (0x34, 0x33), 0xD9FF: (0x34, 0x33)}
 PROJ_IDS = [i for i in range(0x1D, 0x30)]
 PROJ_DESPAWN = 0x0E23
 # Button-map hook: same 11-byte head shape as the recognizer dispatch, at $C1:15C4.
@@ -119,6 +132,12 @@ E8_BTNSTUB = 0x2840
 # own button handler, never executed from $EF - safe to overwrite.)
 RECOG_PAYLOAD_LO, RECOG_PAYLOAD_HI = 0x011452, 0x01161B
 EF_TRAMP = 0xDB20
+EF_TRAMP3 = 0xDA60      # v0.11.8: the id-routing trampoline outgrew its old
+                        # DB30 slot (it now handles Saturn as well as the three
+                        # projectiles) and was silently overwritten by the sound
+                        # translator at DB50. Moved into the verified 158-byte
+                        # zero run at $EF:DA56-DAF3 (inside the graft window,
+                        # not part of her ported code or data pockets).
 # Sound: SMS sfx API = one-shot WRAM slots forwarded to the APU by NMI ($C0:D4F2):
 # DP $78 = effect channel (whoosh 0x05 light / 0x06 heavy), $1078/$10F8 = per-
 # player voice. Super S instead calls a command handler ($80:FBB0->FBB4, no SMS
@@ -833,6 +852,10 @@ def main():
     assert bank == B_C1, f"bank layout drift: ${bank:02X}"
     ef = bytearray(data[0x10000:0x20000])            # SMS bank $C1 copy (pre-patch)
     ef[PSP.BLOCK_LO:PSP.BLOCK_HI] = blk
+    for addr, (old_id, new_id) in SPAWN_ID_FIX.items():
+        assert ef[addr] == old_id, \
+            f"spawn record {addr:#x}: expected id {old_id:#04x}, found {ef[addr]:#04x}"
+        ef[addr] = new_id
     # helper: sep #$30 / cmp #SAT_ID / beq sat / asl / tax / JSL $C1:stub2 / rtl
     #         sat: jsr $C6F7 / rtl          (entered with 8-bit A=id via the hook)
     # helper v3 (at EF_HELPER): id test + P1/P2 in-ROM transforms
@@ -895,8 +918,29 @@ def main():
     # rts semantics; entered via JSL from the $C1 mini-stub)
     # ldx $88 / lda $00,X / cmp #$20 / beq p20 / cmp #$21 / beq p21
     # / jsr $29A6 / rtl / p20: jsr $280B / rtl / p21: jsr $28D3 / rtl
-    tramp3 = bytes.fromhex("C210A688B500C920F008C921F00820A6296B200B286B20D3286B")
-    ef[0xDB30:0xDB30 + len(tramp3)] = tramp3
+    # v0.11.8: the engine has MORE THAN ONE proc dispatcher — `jsr ($00A6,X)`
+    # also lives at $C1:1708 (projectiles) and $C1:259E (the KO/round-end
+    # path), plus sites in other banks. The main-loop hook at $C1:007C only
+    # covers the first, and Saturn's proc-table entry was still 0000, so any
+    # other dispatcher jumped to $C1:0000 = the main object loop, re-entering
+    # the whole update recursively -> the engine stops (music/NMI keep running,
+    # screen goes black). That is the maintainer's "crashed while fighting":
+    # it fires whenever a KO happens with Saturn on screen.
+    # Fix: point her table entry at the same $C1 mini-stub the projectiles use
+    # and let tramp3 route id 0x1C to her dispatch first.
+    tramp3 = bytes.fromhex(
+        "C210"            # rep #$10
+        "A688"            # ldx $88
+        "B500"            # lda $00,X      (object id)
+        "C91C" "F014"     # id == 0x1C -> saturn
+        "C920" "F008"     # 0x20
+        "C921" "F008"     # 0x21
+        "20A629" "6B"     # else 0x22 proc
+        "200B28" "6B"     # 0x20 proc
+        "20D328" "6B"     # 0x21 proc
+        "20F7C6" "6B")    # saturn: jsr her dispatch / rtl
+    assert len(tramp3) <= 0x60, f"tramp3 too big: {len(tramp3)}"
+    ef[EF_TRAMP3:EF_TRAMP3 + len(tramp3)] = tramp3
     # sound translator: sep #$20 / pha / (cmp #id / beq)* / pla / rtl;
     # per-id tails: lda #sfx / sta $78 / pla?? -> keep A-restoring tails
     snd = bytearray(bytes.fromhex("E22048"))
@@ -977,7 +1021,7 @@ def main():
         # target at $C1:15C8): JSL $EF:DB30 (tramp3) / RTS
         data[SITE_BTN:SITE_BTN + 11] = \
             bytes((0x22, E8_BTNSTUB & 0xFF, E8_BTNSTUB >> 8, 0xE8)) \
-            + bytes((0x22, 0x30, 0xDB, B_C1, 0x60)) + b"\xFF" * 2
+            + bytes((0x22, EF_TRAMP3 & 0xFF, EF_TRAMP3 >> 8, B_C1, 0x60)) + b"\xFF" * 2
     import os
     if os.environ.get("SATURN_SKIP") != "box":
         for site in BOX_PLB_SITES:
@@ -1013,6 +1057,10 @@ def main():
         expect(site, WIN_QT_OLD, f"win quote site {site:#x}")
         data[site:site + 30] = \
             bytes((0x22, EE_WINSTUB_QT & 0xFF, EE_WINSTUB_QT >> 8, B_MISC)) + b"\xEA" * 26
+    # Saturn's own proc-table entry (v0.11.8): every dispatcher can now reach her
+    sat_site = 0x100A6 + 2 * SAT_ID
+    expect(sat_site, b"\x00\x00", "proc-table entry 0x1c (must be free)")
+    data[sat_site:sat_site + 2] = bytes(((SITE_BTN + 4) & 0xFF, ((SITE_BTN + 4) - 0x10000) >> 8))
     expect(0x10000 + PROJ_DESPAWN, bytes.fromhex("740060"), "despawn tail")
     for pid in PROJ_IDS:
         site = 0x100A6 + 2 * pid

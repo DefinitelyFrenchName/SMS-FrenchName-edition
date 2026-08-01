@@ -350,3 +350,25 @@ records verbatim (+ the 2 guard-fix bytes), pose→cels verbatim, cel records wi
 addr24 rebased to wherever her 137 KB cel block lands in SMS, scripts verbatim
 minus/with the CMD delta, plus 11th entries in the three char tables (relocation
 per the §Route A table list).
+
+
+## Cross-game ENGINE OBJECT-ID SHIFT [P 08-01, v0.11.8]
+
+The proc table `$C1:00A6` (object id -> proc) is NOT aligned between the games
+in the effect range: **Super S id N == SMS id N-1 for N >= 0x31** (Super S has
+one extra object type inserted; verified by proc byte-match, 35-42/48 bytes:
+SUP 31->SMS 30, 32->31, 33->32, 34->33, 35->34 (both $10C2), 36->35).
+Character procs SPAWN these objects from 6-byte records ([id16 with the id in
+the LOW byte + flags in the high, x16, y16]) consumed by `$C1:1141`/`$113C` ->
+`$80:839D`. **Any ported Super S proc's spawn records must have their ids
+shifted**, or the wrong object type runs and (as with Saturn's act-0x1E KO
+handler spawning id 0x34) its proc can fail to return, killing the frame
+update — game frozen, music alive, screen black. Saturn's records: `$D9F3`
+(0x33->0x32), `$D9F9`/`$D9FF` (0x34->0x33). Ids <= 0x2F (her projectiles) are
+unaffected.
+
+Related: the engine has **at least three** in-bank proc dispatchers —
+`$C1:0080` (players), `$C1:1708` (projectile pool $1100), `$C1:259E` (effect
+pool $1200) — plus `jsr ($00A6,X)` sites in other banks. Hooking only the
+main one is not enough: a ported character needs a real proc-table entry too
+(v0.11.8 points id 0x1C at the `$C1` mini-stub -> `$EF` id trampoline).
