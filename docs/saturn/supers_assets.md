@@ -136,3 +136,30 @@ Also worth noting: because `$944D` keys off `$1000`/`$1080`, a Saturn winner
 currently shows the SHELL character's portrait — the same shell-id mechanism
 that makes the rest of the port work; whichever route we take needs the
 per-player Saturn flag consulted at that point.
+
+
+## Card portrait — plumbing DONE, art conversion REMAINS [P 08-01, v0.12.0]
+
+Implemented behind `SATURN_PORTRAIT=1` (OFF in shipped builds):
+
+- Wrapper stub at `$EE:C900` replaces the loader call at `$9F:949F`
+  (`jsl $80:8DEC`). It stashes the destination from DP `$03` **before** calling
+  the loader (the loader uses `$00-$0E` as workspace — reading `$03` afterwards
+  gives garbage, which cost one bring-up cycle), runs the vanilla upload, then
+  for a flagged Saturn blits her tiles over the same VRAM window
+  (`$0000` P1 / `$0800` P2) with a forced blank around the transfer.
+- **Proven working**: after the blit, the card's VRAM window matches her
+  decompressed Super S portrait **2080/2080 bytes**.
+
+Why it is not enabled: **the two games' portraits are different artwork in a
+different tile arrangement.** Cross-check: none of Super S's ten portrait jobs
+matches SMS's own Uranus card art above noise (best 292/2144 ≈ 13%), so
+dropping her Super S portrait into SMS's card window renders scrambled.
+
+To finish:
+1. **Art conversion** — decode her Super S portrait plus the tilemap that
+   arranges it, compose the image, and re-emit tiles in the order SMS's card
+   tilemap expects (68 tiles, `$000-$043`).
+2. **Palette** — the card's portrait palette is **CGRAM row 8** (measured: the
+   only row that differs between two winners). Our DMA into it is overwritten,
+   so the injection needs a later point (or the card's CGRAM shadow).

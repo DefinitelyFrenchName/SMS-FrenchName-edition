@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.11.11"
+SATURN_VERSION = "0.12.0"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -62,6 +62,15 @@ SATURN_VERSION = "0.11.11"
 # Ship-time balance call: keep whichever variant fits (filenames + version
 # strings differ: v<ver> vs v<ver>-hidden / "SATURN v<ver>H").
 import os as _osv
+# Card-portrait blit: OFF by default. The plumbing is proven (her art lands in
+# the card's exact VRAM window under per-player flag control), but Super S's
+# portrait artwork is a DIFFERENT picture in a DIFFERENT tile arrangement from
+# SMS's card portraits (cross-checked: no Super S portrait job matches SMS's
+# own Uranus card art above noise), so the raw blit renders scrambled. Enabling
+# it needs an art-conversion step (re-tile her portrait into SMS's card layout)
+# plus a palette injection point the card does not overwrite. Set
+# SATURN_PORTRAIT=1 to build the work-in-progress version.
+SATURN_PORTRAIT = _osv.environ.get("SATURN_PORTRAIT") == "1"
 SATURN_HIDDEN = _osv.environ.get("SATURN_VISIBLE") != "1"
 SATURN_STACKED = bool(_osv.environ.get("SATURN_BASE"))
 VARIANT_FILE = f"{SATURN_VERSION}-hidden" if SATURN_HIDDEN else SATURN_VERSION
@@ -196,6 +205,20 @@ EE_TILES = 0xD000         # <- $7F:0000 staging reused); P2 pad = $421A/B.
 # zeros, so those frames render blank (the intended "invisible") instead.
 EE_BLANKCEL = 0xE400
 EE_BLANKCEL_SZ = 0x0480
+# v0.12.0 — REPORT-CARD PORTRAIT. The card uploads each player's portrait from
+# a per-character table ($9F:94C2, 3-byte pointers into bank $C8, index =
+# (code-6)/2) through the loader at $80:8DEC; a Saturn player shows the shell
+# character's face. Repointing the table entry would need her art re-encoded
+# in SMS's own compression (a multi-mode bit codec, out of timebox), so we take
+# the approved fallback: wrap the loader call at $9F:949F and, once the vanilla
+# upload has run, blit HER portrait over the same VRAM window. Art comes from
+# Super S job 100 (P1 dest) decompressed at build time — 0x820 bytes.
+SUP_PORTRAIT_JOB = 100
+EE_PORTRAIT = 0xE900
+EE_PORTPAL = 0xE8C0   # her portrait palette -> CGRAM row 8 (colours 128-143)
+EE_CARDPORT = 0xC900          # the wrapper stub
+SITE_CARDLOAD = 0x1F949F      # $9F:949F  jsl $80:8DEC (the portrait upload)
+CARDLOAD_OLD = bytes.fromhex("22EC8D80")
 # v0.10.0 FIX (latent since 0.8.0): the $EF helper must NOT transform on the
 # user flag directly — story-mode load screens pass its act/$1FA gates on
 # non-fight actors, and a flag set BEFORE the load (char-select pick, or a
@@ -872,6 +895,76 @@ def main():
     ee[EE_TILES:EE_TILES + len(tb)] = tb
     assert ee[EE_BLANKCEL:EE_BLANKCEL + EE_BLANKCEL_SZ] == bytes(EE_BLANKCEL_SZ), \
         "blank-cel region is not zero-filled"
+
+    # -- her report-card portrait + the loader wrapper (v0.12.0) --
+    psrc, pvram, _pf = supers_lz.job_entry(sup, SUP_PORTRAIT_JOB)
+    assert pvram == 0x0000, f"portrait job {SUP_PORTRAIT_JOB} targets {pvram:04X}"
+    portrait = supers_lz.lz_decompress(sup, psrc)
+    assert 0x600 <= len(portrait) <= 0x0A00, f"portrait size {len(portrait):#x}"
+    assert ee[EE_PORTRAIT:EE_PORTRAIT + len(portrait)] == bytes(len(portrait)), \
+        "portrait slot is not free"
+    ee[EE_PORTRAIT:EE_PORTRAIT + len(portrait)] = portrait
+    PSIZE = len(portrait)
+    # the card's portrait palette is CGRAM row 8 (measured: it is the only row
+    # that differs between two winners), so her icon palette goes with the art
+    ee[EE_PORTPAL:EE_PORTPAL + 32] = sup[X.PALETTES["icon"]:X.PALETTES["icon"] + 32]
+
+    cp, lbl, br, fix = _asm()
+    brl_fix = []
+    # The loader uses DP $00-$0E as workspace, so the destination in $03 must be
+    # stashed BEFORE calling it (v0.12.0 bring-up bug: reading $03 afterwards
+    # gave garbage and the blit never ran). Entry A/flags belong to the loader.
+    cp += bytes((0x08, 0xC2, 0x30, 0x48))          # php / rep #$30 / pha
+    cp += bytes((0xA5, 0x03, 0x8F, 0x04, 0xF1, SATURN_BANK))   # stash dest
+    cp += bytes((0x68, 0x28))                      # pla / plp
+    cp += bytes((0x22, 0xEC, 0x8D, 0x80))          # the vanilla upload we wrap
+    cp += bytes((0x08, 0xC2, 0x30, 0x48, 0xDA, 0x5A))   # php/rep #$30/pha/phx/phy
+    cp += bytes((0xAF, 0x04, 0xF1, SATURN_BANK, 0xC9, 0x00, 0x00)); br(0xF0, "p1")
+    cp += bytes((0xC9, 0x00, 0x08)); br(0xF0, "p2")
+    cp += bytes((0x82, 0x00, 0x00)); brl_fix.append(len(cp) - 2)   # brl done
+    lbl("p1")
+    cp += bytes((0xAF, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK,
+                 0xC9, SATURN_MAGIC, 0x00, 0xF0, 0x03))
+    cp += bytes((0x82, 0x00, 0x00)); brl_fix.append(len(cp) - 2)
+    cp += bytes((0xA9, 0x00, 0x00)); br(0x80, "blit")
+    lbl("p2")
+    cp += bytes((0xAF, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK,
+                 0xC9, SATURN_MAGIC, 0x00, 0xF0, 0x03))
+    cp += bytes((0x82, 0x00, 0x00)); brl_fix.append(len(cp) - 2)
+    cp += bytes((0xA9, 0x00, 0x08))
+    lbl("blit")                                     # A = VRAM word address
+    cp += bytes((0x48,))                            # save dest
+    cp += bytes((0xE2, 0x20, 0xAF, 0x00, 0x21, 0x00, 0x85, 0x0E))  # $0E = old INIDISP
+    cp += bytes((0xA9, 0x8F, 0x8D, 0x00, 0x21))     # force blank (brightness 15)
+    cp += bytes((0xC2, 0x20, 0x68))                 # restore dest
+    cp += bytes((0x8D, 0x16, 0x21))                 # sta $2116
+    cp += bytes((0xE2, 0x20, 0xA9, 0x80, 0x8D, 0x15, 0x21))   # sep/VMAIN=$80
+    cp += bytes((0xA9, 0x01, 0x8D, 0x00, 0x43))     # DMA mode 1 (2 regs)
+    cp += bytes((0xA9, 0x18, 0x8D, 0x01, 0x43))     # B-bus $2118
+    cp += bytes((0xC2, 0x20))
+    cp += bytes((0xA9, EE_PORTRAIT & 0xFF, EE_PORTRAIT >> 8, 0x8D, 0x02, 0x43))
+    cp += bytes((0xE2, 0x20, 0xA9, B_MISC, 0x8D, 0x04, 0x43))
+    cp += bytes((0xC2, 0x20, 0xA9, PSIZE & 0xFF, PSIZE >> 8, 0x8D, 0x05, 0x43))
+    cp += bytes((0xE2, 0x20, 0xA9, 0x01, 0x8D, 0x0B, 0x42))   # kick channel 0
+    # palette -> CGRAM row 8
+    cp += bytes((0xA9, 0x80, 0x8D, 0x21, 0x21))               # CGADD = 128
+    cp += bytes((0xA9, 0x00, 0x8D, 0x00, 0x43))               # DMA mode 0
+    cp += bytes((0xA9, 0x22, 0x8D, 0x01, 0x43))               # B-bus $2122
+    cp += bytes((0xC2, 0x20, 0xA9, EE_PORTPAL & 0xFF, EE_PORTPAL >> 8, 0x8D, 0x02, 0x43))
+    cp += bytes((0xE2, 0x20, 0xA9, B_MISC, 0x8D, 0x04, 0x43))
+    cp += bytes((0xC2, 0x20, 0xA9, 0x20, 0x00, 0x8D, 0x05, 0x43))
+    cp += bytes((0xE2, 0x20, 0xA9, 0x01, 0x8D, 0x0B, 0x42))
+    cp += bytes((0xE2, 0x20, 0xA5, 0x0E, 0x8D, 0x00, 0x21))   # restore INIDISP
+    lbl("done")
+    cp += bytes((0xC2, 0x30, 0x7A, 0xFA, 0x68, 0x28, 0x6B))   # restore / rtl
+    fix()
+    done_at = len(cp) - 7    # the restore/rtl tail assembled last
+    for pos in brl_fix:
+        off = done_at - (pos + 2)
+        cp[pos] = off & 0xFF
+        cp[pos + 1] = (off >> 8) & 0xFF
+    assert len(cp) <= 0xF0, f"card-portrait stub too big: {len(cp)}"
+    ee[EE_CARDPORT:EE_CARDPORT + len(cp)] = cp
     write_bank(data, bankbase, bytes(ee))
 
     # ---- bank $EF: full SMS-$C1 copy + Saturn's ported proc block ----
@@ -1105,6 +1198,10 @@ def main():
     sat_site = 0x100A6 + 2 * SAT_ID
     expect(sat_site, b"\x00\x00", "proc-table entry 0x1c (must be free)")
     data[sat_site:sat_site + 2] = bytes(((SITE_BTN + 4) & 0xFF, ((SITE_BTN + 4) - 0x10000) >> 8))
+    if SATURN_PORTRAIT:
+        expect(SITE_CARDLOAD, CARDLOAD_OLD, "card portrait loader call")
+        data[SITE_CARDLOAD:SITE_CARDLOAD + 4] = \
+            bytes((0x22, EE_CARDPORT & 0xFF, EE_CARDPORT >> 8, B_MISC))
     expect(0x10000 + PROJ_DESPAWN, bytes.fromhex("740060"), "despawn tail")
     for pid in PROJ_IDS:
         site = 0x100A6 + 2 * pid
