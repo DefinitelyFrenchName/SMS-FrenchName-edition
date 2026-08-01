@@ -107,10 +107,32 @@ different winners):
   no `$7F` staging buffer. That is why the effect-tile "staging override"
   trick does not apply here.
 
-Remaining steps: (1) find the per-character source-pointer table the card's
-portrait job uses (walk the caller of `$9F:84E8` at card init); (2) extract
-Saturn's portrait from Super S (portrait jobs = Super S job idx 91-110, via
-`tools/saturn/supers_lz.py`); (3) either repoint the job's source for a flagged
-Saturn winner, or let the vanilla upload run and blit our tiles over VRAM
-`$0000` afterwards. The same table almost certainly drives any other portrait
-screens.
+### The card's portrait chain — DECODED [P 08-01]
+
+    $C0:A1C6  jsl $9F:964F              ; report-card screen routine
+      $9F:9670  lda #$96BC / jsr $83E1  ; shared card art (same for every winner)
+      $9F:944D                          ; per-player portraits
+        reads $1000 (P1) and $1080 (P2) — at card time these hold a portrait
+        CODE, not the struct id: Moon 0x06, Jupiter 0x0C, Chibimoon 0x10,
+        Uranus 0x16 (measured)
+        $9F:9487  sec / sbc #$0006 / (A + A>>1) -> Y     ; 3-byte stride
+                  lda $94C2,Y / lda $94C3,Y -> $00/$01   ; 24-bit source ptr
+                  lda #$0000 / jsl $80:8DEC              ; upload
+    Table: **`$9F:94C2`, 3-byte pointers, 9 real entries** ->
+    `$C8:32DA, 38BA, 3E28, 43EA, 4A38, 509D, 58DB, 5F52, 6664`
+    (entry index = (code - 6) / 2; entries 9+ are not table data).
+    Second portrait goes to VRAM `$0800` (word) via `$03` = 0x0800 in `$944D`.
+
+**Blocker for the repoint route:** those streams are compressed in **SMS's own
+format**, which is NOT the Super S LZSS (`supers_lz.lz_decompress` fails on
+`$C8:32DA`). So repointing needs Saturn's portrait encoded in SMS's format,
+i.e. RE the bank-`$9F` decompressor enough to write an encoder — a
+literal-only encoder is likely enough if the format has a literal-run token
+(the Super S one does). Otherwise the agreed fallback: let the vanilla upload
+run and blit our tiles over VRAM `$0000` afterwards (raw tiles, no encoder
+needed).
+
+Also worth noting: because `$944D` keys off `$1000`/`$1080`, a Saturn winner
+currently shows the SHELL character's portrait — the same shell-id mechanism
+that makes the rest of the port work; whichever route we take needs the
+per-player Saturn flag consulted at that point.
