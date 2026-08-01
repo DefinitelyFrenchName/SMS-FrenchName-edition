@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.11.9"
+SATURN_VERSION = "0.11.10"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -173,7 +173,7 @@ CMD_SND_MAP = {0x15: 0x05, 0x14: 0x06, 0x0E: 0x06, 0x20: 0x06,
 # Lua-only (its effect-buffer layout unmapped).
 SITE_DMA_KICK = 0x092A4
 DMA_KICK_OLD = bytes.fromhex("A0018C00438C0B42")
-E8_DMASTUB = 0x2980
+E8_DMASTUB = 0x2A00   # v0.11.10: CMD stub grew past 0x2980
 # v0.11.6 COLLISION FIX (found while REing the config screen): $7E:1F60-$1F63
 # is NOT free — bank $C3 (menus/VS-config) writes all four ($C3:B904 sets
 # $1F60=1, $C3:B973 $1F61, $C3:B9F5 $1F62, $C3:BA57 $1F63) and reads them
@@ -452,11 +452,18 @@ def main():
     # PAST the remaining compares (v0.11.1: the old fallthrough left A=sfx in
     # the later compares; harmless for the original 4-entry map, but the
     # movement sfx values collide with cids in the 8-entry map)
+    # v0.11.10 FIX (field report: wrong sfx on hit, "Sonic ring" tone): the
+    # no-match path used to fall through into the shared store, so any CMD arg
+    # we deliberately leave UNMAPPED (her hit-reaction args 0x05/0x11/0x12/
+    # 0x16 — the engine already plays those sounds) was written to $78 RAW and
+    # played as whatever sfx that id happens to be. Unmapped args are silent
+    # again: matches branch to the store, the fallthrough skips it.
     cmd_tail = bytearray()
     fx_store = []
     for cid, sfx in CMD_SND_MAP.items():
         cmd_tail += bytes((0xC9, cid, 0xD0, 0x04, 0xA9, sfx, 0x80, 0x00))
         fx_store.append(len(cmd_tail) - 1)
+    cmd_tail += bytes((0x80, 0x02))      # no match -> skip the store (silent)
     for pos in fx_store:
         cmd_tail[pos] = len(cmd_tail) - (pos + 1)
     cmd_tail += bytes((0x85, 0x78))      # store: sta $78

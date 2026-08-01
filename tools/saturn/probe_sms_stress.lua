@@ -52,10 +52,54 @@ end, emu.eventType.inputPolled)
 
 local lastact, stuck, lastposechange = -1, 0, 0
 local hist = {}
+local vaddr, dmaflag = 0, 0
+-- VRAM integrity watchdog: regions the game does NOT rewrite mid-match
+-- (BG/HUD tiles + tilemaps). Cel windows $6000-$73FF and the HUD counters are
+-- excluded. A change here == the screen-wide corruption the maintainer sees.
+local VRSNAP, vrbad = nil, 0
+local function vrsample()
+  local V = emu.memType.snesVideoRam
+  local t2 = {}
+  for a = 0x0000, 0x5FFF, 0x40 do t2[#t2+1] = emu.read(a, V) end
+  for a = 0x7400, 0xFFFF, 0x40 do t2[#t2+1] = emu.read(a, V) end
+  return t2
+end
+for _, b in ipairs({0x002116, 0x802116}) do
+  emu.addMemoryCallback(function(a, v) vaddr = (vaddr & 0xFF00) | (v or 0) end,
+    emu.callbackType.write, b, b, emu.cpuType.snes, emu.memType.snesMemory)
+  emu.addMemoryCallback(function(a, v) vaddr = (vaddr & 0x00FF) | ((v or 0) << 8) end,
+    emu.callbackType.write, b + 1, b + 1, emu.cpuType.snes, emu.memType.snesMemory)
+end
+local REG = emu.memType.snesMemory
+local function reg(a) return emu.read(0x800000 + a, REG) end
+for _, b in ipairs({0x00420B, 0x80420B}) do
+  emu.addMemoryCallback(function(addr, value)
+    if (value or 0) == 0 or t < 90 then return end
+    for ch = 0, 7 do
+      if ((value >> ch) & 1) == 1 then
+        local c = 0x4300 + ch * 0x10
+        if reg(c + 1) == 0x18 or reg(c + 1) == 0x19 then
+          local bank, len = reg(c + 4), reg(c+5) + 256*reg(c+6)
+          local ok = (vaddr >= 0x6000 and vaddr < 0x7400) or (vaddr >= 0x1100 and vaddr < 0x1200) or vaddr == 0
+          local bok = (bank >= 0x7E) or (bank >= 0xC0)
+          if (not ok) or (not bok) or len > 0x4000 then
+            dmaflag = dmaflag + 1
+            if dmaflag <= 8 then
+              log(string.format("t=%d SUSPECT DMA VRAM %04X <- %02X:%04X len %04X p1act=%02X p2act=%02X",
+                t, vaddr, bank, reg(c+2) + 256*reg(c+3), len, ram(0x1001), ram(0x1081)))
+            end
+          end
+        end
+      end
+    end
+  end, emu.callbackType.write, b, b, emu.cpuType.snes, emu.memType.snesMemory)
+end
 emu.addEventCallback(function()
   if t < 0 then return end
   t = t + 1
-  if t == 60 then
+  if t == 60 and os.getenv("VANILLA") == "1" then
+    -- calibration mode: no transform, same input stream
+  elseif t == 60 then
     wr(0x1000, 0x1C)                                  -- P1 Saturn
     for _, o in ipairs({0x01,0x02,0x04,0x05,0x06,0x07}) do wr(0x1000 + o, 0) end
     if MIRROR then
@@ -122,11 +166,26 @@ emu.addEventCallback(function()
     or (ram(0x1081) == 0x24 or ram(0x1081) == 0x1F or ram(0x1081) == 0x21)
     or ram(0x1049) == 0 or ram(0x10C9) == 0
   if p ~= lastact or roundend then lastact = p; lastposechange = t end
+  if t == 150 then VRSNAP = vrsample() end
+  if VRSNAP and t > 150 and t % 30 == 0 and vrbad == 0 then
+    local cur = vrsample()
+    local diffs = 0
+    for i = 1, #VRSNAP do if cur[i] ~= VRSNAP[i] then diffs = diffs + 1 end end
+    if diffs > 8 then
+      vrbad = diffs
+      log(string.format("VRAM CORRUPTION at t=%d: %d/%d sampled bytes changed", t, diffs, #VRSNAP))
+      for _, l in ipairs(hist) do log("  " .. l) end
+      local png = emu.takeScreenshot()
+      local f = assert(io.open(ENV.TRACE .. "saturn/corrupt_" .. SEED .. (MIRROR and "m" or "") .. ".png", "wb"))
+      f:write(png); f:close()
+      emu.stop(1)
+    end
+  end
   if ram(0x1000) == 0 and ram(0x1080) == 0 then
-    log(string.format("MATCH ENDED CLEANLY at t=%d (structs cleared) — no wedge", t))
+    log(string.format("MATCH ENDED CLEANLY at t=%d — no wedge; suspect DMAs: %d", t, dmaflag))
     emu.stop(0)
   end
-  if ram(0x1000) ~= 0x1C and ram(0x1000) ~= 0 then
+  if os.getenv("VANILLA") ~= "1" and ram(0x1000) ~= 0x1C and ram(0x1000) ~= 0 then
     log(string.format("P1 ID CHANGED at t=%d (id=%02X)", t, ram(0x1000)))
     for _, l in ipairs(hist) do log("  " .. l) end
     emu.stop(1)
@@ -141,6 +200,6 @@ emu.addEventCallback(function()
     f:write(png); f:close()
     emu.stop(1)
   end
-  if t > 7000 then log("SURVIVED " .. t .. " frames"); emu.stop(0) end
+  if t > 7000 then log("SURVIVED " .. t .. " frames; suspect DMAs: " .. dmaflag); emu.stop(0) end
 end, emu.eventType.endFrame)
 print("stress loaded seed=" .. SEED)
