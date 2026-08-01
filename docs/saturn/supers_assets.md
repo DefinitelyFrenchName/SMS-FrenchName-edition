@@ -84,3 +84,33 @@ would be its own exploration.
 SMS music, reachable by replacing an existing stage id) ≈ 2-3 focused
 sessions; full integration (own stage-select ids, all stages, polish) ≈ that
 again. No blockers identified.
+
+
+## Report-card portrait — located [P 08-01]
+
+Goal: show Saturn's portrait on the post-match REPORT CARD (she currently shows
+the shell character's, since the card reads the SELECTED char id, not the
+in-match struct id — confirmed: poking the struct changes nothing).
+
+Findings (probe `tools/saturn/probe_cardportrait.lua`, VS flow → two KOs →
+card detected by `$1E05==0xFF && $0070==0`, VRAM dumped and diffed between two
+different winners):
+
+- **Portrait tiles = VRAM `$0000-$087B` (tiles `$000-$043`, ~2.1 KB)** — the
+  only meaningful per-winner difference on the card (a second small region,
+  `$50E0-$51BE`, is the label strip).
+- It is **NOT DMA'd**: during the card build the only DMAs are the in-match cel
+  streams and the two win-name-plate transfers we already hook. The portrait
+  arrives via direct `$2118` writes from **`$9F:84E8`** — i.e. SMS's OWN
+  decompressor (bank `$9F`, the LZ-cousin whose backref idiom was spotted at
+  `$1F:95C2`/`$1F:A08F`) streaming decompressed data STRAIGHT INTO VRAM, with
+  no `$7F` staging buffer. That is why the effect-tile "staging override"
+  trick does not apply here.
+
+Remaining steps: (1) find the per-character source-pointer table the card's
+portrait job uses (walk the caller of `$9F:84E8` at card init); (2) extract
+Saturn's portrait from Super S (portrait jobs = Super S job idx 91-110, via
+`tools/saturn/supers_lz.py`); (3) either repoint the job's source for a flagged
+Saturn winner, or let the vanilla upload run and blit our tiles over VRAM
+`$0000` afterwards. The same table almost certainly drives any other portrait
+screens.
