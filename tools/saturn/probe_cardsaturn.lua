@@ -58,6 +58,17 @@ for _, b in ipairs({0x002118, 0x802118, 0x002119, 0x802119}) do
   end, emu.callbackType.write, b, b, emu.cpuType.snes, emu.memType.snesMemory)
 end
 local hooks = 0
+local oamw, oamlog = 0, {}
+for _, r in ipairs({{0x7E0200, 0x7E027F}, {0x000200, 0x00027F}}) do
+  emu.addMemoryCallback(function(addr, value)
+    local v = value or 0
+    if not watching or oamw > 14 or v == 0xE0 or v == 0x00 then return end
+    oamw = oamw + 1
+    local ok, st = pcall(emu.getState)
+    oamlog[#oamlog+1] = string.format("%04X<=%02X @%02X:%04X", addr % 0x10000, value or 0,
+      st and (st["cpu.k"] or 0) or 0, st and (st["cpu.pc"] or 0) or 0)
+  end, emu.callbackType.write, r[1], r[2], emu.cpuType.snes, emu.memType.snesMemory)
+end
 local ppu = {}
 for reg = 0x2105, 0x210C do
   for _, b in ipairs({reg, 0x800000 + reg}) do
@@ -130,6 +141,7 @@ local function dumpvram(tag)
   for i = 0, 543 do o[#o+1] = string.char(emu.read(i, emu.memType.snesSpriteRam)) end
   local of = assert(io.open(ENV.TRACE .. "saturn/oamcard_" .. tag .. ".bin", "wb"))
   of:write(table.concat(o)); of:close()
+  log("OAM-shadow writers: " .. table.concat(oamlog, " "))
   log("dumped " .. tag)
 end
 local STEPS = {

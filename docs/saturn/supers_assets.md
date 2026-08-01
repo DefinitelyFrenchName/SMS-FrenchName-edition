@@ -178,7 +178,21 @@ dark-pixel cue drags the frame onto her hair).
 **Status: her portrait renders correctly on SMS's card** (`SATURN_PORTRAIT=1`;
 see `mockups/saturn_card_ingame.png`). Composition, pose and glaive are right.
 
-**Remaining: the palette.** The card's portrait colours are CGRAM row 8, and
+**Remaining #1: the composition is PER-CHARACTER, not universal.** Measured by
+dumping OAM on two different winners: Uranus's portrait uses **31 sprites**
+spanning x 19-90 / y 48-120, Moon's uses **18** spanning x 20-86 / y 56-120 —
+different counts, positions and tile numbers. Each character's portrait ships
+with a sprite layout shaped to that character's silhouette. Feeding Saturn's
+art through Uranus's layout (what v0.12.0 does) therefore CLIPS everything
+outside his outline — the maintainer saw exactly this: her lower-left hair/face
+and the glaive's Y-piece missing, because her portrait fills nearly a full
+square while his silhouette does not. Fix: give her her OWN layout covering the
+full square, i.e. find the per-character sprite-list source (the card's OAM is
+built around `$80:8DB8`/`$80:8DEC`, the same routine family as the tile upload;
+the layout is likely part of the same per-character asset) and point her at a
+custom list, then generate tiles for every cell of that square.
+
+**Remaining #2: the palette.** The card's portrait colours are CGRAM row 8, and
 neither a direct CGRAM DMA nor seeding the `$7E:0600` OBJ-palette shadow
 sticks (2/32 bytes survive) — the card re-uploads row 8 from somewhere else.
 Next step is one probe: watch `$2121/$2122` writes during the card build, find
