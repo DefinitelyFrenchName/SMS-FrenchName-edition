@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.11.8"
+SATURN_VERSION = "0.11.9"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -928,17 +928,30 @@ def main():
     # it fires whenever a KO happens with Saturn on screen.
     # Fix: point her table entry at the same $C1 mini-stub the projectiles use
     # and let tramp3 route id 0x1C to her dispatch first.
+    # v0.11.9: the Saturn branch must ONLY run her character proc for the two
+    # PLAYER slots ($1000/$1080). v0.11.8 pointed her proc-table entry here so
+    # the engine's other dispatchers could reach her — but those iterate the
+    # projectile ($1100) and effect ($1200) pools, so any pooled object that
+    # happens to carry id 0x1C would have run her FULL character proc against
+    # a non-player struct: a second copy of her sprite drawn from bogus state
+    # (the maintainer's "5LK shows LP and LK at once") and her per-frame cel
+    # streaming DMAing from garbage addresses (screen-wide tile corruption).
+    # Non-player slots now self-clear, exactly like the projectile placeholder.
     tramp3 = bytes.fromhex(
         "C210"            # rep #$10
         "A688"            # ldx $88
         "B500"            # lda $00,X      (object id)
-        "C91C" "F014"     # id == 0x1C -> saturn
+        "C91C" "F014"     # id == 0x1C -> saturn-gate
         "C920" "F008"     # 0x20
         "C921" "F008"     # 0x21
         "20A629" "6B"     # else 0x22 proc
         "200B28" "6B"     # 0x20 proc
         "20D328" "6B"     # 0x21 proc
-        "20F7C6" "6B")    # saturn: jsr her dispatch / rtl
+        # saturn-gate: only $1000 / $1080 are real players
+        "E00010" "F008"   # cpx #$1000 -> run
+        "E08010" "F003"   # cpx #$1080 -> run
+        "7400" "6B"       # else: stz $00,X (despawn) / rtl
+        "20F7C6" "6B")    # run: jsr her dispatch / rtl
     assert len(tramp3) <= 0x60, f"tramp3 too big: {len(tramp3)}"
     ef[EF_TRAMP3:EF_TRAMP3 + len(tramp3)] = tramp3
     # sound translator: sep #$20 / pha / (cmp #id / beq)* / pla / rtl;
