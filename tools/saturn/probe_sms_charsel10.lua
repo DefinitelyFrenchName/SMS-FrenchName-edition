@@ -57,7 +57,7 @@ local function confirmstep(pad, cur, confvar, flagaddr, tag)
         chk(ram(cur) == 6, string.format("%s cursor translated to shell 6 (=%02X)", tag, ram(cur)))
       end
       if flagaddr then
-        chk(flag(flagaddr) == 1, string.format("%s flag set (=%02X)", tag, flag(flagaddr)))
+        chk(flag(flagaddr) == 0xA5, string.format("%s flag set (=%02X)", tag, flag(flagaddr)))
       end
       return true
     end

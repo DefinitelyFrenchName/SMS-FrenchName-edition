@@ -22,6 +22,21 @@ local code = {}          -- per-pad L+R hold overlay
 
 local function flag(a) return emu.read(a, emu.memType.snesMemory) end
 
+for _, r in ipairs({{0x7FF100, 0x7FF103, "mem"}}) do
+  emu.addMemoryCallback(function(addr, value)
+    local ok, st = pcall(emu.getState)
+    local pc = st and (st["cpu.pc"] or st["snes.cpu.pc"]) or -1
+    local k = st and (st["cpu.k"] or st["snes.cpu.k"]) or -1
+    log(string.format("f=%d WFLAG %06X <= %02X @ %02X:%04X", frames, addr, value or -1, k, pc))
+  end, emu.callbackType.write, r[1], r[2], emu.cpuType.snes, emu.memType.snesMemory)
+end
+emu.addMemoryCallback(function(addr, value)
+  local ok, st = pcall(emu.getState)
+  local pc = st and (st["cpu.pc"] or st["snes.cpu.pc"]) or -1
+  local k = st and (st["cpu.k"] or st["snes.cpu.k"]) or -1
+  log(string.format("f=%d WRAMW %05X <= %02X @ %02X:%04X", frames, addr, value or -1, k, pc))
+end, emu.callbackType.write, 0x1F100, 0x1F103, emu.cpuType.snes, emu.memType.snesWorkRam)
+
 local function chk(cond, msg)
   if cond then log("PASS " .. msg) else fails = fails + 1; log("FAIL " .. msg) end
 end
@@ -59,8 +74,8 @@ local function confirmstep(pad, cur, confvar, withcode, flagaddr, flagwant, tag)
       pulse[pad] = {}
       code[pad] = nil
       chk(ram(confvar) == 1, tag .. " confirmed")
-      chk(flag(flagaddr) == flagwant,
-        string.format("%s flag=%02X (want %02X)", tag, flag(flagaddr), flagwant))
+      chk(flag(flagaddr) == (flagwant == 1 and 0xA5 or flagwant),
+        string.format("%s flag=%02X (want %02X)", tag, flag(flagaddr), (flagwant == 1 and 0xA5 or flagwant)))
       return true
     end
     return false
@@ -127,6 +142,45 @@ if MODE == "vs" then
   add(function()
     chk(ram(0x1000) == 0x1C, string.format("P1 in-match id 0x1C (=%02X)", ram(0x1000)))
     chk(ram(0x1080) == 0x04, string.format("P2 in-match Jupiter (=%02X)", ram(0x1080)))
+    return true
+  end)
+elseif MODE == "vscpu" then
+  -- 1P vs CPU: from the title, mash Start through to the char select, then
+  -- confirm any character WITH the code held.
+  add(function() pulse[0]=(frames % 9 < 3) and {start=true} or {}; return sf>40 end)
+  add(function()
+    pulse[0] = (sf % 20 < 3) and {start=true} or {}
+    if ram(0x1B40) ~= 0 then return sf > 60 end
+    if sf > 1200 then chk(false, "reach 1P charselect"); emu.stop(1) end
+    return false
+  end)
+  add(function()
+    chk(ram(0x1B40) ~= 0, "at 1P charselect")
+    log(string.format("1P cursor=%02X 8D=%02X", ram(0x1B40), ram(0x8D)))
+    return true
+  end)
+  add(nomarker("vscpu"))
+  add(confirmstep(0, nil, 0x1B42, true, 0x7FF100, 1, "P1(1P+code)"))
+  add(function()
+    log(string.format("post-confirm: cur=%02X flag=%02X latch=%02X",
+      ram(0x1B40), flag(0x7FF100), flag(0x7FF102)))
+    return true
+  end)
+  add(function()  -- into the fight
+    pulse[0] = (sf % 14 < 3) and {a = true}
+      or ((sf % 14 >= 7 and sf % 14 < 10) and {start = true} or {})
+    if sf % 60 == 0 then
+      log(string.format("f=%d load: 70=%02X 1000=%02X 1080=%02X flag=%02X latch=%02X",
+        frames, ram(0x70), ram(0x1000), ram(0x1080), flag(0x7FF100), flag(0x7FF102)))
+    end
+    if ram(0x70) == 4 and ram(0x1000) ~= 0 and ram(0x1080) ~= 0 then return true end
+    if sf > 3000 then chk(false, "fight load"); emu.stop(1) end
+    return false
+  end)
+  add(function() return sf > 300 end)
+  add(function()
+    chk(ram(0x1000) == 0x1C, string.format("P1 in-match id 0x1C (=%02X)", ram(0x1000)))
+    log(string.format("opponent=%02X flag=%02X latch=%02X", ram(0x1080), flag(0x7FF100), flag(0x7FF102)))
     return true
   end)
 else -- practice

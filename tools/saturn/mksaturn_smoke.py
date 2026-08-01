@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.11.6"
+SATURN_VERSION = "0.11.7"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -182,6 +182,14 @@ EE_TILES = 0xD000         # <- $7F:0000 staging reused); P2 pad = $421A/B.
 SATURN_LATCH = 0xF102     # P1 armed-this-round latch
 SATURN_LATCH2 = 0xF103    # P2 armed-this-round latch
 SATURN_BANK = 0x7F        # bank byte for all four (long addressing)
+# v0.11.7: NO WRAM address is provably safe — $C0:9251 is a generic
+# pointer-driven copy loop (`lda ($06),Y / sta ($03),Y`) whose destination is
+# caller data, and it was observed spraying $7F:F100-F102 with 7F/3F junk
+# during boot on the Saturn build. So the flags no longer mean "nonzero =
+# Saturn": they must equal MAGIC. Junk therefore reads as "not selected"
+# (fail-safe) instead of arming Saturn at random, and a clobber can only
+# cancel a selection, never invent one.
+SATURN_MAGIC = 0xA5
 # v0.10.0 — CHAR-SELECT 10TH SLOT (placeholder graphic): the select screen is a
 # group photo with table-driven spatial cursor movement. Decoded (charsel probes
 # 2026-07-31, code runs from the $80 FastROM mirror):
@@ -455,19 +463,34 @@ def main():
     # DMA-kick stub: P1 ($6A00) and P2 ($7300) effects transfers; per-player
     # flags from the respective autopoll pads; staging override when flagged
     def _flagblock(pad_lo, pad_hi, flag, latch):
+        """Per-player: L+R sets flag=MAGIC, SELECT clears it, then latch mirrors
+        it for this round. Returns (bytes, [(pos, kind)]) where each entry is a
+        jump-to-`orig` needing fixup — kind 'brl' = 3-byte relative-long (the
+        stub outgrew 8-bit branch range in v0.11.7; brl removes the class of
+        bug entirely)."""
         b = bytearray()
+        fix = []
         b += bytes((0xE2, 0x20))                             # sep #$20
-        b += bytes((0xA5, 0x36, 0xC9, 0x7F, 0xD0, 0x00))     # $36!=7F -> orig
-        j1 = len(b) - 1
-        b += bytes((0xAD, pad_lo & 0xFF, pad_lo >> 8, 0x29, 0x30, 0xC9, 0x30, 0xD0, 0x06))
-        b += bytes((0xA9, 0x01, 0x8F, flag & 0xFF, flag >> 8, SATURN_BANK))
-        b += bytes((0xAD, pad_hi & 0xFF, pad_hi >> 8, 0x29, 0x20, 0xF0, 0x06))
+        b += bytes((0xA5, 0x36, 0xC9, 0x7F, 0xF0, 0x03))     # ==7F: skip the brl
+        b += bytes((0x82, 0x00, 0x00)); fix.append(len(b) - 2)   # operand idx
+        # LONG reads (v0.11.7): these were DB-relative `lda $4218` — the stub is
+        # JSL'd with the caller's DB, so it sampled WRAM garbage instead of the
+        # pad, and the L+R arming NEVER actually worked. It only appeared to
+        # because the game's own menu code wrote 1 to the old latch address
+        # ($C3:B9F5 -> $1F62); moving the flags off that address exposed it.
+        b += bytes((0xAF, pad_lo & 0xFF, pad_lo >> 8, 0x00, 0x29, 0x30, 0xC9, 0x30, 0xD0, 0x06))
+        b += bytes((0xA9, SATURN_MAGIC, 0x8F, flag & 0xFF, flag >> 8, SATURN_BANK))
+        b += bytes((0xAF, pad_hi & 0xFF, pad_hi >> 8, 0x00, 0x29, 0x20, 0xF0, 0x06))
         b += bytes((0xA9, 0x00, 0x8F, flag & 0xFF, flag >> 8, SATURN_BANK))
-        b += bytes((0xAF, flag & 0xFF, flag >> 8, SATURN_BANK))    # lda long flag
-        b += bytes((0x8F, latch & 0xFF, latch >> 8, SATURN_BANK))  # arm this round
-        b += bytes((0xF0, 0x00))
-        j2 = len(b) - 1
-        return b, (j1, j2)
+        # latch = MAGIC iff flag == MAGIC, else 0 (never leaves a stale latch)
+        b += bytes((0xAF, flag & 0xFF, flag >> 8, SATURN_BANK))
+        b += bytes((0xC9, SATURN_MAGIC, 0xF0, 0x04))         # beq armed
+        b += bytes((0xA9, 0x00, 0x80, 0x02))                 # lda #0 / bra store
+        b += bytes((0xA9, SATURN_MAGIC))                     # armed:
+        b += bytes((0x8F, latch & 0xFF, latch >> 8, SATURN_BANK))   # store:
+        b += bytes((0xC9, SATURN_MAGIC, 0xF0, 0x03))         # armed: skip the brl
+        b += bytes((0x82, 0x00, 0x00)); fix.append(len(b) - 2)   # operand idx
+        return b, fix
     d = bytearray()
     d += bytes((0x08, 0xC2, 0x30))                       # php / rep #$30
     d += bytes((0x48, 0xDA, 0x5A))                       # pha / phx / phy
@@ -475,29 +498,38 @@ def main():
     fp1 = len(d) - 1
     d += bytes((0xC9, 0x00, 0x73, 0xF0, 0x00))               # ==$7300 -> p2eff
     fp2 = len(d) - 1
-    d += bytes((0x80, 0x00))                                 # bra orig
-    forig1 = len(d) - 1
+    d += bytes((0x82, 0x00, 0x00))                           # brl orig
+    forig = [len(d) - 2]
     p1eff = len(d)
-    b1, (j11, j12) = _flagblock(0x4218, 0x4219, SATURN_FLAG, SATURN_LATCH)
+    b1, f1 = _flagblock(0x4218, 0x4219, SATURN_FLAG, SATURN_LATCH)
     d += b1
-    d += bytes((0x80, 0x00))                                 # bra copy
-    fcopy = len(d) - 1
+    d += bytes((0x82, 0x00, 0x00))                           # brl copy
+    fcopy = len(d) - 2
     p2eff = len(d)
-    b2, (j21, j22) = _flagblock(0x421A, 0x421B, SATURN_FLAG2, SATURN_LATCH2)
+    b2, f2 = _flagblock(0x421A, 0x421B, SATURN_FLAG2, SATURN_LATCH2)
     d += b2
     copy = len(d)
     d += bytes((0xC2, 0x30))                             # rep #$30
     d += bytes((0xA2, 0x00, EE_TILES >> 8, 0xA0, 0x00, 0x00,
                 0xA9, 0x3F, 0x10, 0x8B, 0x54, 0x7F, B_MISC, 0xAB))
     orig = len(d)
-    d[fp1] = p1eff - (fp1 + 1)
-    d[fp2] = p2eff - (fp2 + 1)
-    d[forig1] = orig - (forig1 + 1)
-    d[fcopy] = copy - (fcopy + 1)
-    d[p1eff + j11] = orig - (p1eff + j11 + 1)
-    d[p1eff + j12] = orig - (p1eff + j12 + 1)
-    d[p2eff + j21] = orig - (p2eff + j21 + 1)
-    d[p2eff + j22] = orig - (p2eff + j22 + 1)
+    def _rel8(pos, target, what):
+        off = target - (pos + 1)
+        assert -128 <= off <= 127, f"{what}: 8-bit branch out of range ({off})"
+        d[pos] = off & 0xFF
+    def _rel16(pos, target, what):
+        assert d[pos - 1] == 0x82, f"{what}: not a brl operand slot"
+        off = target - (pos + 2)                          # brl: PC after operand
+        assert -32768 <= off <= 32767, f"{what}: brl out of range"
+        d[pos] = off & 0xFF
+        d[pos + 1] = (off >> 8) & 0xFF
+    _rel8(fp1, p1eff, "fp1")
+    _rel8(fp2, p2eff, "fp2")
+    _rel16(forig[0], orig, "bra orig")
+    _rel16(fcopy, copy, "bra copy")
+    for base_, fixes in ((p1eff, f1), (p2eff, f2)):
+        for off_ in fixes:
+            _rel16(base_ + off_, orig, "flagblock -> orig")
     d += bytes((0xC2, 0x30, 0x7A, 0xFA, 0x68, 0x28))     # rep #$30/ply/plx/pla/plp
     d += bytes((0xA0, 0x01, 0x8C, 0x00, 0x43, 0x8C, 0x0B, 0x42))
     d += bytes((0x6B,))
@@ -668,7 +700,7 @@ def main():
         lbl("on10")
         c += bytes((0xA7, 0xFE, 0x29, 0xC0, 0xD0)); br(0xF0, "finish")  # press?
         c += bytes((0xA9, CHARSEL_SHELL, 0x00, 0x99, 0x00, 0x00))  # cursor -> shell
-        c += bytes((0xE2, 0x20, 0xA9, 0x01))
+        c += bytes((0xE2, 0x20, 0xA9, SATURN_MAGIC))
         lbl("setflag")
         c += bytes((0xC0, 0x40, 0x1B)); br(0xD0, "p2f")
         c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK)); br(0x80, "finish")
@@ -699,7 +731,7 @@ def main():
         c += bytes((0xAF, 0x1A, 0x42, 0x00))                     # JOY2L
         lbl("got")
         c += bytes((0x29, 0x30, 0xC9, 0x30)); br(0xD0, "noflag") # L+R held?
-        c += bytes((0xA9, 0x01)); br(0x80, "store")
+        c += bytes((0xA9, SATURN_MAGIC)); br(0x80, "store")
         lbl("noflag")
         c += bytes((0xA9, 0x00))
         lbl("store")
@@ -815,10 +847,12 @@ def main():
     h += bytes((0xE0, 0x00)); _br(0xF0, "p1chk")
     h += bytes((0xE0, 0x80)); _br(0xD0, "normal")
     # P2 check
-    h += bytes((0x48, 0xAF, SATURN_LATCH2 & 0xFF, SATURN_LATCH2 >> 8, SATURN_BANK)); _br(0xF0, "popn")
+    h += bytes((0x48, 0xAF, SATURN_LATCH2 & 0xFF, SATURN_LATCH2 >> 8, SATURN_BANK,
+                0xC9, SATURN_MAGIC)); _br(0xD0, "popn")
     h += bytes((0xA9, 0x20)); _br(0x80, "gates") # A=palette-row hint 0x20 -> $0620
     _lbl("p1chk")
-    h += bytes((0x48, 0xAF, SATURN_LATCH & 0xFF, SATURN_LATCH >> 8, SATURN_BANK)); _br(0xF0, "popn")
+    h += bytes((0x48, 0xAF, SATURN_LATCH & 0xFF, SATURN_LATCH >> 8, SATURN_BANK,
+                0xC9, SATURN_MAGIC)); _br(0xD0, "popn")
     h += bytes((0xA9, 0x00))                     # palette row 0x00 -> $0600
     _lbl("gates")
     h += bytes((0x85, 0x0E))                     # sta $0E (palette-dest low byte)
