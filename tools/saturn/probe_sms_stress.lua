@@ -53,6 +53,8 @@ end, emu.eventType.inputPolled)
 local lastact, stuck, lastposechange = -1, 0, 0
 local hist = {}
 local vaddr, dmaflag = 0, 0
+local dmaring = {}
+local rearm = nil
 -- VRAM integrity watchdog: regions the game does NOT rewrite mid-match
 -- (BG/HUD tiles + tilemaps). Cel windows $6000-$73FF and the HUD counters are
 -- excluded. A change here == the screen-wide corruption the maintainer sees.
@@ -80,6 +82,12 @@ for _, b in ipairs({0x00420B, 0x80420B}) do
         local c = 0x4300 + ch * 0x10
         if reg(c + 1) == 0x18 or reg(c + 1) == 0x19 then
           local bank, len = reg(c + 4), reg(c+5) + 256*reg(c+6)
+          -- the engine's own full-VRAM clear at a screen/round transition
+          -- ($80:8192, len 0): re-arm the snapshot instead of flagging it
+          if bank == 0x80 and len == 0 then VRSNAP = nil; rearm = t + 120 end
+          dmaring[#dmaring+1] = string.format("t=%d VRAM %04X <- %02X:%04X len %04X (p1act=%02X)",
+            t, vaddr, bank, reg(c+2) + 256*reg(c+3), len, ram(0x1001))
+          if #dmaring > 24 then table.remove(dmaring, 1) end
           local ok = (vaddr >= 0x6000 and vaddr < 0x7400) or (vaddr >= 0x1100 and vaddr < 0x1200) or vaddr == 0
           local bok = (bank >= 0x7E) or (bank >= 0xC0)
           if (not ok) or (not bok) or len > 0x4000 then
@@ -167,14 +175,19 @@ emu.addEventCallback(function()
     or ram(0x1049) == 0 or ram(0x10C9) == 0
   if p ~= lastact or roundend then lastact = p; lastposechange = t end
   if t == 150 then VRSNAP = vrsample() end
-  if VRSNAP and t > 150 and t % 30 == 0 and vrbad == 0 then
+  if rearm and t == rearm then VRSNAP = vrsample(); rearm = nil end
+  if VRSNAP and t > 150 and vrbad == 0 then
     local cur = vrsample()
     local diffs = 0
     for i = 1, #VRSNAP do if cur[i] ~= VRSNAP[i] then diffs = diffs + 1 end end
-    if diffs > 8 then
+    -- vanilla's legitimate animation moves ~4% of the sample; real corruption
+    -- is 80-100% of tiles. Flag only a massive change.
+    if diffs > (#VRSNAP * 30) // 100 then
       vrbad = diffs
       log(string.format("VRAM CORRUPTION at t=%d: %d/%d sampled bytes changed", t, diffs, #VRSNAP))
       for _, l in ipairs(hist) do log("  " .. l) end
+      log("  --- recent DMAs:")
+      for _, l in ipairs(dmaring) do log("    " .. l) end
       local png = emu.takeScreenshot()
       local f = assert(io.open(ENV.TRACE .. "saturn/corrupt_" .. SEED .. (MIRROR and "m" or "") .. ".png", "wb"))
       f:write(png); f:close()
@@ -200,6 +213,6 @@ emu.addEventCallback(function()
     f:write(png); f:close()
     emu.stop(1)
   end
-  if t > 7000 then log("SURVIVED " .. t .. " frames; suspect DMAs: " .. dmaflag); emu.stop(0) end
+  if t > 12000 then log("SURVIVED " .. t .. " frames; suspect DMAs: " .. dmaflag); emu.stop(0) end
 end, emu.eventType.endFrame)
 print("stress loaded seed=" .. SEED)

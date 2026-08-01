@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.11.10"
+SATURN_VERSION = "0.11.11"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -189,6 +189,13 @@ E8_DMASTUB = 0x2A00   # v0.11.10: CMD stub grew past 0x2980
 SATURN_FLAG = 0xF100      # P1 select flag  ($7F bank — see above)
 SATURN_FLAG2 = 0xF101     # P2 select flag
 EE_TILES = 0xD000         # <- $7F:0000 staging reused); P2 pad = $421A/B.
+# v0.11.11: blank cel for her "no cel" poses (0x7E-0x83, celA == 0). Super S
+# treats cel 0 as invisible; SMS's engine does NOT skip it, and a zero-size
+# record makes the DMA transfer 65536 bytes (SNES length-0 semantics) — the
+# screen-wide corruption. Record 0 now points at a real, cel-sized run of
+# zeros, so those frames render blank (the intended "invisible") instead.
+EE_BLANKCEL = 0xE400
+EE_BLANKCEL_SZ = 0x0480
 # v0.10.0 FIX (latent since 0.8.0): the $EF helper must NOT transform on the
 # user flag directly — story-mode load screens pass its act/$1FA gates on
 # non-fight actors, and a flag set BEFORE the load (char-select pick, or a
@@ -618,6 +625,21 @@ def main():
     for c in range(X.NCELS):
         sz = crec[5 * c + 3] | crec[5 * c + 4] << 8
         if sz == 0:
+            # v0.11.11 — THE SCREEN-WIDE CORRUPTION BUG. A zero-size record is
+            # the "no cel" sentinel, and SMS's engine recognises it by the
+            # record being ALL ZEROS (every vanilla character's record 0 is
+            # 00 00 00 00 00). Saturn's record 0 is `40 0D DD 00 00`: a
+            # non-null address with size 0. On the SMS engine that is not
+            # recognised as "skip", so it kicks a DMA with length 0 — which on
+            # the SNES means 65536 bytes — from an unrebased Super S bank into
+            # VRAM, obliterating every tile on screen. It fires whenever a pose
+            # resolves to cel 0 (the hit/throw reaction states), persists
+            # across rounds (VRAM is only fully rebuilt at match load) and
+            # clears at the match end: exactly the field report. Normalise
+            # zero-size records to SMS's all-zero sentinel.
+            crec[5 * c:5 * c + 5] = bytes((EE_BLANKCEL & 0xFF, EE_BLANKCEL >> 8,
+                                           B_MISC, EE_BLANKCEL_SZ & 0xFF,
+                                           EE_BLANKCEL_SZ >> 8))
             continue
         crec[5 * c + 2] = bankmap[crec[5 * c + 2]]    # addr24 bank-delta rebase
     ea[EA_CELREC:EA_CELREC + len(crec)] = crec
@@ -848,6 +870,8 @@ def main():
     src_chk, vram_chk, _fl = supers_lz.job_entry(sup, 57)
     assert src_chk == supers_lz.SATURN_FX_SRC and vram_chk == 0x6A00, "job table drift"
     ee[EE_TILES:EE_TILES + len(tb)] = tb
+    assert ee[EE_BLANKCEL:EE_BLANKCEL + EE_BLANKCEL_SZ] == bytes(EE_BLANKCEL_SZ), \
+        "blank-cel region is not zero-filled"
     write_bank(data, bankbase, bytes(ee))
 
     # ---- bank $EF: full SMS-$C1 copy + Saturn's ported proc block ----
