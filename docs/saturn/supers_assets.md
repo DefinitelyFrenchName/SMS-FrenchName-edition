@@ -156,10 +156,31 @@ different tile arrangement.** Cross-check: none of Super S's ten portrait jobs
 matches SMS's own Uranus card art above noise (best 292/2144 ≈ 13%), so
 dropping her Super S portrait into SMS's card window renders scrambled.
 
-To finish:
-1. **Art conversion** — decode her Super S portrait plus the tilemap that
-   arranges it, compose the image, and re-emit tiles in the order SMS's card
-   tilemap expects (68 tiles, `$000-$043`).
-2. **Palette** — the card's portrait palette is **CGRAM row 8** (measured: the
-   only row that differs between two winners). Our DMA into it is overwritten,
-   so the injection needs a later point (or the card's CGRAM shadow).
+### Art conversion — SOLVED via capture [P 08-01]
+
+The portrait is **not a tilemapped background**: it is a fixed composition of
+**31 SPRITES** (16x16 and 8x8, OBJ tiles `$00-$43`, OBJ palette 0 = CGRAM row
+8) at hard-coded screen positions, identical for every character — only the
+tile pixels and palette change. Read the composition straight out of OAM on a
+card frame (`probe_cardsaturn.lua` dumps OAM/VRAM/CGRAM/PPU regs).
+
+`tools/saturn/mkportrait.py` does the conversion:
+  * `--render` redraws the composition from VRAM+OAM+CGRAM dumps — used to
+    validate the model (it reproduces SMS's Uranus portrait exactly);
+  * `--convert` samples a 1:1 capture through that same composition, quantises
+    to 16 colours and emits tiles at the matching tile numbers plus a palette.
+Source art: the maintainer's 1:1 Mesen capture of Super S's card,
+`mockups/saturn_win.png`. Both games place the portrait at the same screen
+position, so no sampling offset is needed (an auto-align pass was tried and
+rejected — the patterned lilac background defeats a "not-background" cue and a
+dark-pixel cue drags the frame onto her hair).
+
+**Status: her portrait renders correctly on SMS's card** (`SATURN_PORTRAIT=1`;
+see `mockups/saturn_card_ingame.png`). Composition, pose and glaive are right.
+
+**Remaining: the palette.** The card's portrait colours are CGRAM row 8, and
+neither a direct CGRAM DMA nor seeding the `$7E:0600` OBJ-palette shadow
+sticks (2/32 bytes survive) — the card re-uploads row 8 from somewhere else.
+Next step is one probe: watch `$2121/$2122` writes during the card build, find
+the writer and its source, and inject there. Until then the feature stays
+gated off (the art shows with the shell character's colours).

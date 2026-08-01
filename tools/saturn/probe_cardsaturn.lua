@@ -58,6 +58,14 @@ for _, b in ipairs({0x002118, 0x802118, 0x002119, 0x802119}) do
   end, emu.callbackType.write, b, b, emu.cpuType.snes, emu.memType.snesMemory)
 end
 local hooks = 0
+local ppu = {}
+for reg = 0x2105, 0x210C do
+  for _, b in ipairs({reg, 0x800000 + reg}) do
+    emu.addMemoryCallback(function(addr, value)
+      ppu[reg] = value
+    end, emu.callbackType.write, b, b, emu.cpuType.snes, emu.memType.snesMemory)
+  end
+end
 for _, spec in ipairs({{0xEEC932, "blit-label"}, {0xEEC97D, "dma-kick"}, {0xEEC918, "p1-branch"}}) do
   emu.addMemoryCallback(function()
     log("REACHED " .. spec[2])
@@ -115,6 +123,13 @@ local function dumpvram(tag)
   for i = 0, 511 do cg[#cg+1] = string.char(emu.read(i, emu.memType.snesCgRam)) end
   local cf = assert(io.open(ENV.TRACE .. "saturn/cgcard_" .. tag .. ".bin", "wb"))
   cf:write(table.concat(cg)); cf:close()
+  local parts = {}
+  for r = 0x2105, 0x210C do parts[#parts+1] = string.format("%04X=%02X", r, ppu[r] or 0xFF) end
+  log("PPU " .. table.concat(parts, " "))
+  local o = {}
+  for i = 0, 543 do o[#o+1] = string.char(emu.read(i, emu.memType.snesSpriteRam)) end
+  local of = assert(io.open(ENV.TRACE .. "saturn/oamcard_" .. tag .. ".bin", "wb"))
+  of:write(table.concat(o)); of:close()
   log("dumped " .. tag)
 end
 local STEPS = {

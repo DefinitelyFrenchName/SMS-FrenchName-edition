@@ -897,17 +897,27 @@ def main():
         "blank-cel region is not zero-filled"
 
     # -- her report-card portrait + the loader wrapper (v0.12.0) --
-    psrc, pvram, _pf = supers_lz.job_entry(sup, SUP_PORTRAIT_JOB)
-    assert pvram == 0x0000, f"portrait job {SUP_PORTRAIT_JOB} targets {pvram:04X}"
-    portrait = supers_lz.lz_decompress(sup, psrc)
-    assert 0x600 <= len(portrait) <= 0x0A00, f"portrait size {len(portrait):#x}"
+    # Her card art is CONVERTED from a 1:1 capture of Super S's card by
+    # tools/saturn/mkportrait.py: the portrait is a fixed 31-sprite composition
+    # (OBJ tiles $00-$43, OBJ palette 0 = CGRAM row 8) that is identical for
+    # every character, so the converter samples the capture through that exact
+    # composition and emits tiles at the same tile numbers. Dropping Super S's
+    # own portrait bytes in raw does NOT work — the two games' portraits are
+    # different artwork in a different arrangement (checked: no Super S
+    # portrait job matches SMS's own card art above noise).
+    pfile = REPO / "build" / "saturn" / "portrait_saturn.bin"
+    ppal = REPO / "build" / "saturn" / "portrait_saturn.pal"
+    if SATURN_PORTRAIT and not (pfile.is_file() and ppal.is_file()):
+        raise SystemExit("error: portrait art missing — run tools/saturn/mkportrait.py "
+                         "--convert mockups/saturn_win.png traces/saturn/oamcard_oam.bin "
+                         f"{pfile} {ppal}")
+    portrait = pfile.read_bytes() if pfile.is_file() else bytes(0x880)
     assert ee[EE_PORTRAIT:EE_PORTRAIT + len(portrait)] == bytes(len(portrait)), \
         "portrait slot is not free"
     ee[EE_PORTRAIT:EE_PORTRAIT + len(portrait)] = portrait
     PSIZE = len(portrait)
-    # the card's portrait palette is CGRAM row 8 (measured: it is the only row
-    # that differs between two winners), so her icon palette goes with the art
-    ee[EE_PORTPAL:EE_PORTPAL + 32] = sup[X.PALETTES["icon"]:X.PALETTES["icon"] + 32]
+    if ppal.is_file():
+        ee[EE_PORTPAL:EE_PORTPAL + 32] = ppal.read_bytes()[:32]
 
     cp, lbl, br, fix = _asm()
     brl_fix = []
@@ -954,6 +964,15 @@ def main():
     cp += bytes((0xE2, 0x20, 0xA9, B_MISC, 0x8D, 0x04, 0x43))
     cp += bytes((0xC2, 0x20, 0xA9, 0x20, 0x00, 0x8D, 0x05, 0x43))
     cp += bytes((0xE2, 0x20, 0xA9, 0x01, 0x8D, 0x0B, 0x42))
+    # ALSO seed the engine's CGRAM shadow for OBJ palette 0 ($7E:0600) — the
+    # card re-uploads CGRAM from that shadow, which is what overwrote the direct
+    # write above (the portrait palette is CGRAM row 8, measured).
+    cp += bytes((0xC2, 0x30, 0xA0, 0x1F, 0x00))         # rep #$30 / ldy #$001F
+    lbl("palcopy")
+    cp += bytes((0xBB,))                                # tyx
+    cp += bytes((0xBF, EE_PORTPAL & 0xFF, EE_PORTPAL >> 8, B_MISC))
+    cp += bytes((0x9F, 0x00, 0x06, 0x7E))               # sta $7E0600,X
+    cp += bytes((0x88, 0x10, (0x100 - 12) & 0xFF))      # dey / bpl palcopy
     cp += bytes((0xE2, 0x20, 0xA5, 0x0E, 0x8D, 0x00, 0x21))   # restore INIDISP
     lbl("done")
     cp += bytes((0xC2, 0x30, 0x7A, 0xFA, 0x68, 0x28, 0x6B))   # restore / rtl
