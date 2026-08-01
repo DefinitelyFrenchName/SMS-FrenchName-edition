@@ -1479,3 +1479,37 @@ ticks included) for those who want throws covered too.
 Regression suite (`tools/test_regression.lua`): v0.18 = 42 tests ALL PASS incl.
 p14-spd-uranus-scaled (13), p14-spd-jupiter-scaled (5×2), throw exemption at L3,
 desperation no-double-scaling, base SPD invariants at level 0; clean = 25, v0.17 = 39.
+
+
+# Patch 15 — remove the AUTO option (button-config screen)
+
+**Why.** The VS config screen's モード row toggles マニュアル / オート; Auto binds
+the special moves to **L and R**. That collides head-on with patch 12 (taunt =
+L press) and is disallowed in tournament play. The maintainer asked for the
+same removal the **Big Zam Tournament Edition** ships.
+
+**Ground truth.** TE is built on Big Zam; diffing the two isolates 11 changed
+regions, of which exactly three sit inside the config screen's mode-row
+handler. The handler is dispatch entry 0 of the table at `$C3:A839` (eight
+entries = the screen's eight rows: モード, 弱/強パンチ, 弱/強キック, 弱/強必殺
+モード, ステージ). The same bytes are present in the clean ROM, so the edit
+applies anywhere in our lineage.
+
+**The edit** (6 bytes, file offsets):
+
+| Offset | Vanilla | Patched | Effect |
+|---|---|---|---|
+| `0x03A863` | `9D 06 00` `sta $0006,X` | `EA EA EA` | never commits the new mode |
+| `0x03A87A` | `9D 04 00` `sta $0004,X` | `EA EA EA` | never writes it back to the working copy |
+| `0x03A880` | `F0` `beq $A8B9` | `80` `bra $A8B9` | skips the "value changed" tail entirely |
+
+**Verified (headless A/B, `tools/saturn/probe_sms_noauto.lua`).** Vanilla:
+mashing RIGHT on the mode row flips P1 to **オート** and the two 必殺モード rows
+gain `L` / `R` assignments. Patched: the row stays **マニュアル** and those rows
+stay `-` `-`, matching the untouched P2 column; the screen still advances into
+a normal match. Other rows are untouched code.
+
+**Scope.** No bank use, no WRAM, byte-disjoint from patches 1-14 — stacks
+anywhere (`tools/mkpatch15.py`, `--stacked` supported). NOT yet part of the
+REF v.1 bundle: adding it changes that bundle's identity/SHA, which is the
+maintainer's call.

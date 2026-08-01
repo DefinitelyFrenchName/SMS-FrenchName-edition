@@ -34,6 +34,7 @@ reference combination (true-combo gate; no p6/p10/p11).
 | 12 | Taunts | Taunt on L using each character's native misfire animation | OPTIONAL | `sms_taunt.bps` |
 | 13 | Guts (v3.3) | Completing a taunt stacks levels (≤3) that shrink the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round); level indicator shows in TRAINING only (v3.4) | OPTIONAL | `sms_tauntbuff.bps` |
 | 14 | Guts Grip | Companion to 13: the same levels also shrink command-grab damage (SPDs/Giant Swing); inert without 13 | OPTIONAL (requires 13 to do anything) | `sms_gutsgrip.bps` |
+| 15 | No AUTO | Removes the AUTO option from the VS button-config screen (モード row made inert, so both players stay マニュアル). Auto binds the specials to L/R, which collides with patch 12's taunt and is banned in tournament play. 6 bytes, no bank use; mirrors what the Big Zam Tournament Edition does | OPTIONAL (recommended alongside 12) | `sms_noauto.bps` |
 
 ## Lifecycle notes
 
