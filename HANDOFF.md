@@ -27,7 +27,7 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 
 **Saturn is playable in SMS**, summoned by holding **L+R** on any character
 slot at select (she wears that character as a "shell"). Field-tested repeatedly
-by the maintainer. Current builds are **v0.13.0** + a stage-port variant, all on
+by the maintainer. Current builds are **v0.13.1** + a stage-port variant, all on
 **REF v.2**.
 
 **She has her own voice as of v0.13.0** (task #44 closed): her win laugh, 236P,
@@ -39,8 +39,16 @@ too. She borrows **char 1's** sound ids on whichever side she plays and the
 build overwrites char 1's half-record for that player only (the halves are per
 player, so it can never collide with a real Moon), restoring it on any
 non-Saturn load. One fixed id set, no per-shell code. Mechanism, corrections and
-acceptance evidence: `docs/saturn/sound_scope.md` § PHASE 3. **Not yet listened
-to in play** — that is the one open thing about it.
+acceptance evidence: `docs/saturn/sound_scope.md` § PHASE 3. **Field-confirmed
+2026-08-03** ("a bit weird but definitely the right ones and not distracting").
+
+**v0.13.1 adds her character-select line** ("Yoroshiku", Super S `$EC:C12F`,
+2610 bytes). SMS already voices every sailor on confirm from a bank-id table
+(`$C0:AE75`, id = 21 + charID) whose single sample goes to ARAM `$B700` and
+plays through a fixed directory entry — so she needed only the bank id swapped,
+no sound-id change and no directory patch. The player is identified from the
+three per-player writers of `$1B1E`, since `$1B1E` itself names the CHARACTER
+and she can wear any shell.
 
 **REF v.2** (2026-08-02, maintainer request) = REF v.1 **+ patch 15 (AUTO
 removal)** = 1b+2+3+4+5+7+8+9+12+13+14+15. Recipe `tools/build_ref_v2.sh`, ROM

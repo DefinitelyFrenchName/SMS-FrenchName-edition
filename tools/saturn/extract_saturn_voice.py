@@ -32,6 +32,14 @@ ARAM_TO_ROM = 0x2EE17F        # file offset = ARAM address + this
 DEST = 0xB700                 # ARAM destination of a fighter's voice bank
 BUDGET = 0xDB00 - 0xB700      # 9216 — the other player's bank caps it
 
+# Her CHARACTER-SELECT line ("Yoroshiku"), found 2026-08-03. Unlike the in-match
+# samples this one is not reached through the ARAM->ROM mapping above: Super S
+# streams each character's select line into a shared slot (ARAM $4D00, directory
+# entry 16) and the ROM stores it length-prefixed, so the file offset is direct
+# and the size is self-describing. Measured playing at PITCH $03FE = 7984 Hz,
+# the same ~8 kHz as everything else of hers.
+SELECT_ROM = 0x2CC12F         # $EC:C12F
+SELECT_SIZE = 2610            # 290 BRR blocks; the 4 bytes before it are [size16][0000]
 #   entry: (name, ARAM start, size, blocks to trim)
 SAMPLES = [
     (30, "win_laugh", 0x7BFF, 0x546, 0),
@@ -98,6 +106,29 @@ def dir_blob(entries, base=DEST):
     return bytes(blob)
 
 
+def build_select():
+    """Her select line, as the raw BRR SMS uploads to ARAM $B700.
+
+    SMS voices a character at select from audio-table entry 21 + charID, whose
+    single sample goes to $B700 and is played through a fixed directory entry —
+    so hers needs no trimming and no directory of its own beyond the same 4-byte
+    write the vanilla banks make. The budget is generous: Moon's is 9990 bytes.
+    """
+    rom = open(supers_rom(), "rb").read()
+    hdr = rom[SELECT_ROM - 4:SELECT_ROM]
+    size = hdr[0] | hdr[1] << 8
+    if size != SELECT_SIZE:
+        raise SystemExit(f"select line: length prefix says {size}, expected {SELECT_SIZE}")
+    data = rom[SELECT_ROM:SELECT_ROM + size]
+    if len(data) % 9:
+        raise SystemExit(f"select line: {len(data)} bytes is not a whole number of BRR blocks")
+    if not data[-9] & 1:
+        raise SystemExit("select line: last block has no end flag")
+    if any(data[o] & 1 for o in range(0, len(data) - 9, 9)):
+        raise SystemExit("select line: an end flag appears before the end")
+    return data
+
+
 def build():
     bank, entries = build_bank()
     out = REPO / "build" / "saturn"
@@ -110,6 +141,10 @@ def build():
           f"({BUDGET - len(bank)} spare of {BUDGET})")
     for num, name, start, size in entries:
         print(f"    entry {num} {name:10s} ARAM ${start:04X} +{size:#06x}")
+    sel = build_select()
+    (out / "saturn_select.brr").write_bytes(sel)
+    print(f"wrote {out/'saturn_select.brr'}: {len(sel)} bytes "
+          f"({len(sel)//9} BRR blocks) — her character-select line, for ARAM $B700")
     print(f"wrote {out/'saturn_voice.dir'}: {len(dirblob)} bytes "
           f"({len(entries)} directory entries, for ARAM $34C0 / $34D0)")
 

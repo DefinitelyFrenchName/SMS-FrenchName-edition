@@ -513,3 +513,51 @@ Not scoped yet, and it is a different problem from the in-match voices: SMS's ow
 character-select screen has its own sample set, and nothing here says there is a
 free slot or the ARAM space for a 2610-byte line at the moment SMS confirms a
 character. The bytes are in hand; the delivery is not.
+
+### DELIVERED in v0.13.1 — she says it in SMS too
+
+SMS voices every sailor when she is confirmed at the select screen, and that
+mechanism turned out to be the cleanest one in this whole subsystem to borrow:
+
+    $C0:AE4C   ldx $1B1E                  <- the character being presented
+               lda $AE7F,X / sta $1C50    <- her sound id  (48/53/58/… stride 5)
+               lda $AE75,X                <- her audio-bank id (22..30 = 21+charID)
+               jsl $80:EB4B               <- one BRR sample -> ARAM $B700,
+                                             plus a 4-byte directory write to $3500
+
+Every one of those sound ids resolves to **directory entry 48**, whose start is
+`$B700`, and the sample is a one-shot ended by its own END FLAG — so the length
+in the directory is irrelevant. Saturn therefore needs **no id change and no
+directory patch here**: only the bank id has to be swapped. (Those ids are also
+the `k = 4` slots that the in-match sweep reported as "falling back to entry
+48"; they were never a fallback, they are the select voices.)
+
+**Which player is being voiced** is the one thing `$1B1E` cannot tell us — it
+names the CHARACTER, and she can wear any shell, which is precisely the shape of
+the card-portrait bug. But its three writers are per player and distinct:
+
+    $C0:AEF3   lda $1B40 -> P1        $C0:AF12   lda $1B80 -> P2
+    $C0:AF34   lda $1B40 -> P1
+
+so each records the player in `$7F:F109` and the bank hook reads it. Measurement
+also settled the ordering worry: the hidden confirm stub (which sets the Saturn
+flag from held L+R) runs BEFORE this load, so the flag is already correct. That
+was proven accidentally and decisively — poking the flag by hand *failed*,
+because the confirm stub re-decides on every press and cleared it.
+
+Her line is `build/saturn/saturn_select.brr`, 2610 bytes, extracted straight from
+the Super S ROM by `extract_saturn_voice.py` (the record is length-prefixed, so
+the extractor asserts the prefix, whole BRR blocks, and exactly one end flag).
+It is comfortably inside the budget — Moon's own select line is 9990 bytes.
+
+Acceptance (`probe_sms_selectcheck.lua`, on `…v0.13.1-hidden.sfc`):
+
+| case | result |
+|---|---|
+| Saturn P1, shell Uranus | her bank loaded for P1; P2's confirm untouched |
+| Saturn P2, shell Uranus | her bank; **her 2610 bytes byte-identical at `$B700`** |
+| Saturn P2, shell **Moon** | identical — the shell really is irrelevant |
+| nobody armed | both confirms load vanilla ids (27 / 30) |
+
+plus the v0.13.0 suite re-run on the new ROM: in-match voice 8/8 both players,
+restore 4/4 both halves, smoke 228/228, regression ALL PASS (57).

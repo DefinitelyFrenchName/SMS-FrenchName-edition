@@ -11,14 +11,29 @@ the base patch project's review remediation, is in git history.)
 The base patch project is done and green. Current work is **SMS + Saturn**:
 Saturn is playable in SMS, selected by holding **L+R** on any character slot,
 and has been field-tested repeatedly by the maintainer. Current builds are
-**v0.13.0** (hashes in BUILDS.md) plus a stage-port variant, all on **REF v.2**
+**v0.13.1** (hashes in BUILDS.md) plus a stage-port variant, all on **REF v.2**
 (= REF v.1 + patch 15, AUTO removal; v.1 is deliberately left byte-identical
 since it is a published artifact). **Her voice is in** as of v0.13.0 — the last
-step of task #44 — so the open items are now her **movelist** (#41) and the
-**vertical scroll artefact** on the ported stage (#43), plus a listening pass on
-the voice.
+step of task #44, field-confirmed — and v0.13.1 adds her **character-select
+line** ("Yoroshiku") on top. The open items are now her **movelist** (#41) and
+the **vertical scroll artefact** on the ported stage (#43).
 
-## Voice (task #44) — DONE in v0.13.0, needs an ear
+## Voice — DONE (task #44 closed, plus the select line in v0.13.1)
+
+**Field-confirmed** (2026-08-03): the in-match voices are "a bit weird but
+definitely the right ones and not distracting". Polish is optional, not blocking.
+
+**v0.13.1 adds her select line.** SMS already voices every sailor on confirm —
+`$C0:AE4C` indexes a bank-id table (`$C0:AE75`, 21+charID) and a sound-id table
+(`$C0:AE7F`), the bank being one BRR sample uploaded to ARAM `$B700`. All those
+sound ids resolve to directory entry 48 (start `$B700`) and the sample ends on
+its own end flag, so Saturn needed only the **bank id swapped** — no id change,
+no directory patch. Her line came from Super S at ROM `$EC:C12F` (2610 bytes,
+7984 Hz). Player identity is not in `$1B1E` (that is the CHARACTER, the
+card-portrait trap again), so the three per-player writers of it record the
+player in `$7F:F109`. Verified on two shells, both slots, and with nobody armed.
+
+## Historical: the in-match voice work (v0.13.0)
 
 Her four samples (win laugh, 236P, 214P, j.632K) load and play. The mechanism,
 the corrections it forced, and the acceptance evidence are all in

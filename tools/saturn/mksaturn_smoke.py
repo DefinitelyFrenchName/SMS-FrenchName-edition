@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.13.0"
+SATURN_VERSION = "0.13.1"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -255,10 +255,42 @@ SITE_VOICE_P1 = 0x0088DF  # jsl $80:EB4B  (P1's voice-bank load)
 VOICE_P1_OLD = bytes.fromhex("224BEB80")
 SITE_VOICE_P2 = 0x008A34  # jsl $80:EC5E  (P2's, with dp $10 = $2400)
 VOICE_P2_OLD = bytes.fromhex("225EEC80")
+# v0.13.1 — HER CHARACTER-SELECT LINE ("Yoroshiku"). SMS already voices every
+# sailor when she is confirmed at the select screen, and the mechanism is a
+# clean one to borrow (measured, probe_sms_selectvoice / selectwho):
+#   $C0:AE4C   ldx $1B1E                 <- the character being presented
+#              lda $AE7F,X / sta $1C50   <- her sound id (48/53/58/…, stride 5)
+#              lda $AE75,X               <- her audio-bank id (22..30 = 21+charID)
+#              jsl $80:EB4B              <- upload: one BRR sample to ARAM $B700
+#                                           plus a 4-byte directory write to $3500
+# Every one of those sound ids resolves to directory entry 48, whose start is
+# $B700, and the sample is a one-shot terminated by its own END FLAG — so the
+# length in the directory is irrelevant and Saturn needs NO id change and NO
+# directory patch here. Only the bank has to be swapped, which is one hook.
+#
+# WHICH PLAYER is being voiced is not in $1B1E (that is the CHARACTER, and she
+# can wear any shell — the exact shape of the card-portrait bug). But the three
+# writers of $1B1E are per player and distinguishable:
+#   $C0:AEF3 / $C0:AF34  lda $1B40  -> P1        $C0:AF12  lda $1B80  -> P2
+# so each records the player in $7F:F109 and the bank hook reads it. Confirmed
+# by measurement that the hidden confirm stub (which sets the Saturn flag from
+# L+R) runs BEFORE this load, so the flag is already correct here.
+VOICE_SEL_ID = 52             # her select bank -> another spare table record
+VOICE_PLAYER = 0xF109         # $7F: who the select voice is currently for (0/1)
+SITE_SELBANK = 0x00AE55       # lda $AE75,X / jsl $80:EB4B
+SELBANK_OLD = bytes.fromhex("BD75AE224BEB80")
+# the three `lda $1B40|$1B80 / and #$00FF / sta $1B1E` sequences, 9 bytes each
+SITE_SELWHO = ((0x00AEF3, 0), (0x00AF12, 1), (0x00AF34, 0))
+SELWHO_OLD = {0: bytes.fromhex("AD401B29FF008D1E1B"),
+              1: bytes.fromhex("AD801B29FF008D1E1B")}
+SEL_ARAM = 0xB700             # where a select line is uploaded
+SEL_DIRW = 0x3500             # the 4-byte directory write the vanilla banks make
 # in-bank layout of the appended voice bank
 V_SAMP, V_DIRP1, V_DIRP2 = 0x0000, 0x2600, 0x2620
 V_RESP1, V_RESP2 = 0x2640, 0x2660
 V_HOOK1, V_HOOK2 = 0x2700, 0x2780
+V_SEL = 0x2800                # her select-line stream (2610 B + headers)
+V_SELHOOK, V_WHO1, V_WHO2 = 0x3300, 0x3360, 0x3380
 # v0.8.0 — IN-ROM SATURN SELECT (P1): hold L+R while a round loads -> flag
 # $7E:1F60 set; the effects-DMA helper hook ($C0:92A4, generic VRAM-DMA kick,
 # filtered on $30==0x6A00/$36==$7F) also overrides the $7F:0000 staging with her
@@ -1431,25 +1463,37 @@ def main():
         vbank, ventries = _vx.build_bank()
         assert len(vbank) <= 0xDB00 - 0xB700, "voice bank overruns P2's bank at $DB00"
 
-        def ipl(dest, payload):
-            """One-block IPL stream: [size16][dest16][payload][0000][0800].
+        def ipl(*blocks):
+            """IPL stream: [size16][dest16][payload] per block, then [0000][0800].
 
-            The zero-size terminator carries the driver's entry point ($0800) —
-            every vanilla stream ends this way, and the relocating loader zeroes
-            dp $10 before reading it so the entry point is never offset."""
-            return (bytes((len(payload) & 0xFF, len(payload) >> 8,
-                           dest & 0xFF, dest >> 8)) + bytes(payload)
-                    + bytes((0x00, 0x00, 0x00, 0x08)))
+            Takes (dest, payload) pairs — the vanilla select banks use two blocks
+            in one stream, so this has to be plural. The zero-size terminator
+            carries the driver's entry point ($0800); every vanilla stream ends
+            that way, and the relocating loader zeroes dp $10 before reading it so
+            the entry point is never offset."""
+            out = bytearray()
+            for dest, payload in blocks:
+                out += bytes((len(payload) & 0xFF, len(payload) >> 8,
+                              dest & 0xFF, dest >> 8)) + bytes(payload)
+            return bytes(out + bytes((0x00, 0x00, 0x00, 0x08)))
 
         van = bytes(data[VOICE_SRC_ROM:VOICE_SRC_ROM + 32])
         assert van[0:2] == bytes((0x00, 0xB7)) and van[16:18] == bytes((0x00, 0xDB)), \
             "char 1's vanilla voice record is not the expected $B700/$DB00 pair"
+        # her select line, in exactly the shape the nine vanilla select banks
+        # use: a 4-byte directory write, then the sample, both to the same
+        # addresses they use (the sample is a one-shot, so `loop` is only ever
+        # the end and is never reached)
+        vsel = _vx.build_select()
+        selend = SEL_ARAM + len(vsel)
+        seldir = bytes((SEL_ARAM & 0xFF, SEL_ARAM >> 8, selend & 0xFF, selend >> 8))
         streams = {
-            V_SAMP:  ipl(0xB700, vbank),                       # +$2400 for P2
-            V_DIRP1: ipl(VOICE_DIR_ARAM, _vx.dir_blob(ventries, 0xB700)),
-            V_DIRP2: ipl(VOICE_DIR_ARAM, _vx.dir_blob(ventries, 0xDB00)),
-            V_RESP1: ipl(VOICE_DIR_ARAM, van[0:16]),
-            V_RESP2: ipl(VOICE_DIR_ARAM, van[16:32]),
+            V_SAMP:  ipl((0xB700, vbank)),                      # +$2400 for P2
+            V_DIRP1: ipl((VOICE_DIR_ARAM, _vx.dir_blob(ventries, 0xB700))),
+            V_DIRP2: ipl((VOICE_DIR_ARAM, _vx.dir_blob(ventries, 0xDB00))),
+            V_RESP1: ipl((VOICE_DIR_ARAM, van[0:16])),
+            V_RESP2: ipl((VOICE_DIR_ARAM, van[16:32])),
+            V_SEL:   ipl((SEL_DIRW, seldir), (SEL_ARAM, vsel)),
         }
         # the P2 directory streams say $34C0 and are steered to $34D0 by dp $10
         f1 = bytearray(0x10000)
@@ -1535,6 +1579,49 @@ def main():
             emit(0xA9, SATURN_MAGIC, 0x8F, VOICE_DIRTY2 & 0xFF, VOICE_DIRTY2 >> 8, SATURN_BANK)
             emit(0x68, 0x6B)
 
+        # --- select-voice hooks ---------------------------------------------
+        def _who(player):
+            """Replacement for `lda $1B40|$1B80 / and #$00FF / sta $1B1E`, plus a
+            note of WHICH PLAYER is being voiced. php/plp keeps the register
+            widths the caller established (it is mid `rep #$30`), and A comes back
+            holding the character id, which the next vanilla instruction asl/tax's."""
+            src = 0x1B40 if player == 0 else 0x1B80
+            return (bytes((0x08, 0xE2, 0x20))                       # php / sep #$20
+                    + bytes((0xA9, player, 0x8F,
+                             VOICE_PLAYER & 0xFF, VOICE_PLAYER >> 8, SATURN_BANK))
+                    + bytes((0x28,))                                # plp
+                    + bytes((0xAD, src & 0xFF, src >> 8))           # lda $1B40/$1B80
+                    + bytes((0x29, 0xFF, 0x00))                     # and #$00FF
+                    + bytes((0x8D, 0x1E, 0x1B))                     # sta $1B1E
+                    + bytes((0x6B,)))                               # rtl
+
+        def _selbank(emit, br, lbl):
+            # entry: M=8-bit, X=16-bit = charID, DB = the caller's (so the vanilla
+            # `lda $AE75,X` still resolves). Substitute her bank id when the
+            # player being voiced is Saturn; otherwise do exactly what we replaced.
+            emit(0xDA)                                              # phx
+            emit(0xA2, 0x00, 0x00)                                  # ldx #$0000
+            emit(0xAF, VOICE_PLAYER & 0xFF, VOICE_PLAYER >> 8, SATURN_BANK)
+            br(0xF0, "p1")
+            emit(0xA2, 0x01, 0x00)                                  # ldx #$0001
+            lbl("p1")
+            emit(0xBF, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK)  # lda $7FF100,X
+            emit(0xFA)                                              # plx (restores charID)
+            emit(0xC9, SATURN_MAGIC)
+            br(0xD0, "vanilla")
+            emit(0xA9, VOICE_SEL_ID)                                # lda #her bank
+            br(0x80, "go")
+            lbl("vanilla")
+            emit(0xBD, 0x75, 0xAE)                                  # lda $AE75,X
+            lbl("go")
+            emit(0x22, 0x4B, 0xEB, 0x80)                            # jsl $80:EB4B
+            emit(0x6B)
+
+        for off, blob in ((V_WHO1, _who(0)), (V_WHO2, _who(1)),
+                          (V_SELHOOK, _asm(_selbank))):
+            assert not any(f1[off:off + len(blob)]), f"select stub at {off:#06x} overlaps"
+            f1[off:off + len(blob)] = blob
+
         for off, body in ((V_HOOK1, _p1), (V_HOOK2, _p2)):
             blob = _asm(body)
             assert not any(f1[off:off + len(blob)]), f"voice hook at {off:#06x} overlaps"
@@ -1549,7 +1636,7 @@ def main():
         # table records for our five streams, in the verified zero run
         for slot, iid in ((V_SAMP, VOICE_ID_SAMP), (V_DIRP1, VOICE_ID_DIRP1),
                           (V_DIRP2, VOICE_ID_DIRP2), (V_RESP1, VOICE_ID_RESP1),
-                          (V_RESP2, VOICE_ID_RESP2)):
+                          (V_RESP2, VOICE_ID_RESP2), (V_SEL, VOICE_SEL_ID)):
             rec = VOICE_TBL + 6 * iid
             expect(rec, b"\x00" * 6, f"audio-table record {iid} (must be free)")
             # [3-byte source][3-byte second source = none]; only $C0:EB4B reads
@@ -1561,6 +1648,15 @@ def main():
         expect(SITE_VOICE_P2, VOICE_P2_OLD, "P2 voice-bank load")
         data[SITE_VOICE_P2:SITE_VOICE_P2 + 4] = \
             bytes((0x22, V_HOOK2 & 0xFF, V_HOOK2 >> 8, B_VOICE))
+        # select-voice: the bank pick, and the three per-player $1B1E writers
+        expect(SITE_SELBANK, SELBANK_OLD, "select-voice bank pick")
+        data[SITE_SELBANK:SITE_SELBANK + 7] = \
+            bytes((0x22, V_SELHOOK & 0xFF, V_SELHOOK >> 8, B_VOICE)) + b"\xEA" * 3
+        for site, player in SITE_SELWHO:
+            expect(site, SELWHO_OLD[player], f"select-voice $1B1E writer {site:#x}")
+            tgt = V_WHO1 if player == 0 else V_WHO2
+            data[site:site + 9] = \
+                bytes((0x22, tgt & 0xFF, tgt >> 8, B_VOICE)) + b"\xEA" * 5
 
     # ---- engine patches ----
     data[SITE_INTERP_DB] = B_SCR
