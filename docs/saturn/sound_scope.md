@@ -111,6 +111,43 @@ lands at `$DB00` — so either the loader patches the destination for P2 or the
 driver relocates it. That must be understood before injecting, since Saturn
 must work in either slot.
 
+## PHASE 2 PROGRESS [P 08-02] — her audio is locatable, her sample map is not
+
+Super S's ARAM was dumped mid-match and every region matched back to a verbatim
+ROM source (samples are uploaded uncompressed, so a byte search finds them):
+
+| ARAM | ROM source |
+|---|---|
+| `$1F00`-`$4AFF` | `$E9:0D6D` |
+| `$5B00`-`$66FF` | `$E9:EF14` |
+| **`$7B00`-`$AAFF`** | **`$EF:5C7F`** — the per-character region |
+| `$AC00`-`$B6FF` | `$ED:2ADF` |
+| `$B700`-`$EFFF` | `$EE:7605` |
+
+Note `$B700` is the same address SMS uses for a voice bank, so the two drivers
+share memory-layout conventions even though their uploaders differ.
+
+Diffing ARAM between **P1 = Saturn** and **P1 = Uranus** (same opponent) gives
+37 differing runs, nearly all inside `$7B00`-`$AAFF` and each matching verbatim
+into ROM around `$EF:5688`-`$EF:6829`. So **her audio data is in bank `$EF`**
+and the diff identifies exactly which byte ranges are hers.
+
+**What is still missing.** Super S's per-character audio is NOT the clean
+single ~8 KB bank SMS uses — the differing ranges are scattered (0x80-0x1D0
+bytes each), which is consistent with individual samples rather than one block.
+Extracting them needs Super S's **sample directory** (start + loop per sample),
+which is not located yet: the "most directory-like page" heuristic returned a
+false positive (`$FA00`, every entry with start == loop). The DSP `$5D` DIR
+register would give it directly but is not exposed through the ARAM dump.
+
+Without that, individual samples cannot be cut with correct loop points — and a
+wrong loop point on a voice sample is an audible buzz, not a subtle flaw.
+
+**Next, in order:** (a) find Super S's DIR page (read DSP `$5D` via a debugger
+callback, or find the driver code that writes it); (b) cut her samples and
+identify which is the throw shout, the laugh and the "Yoroshiku"; (c) only then
+attempt injection.
+
 ## Open questions, in the order they should be answered
 
 1. ~~Are `$B700`/`$DB00` per-fighter voice banks?~~ **ANSWERED: yes.**
