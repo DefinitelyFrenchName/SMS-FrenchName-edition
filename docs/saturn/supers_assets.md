@@ -119,6 +119,40 @@ Three traps, all paid for once:
    asset's DMA into the appended bank. The stub programs the DMA registers
    itself and touches no DP state.
 
+### Field fixes [P 08-02]
+
+Three problems reported from play, two fixed:
+
+1. **Sprites behind the stage** (only the fighters' upper bodies visible).
+   Tilemap entry bit `$2000` is the per-tile priority bit, and Super S leans on
+   it far harder than SMS: this stage sets it on 336 and 948 of 2048 entries,
+   where SMS's own stage 2 uses 0 and 192. Under SMS's setup those tiles draw
+   in FRONT of the fighters. The builder now strips the bit from ported
+   tilemaps (`STRIP_PRIORITY`), which is what a fighting-game background wants.
+2. **Continuous drift and a wrong resting offset.** The per-stage scroll
+   routine is chosen through a pointer table at **`$C0:B32B`**:
+   `+$00 $C0:B40A` (BG1 = camera, BG2 = camera/4), `+$02 $C0:B42F` (the
+   mirror), `+$08 $C0:B454` (camera minus a counter decremented ~6/frame — the
+   space-time vortex). Stage 2 selects the vortex, and the port inherited it.
+   The builder repoints that entry to `$B40A`; measured safe, because stages
+   0/1/3 keep their exact previous scroll (only stage 2 selects `+$08`).
+   > The per-stage SELECTOR byte is still unlocated — a 10-byte table at
+   > `$C0:B317` looks exactly like it and its values line up with the measured
+   > per-stage behaviour, but patching it changes nothing, so the real index
+   > lives elsewhere. Repointing the shared routine entry is equivalent here
+   > only because a single stage uses it.
+3. **The far plane's framing is now wrong** — NOT fixed. With the vortex gone
+   the palace is out of view. Rendering both tilemaps offline shows why: the
+   palace occupies map ROWS 0-10 while the near layer's floor is rows 9-13, so
+   it is the far plane's VERTICAL offset that is off, not the horizontal one (a
+   horizontal rotation was tried and did not help; the knob `MAP1_SHIFT`
+   remains for when it is useful). The fix needs BG2VOFS measured
+   (`$210E`/`$2110`) and then either a row rotation of the far map or a small
+   custom scroll routine in the appended bank.
+
+Net: the stage is stable and correctly layered, and looks like a clean moonlit
+terrace — with its palace skyline still to be brought back into frame.
+
 ### Status and what is left
 
 Verified in-emulator: the ported stage renders with correct art and palette,

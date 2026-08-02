@@ -68,6 +68,41 @@ SUP_SCENES = 0xAB22           # scene-script pointer table (bank $E0)
 SUP_PALRECS = 0xAC7A          # palette record 0 (bank $E0)
 SUPERS_SCENE = 1              # moonlit terrace / Elysion skyline
 
+# Tilemap entry bit $2000 is the per-tile PRIORITY bit. Super S leans on it far
+# more than SMS does (this stage: 336 and 948 entries of 2048, vs 0 and 192 on
+# SMS's own stage 2), and under SMS's priority setup those tiles draw IN FRONT
+# of the fighters — the field saw the castle covering everything below the
+# characters' chests. Stripping it puts the whole stage behind the sprites,
+# which is what a fighting-game background wants; set to False to keep the
+# Super S layering if a stage ever needs a genuine foreground element.
+STRIP_PRIORITY = True
+
+# Per-stage SCROLL ROUTINE. $C0:B317 is a 10-byte table (one per stage) of word
+# offsets into a routine pointer table at $C0:B32B:
+#   +$00 $C0:B40A  BG1 = camera, BG2 = camera/4   (stage 0)
+#   +$02 $C0:B42F  the mirror: BG2 = camera, BG1 = camera/4   (stage 1)
+#   +$08 $C0:B454  camera MINUS a counter decremented ~6/frame (stage 2, the
+#                  space-time vortex) -- inheriting it is why the ported stage
+#                  drifted continuously and sat at a wrong offset.
+# Confirmed by measurement: stage 0 moves BG1 only, stage 1 moves BG2 only,
+# stage 2 moves both in opposite directions.
+# The per-stage selector byte turned out not to be where it looked, but the
+# ROUTINE POINTER TABLE is enough: entry $C0:B32F is the vortex routine and, as
+# measured, ONLY stage 2 selects it (patching it leaves stages 0/1/3 exactly as
+# they were), so repointing that entry is effectively a per-stage change.
+# Re-framing knob for the far tilemap (it wraps, so a rotation is free). Left at
+# 0: rendering both maps offline shows the palace occupies map ROWS 0-10 while
+# the near layer's floor is rows 9-13, so what is out of frame is the far
+# plane's VERTICAL offset under the new scroll routine, not its horizontal one.
+# Fixing that needs BG2VOFS measured ($210E/$2110) and then either a row
+# rotation here or a small custom scroll routine.
+MAP1_SHIFT = 0                # tiles; horizontal re-framing (unused: the
+                              # far layer is off VERTICALLY, not horizontally)
+
+SCROLL_PTR = 0x00B32F         # the entry stage 2 selects
+SCROLL_PTR_OLD = bytes.fromhex("54b4")    # $C0:B454, the vortex
+SCROLL_PTR_NEW = bytes.fromhex("0ab4")    # $C0:B40A, plain camera parallax
+
 STUB = 0x8000                 # in our appended bank
 BLOBS = 0x8100
 
@@ -119,6 +154,23 @@ def build(src_path, out_path):
     for j in jobs:
         s, vram, _f = LZ.job_entry(sup, j)
         raw = LZ.lz_decompress(sup, s)
+        if MAP1_SHIFT and vram == 0x0800:
+            m = bytearray(raw)
+            for row in range(32):                    # 64x32 entries, 2 bytes each
+                o = row * 128
+                sh = (MAP1_SHIFT % 64) * 2
+                m[o:o + 128] = m[o + sh:o + 128] + m[o:o + sh]
+            raw = bytes(m)
+            print(f"    (rotated the far tilemap by {MAP1_SHIFT} tiles)")
+        if STRIP_PRIORITY and vram in (0x0000, 0x0800):     # the two tilemaps
+            m = bytearray(raw)
+            n = 0
+            for k in range(1, len(m), 2):
+                if m[k] & 0x20:
+                    m[k] &= ~0x20
+                    n += 1
+            print(f"    (cleared the priority bit on {n} tilemap entries)")
+            raw = bytes(m)
         blobs.append((raw, vram))
         print(f"  supers job {j:2d}: {len(raw):#07x} bytes -> VRAM {vram:04X}")
 
@@ -214,6 +266,14 @@ def build(src_path, out_path):
         raise SystemExit(f"asset loader @{SITE_LOAD:#08x}: found {got.hex()}, "
                          f"expected {SITE_LOAD_OLD.hex()}")
     data[SITE_LOAD:SITE_LOAD + 7] = bytes((0x5C, STUB & 0xFF, STUB >> 8, bank)) + b"\xEA" * 3
+
+    # scroll routine (see SCROLL_PTR)
+    got = bytes(data[SCROLL_PTR:SCROLL_PTR + 2])
+    if got != SCROLL_PTR_OLD:
+        raise SystemExit(f"scroll pointer @{SCROLL_PTR:#08x}: found {got.hex()}, "
+                         f"expected {SCROLL_PTR_OLD.hex()}")
+    data[SCROLL_PTR:SCROLL_PTR + 2] = SCROLL_PTR_NEW
+    print("  scroll routine: $C0:B454 (vortex) -> $C0:B40A (camera parallax)")
 
     fix_checksum(data)
     open(out_path, "wb").write(data)

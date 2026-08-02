@@ -189,6 +189,12 @@ for reg, idx in pairs(REGMAP) do
   for _, b in ipairs({reg, 0x800000 + reg}) do
     emu.addMemoryCallback(function(addr, value)
       -- BGnHOFS: first write = low 8 bits, second supplies bits 8-10
+      if idx == 2 and not _G.SCROLLPC then
+        local ok, st = pcall(emu.getState)
+        _G.SCROLLPC = true
+        log(string.format("SCROLLPC BG2HOFS written from %02X:%04X",
+          st and (st["cpu.k"] or 0) or 0, st and (st["cpu.pc"] or 0) or 0))
+      end
       if half[idx] == nil then
         half[idx] = value or 0
       else
@@ -198,7 +204,25 @@ for reg, idx in pairs(REGMAP) do
   end
 end
 
+-- who writes the BG scroll SHADOW ($7E:0A10-$0A17 feed $210D-$2114 at $C0:8230+)
+local sw, swlog, sseen = 0, {}, {}
+for a = 0x0A10, 0x0A17 do
+  for _, b in ipairs({a, 0x7E0000 + a, 0x800000 + a, 0x830000 + a}) do
+    emu.addMemoryCallback(function(addr, value)
+      if not watching or sw > 20 then return end
+      local ok, st = pcall(emu.getState)
+      local pc = string.format("%02X:%04X", st and (st["cpu.k"] or 0) or 0,
+                               st and (st["cpu.pc"] or 0) or 0)
+      local key = string.format("%04X@%s", addr % 0x10000, pc)
+      if sseen[key] then return end
+      sseen[key] = true; sw = sw + 1
+      swlog[#swlog + 1] = string.format("%04X<=%02X @%s", addr % 0x10000, value or 0, pc)
+    end, emu.callbackType.write, b, b, emu.cpuType.snes, emu.memType.snesMemory)
+  end
+end
+
 local function dump()
+  for _, l in ipairs(swlog) do log("SHADOW " .. l) end
   for _, l in ipairs(cwlog) do log("CGWIN " .. l) end
   for _, l in ipairs(shlog) do log("STUBHIT " .. l) end
   for _, l in ipairs(dclog) do log("DECOMP " .. l) end
