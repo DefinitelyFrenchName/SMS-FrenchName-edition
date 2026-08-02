@@ -232,11 +232,33 @@ In-match the real ceiling is P2's bank at `$DB00`, so P1 gets
 (Note the table does contain a 0x2706 = 9990-byte block for `$B700`, so the
 UPLOAD path handles her size fine — the limit is purely the P2 collision.)
 
-* **Preferred: spread the cut.** 684 bytes over the three projectile samples is
-  228 bytes each, about **0.05 s per sample** — far less audible than taking
-  0.15 s off one of them, and it keeps all four sounds.
-* **Fallback: drop the win laugh** (1350 B). The three projectiles then total
-  8550 and fit with 666 bytes spare.
+### DECIDED [P 08-02]: spread the cut over the three PROJECTILES only
+
+Rendered both candidates and the maintainer judged them by ear:
+
+* **3-way (chosen)** — 26 blocks (52 ms) off each projectile, laugh untouched.
+  Verdict: j.632K "indistinguishable", 214P "barely different", 236P "audibly
+  shorter but doesn't feel cut". **9198 bytes, 18 spare.**
+* 4-way (rejected) — 40 ms off all four including the laugh. It does improve
+  the projectiles, but the laugh is the SHORTEST sample, so an equal-BYTES cut
+  costs it the largest PROPORTION (13% vs 5%) and it "goes from a 3 part laugh
+  to a 2 part laugh". Not worth it.
+
+The lesson worth keeping: equal byte cuts are not equal proportional cuts, and
+the shortest sample pays the most. Arithmetic picked the 4-way; listening
+picked the 3-way.
+
+**`tools/saturn/extract_saturn_voice.py`** now builds the approved set straight
+from the Super S ROM (no trace-dump dependency): the ARAM->ROM mapping is
+linear, **file offset = ARAM + `0x2EE17F`**, verified on all four samples. It
+emits `saturn_voice.brr` (the bank for ARAM `$B700`) and `saturn_voice.dir`
+(four directory entries for ARAM `$3500`), asserting the end flag is moved and
+the budget is respected:
+
+    entry 30 win_laugh  ARAM $B700 +0x546
+    entry 31 236P       ARAM $BC46 +0xa5f
+    entry 32 214P       ARAM $C6A5 +0xd1d
+    entry 33 j632K      ARAM $D3C2 +0x72c
 
 **What is still missing.** Super S's per-character audio is NOT the clean
 single ~8 KB bank SMS uses — the differing ranges are scattered (0x80-0x1D0
