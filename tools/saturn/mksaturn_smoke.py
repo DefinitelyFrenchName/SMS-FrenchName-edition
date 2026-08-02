@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.12.6"
+SATURN_VERSION = "0.12.7"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -179,8 +179,21 @@ E8_CMDSTUB = 0x2900
 # whoosh 0x2D, jump 0x0C, landing 0x0D. Hit-reaction args (0x05/0x11/0x12/0x16)
 # and special-starter args (0x23/0x24/0x25) stay unmapped — those sounds come
 # from the engine's hit-resolution/starter paths and would double.
+# v0.12.7 — corrected by parsing which ACT requests each arg (rather than
+# inferring from when a sound was heard):
+#   arg 0x22 is requested by act 0x24, HER WIN POSE — it is her laugh, not a
+#     dash sound. v0.11.1 mapped it to the dash whoosh 0x2D alongside 0x06
+#     (which really is the dash, act 0x26), so her win played a whoosh. Now
+#     silent pending a real voice sample: silence beats an obviously wrong sfx.
+#   args 0x23/0x24/0x25 are requested by her SPECIALS (acts 0x6E/0x6F,
+#     0x3E/0x6A/0x6B, 0x3F/0x6C/0x6D/0x70-0x75) — 236P, 214P and j.632K. They
+#     were left unmapped on the assumption the engine plays the starter sound
+#     itself; the field confirms it does not, so they were silent. Mapped to
+#     the heavy whoosh so the throws are audible; in Super S these are VOICE
+#     samples, so a faithful fix needs the sample import (task #44 maximum).
 CMD_SND_MAP = {0x15: 0x05, 0x14: 0x06, 0x0E: 0x06, 0x20: 0x06,
-               0x02: 0x0C, 0x06: 0x2D, 0x22: 0x2D, 0x08: 0x0D}
+               0x02: 0x0C, 0x06: 0x2D, 0x08: 0x0D,
+               0x23: 0x06, 0x24: 0x06, 0x25: 0x06}
 # v0.8.0 — IN-ROM SATURN SELECT (P1): hold L+R while a round loads -> flag
 # $7E:1F60 set; the effects-DMA helper hook ($C0:92A4, generic VRAM-DMA kick,
 # filtered on $30==0x6A00/$36==$7F) also overrides the $7F:0000 staging with her
