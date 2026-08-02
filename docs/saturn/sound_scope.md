@@ -457,3 +457,59 @@ restore scenario is also assembled from two halves — "a Saturn match sets DIRT
 and installs her offsets" (voicecheck) plus "a dirty directory is restored on the
 next ordinary load" (voicerestore) — because ending a VS match from the autopilot
 proved unreliable.
+
+---
+
+## The SELECT voice ("Yoroshiku") — FOUND [P 08-03]
+
+Field-confirmed first: the in-match voices from Phase 3 are **right and shipped**
+("a bit weird but definitely the right ones and not distracting" — maintainer,
+2026-08-03). Task #44 is closed; this section is the follow-up hunt for the one
+sound that was never in her in-match bank.
+
+**Saturn's select line is at ROM `$EC:C12F`, 2610 bytes (290 BRR blocks).**
+Uranus's, for comparison, is at `$EC:998B`, 1404 bytes. Each is stored
+length-prefixed — the four bytes before the data are `[size16][0000]` — so the
+boundaries are self-describing and need no directory to recover.
+
+It is uploaded to **ARAM `$4D00` as directory entry 16**, and plays at
+**PITCH `$03FE` = 7984 Hz**, the same ~8 kHz as everything else of hers, so it
+needs no resampling either. Decoded: `build/saturn/voice/select_saturn.wav`
+(0.58 s; Uranus's control render is 0.31 s).
+
+### How it was found, and what was wrong about the earlier guesses
+
+The scoping note said it "lives in whatever sample set the CHARACTER-SELECT
+screen loads". It does not — three probes ruled that out in order:
+
+1. `probe_supers_selectvoice.lua` — poking `$1B40` and confirming produced
+   **byte-identical audio** for Saturn and Uranus, and the select screen's
+   directory holds only 27 entries with **28-34 (the in-match voices) all zero**.
+   So no per-character bank is resident there.
+2. `probe_supers_selectsweep.lua` — walking the cursor across the roster
+   (`$1B40` really is the cursor; it cycles 9,5,4,3,2,1 on "right") changes **no
+   directory entry** and plays only the same handful of menu blips whatever
+   character is highlighted. So it is not a cursor-hover line either.
+3. `probe_supers_voicehunt.lua` — logging every voice start with its SRCN across
+   select → confirm → versus → match and diffing two characters left exactly one
+   difference: **entry 16, whose LENGTH changes with the character** (2610 bytes
+   for Saturn, 1404 for Uranus), played just after the character is confirmed.
+
+Entry 16 is a **shared streamed slot**: each confirmed character's line is
+uploaded to `$4D00`, played, and then overwritten — by the other player's line,
+and later by a 90-byte in-match sound. That is why the first capture attempt
+came back with Uranus's bytes: by the versus screen the slot already held P2's.
+Selecting the same character on BOTH sides is what makes its final contents
+unambiguously hers.
+
+The general lesson is the one this project keeps re-learning in new clothes: the
+SRCN register names the sample that actually played, so "which sound is this?"
+is a measurement, not an inference. Every wrong turn above came from reasoning
+about where a sample *ought* to live.
+
+### What injecting it would still need
+
+Not scoped yet, and it is a different problem from the in-match voices: SMS's own
+character-select screen has its own sample set, and nothing here says there is a
+free slot or the ARAM space for a 2610-byte line at the moment SMS confirms a
+character. The bytes are in hand; the delivery is not.
