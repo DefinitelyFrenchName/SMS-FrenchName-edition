@@ -257,6 +257,16 @@ local function dumpvram(tag)
   log("OAM-shadow writers: " .. table.concat(oamlog, " "))
   log("dumped " .. tag)
 end
+-- STAGEFORCE: different stage => different music => different echo content
+local forced = false
+if os.getenv("STAGE") then
+  emu.addMemoryCallback(function()
+    if forced or frames < 1700 then return end
+    forced = true
+    wr(0x8E, tonumber(os.getenv("STAGE")) * 2)
+  end, emu.callbackType.exec, 0x808586, 0x808586, emu.cpuType.snes, emu.memType.snesMemory)
+end
+
 local STEPS = {
   function() return frames >= 900 end,
   function() pulse[0]=beat({down=true}); return ram(0x1B10)==1 end,

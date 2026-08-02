@@ -194,17 +194,49 @@ CHARACTER-SELECT screen loads, which is a separate find.
 2. **Truncate one sample.** 729 bytes is about 0.16 s at the likely playback
    rate; taken off the end of 214P (the longest, ~0.58 s) all four survive with
    a slight clip.
-3. **Use the unclaimed region.** ARAM `$9B92`-`$B6FF` (**7022 bytes**) has *no
-   directory entry pointing into it* and is **byte-identical across two
-   different matchups**, so it is neither per-match data nor (probably) the echo
-   buffer, which would vary with the audio. It is 93% non-zero, so it holds
-   *something* static — unproven and therefore not safe to claim. If it is
-   dead, everything fits comfortably, with room for the throw shout and the KO
-   cry too. Testing it is cheap: overwrite it at runtime and listen for
-   breakage.
+3. ~~**Use the unclaimed region** `$9B92`-`$B6FF` (7022 bytes).~~ **RULED OUT —
+   it is live data.** See below; this is the option that would have bitten us.
 
-Option 3 is the only one that costs nothing if it works, and the test is one
-probe; options 1 and 2 are the certain fallbacks.
+### Why option 3 is dead, and the protocol that caught it
+
+The region looked free and passed two independent checks:
+
+* **No audio block can reach it.** Parsing all 48 block pointers in the
+  `$C0:ECE7` table gives only five ARAM destinations ever written — `$2800`,
+  `$3480`, `$3500`, `$8E00`, `$B700` — and the largest `$8E00` upload ends
+  *exactly* at `$9B92`, where the region starts.
+* **It is not the echo buffer.** Byte-identical across three stages with
+  different music; echo content would vary with the audio.
+
+Both passed, and it still is not free. The check that settled it was
+**provenance**: probing the region's bytes against the ROM finds them, in a
+clean linear mapping —
+
+    ARAM $9ED2 <- ROM $E4:96DE      (ARAM offset - 0x7F4)
+    ARAM $A1D2 <- ROM $E4:99DE
+    ...          7 of 7 probes traced back
+
+So roughly 7 KB is deliberately uploaded from bank **`$E4`** into `$9B92`-`$B6FF`
+by a path outside the audio table. It is resident data — which is exactly why
+it looked static and unreferenced. Claiming it would have corrupted whatever
+uses it, in some context we had not exercised.
+
+**Lesson for reuse:** "nothing points at it and it never changes" is not
+evidence that memory is free. Ask where the bytes CAME FROM. On a console where
+everything is uploaded from ROM, provenance is decisive and cheap.
+
+### Revised recommendation
+
+In-match the real ceiling is P2's bank at `$DB00`, so P1 gets
+`$B700`-`$DB00` = **9216 bytes**; the four requested need 9900, over by **684**.
+(Note the table does contain a 0x2706 = 9990-byte block for `$B700`, so the
+UPLOAD path handles her size fine — the limit is purely the P2 collision.)
+
+* **Preferred: spread the cut.** 684 bytes over the three projectile samples is
+  228 bytes each, about **0.05 s per sample** — far less audible than taking
+  0.15 s off one of them, and it keeps all four sounds.
+* **Fallback: drop the win laugh** (1350 B). The three projectiles then total
+  8550 and fit with 666 bytes spare.
 
 **What is still missing.** Super S's per-character audio is NOT the clean
 single ~8 KB bank SMS uses — the differing ranges are scattered (0x80-0x1D0
