@@ -72,6 +72,13 @@ import os as _osv
 #      stub, because a one-shot copy is overwritten by the engine's own refill.
 # Set SATURN_PORTRAIT=0 to build without it.
 SATURN_PORTRAIT = _osv.environ.get("SATURN_PORTRAIT") != "0"
+# DIAGNOSTIC: SATURN_PORTRAIT_FORCE=1 drops the "whose card is this" gate from
+# the sprite-list hook, leaving only "the card's own portrait list is being
+# drawn". Her portrait then appears on ANY card, which is wrong for shipping but
+# answers one question in a single match: if her art shows, the hooks run and
+# the GATE inputs differ in that flow; if the shell's portrait still shows, the
+# hooks are not running there at all.
+SATURN_PORTRAIT_FORCE = _osv.environ.get("SATURN_PORTRAIT_FORCE") == "1"
 SATURN_HIDDEN = _osv.environ.get("SATURN_VISIBLE") != "1"
 SATURN_STACKED = bool(_osv.environ.get("SATURN_BASE"))
 VARIANT_FILE = f"{SATURN_VERSION}-hidden" if SATURN_HIDDEN else SATURN_VERSION
@@ -972,17 +979,18 @@ def main():
     lh += bytes((0xC9, 0x9F, 0x00)); lbr(0xD0, "lend")  # bank must be $9F
     lh += bytes((0xA5, 0x12, 0xC9, VANILLA_LIST & 0xFF, VANILLA_LIST >> 8))
     lbr(0xD0, "lend")
-    lh += bytes((0xE2, 0x20))                           # sep #$20
-    lh += bytes((0xAF, SITE_WINNER & 0xFF, SITE_WINNER >> 8, 0x7E))
-    lh += bytes((0xC9, 0x01)); lbr(0xF0, "l1")          # winner == P1?
-    lh += bytes((0xC9, 0x02)); lbr(0xD0, "lend")        # winner == P2?
-    lh += bytes((0xAF, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK))
-    lbr(0x80, "lchk")
-    llbl("l1")
-    lh += bytes((0xAF, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK))
-    llbl("lchk")
-    lh += bytes((0xC9, SATURN_MAGIC)); lbr(0xD0, "lend")
-    lh += bytes((0xC2, 0x20))                           # rep #$20
+    if not SATURN_PORTRAIT_FORCE:
+        lh += bytes((0xE2, 0x20))                       # sep #$20
+        lh += bytes((0xAF, SITE_WINNER & 0xFF, SITE_WINNER >> 8, 0x7E))
+        lh += bytes((0xC9, 0x01)); lbr(0xF0, "l1")      # winner == P1?
+        lh += bytes((0xC9, 0x02)); lbr(0xD0, "lend")    # winner == P2?
+        lh += bytes((0xAF, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK))
+        lbr(0x80, "lchk")
+        llbl("l1")
+        lh += bytes((0xAF, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK))
+        llbl("lchk")
+        lh += bytes((0xC9, SATURN_MAGIC)); lbr(0xD0, "lend")
+        lh += bytes((0xC2, 0x20))                       # rep #$20
     llbl("lsub")
     lh += bytes((0xA9, EE_SPRLIST & 0xFF, EE_SPRLIST >> 8, 0x85, 0x12))
     # $14 becomes the emitter's DATA BANK (`lda $14 / pha / plb` at $C0:9EA6), and
