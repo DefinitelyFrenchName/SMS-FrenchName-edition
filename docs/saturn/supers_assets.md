@@ -141,7 +141,21 @@ Three problems reported from play, two fixed:
    > per-stage behaviour, but patching it changes nothing, so the real index
    > lives elsewhere. Repointing the shared routine entry is equivalent here
    > only because a single stage uses it.
-3. **The far plane's framing is now wrong** — NOT fixed. With the vortex gone
+3. **The two tilemaps were on SWAPPED PLANES** — fixed. Both games store their
+   stage tilemaps at the same VRAM addresses (`$0000` and `$0800`), so a
+   straight copy looked right; but the games' BG tilemap-base registers are
+   reversed, so Super S's far map landed on SMS's near plane. That one fault
+   produced three symptoms at once: the sky/horizon drawn IN FRONT of the
+   palace, the far layer framed wrong (it was being scrolled at the near
+   plane's rate), and the apparent width change. The builder now swaps the two
+   tilemaps between planes (`SWAP_MAPS`), after which the stage renders with
+   sky behind, palace in front of it, and fighters in front of everything.
+
+   *(Superseded diagnosis, kept because the reasoning was wrong in an
+   instructive way: with the vortex removed the palace went out of frame and
+   the offline renders — palace at map rows 0-10, floor at rows 9-13 — made a
+   VERTICAL offset look like the cause. It was not; the plane assignment was.
+   A horizontal re-framing knob `MAP1_SHIFT` remains but is unused at 0.)* With the vortex gone
    the palace is out of view. Rendering both tilemaps offline shows why: the
    palace occupies map ROWS 0-10 while the near layer's floor is rows 9-13, so
    it is the far plane's VERTICAL offset that is off, not the horizontal one (a

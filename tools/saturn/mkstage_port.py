@@ -99,6 +99,14 @@ STRIP_PRIORITY = True
 MAP1_SHIFT = 0                # tiles; horizontal re-framing (unused: the
                               # far layer is off VERTICALLY, not horizontally)
 
+# Which PLANE each tilemap lands on. The two games put their stage tilemaps at
+# the same VRAM addresses ($0000 and $0800), but if their BG tilemap-base
+# registers are reversed, a straight copy puts Super S's far map on SMS's near
+# plane. Field symptoms of exactly that: the sky/horizon drawn IN FRONT of the
+# palace, the far layer framed wrong, and the two planes scrolling at each
+# other's rates.
+SWAP_MAPS = True
+
 SCROLL_PTR = 0x00B32F         # the entry stage 2 selects
 SCROLL_PTR_OLD = bytes.fromhex("54b4")    # $C0:B454, the vortex
 SCROLL_PTR_NEW = bytes.fromhex("0ab4")    # $C0:B40A, plain camera parallax
@@ -237,10 +245,18 @@ def build(src_path, out_path):
     recs = [r for r in recs if r != 4]
     if len(recs) != 3:
         raise SystemExit(f"SMS scene {SMS_STAGE} is not a 3-asset stage: {recs}")
+    order = list(range(len(recs)))
+    if SWAP_MAPS:
+        maps = [i for i, (_r, v) in enumerate(blobs) if v in (0x0000, 0x0800)]
+        if len(maps) == 2:
+            order[maps[0]], order[maps[1]] = order[maps[1]], order[maps[0]]
+            print("  (tilemaps swapped between planes)")
+    addrs = [addrs[i] for i in order]
+    blobs = [blobs[i] for i in order]
     for r, (blobaddr, (raw, vram)) in zip(recs, zip(addrs, blobs)):
         o = E0 + SMS_RECORDS + r * 6
         old_vram = data[o + 3] | data[o + 4] << 8
-        if old_vram != vram:
+        if old_vram != vram and not (SWAP_MAPS and {old_vram, vram} == {0x0000, 0x0800}):
             raise SystemExit(f"record {r}: VRAM {old_vram:04X} but the Super S asset "
                              f"targets {vram:04X} — asset order mismatch")
         print(f"  SMS record {r}: src {data[o]|data[o+1]<<8|data[o+2]<<16:06X} -> "
