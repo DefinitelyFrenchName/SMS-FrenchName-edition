@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.12.3"
+SATURN_VERSION = "0.12.4"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -1091,27 +1091,17 @@ def main():
     cp += bytes((0xA5, 0x03, 0x8F, 0x04, 0xF1, SATURN_BANK))   # stash dest
     cp += bytes((0x68, 0x28))                      # pla / plp
     cp += bytes((0x22, 0xEC, 0x8D, 0x80))          # the vanilla upload we wrap
+    # The card-build wrapper now ONLY resets the marker. It used to blit here
+    # too, but the portrait loader is called FIVE times per card and this site
+    # does not always get the portrait window: a destination of $7800 was
+    # logged. Blitting there put her tiles somewhere harmless and still marked
+    # the job done, so the per-frame rescue stayed suppressed and the card kept
+    # the SHELL's tiles under her layout — which is exactly what the field saw
+    # ("a garbled mess, but a few tiles are definitely Uranus"). The per-frame
+    # path always targets VRAM $0000, so it cannot make that mistake.
     cp += bytes((0x08, 0xC2, 0x30, 0x48, 0xDA, 0x5A))   # php/rep #$30/pha/phx/phy
     cp += bytes((0xE2, 0x20))                           # sep #$20
-    # a fresh card: clear the "tiles uploaded" marker, then try to do it here
     cp += bytes((0xA9, 0x00, 0x8F, SATURN_MARK & 0xFF, SATURN_MARK >> 8, SATURN_BANK))
-    cp += bytes((0xAF, SITE_WINNER & 0xFF, SITE_WINNER >> 8, 0x7E))
-    cp += bytes((0xC9, 0x01)); br(0xF0, "p1")
-    cp += bytes((0xC9, 0x02)); br(0xF0, "p2")
-    cp += bytes((0x82, 0x00, 0x00)); brl_fix.append(len(cp) - 2)   # brl done
-    lbl("p1")
-    cp += bytes((0xAF, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK))
-    br(0x80, "chk")
-    lbl("p2")
-    cp += bytes((0xAF, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK))
-    lbl("chk")
-    cp += bytes((0xC9, SATURN_MAGIC, 0xF0, 0x03))
-    cp += bytes((0x82, 0x00, 0x00)); brl_fix.append(len(cp) - 2)
-    # the winner is settled here in most flows -> blit now and mark it done
-    cp += bytes((0x22, EE_BLIT & 0xFF, EE_BLIT >> 8, B_MISC))
-    cp += bytes((0xE2, 0x20, 0xA9, SATURN_MAGIC,
-                 0x8F, SATURN_MARK & 0xFF, SATURN_MARK >> 8, SATURN_BANK))
-
     lbl("done")
     cp += bytes((0xC2, 0x30, 0x7A, 0xFA, 0x68, 0x28, 0x6B))   # restore / rtl
     fix()
