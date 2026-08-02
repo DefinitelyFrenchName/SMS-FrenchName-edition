@@ -48,43 +48,89 @@ in the game — 114 valid entries in the job table ($80:EEF1), enumerated:
 
 Everything above is extractable TODAY with `supers_lz.lz_decompress`.
 
-## Stage-port feasibility [P 07-31]
+## Stage port — WORKING [P 08-02]
 
-**Super S side: solved.** Assets enumerate + decompress cleanly (above).
-Remaining per-stage unknowns are the CONFIG tables (BG mode/scroll planes,
-ground line, palette source, music id) — engine tables, findable by diffing
-two stage loads with the LZJOB/DMA tracer (probe_staging_dump2 pattern).
+A Super S stage now renders in SMS, on **Sailor Pluto's slot (stage 2, the
+space-time door)** — the maintainer's pick, because tournaments only play that
+stage by mutual agreement, so it is the cheapest slot to lose whatever we
+eventually add. Builder: `tools/saturn/mkstage_port.py` (stacks on any ROM,
+`--stacked`); it needs no work on either game's codec, in either direction.
 
-**SMS side: the loader differs.** SMS does NOT carry the Super S decompressor
-(no `JSL $00:00C8`, no MVN gadget): its match-load path decompresses manifest
-payloads via `$C0:916B` into `$7E:6A00` AND stages `$7F:0000` DMAs from a
-different resident routine (backref idiom found in bank $DF — same family,
-format unverified). Two viable injection routes:
+### SMS's asset chain (all traced live)
 
-1. **Staging-override (RECOMMENDED — proven pattern):** exactly how Saturn's
-   effect tiles ship: hook the stage-load DMA kick, override the `$7F` staging
-   with RAW decompressed data from appended banks. No SMS-format re-encode, no
-   SMS-decompressor RE. Cost: raw size (~16-24 KB/stage) — even the combined
-   REFsaturn ROM has banks $F9-$FF free (~450 KB) = room for every Super S
-   stage uncompressed.
-2. Native-format conversion: RE the SMS decompressor (likely an LZSS cousin)
-   and re-encode at build time. Cleaner, more work, zero extra footprint.
+```
+$7E:008E           scene id * 2 (forcing it at $C0:8586 summons any stage)
+$E0:017A + id*2 -> scene script: [record ids ... $FF][palette ids ... $FF]
+$E0:02DC + k*6     asset record k: [src24][vram16][flag8]
+$C0:853D           loader: DP $00 = src, $02 = src bank, $03 = vram, A = flag;
+                   flag 0 or >= $7E -> $C0:8E9A (multi-mode codec, dest in WRAM)
+                   otherwise        -> $C0:916B (the other codec) then a DMA
+$C0:9287/$C0:92AD  the two VRAM-DMA helpers (DP $30-$36 / DP $00-$06)
+$E0:0390 + p*6     palette record: [start_colour][src16][bank][count16] — RAW,
+                   copied into the CGRAM shadow $7E:0500 by a WRAM gadget
+```
 
-**Stage select/config integration:** the stage id feeds per-stage engine
-tables (sizes/counts unknown) — widening to extra ids is the same
-roster-widening surgery done five times already (boxes/poses/cels/charsel/
-win screen). Known SMS entry points: the VS-config stage select, patch 3's
-default-stage table + `#$0009` random modulus.
+Ten stages, each **three consecutive records**: tiles -> VRAM `$2000`, tilemap
+-> `$0000`, tilemap -> `$0800`. Scene *i* uses palette ids `1+i` (BG rows 2-7,
+0xC0 bytes) and `0x0B+i` (one OBJ row, 0x20 bytes). Stage identification is in
+`traces/saturn/stage_g*.png`; **stage 2 is Pluto's door**, and note it shares
+its TILESET with stage 1 — only the tilemaps differ — so an override has to be
+keyed on the records, never on the tileset address.
 
-**Music:** separate SPC-side domain, unassessed. Fallback that costs nothing:
-ported stages reuse an SMS track. A real track port (sequence + samples)
-would be its own exploration.
+### Super S is the same engine
 
-**Effort estimate:** proof-of-concept (ONE stage, art via staging-override,
-SMS music, reachable by replacing an existing stage id) ≈ 2-3 focused
-sessions; full integration (own stage-select ids, all stages, polish) ≈ that
-again. No blockers identified.
+Same shapes, different addresses: scene scripts at `$E0:AB22`, palette records
+at `$E0:AC7A`, and its **asset records ARE the LZ job table** (`supers_lz` job
+index == record index). Its stage tilesets decompress to 0x1F40-0x5F60 bytes —
+all inside SMS's 0x6000 window — and its tilemaps are exactly 0x1000, so a
+stage transplants without resizing anything.
 
+### How the port works
+
+* **Art** — the three records are repointed at RAW (already decompressed) Super
+  S data in an appended bank, each blob prefixed with a 2-byte length. A stub
+  recognises that bank and DMAs it straight from ROM to VRAM, skipping both the
+  decompressor and the `$7F` staging buffer.
+* **Palette** — SMS's palette blocks are raw already, so Super S's are simply
+  written over stage 2's. No hook, no code.
+
+The hook is 7 bytes at **`$C0:8561`** (`cmp #$7E / bcs $8568 / jmp $916B`
+becomes `jml stub` + NOPs); the stub reproduces both vanilla continuations
+exactly, so every other asset in the game loads byte-for-byte as before.
+
+Three traps, all paid for once:
+
+1. **Hook the loader, not the decompressor.** The first attempt hooked
+   `$C0:916B`. That entry is reached from five places in *different accumulator
+   widths*; with A 16-bit the stub mis-parses its own code, runs off into the
+   appended bank and BRKs into the engine's trap loop (`$C0:FFAE bra *` — worth
+   knowing: that address spinning means the game trapped). At `$C0:8561` the
+   width is fixed by a `sep #$20` six instructions earlier and only asset
+   records pass through.
+2. **Come back in the `$80` bank view, not `$C0`.** The loader's continuation
+   calls a WRAM gadget (`jsr $0080`, the palette copier), which only exists
+   where `$0000-$7FFF` is the system area. Returning with PB=`$C0` hung the
+   load right after the third stage asset. For the same reason the stub cannot
+   end in its own `rts` (that keeps PB) — it jumps to the vanilla `rts` at
+   `$80:92AC`.
+3. **Don't borrow `$C0:9287`.** That helper takes its source from DP `$30-$36`,
+   and the bank byte `$36` is shared state the vanilla path never re-sets (it
+   is `$7F` for the whole load). Writing our bank there sent the NEXT vanilla
+   asset's DMA into the appended bank. The stub programs the DMA registers
+   itself and touches no DP state.
+
+### Status and what is left
+
+Verified in-emulator: the ported stage renders with correct art and palette,
+stages 0/1/5 are unchanged on the same ROM, and the regression suite is 42/42.
+Source stage is one constant (`SUPERS_SCENE`, default 1 = the moonlit terrace
+with the Elysion palace skyline).
+
+Remaining polish, all in the same family: **the per-stage BG CONFIG is still
+SMS's** — mode, scroll/parallax registers, colour-math and windows, plus the
+ground line. That is visible as a magenta band on the left of the ported stage,
+left over from how SMS dresses the space-time door. Music also stays SMS's
+(a real track port is its own project).
 
 ## Report-card portrait — located [P 08-01]
 

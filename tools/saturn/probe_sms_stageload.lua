@@ -142,7 +142,49 @@ if STAGE then
   end, emu.callbackType.exec, 0x808586, 0x808586, emu.cpuType.snes, emu.memType.snesMemory)
 end
 
+-- stage-port stub instrumentation (harmless on ROMs without it)
+local sh, shlog = 0, {}
+for _, a in ipairs({0xE88000, 0xE88014}) do
+  emu.addMemoryCallback(function(addr)
+    if sh > 14 then return end
+    sh = sh + 1
+    shlog[#shlog + 1] = string.format("f=%d @%06X src=%02X:%02X%02X vram=%02X%02X",
+      frames, addr, ram(0x02), ram(0x01), ram(0x00), ram(0x04), ram(0x03))
+  end, emu.callbackType.exec, a, a, emu.cpuType.snes, emu.memType.snesMemory)
+end
+
+-- the engine's trap loop ($C0:FFAE `bra *`): report where it came from
+local trapped = false
+for _, a in ipairs({0xC0FFAE, 0x00FFAE, 0x80FFAE}) do
+  emu.addMemoryCallback(function()
+    if trapped then return end
+    trapped = true
+    local ok, st = pcall(emu.getState)
+    local sp = st and (st["cpu.sp"] or 0) or 0
+    local b = {}
+    for i = 1, 8 do b[i] = string.format("%02X", emu.read(sp + i, emu.memType.snesMemory)) end
+    log(string.format("TRAP f=%d sp=%04X stack=%s", frames, sp, table.concat(b, " ")))
+  end, emu.callbackType.exec, a, a, emu.cpuType.snes, emu.memType.snesMemory)
+end
+
+-- per-stage BG config: colour-math / window / mode registers
+local cw, cwlog = 0, {}
+for r = 0x2130, 0x2133 do
+  for _, b in ipairs({r, 0x800000 + r}) do
+    emu.addMemoryCallback(function(addr, value)
+      if not watching or cw > 30 or frames < 1740 then return end
+      cw = cw + 1
+      local ok, st = pcall(emu.getState)
+      cwlog[#cwlog + 1] = string.format("f=%d $%04X<=%02X @%02X:%04X", frames,
+        addr % 0x10000, value or 0,
+        st and (st["cpu.k"] or 0) or 0, st and (st["cpu.pc"] or 0) or 0)
+    end, emu.callbackType.write, b, b, emu.cpuType.snes, emu.memType.snesMemory)
+  end
+end
+
 local function dump()
+  for _, l in ipairs(cwlog) do log("CGWIN " .. l) end
+  for _, l in ipairs(shlog) do log("STUBHIT " .. l) end
   for _, l in ipairs(dclog) do log("DECOMP " .. l) end
   for _, l in ipairs(ixlog) do log("IDX " .. l) end
   for _, l in ipairs(trlog) do log("TBLREAD " .. l) end
@@ -156,6 +198,10 @@ local function dump()
   local png = emu.takeScreenshot()
   local g = assert(io.open(ENV.TRACE .. "saturn/stage_" .. TAG .. ".png", "wb"))
   g:write(png); g:close()
+  local cg = {}
+  for i = 0, 511 do cg[#cg + 1] = string.char(emu.read(i, emu.memType.snesCgRam)) end
+  local cf = assert(io.open(ENV.TRACE .. "saturn/cgstage_" .. TAG .. ".bin", "wb"))
+  cf:write(table.concat(cg)); cf:close()
 
   log(string.format("dumped %s (transfers logged: %d)", TAG, n))
 end
@@ -197,6 +243,12 @@ local STEPS = {
 }
 emu.addEventCallback(function()
   frames = frames + 1; sf = sf + 1
+  if frames > 1780 and frames < 2100 and frames % 25 == 0 then
+    local ok, st = pcall(emu.getState)
+    log(string.format("PCSAMPLE f=%d %02X:%04X 70=%02X 8D=%02X 1000=%02X",
+      frames, st and (st["cpu.k"] or 0) or 0, st and (st["cpu.pc"] or 0) or 0,
+      ram(0x70), ram(0x8D), ram(0x1000)))
+  end
   local fn = STEPS[step]
   if fn and fn() then step = step + 1; sf = 0; pulse = {} end
   if not STEPS[step] then log("done"); emu.stop(0) end
