@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.12.4"
+SATURN_VERSION = "0.12.5"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -976,9 +976,14 @@ def main():
     lh, llbl, lbr, lfix = _asm()
     lh += bytes((0x08, 0xC2, 0x30))                     # php / rep #$30
     lh += bytes((0xB5, 0x64, 0x85, 0x12, 0xB5, 0x66, 0x85, 0x14))   # displaced
+    # Bank $9F alone identifies the report card. Do NOT also compare the pointer
+    # against one character's list: Saturn can be summoned over ANY of the nine
+    # (L+R on any slot), and the card then draws THAT character's list, so a
+    # test against Uranus's $9F:CBEC silently disabled the whole feature for
+    # every other shell — the field saw each shell's own untouched portrait.
+    # Measured safe: across a full boot-to-card run this renderer loads exactly
+    # one pointer, the card's; nothing in-match reaches it.
     lh += bytes((0xC9, 0x9F, 0x00)); lbr(0xD0, "lend")  # bank must be $9F
-    lh += bytes((0xA5, 0x12, 0xC9, VANILLA_LIST & 0xFF, VANILLA_LIST >> 8))
-    lbr(0xD0, "lend")
     if not SATURN_PORTRAIT_FORCE:
         lh += bytes((0xE2, 0x20))                       # sep #$20
         lh += bytes((0xAF, SITE_WINNER & 0xFF, SITE_WINNER >> 8, 0x7E))
