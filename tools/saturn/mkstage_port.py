@@ -75,6 +75,19 @@ SUPERS_SCENE = 1              # moonlit terrace / Elysion skyline
 # characters' chests. Stripping it puts the whole stage behind the sprites,
 # which is what a fighting-game background wants; set to False to keep the
 # Super S layering if a stage ever needs a genuine foreground element.
+# Super S composes this stage across BOTH planes using the per-tile priority
+# bit: map0 holds sky (behind the palace) AND ground (in front of it), the
+# ground cells being exactly the ones flagged high-priority (measured: rows
+# 10-13). SMS cannot reproduce that, because a high-priority BG tile also draws
+# over the fighters — which is the occlusion the field reported first.
+#
+# So we re-cut the layers instead of re-prioritising them. Every high-priority
+# cell of map0 (i.e. the ground) is MOVED into the other tilemap, and the
+# priority bit is then stripped everywhere:
+#     front plane = palace + ground      back plane = sky
+# which renders in the right order with no priority bits at all, so the
+# fighters stay in front of everything.
+MERGE_GROUND = True
 STRIP_PRIORITY = True
 
 # Per-stage SCROLL ROUTINE. $C0:B317 is a 10-byte table (one per stage) of word
@@ -170,17 +183,38 @@ def build(src_path, out_path):
                 m[o:o + 128] = m[o + sh:o + 128] + m[o:o + sh]
             raw = bytes(m)
             print(f"    (rotated the far tilemap by {MAP1_SHIFT} tiles)")
-        if STRIP_PRIORITY and vram in (0x0000, 0x0800):     # the two tilemaps
+        blobs.append((raw, vram))
+        print(f"  supers job {j:2d}: {len(raw):#07x} bytes -> VRAM {vram:04X}")
+
+    # --- re-cut the two planes (see MERGE_GROUND) ---
+    if MERGE_GROUND:
+        idx = {v: i for i, (_r, v) in enumerate(blobs)}
+        if 0x0000 in idx and 0x0800 in idx:
+            near = bytearray(blobs[idx[0x0000]][0])     # sky + ground
+            far = bytearray(blobs[idx[0x0800]][0])      # palace
+            moved = 0
+            for k in range(0, len(near), 2):
+                if near[k + 1] & 0x20:                  # high-priority = ground
+                    far[k:k + 2] = near[k:k + 2]        # draw it on the front plane
+                    near[k:k + 2] = b"\x00\x00"         # and blank it behind
+                    moved += 1
+            blobs[idx[0x0000]] = (bytes(near), 0x0000)
+            blobs[idx[0x0800]] = (bytes(far), 0x0800)
+            print(f"    (moved {moved} ground cells onto the front plane)")
+
+    if STRIP_PRIORITY:
+        for i, (raw, vram) in enumerate(blobs):
+            if vram not in (0x0000, 0x0800):
+                continue
             m = bytearray(raw)
             n = 0
             for k in range(1, len(m), 2):
                 if m[k] & 0x20:
                     m[k] &= ~0x20
                     n += 1
-            print(f"    (cleared the priority bit on {n} tilemap entries)")
-            raw = bytes(m)
-        blobs.append((raw, vram))
-        print(f"  supers job {j:2d}: {len(raw):#07x} bytes -> VRAM {vram:04X}")
+            if n:
+                print(f"    (cleared the priority bit on {n} entries)")
+            blobs[i] = (bytes(m), vram)
 
     # --- our bank ---
     bank_file = len(data)

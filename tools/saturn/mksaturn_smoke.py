@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.12.5"
+SATURN_VERSION = "0.12.6"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -1087,8 +1087,20 @@ def main():
     bl += bytes((0xBF, EE_PORTPAL & 0xFF, EE_PORTPAL >> 8, B_MISC))
     bl += bytes((0x9F, 0x00, 0x06, 0x7E))               # sta $7E0600,X
     bl += bytes((0x88, 0x10, (0x100 - 12) & 0xFF))      # dey / bpl palcopy
-    bl += bytes((0xE2, 0x20, 0xAF, SATURN_INIDISP & 0xFF, SATURN_INIDISP >> 8,
-                 SATURN_BANK, 0x8D, 0x00, 0x21))   # restore INIDISP
+    # Restore INIDISP — but never restore a BLANK one. The blit force-blanks to
+    # do its DMA and puts back what it saved; if it happens to run while the
+    # screen is legitimately dark (a fade, brightness 0), it saves 0 and hands
+    # the screen back still black. Nothing else rewrites the register on a
+    # static card, so the card stays black until the player leaves it — which
+    # is precisely the field report: black screen, correct music, and the
+    # portrait flashing up correctly for a few frames on the way out. If the
+    # saved brightness is zero we hand back full brightness instead; a fade in
+    # progress overwrites it on its next frame anyway.
+    bl += bytes((0xE2, 0x20, 0xAF, SATURN_INIDISP & 0xFF, SATURN_INIDISP >> 8, SATURN_BANK))
+    bl += bytes((0x29, 0x0F)); bbr(0xD0, "keep")      # brightness bits set?
+    bl += bytes((0xA9, 0x0F))                          # no -> full brightness
+    blbl("keep")
+    bl += bytes((0x8D, 0x00, 0x21))                    # -> INIDISP
     bl += bytes((0xC2, 0x30, 0x7A, 0xFA, 0x68, 0x28, 0x6B))   # restore / rtl
     bfix()
     assert len(bl) <= 0xC0, f"blit routine too big: {len(bl)}"
