@@ -19,7 +19,7 @@ Playable roster (charID): 1 Moon, 2 Mercury, 3 Mars, 4 Jupiter, 5 Venus, 6 Uranu
 
 ---
 
-## 0. Current state (2026-08-02) — SMS + Saturn
+## 0. Current state (2026-08-03) — SMS + Saturn
 
 The base patch project below is complete and green; active work is the **SMS +
 Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
@@ -27,8 +27,20 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 
 **Saturn is playable in SMS**, summoned by holding **L+R** on any character
 slot at select (she wears that character as a "shell"). Field-tested repeatedly
-by the maintainer. Current builds are **v0.12.7** + a stage-port variant, all on
+by the maintainer. Current builds are **v0.13.0** + a stage-port variant, all on
 **REF v.2**.
+
+**She has her own voice as of v0.13.0** (task #44 closed): her win laugh, 236P,
+214P and j.632K, injected as a fifth data layer. SMS voices a fighter from a
+private ARAM bank (P1 `$B700`, P2 `$DB00`) **plus** a per-character BRR
+directory that is resident from boot at `ARAM $34C0 + (charID-1)*32` — so
+loading her samples was only half the job, and the directory needed patching
+too. She borrows **char 1's** sound ids on whichever side she plays and the
+build overwrites char 1's half-record for that player only (the halves are per
+player, so it can never collide with a real Moon), restoring it on any
+non-Saturn load. One fixed id set, no per-shell code. Mechanism, corrections and
+acceptance evidence: `docs/saturn/sound_scope.md` § PHASE 3. **Not yet listened
+to in play** — that is the one open thing about it.
 
 **REF v.2** (2026-08-02, maintainer request) = REF v.1 **+ patch 15 (AUTO
 removal)** = 1b+2+3+4+5+7+8+9+12+13+14+15. Recipe `tools/build_ref_v2.sh`, ROM
@@ -37,12 +49,12 @@ published artifact with a recorded hash, so v.2 is a new name rather than a
 redefinition. `tools/saturn/build_refsaturn.sh` now targets v.2 by default
 (`REF_VERSION=1` selects the old base).
 
-Shipped for Saturn this session: card portrait (art, layout and palette),
+Shipped for Saturn recently: card portrait (art, layout and palette),
 push-collision fix, corrected sfx mapping, a Super S stage ported onto Pluto's
-slot, and her voice samples extracted and approved. Open: movelist (#41), a
-stage vertical-scroll artefact (#43), voice injection (#44).
+slot, and her voice — extracted, approved, and now injected and playing. Open:
+movelist (#41) and a stage vertical-scroll artefact (#43).
 
-**Three traps this project paid for — they generalise:**
+**Four traps this project paid for — they generalise:**
 
 1. **Per-character fixes must be tested with at least TWO shells.** Saturn can
    be summoned over any of the nine. A hook keyed to *Uranus's* sprite-list
@@ -54,6 +66,11 @@ stage vertical-scroll artefact (#43), voice injection (#44).
 3. **Data handed to a vanilla routine must respect the WRAM-mirror rule.** The
    sprite emitter writes the OAM shadow with plain absolute stores, so a list in
    bank `$EE` (no WRAM mirror) vanished entirely; it needs the `$AE` alias.
+4. **An engine convention verified in one context is not verified in another.**
+   `$88` is the current object in the proc dispatch, so the voice hook reused
+   `ldx $88` — but during script interpretation it holds whatever object last
+   set it, and Saturn's voice came out of the opponent's slot. The interpreter
+   already had the object base in X. Check where a value gets SET.
 
 ---
 

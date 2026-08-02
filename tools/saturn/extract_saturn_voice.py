@@ -52,7 +52,13 @@ def supers_rom():
     raise SystemExit("error: Super S ROM not found ($SMS_ROM_DIR, roms/, ../roms/)")
 
 
-def build():
+def build_bank():
+    """Return (bank_bytes, entries) where entries is [(num, name, aram_start, size)].
+
+    This is the single source of truth for her voice data: the CLI below writes
+    it to build/saturn/, and mksaturn_smoke.py imports it to embed the same bytes
+    in the ROM. Keep it side-effect free so both callers agree byte-for-byte.
+    """
     rom = open(supers_rom(), "rb").read()
     bank = bytearray()
     entries = []
@@ -72,22 +78,40 @@ def build():
         bank += raw
     if len(bank) > BUDGET:
         raise SystemExit(f"bank is {len(bank)} bytes, over the {BUDGET} budget by {len(bank)-BUDGET}")
+    return bytes(bank), entries
 
+
+def dir_blob(entries, base=DEST):
+    """The four BRR directory entries describing `entries`, as ARAM bytes.
+
+    `base` is where the bank actually lands: $B700 for P1, $DB00 for P2 (the
+    game gives each fighter its own copy of the same samples — see
+    docs/saturn/sound_scope.md). Each sample is a one-shot, so the loop pointer
+    is never reached; the vanilla records still fill it with the sample's end,
+    and we match that convention.
+    """
+    blob = bytearray()
+    for _n, _nm, start, size in entries:
+        s = start - DEST + base
+        loop = s + size
+        blob += bytes((s & 0xFF, s >> 8, loop & 0xFF, loop >> 8))
+    return bytes(blob)
+
+
+def build():
+    bank, entries = build_bank()
     out = REPO / "build" / "saturn"
     out.mkdir(parents=True, exist_ok=True)
-    (out / "saturn_voice.brr").write_bytes(bytes(bank))
-    dirblob = bytearray()
-    for _n, _nm, start, size in entries:
-        loop = start + size          # one-shots: the loop pointer is never reached
-        dirblob += bytes((start & 0xFF, start >> 8, loop & 0xFF, loop >> 8))
-    (out / "saturn_voice.dir").write_bytes(bytes(dirblob))
+    (out / "saturn_voice.brr").write_bytes(bank)
+    dirblob = dir_blob(entries)
+    (out / "saturn_voice.dir").write_bytes(dirblob)
 
     print(f"wrote {out/'saturn_voice.brr'}: {len(bank)} bytes "
           f"({BUDGET - len(bank)} spare of {BUDGET})")
     for num, name, start, size in entries:
         print(f"    entry {num} {name:10s} ARAM ${start:04X} +{size:#06x}")
     print(f"wrote {out/'saturn_voice.dir'}: {len(dirblob)} bytes "
-          f"({len(entries)} directory entries, for ARAM $3500)")
+          f"({len(entries)} directory entries, for ARAM $34C0 / $34D0)")
 
 
 if __name__ == "__main__":

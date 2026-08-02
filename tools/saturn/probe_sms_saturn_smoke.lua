@@ -16,8 +16,14 @@ local ram, rom, wr = PL.ram, PL.rom, PL.wr
 local SAT_ID = 0x1C
 -- appended banks are layout-dependent (clean base: first free = file 0x280000;
 -- REF-stacked: 0x300000). Derive from ROM size (v0.11.5).
-local romsize = emu.getMemorySize(emu.memType.snesPrgRom)
-local NB = romsize - 9 * 0x10000          -- first Saturn bank (9 appended)
+-- Read the first Saturn bank out of the ROM instead of inferring it from the
+-- image size: the builder writes B_SCR as the operand of the interpreter's data
+-- bank load ($80:A078 `lda #$C0` -> `lda #$<B_SCR>`), so this stays right however
+-- many banks she occupies. It was `romsize - 9 * 0x10000` until v0.13.0 added a
+-- tenth bank for her voice, at which point every frame "mismatched" — the probe
+-- was reading the wrong bank, not the ROM misbehaving.
+local B_SCR = rom(0x0A079)
+local NB = (B_SCR - 0xC0) * 0x10000       -- first Saturn bank, as a file offset
 local E8, E9, EA = NB, NB + 0x10000, NB + 0x20000
 local t, needLoad = -1, true
 local ok, bad, req51bad = 0, 0, 0

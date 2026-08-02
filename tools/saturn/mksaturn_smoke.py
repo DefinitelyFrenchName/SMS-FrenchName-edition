@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.12.7"
+SATURN_VERSION = "0.13.0"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -194,6 +194,71 @@ E8_CMDSTUB = 0x2900
 CMD_SND_MAP = {0x15: 0x05, 0x14: 0x06, 0x0E: 0x06, 0x20: 0x06,
                0x02: 0x0C, 0x06: 0x2D, 0x08: 0x0D,
                0x23: 0x06, 0x24: 0x06, 0x25: 0x06}
+# v0.13.0 — HER REAL VOICE (task #44). Set SATURN_VOICE=0 to build without it
+# (CMD args 0x22-0x25 then fall back to the v0.12.7 whoosh/silence above).
+SATURN_VOICE = _osv.environ.get("SATURN_VOICE") != "0"
+#
+# How SMS voices a fighter (all measured — probe_sms_voiceload / voiceid /
+# voicetrace; full write-up in docs/saturn/sound_scope.md):
+#
+#   * Each player gets a private BRR bank in ARAM: P1 at $B700, P2 at $DB00
+#     (delta $2400). Both are uploaded at match start from table $C0:ECE7,
+#     record 30 + charID, whose single IPL block targets $B700:
+#       P1  $C0:88D9  lda $1D00 / clc / adc #$1E / jsl $80:EB4B
+#       P2  $C0:8A24  $10 = $2400 then  lda $1D03 / adc #$1E / jsl $80:EC5E
+#     $C0:EC5E is the RELOCATING uploader — it adds dp $10 to every block's ARAM
+#     destination (and zeroes $10 for the terminator so the entry point is not
+#     offset). That is the whole answer to "how does P2's bank reach $DB00",
+#     and it is also the lever we use to place her directory for either player.
+#   * The BRR directory is NOT per match: DSP DIR = page $34, and a complete
+#     nine-character table is resident from boot at ARAM $34C0 + (charID-1)*32
+#     (source $E4:2CC4 + (charID-1)*32). Each 32-byte record is 8 entries of
+#     [start16, loop16]: entries 0-3 describe that character's samples inside
+#     P1's $B700 bank, 4-7 the same samples at $DB00.
+#   * A voice is requested by writing an id to the player's struct +0x78; the
+#     NMI at $C0:D4F2 forwards P1's to APU port 0 and P2's to port 1 with bit 7
+#     SET, and the driver resolves id -> directory entry as
+#         dir = 48 + (charID-1)*8 + k     for  id = 49 + (charID-1)*5 + k, k=0..3
+#     adding 4 when bit 7 is set. Ids past 93 are dead — there is no spare
+#     tenth-character slot to claim.
+#
+# So loading her samples is not enough: the directory has to describe HER
+# layout, which corrects the earlier scoping note ("no id remapping is needed"
+# — true for the bank, wrong about the directory). Since the two halves of a
+# record are per player and can never both be Saturn's opponent, she can use
+# ONE character's id range on whichever side she is playing:
+#   she uses char 1's ids (49-52) and we overwrite char 1's half-record for her
+#   player only. A P1 Moon cannot coexist with a P1 Saturn, and a P2 Moon reads
+#   entries 4-7, which we never touch when she is P1.
+# The clobber is undone by the same hook: a non-Saturn load restores char 1's
+# half from ROM when the DIRTY flag says we dirtied it, so a later Moon match in
+# the same session sounds normal. (The directory is boot-resident — without the
+# restore, Moon would stay broken until a power cycle.)
+VOICE_ARG_LO = 0x22       # her CMD args 0x22..0x25 = laugh, 236P, 214P, j.632K
+VOICE_ID_BASE = 49        # -> char 1's ids 49..52 -> directory entries 48..51
+VOICE_DIRTY = 0xF107      # $7F: "char 1's P1 half currently holds her samples"
+VOICE_DIRTY2 = 0xF108     # ditto for the P2 half
+# Spare records in the bank table. The loaders index it with an 8-bit id, so id
+# n reads $ECE7 + 6n; vanilla ids stop at 39 and $C0:EE00-EE3F is a 64-byte zero
+# run, which ids 47..57 index into. Verified unread across a full boot -> title
+# -> select -> match -> KO -> win session (probe_sms_freetable.lua: 0 reads),
+# and the builder asserts the run is still zero before claiming it.
+VOICE_TBL = 0x00ECE7
+VOICE_ID_SAMP = 47        # her sample bank      -> $B700 (+$2400 for P2)
+VOICE_ID_DIRP1 = 48       # her directory, P1    -> $34C0
+VOICE_ID_DIRP2 = 49       # her directory, P2    -> $34D0 (via dp $10 = $0010)
+VOICE_ID_RESP1 = 50       # char 1's vanilla P1 half (restore)
+VOICE_ID_RESP2 = 51       # char 1's vanilla P2 half (restore)
+VOICE_DIR_ARAM = 0x34C0   # char 1's record; +0x10 is its P2 half
+VOICE_SRC_ROM = 0x242CC4  # $E4:2CC4 — char 1's vanilla record, 32 bytes
+SITE_VOICE_P1 = 0x0088DF  # jsl $80:EB4B  (P1's voice-bank load)
+VOICE_P1_OLD = bytes.fromhex("224BEB80")
+SITE_VOICE_P2 = 0x008A34  # jsl $80:EC5E  (P2's, with dp $10 = $2400)
+VOICE_P2_OLD = bytes.fromhex("225EEC80")
+# in-bank layout of the appended voice bank
+V_SAMP, V_DIRP1, V_DIRP2 = 0x0000, 0x2600, 0x2620
+V_RESP1, V_RESP2 = 0x2640, 0x2660
+V_HOOK1, V_HOOK2 = 0x2700, 0x2780
 # v0.8.0 — IN-ROM SATURN SELECT (P1): hold L+R while a round loads -> flag
 # $7E:1F60 set; the effects-DMA helper hook ($C0:92A4, generic VRAM-DMA kick,
 # filtered on $30==0x6A00/$36==$7F) also overrides the $7F:0000 staging with her
@@ -466,7 +531,9 @@ def main():
     # ---- appended-bank layout, derived from the actual base (v0.11.5:
     # REF-stackable — on the REF v.1 bundle the first free bank is $F0) ----
     nb = 0xC0 + len(data) // 0x10000
-    assert nb + 8 <= 0xFF, f"no room: first free bank ${nb:02X} (+9 banks needed)"
+    nbanks = 10 if SATURN_VOICE else 9
+    assert nb + nbanks - 1 <= 0xFF, \
+        f"no room: first free bank ${nb:02X} (+{nbanks} banks needed)"
     B_SCR = nb          # scripts        (clean-base: $E8)
     B_POSE = nb + 1     # pose records   ($E9)
     B_CELT = nb + 2     # cel tables     ($EA)
@@ -474,6 +541,7 @@ def main():
     B_MISC = nb + 6     # OAM blob/palettes/stubs/records ($EE)
     B_C1 = nb + 7       # full C1 copy + graft ($EF)
     B_BOX = nb + 8      # bank-$8A copy ($F0)
+    B_VOICE = nb + 9    # voice bank + IPL streams + the two load hooks ($F1)
     sup = open(supers_rom(), "rb").read()
     if len(sup) % 0x8000 == 0x200:
         sup = sup[0x200:]
@@ -540,14 +608,45 @@ def main():
     # played as whatever sfx that id happens to be. Unmapped args are silent
     # again: matches branch to the store, the fallthrough skips it.
     cmd_tail = bytearray()
+    # v0.13.0 — VOICE args go somewhere else entirely. 0x22-0x25 are her laugh
+    # and her three specials, which in Super S are voice samples; SMS voices a
+    # fighter through the PER-PLAYER slot at struct +0x78 (the NMI at $C0:D4F2
+    # forwards it to APU port 0/1), not the shared effect slot at DP $78.
+    # X already holds the running object's struct base: the interpreter is a loop
+    # over objects (`$C0:A05C  ldx #$1000 … adc #$0080 … cpx #$1800`) and X is
+    # live and 16-bit at the hook with DP = 0, so a bare `sta $78,X` reaches
+    # $1078 or $10F8 for whoever is executing the script. That is what makes her
+    # voice follow her player with no shell-specific code. Ids are char 1's
+    # (49-52), matching the directory half this build patches for her.
+    # An earlier version did `ldx $88` first, assuming $88 is the current object
+    # the way it is in the proc helper. It is not — at CMD time it still holds
+    # whatever object last set it (measured: a constant $1080), so her voice came
+    # out of P2's slot while she was P1. Clobbering X was the whole bug;
+    # probe_sms_cmdwho.lua is the measurement.
+    snd_map = dict(CMD_SND_MAP)
+    if SATURN_VOICE:
+        for a in (0x23, 0x24, 0x25):
+            snd_map.pop(a, None)         # were the placeholder heavy whoosh
+        cmd_tail += bytes((0xC9, VOICE_ARG_LO, 0x90, 0x00))          # bcc -> sfx
+        fx_lo = len(cmd_tail) - 1
+        cmd_tail += bytes((0xC9, VOICE_ARG_LO + 4, 0xB0, 0x00))      # bcs -> sfx
+        fx_hi = len(cmd_tail) - 1
+        cmd_tail += bytes((0x18, 0x69, VOICE_ID_BASE - VOICE_ARG_LO))  # clc/adc
+        cmd_tail += bytes((0x95, 0x78))                              # sta $78,X
+        cmd_tail += bytes((0x80, 0x00))                              # bra -> ret
+        fx_voice_done = len(cmd_tail) - 1
+        cmd_tail[fx_lo] = len(cmd_tail) - (fx_lo + 1)
+        cmd_tail[fx_hi] = len(cmd_tail) - (fx_hi + 1)
     fx_store = []
-    for cid, sfx in CMD_SND_MAP.items():
+    for cid, sfx in snd_map.items():
         cmd_tail += bytes((0xC9, cid, 0xD0, 0x04, 0xA9, sfx, 0x80, 0x00))
         fx_store.append(len(cmd_tail) - 1)
     cmd_tail += bytes((0x80, 0x02))      # no match -> skip the store (silent)
     for pos in fx_store:
         cmd_tail[pos] = len(cmd_tail) - (pos + 1)
     cmd_tail += bytes((0x85, 0x78))      # store: sta $78
+    if SATURN_VOICE:
+        cmd_tail[fx_voice_done] = len(cmd_tail) - (fx_voice_done + 1)
     cmd_tail += _setret(0xA076)          # reprocess next step
     stub = bytearray()
     stub += bytes((0x48,))                               # pha
@@ -1322,6 +1421,146 @@ def main():
     # projectile OAM blob at its original in-bank offset (read via $B0 mirror)
     f0[0xB4A6:0xB4A6 + (PROJ_OAM_HI - PROJ_OAM_LO)] = sup[PROJ_OAM_LO:PROJ_OAM_HI]
     write_bank(data, bankbase, bytes(f0))
+
+    # ---- bank $F1: her voice bank, its IPL streams, and the two load hooks ----
+    if SATURN_VOICE:
+        import importlib.util as _ilu
+        _spec = _ilu.spec_from_file_location(
+            "extract_saturn_voice", str(REPO / "tools" / "saturn" / "extract_saturn_voice.py"))
+        _vx = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_vx)
+        vbank, ventries = _vx.build_bank()
+        assert len(vbank) <= 0xDB00 - 0xB700, "voice bank overruns P2's bank at $DB00"
+
+        def ipl(dest, payload):
+            """One-block IPL stream: [size16][dest16][payload][0000][0800].
+
+            The zero-size terminator carries the driver's entry point ($0800) —
+            every vanilla stream ends this way, and the relocating loader zeroes
+            dp $10 before reading it so the entry point is never offset."""
+            return (bytes((len(payload) & 0xFF, len(payload) >> 8,
+                           dest & 0xFF, dest >> 8)) + bytes(payload)
+                    + bytes((0x00, 0x00, 0x00, 0x08)))
+
+        van = bytes(data[VOICE_SRC_ROM:VOICE_SRC_ROM + 32])
+        assert van[0:2] == bytes((0x00, 0xB7)) and van[16:18] == bytes((0x00, 0xDB)), \
+            "char 1's vanilla voice record is not the expected $B700/$DB00 pair"
+        streams = {
+            V_SAMP:  ipl(0xB700, vbank),                       # +$2400 for P2
+            V_DIRP1: ipl(VOICE_DIR_ARAM, _vx.dir_blob(ventries, 0xB700)),
+            V_DIRP2: ipl(VOICE_DIR_ARAM, _vx.dir_blob(ventries, 0xDB00)),
+            V_RESP1: ipl(VOICE_DIR_ARAM, van[0:16]),
+            V_RESP2: ipl(VOICE_DIR_ARAM, van[16:32]),
+        }
+        # the P2 directory streams say $34C0 and are steered to $34D0 by dp $10
+        f1 = bytearray(0x10000)
+        for off, blob in streams.items():
+            assert not any(f1[off:off + len(blob)]), f"voice bank layout: {off:#06x} overlaps"
+            f1[off:off + len(blob)] = blob
+
+        # --- the two load hooks ---------------------------------------------
+        # Entered by JSL from the char loader with M=1/X=1 and A = the vanilla
+        # bank id. $C0:EC5E returns with the index registers 16-bit, hence the
+        # `sep #$30` after every call.
+        def _asm(body):
+            out, fix, lbls = bytearray(), [], {}
+
+            def emit(*bs): out.extend(bs)
+
+            def br(op, name):
+                out.extend((op, 0x00)); fix.append((len(out) - 1, name))
+
+            def lbl(name): lbls[name] = len(out)
+            body(emit, br, lbl)
+            for pos, name in fix:
+                d = lbls[name] - (pos + 1)
+                assert -128 <= d <= 127, f"voice hook branch to {name} out of range ({d})"
+                out[pos] = d & 0xFF
+            return bytes(out)
+
+        def _load(emit, bank_id):
+            emit(0xA9, bank_id, 0x22, 0x5E, 0xEC, 0x80, 0xE2, 0x30)
+
+        def _setdp10(emit, val):
+            emit(0xA9, val & 0xFF, 0x85, 0x10, 0xA9, val >> 8, 0x85, 0x11)
+
+        def _p1(emit, br, lbl):
+            emit(0x48)                                              # pha (bank id)
+            emit(0xAF, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK)
+            emit(0xC9, SATURN_MAGIC); br(0xF0, "sat")
+            emit(0xAF, SATURN_LATCH & 0xFF, SATURN_LATCH >> 8, SATURN_BANK)
+            emit(0xC9, SATURN_MAGIC); br(0xF0, "sat")
+            # not Saturn: put char 1's own directory back if we dirtied it
+            emit(0xAF, VOICE_DIRTY & 0xFF, VOICE_DIRTY >> 8, SATURN_BANK)
+            emit(0xC9, SATURN_MAGIC); br(0xD0, "vanilla")
+            emit(0xA5, 0x10, 0x48, 0xA5, 0x11, 0x48)                # save dp $10/$11
+            _setdp10(emit, 0x0000)
+            _load(emit, VOICE_ID_RESP1)
+            emit(0x68, 0x85, 0x11, 0x68, 0x85, 0x10)                # restore dp
+            emit(0xA9, 0x00, 0x8F, VOICE_DIRTY & 0xFF, VOICE_DIRTY >> 8, SATURN_BANK)
+            lbl("vanilla")
+            emit(0x68)                                              # pla
+            emit(0x22, 0x4B, 0xEB, 0x80)                            # jsl $80:EB4B
+            emit(0x6B)
+            lbl("sat")
+            emit(0xA5, 0x10, 0x48, 0xA5, 0x11, 0x48)
+            _setdp10(emit, 0x0000)
+            _load(emit, VOICE_ID_SAMP)                              # samples -> $B700
+            _setdp10(emit, 0x0000)
+            _load(emit, VOICE_ID_DIRP1)                             # directory -> $34C0
+            emit(0x68, 0x85, 0x11, 0x68, 0x85, 0x10)
+            emit(0xA9, SATURN_MAGIC, 0x8F, VOICE_DIRTY & 0xFF, VOICE_DIRTY >> 8, SATURN_BANK)
+            emit(0x68, 0x6B)                                        # pla / rtl
+
+        def _p2(emit, br, lbl):
+            emit(0x48)
+            emit(0xAF, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK)
+            emit(0xC9, SATURN_MAGIC); br(0xF0, "sat")
+            emit(0xAF, SATURN_LATCH2 & 0xFF, SATURN_LATCH2 >> 8, SATURN_BANK)
+            emit(0xC9, SATURN_MAGIC); br(0xF0, "sat")
+            emit(0xAF, VOICE_DIRTY2 & 0xFF, VOICE_DIRTY2 >> 8, SATURN_BANK)
+            emit(0xC9, SATURN_MAGIC); br(0xD0, "vanilla")
+            _setdp10(emit, 0x0010)                                  # -> $34D0
+            _load(emit, VOICE_ID_RESP2)
+            emit(0xA9, 0x00, 0x8F, VOICE_DIRTY2 & 0xFF, VOICE_DIRTY2 >> 8, SATURN_BANK)
+            lbl("vanilla")
+            _setdp10(emit, 0x2400)                                  # as the caller had it
+            emit(0x68)
+            emit(0x22, 0x5E, 0xEC, 0x80)                            # jsl $80:EC5E
+            emit(0x6B)
+            lbl("sat")
+            _setdp10(emit, 0x2400)
+            _load(emit, VOICE_ID_SAMP)                              # samples -> $DB00
+            _setdp10(emit, 0x0010)
+            _load(emit, VOICE_ID_DIRP2)                             # directory -> $34D0
+            emit(0xA9, SATURN_MAGIC, 0x8F, VOICE_DIRTY2 & 0xFF, VOICE_DIRTY2 >> 8, SATURN_BANK)
+            emit(0x68, 0x6B)
+
+        for off, body in ((V_HOOK1, _p1), (V_HOOK2, _p2)):
+            blob = _asm(body)
+            assert not any(f1[off:off + len(blob)]), f"voice hook at {off:#06x} overlaps"
+            f1[off:off + len(blob)] = blob
+        # keep the full 64K: every other appended bank is a whole bank, and
+        # mkstage_port.py (and anything else that stacks after us) requires a
+        # bank-aligned image — a short final bank fails its guard outright.
+        bankbase, bank = next_bank(data)
+        assert bank == B_VOICE, f"bank layout drift: ${bank:02X}"
+        write_bank(data, bankbase, bytes(f1))
+
+        # table records for our five streams, in the verified zero run
+        for slot, iid in ((V_SAMP, VOICE_ID_SAMP), (V_DIRP1, VOICE_ID_DIRP1),
+                          (V_DIRP2, VOICE_ID_DIRP2), (V_RESP1, VOICE_ID_RESP1),
+                          (V_RESP2, VOICE_ID_RESP2)):
+            rec = VOICE_TBL + 6 * iid
+            expect(rec, b"\x00" * 6, f"audio-table record {iid} (must be free)")
+            # [3-byte source][3-byte second source = none]; only $C0:EB4B reads
+            # the second one, and it tests the low word against $FFFF
+            data[rec:rec + 6] = bytes((slot & 0xFF, slot >> 8, B_VOICE, 0xFF, 0xFF, 0x00))
+        expect(SITE_VOICE_P1, VOICE_P1_OLD, "P1 voice-bank load")
+        data[SITE_VOICE_P1:SITE_VOICE_P1 + 4] = \
+            bytes((0x22, V_HOOK1 & 0xFF, V_HOOK1 >> 8, B_VOICE))
+        expect(SITE_VOICE_P2, VOICE_P2_OLD, "P2 voice-bank load")
+        data[SITE_VOICE_P2:SITE_VOICE_P2 + 4] = \
+            bytes((0x22, V_HOOK2 & 0xFF, V_HOOK2 >> 8, B_VOICE))
 
     # ---- engine patches ----
     data[SITE_INTERP_DB] = B_SCR

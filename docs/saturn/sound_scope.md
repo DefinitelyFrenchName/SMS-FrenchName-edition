@@ -1,9 +1,13 @@
-# SMS audio: scope for importing Saturn's voice [P 08-02]
+# SMS audio: importing Saturn's voice [P 08-02 … 08-03]
 
-Scoping only — nothing here is implemented. Written because the remaining sfx
-work (her three throw shouts, her win laugh, the "Yoroshiku" on select) are all
-**voice samples**, which is the difference between substituting an SMS effect
-(done, v0.12.7) and sounding like Saturn.
+> **STATUS: DONE and verified in v0.13.0 — read "PHASE 3" at the bottom first.**
+> It is the implementation and the corrected model; everything above it is the
+> investigation that got there, kept because two of its conclusions turned out to
+> be wrong in instructive ways (both are flagged in place).
+
+Written because the remaining sfx work (her three throw shouts, her win laugh,
+the "Yoroshiku" on select) are all **voice samples**, which is the difference
+between substituting an SMS effect (v0.12.7) and sounding like Saturn.
 
 ## How SMS gets audio into the APU
 
@@ -100,6 +104,12 @@ The consequence for us:
 
 > If Saturn's voice bank is loaded for her player, she keeps using the SAME
 > sound ids and simply speaks in her own voice. No id remapping is needed.
+
+> **PARTLY WRONG — corrected in Phase 3.** True for the BANK; wrong about the
+> DIRECTORY. The ids resolve through a per-character BRR directory that is
+> resident from boot and describes *that character's* sample boundaries, so
+> loading her bank under a shell's ids plays her audio cut at the shell's offsets.
+> The directory has to be patched too. See "PHASE 3" below.
 
 So the shape of the work is now: append her voice block, append a table entry,
 and make the loader pick her entry when the Saturn flag is set — structurally
@@ -318,3 +328,132 @@ being cheap.
 
 The interim substitutes shipped in v0.12.7 (heavy whoosh on the throws, silence
 on the win) keep the character playable and honest-sounding meanwhile.
+
+---
+
+## PHASE 3 — SHE SPEAKS. Injection implemented and verified [P 08-03]
+
+Shipped in **saturn-smoke v0.13.0**. `SATURN_VOICE=0` builds without it.
+
+### What the earlier phases had wrong
+
+Phase 1 concluded that loading her bank was enough because "the id values are
+the same for both players". The id values *are* the same for both players — but
+they are **not** the same across characters, and that is the part that matters.
+Measured (`probe_sms_voiceid.lua`, reading the DSP's SRCN register for the voice
+that actually starts):
+
+    sound id 49 + (charID-1)*5 + k    ->  directory entry 48 + (charID-1)*8 + k
+    k = 0..3;  k = 4 falls back to entry 48;  ids past 93 are dead
+
+and P2's id reaches the driver with bit 7 set (`ora #$80` at `$C0:D500`), which
+adds 4 to the entry. So each character has its own five ids and its own eight
+directory entries — four describing its samples inside P1's `$B700` bank, four
+describing the same samples at `$DB00`.
+
+That directory is **not uploaded per match**. It is a complete nine-character
+table, resident from boot, at
+
+    ARAM $34C0 + (charID-1)*32        source: ROM $E4:2CC4 + (charID-1)*32
+
+(DSP DIR = page `$34`.) Its 32-byte records are 8 entries of `[start16, loop16]`;
+the samples are one-shots, so "loop" is only ever the sample's end.
+
+### And the piece that was genuinely open
+
+> "every `$E5` block targets `$B700`, yet P2's bank lands at `$DB00` — so either
+> the loader patches the destination for P2 or the driver relocates it."
+
+**The loader relocates it.** `$C0:EC5E` is a second uploader that adds direct-page
+`$10` to every block's ARAM destination, and zeroes `$10` before reading the
+terminator so the driver entry point (`$0800`) is never offset. The two call
+sites are:
+
+    P1  $C0:88D9   lda $1D00 / clc / adc #$1E / jsl $80:EB4B      (verbatim)
+    P2  $C0:8A24   $10 = $2400 …  lda $1D03 / adc #$1E / jsl $80:EC5E
+
+That relocation knob is what makes the implementation cheap: the same stream
+serves both players for the samples, and a `$10` of `$0010` steers her directory
+block from `$34C0` to `$34D0`.
+
+### The implementation
+
+Five IPL streams live in her appended voice bank, reached through five spare
+records in the audio table:
+
+| table id | stream | ARAM |
+|---|---|---|
+| 47 | her 9198-byte sample bank | `$B700` (+`$2400` for P2) |
+| 48 | her 4 directory entries, `$B700`-based | `$34C0` |
+| 49 | her 4 directory entries, `$DB00`-based | `$34C0` +`$10` → `$34D0` |
+| 50 | char 1's vanilla P1 half (restore) | `$34C0` |
+| 51 | char 1's vanilla P2 half (restore) | `$34D0` |
+
+**Spare records.** The loaders index the table with an 8-bit id (`$ECE7 + 6n`);
+vanilla ids stop at 39, and `$C0:EE00-EE3F` is a 64-byte zero run that ids 47-57
+address. Before claiming it: a full boot → title → select → match → KO → win
+session read it **zero times** (`probe_sms_freetable.lua`), and the builder
+asserts each record is still zero. This is the same question the ARAM region
+failed in Phase 2, asked the same way.
+
+**Whose ids.** She uses **char 1's** (49-52) on whichever side she is playing,
+and the build overwrites char 1's half-record *for that player only*. The two
+halves of a record are per player and can never both belong to her opponent: a
+P1 Moon cannot coexist with a P1 Saturn, and a P2 Moon reads entries 4-7, which
+we never touch when she is P1. So one fixed id set covers all nine shells with no
+per-shell code — which is how this dodges the "test it with two shells" trap
+rather than paying it again.
+
+**Restoring.** Because the directory is boot-resident, a Saturn match would
+otherwise leave Moon voicing from her offsets for the rest of the session. The
+same hooks put char 1's record back on any non-Saturn load, gated on a DIRTY flag
+(`$7F:F107`/`F108`), so vanilla play is untouched and no upload happens unless we
+actually dirtied something.
+
+**Requesting.** Her CMD args `0x22-0x25` now write `arg + 0x0F` (= ids 49-52) to
+the running object's `+0x78` with a bare `sta $78,X`: the script interpreter is a
+loop over objects (`$C0:A05C  ldx #$1000 … adc #$0080 … cpx #$1800`), so X is
+already the object base and DP is 0. An earlier attempt did `ldx $88` first, on
+the assumption that `$88` is the current object the way it is in the proc helper.
+It is not — at CMD time it holds whatever object last set it (measured: a
+constant `$1080`), so her voice came out of P2's slot while she was P1.
+Clobbering X was the entire bug (`probe_sms_cmdwho.lua`).
+
+### Which sound is which — settled from Super S, not by ear
+
+Super S's command handler (`$80:FBB4`) reads a word per command id from a table
+at `$80:FC32 → $FC48`, and the **low byte is the BRR directory entry**:
+
+    cmd $22 -> entry 30   win laugh
+    cmd $23 -> entry 31   236P
+    cmd $24 -> entry 32   214P
+    cmd $25 -> entry 33   j.632K
+
+Our `id = arg + 0x0F` reproduces that ordering exactly against her extracted
+bank. This also explains an observation that looked wrong: arg `0x25` fires
+during the **ground** specials too (measured: 236 runs act `$6E`→`$70`, 214 runs
+act `$6A`→`$6C`, and both second phases request `0x25`). That is Super S's own
+behaviour, not a porting error — sample 33 is the release cue as well as the
+air move's.
+
+### Acceptance
+
+All on `SailorMoonS_REFsaturn_v0.13.0-hidden.sfc` (`3b835d0c…`):
+
+| probe | result |
+|---|---|
+| `probe_sms_voicecheck.lua` PLAYER=0 | 8/8 — her 9198 bytes byte-identical at `$B700`, her directory at `$34C0`, opponent's half untouched, ids 49-52 → entries 48-51 |
+| `probe_sms_voicecheck.lua` PLAYER=1 | 8/8 — same at `$DB00` / `$34D0`, ids → entries 52-55 |
+| `probe_sms_voicerestore.lua` P1/P2 | 4/4 each — a dirtied half is restored to char 1's record and the flag cleared |
+| `probe_sms_voicefire.lua` | her specials request 50/51/52 into **P1's** slot while she is P1 |
+| `probe_sms_saturn_smoke.lua` | 228/228 |
+| `tools/test_regression.lua` | ALL PASS (57) |
+
+**What is not proven here.** Nobody has *listened* to it yet. The plumbing is
+verified structurally (right bytes, right addresses, right directory entries,
+right player) and the sample content was approved earlier by ear, but whether
+each cue lands where it should in play is a field question. The two-real-matches
+restore scenario is also assembled from two halves — "a Saturn match sets DIRTY
+and installs her offsets" (voicecheck) plus "a dirty directory is restored on the
+next ordinary load" (voicerestore) — because ending a VS match from the autopilot
+proved unreliable.

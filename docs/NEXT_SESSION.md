@@ -1,4 +1,4 @@
-# Next-session handoff — 2026-08-02
+# Next-session handoff — 2026-08-03
 
 Fast orientation. **Full operational map: `HANDOFF.md`; Saturn brief:
 `docs/saturn/PROJECT.md`; test-ROM registry: `docs/saturn/BUILDS.md`; patch
@@ -11,51 +11,38 @@ the base patch project's review remediation, is in git history.)
 The base patch project is done and green. Current work is **SMS + Saturn**:
 Saturn is playable in SMS, selected by holding **L+R** on any character slot,
 and has been field-tested repeatedly by the maintainer. Current builds are
-**v0.12.7** (hashes in BUILDS.md) plus a stage-port variant, all on **REF v.2** —
-REF v.1 **+ patch 15 (AUTO removal)**, folded in this session at the
-maintainer's request; **v.1 is deliberately left byte-identical** since it is a
-published artifact. Three items are open: her **movelist** (#41), a **vertical
-scroll artefact** on the ported stage (#43), and the **voice-sample injection**
-(#44) — the one with momentum.
+**v0.13.0** (hashes in BUILDS.md) plus a stage-port variant, all on **REF v.2**
+(= REF v.1 + patch 15, AUTO removal; v.1 is deliberately left byte-identical
+since it is a published artifact). **Her voice is in** as of v0.13.0 — the last
+step of task #44 — so the open items are now her **movelist** (#41) and the
+**vertical scroll artefact** on the ported stage (#43), plus a listening pass on
+the voice.
 
-## Where the sound work stands (task #44) — resume here
+## Voice (task #44) — DONE in v0.13.0, needs an ear
 
-Everything except the plumbing is done, verified and approved.
+Her four samples (win laugh, 236P, 214P, j.632K) load and play. The mechanism,
+the corrections it forced, and the acceptance evidence are all in
+**`docs/saturn/sound_scope.md` § PHASE 3**; the short version:
 
-**Decided and built.** Her four sounds (win laugh, 236P, 214P, j.632K) are
-extracted from the Super S ROM by `tools/saturn/extract_saturn_voice.py`, with
-52 ms trimmed off each of the three PROJECTILES and the laugh untouched —
-chosen by the maintainer after A/B listening. Output: `saturn_voice.brr`
-(9198 bytes for ARAM `$B700`, 18 spare of a 9216 budget) and `saturn_voice.dir`
-(four directory entries for ARAM `$3500`). The extractor works from the ROM,
-not from a trace dump: the ARAM→ROM mapping is linear, **file offset = ARAM +
-`0x2EE17F`**, verified on all four samples.
+* SMS voices a fighter from a private ARAM bank (P1 `$B700`, P2 `$DB00`) **and**
+  a per-character BRR directory that is resident from BOOT at
+  `ARAM $34C0 + (charID-1)*32`. Loading her bank alone would have played her
+  audio cut at the shell's sample offsets — the earlier scoping note that "no id
+  remapping is needed" was right about the bank and wrong about the directory.
+* She uses **char 1's** sound ids (49-52) whichever side she is on, and the build
+  overwrites char 1's half-record for that player only. The two halves are per
+  player, so this can never collide with a real Moon, and it needs **no
+  per-shell code at all**.
+* Non-Saturn loads restore char 1's record (DIRTY flag `$7F:F107/F108`) —
+  without it a Saturn match would leave Moon buzzing until a power cycle.
 
-**Playback rate: settled at ~8 kHz, no resampling needed** — the maintainer
-confirmed SMS's own Uranus voices sound correct at that rate, so both games
-voice alike.
-
-**What remains — three steps, in order:**
-
-1. **Append her bank.** An IPL block `[size16][dest16=$B700][data…]` plus a
-   zero-size terminator carrying entry point `$0800`, in an appended bank, and a
-   new record in the table at **`$C0:ECE7`** — entries 31-38 are the existing
-   per-character voice banks and **entry 40 onward is zeros**, so an entry can
-   be appended without moving anything.
-2. **Redirect the bank** to hers when the Saturn flag is set, for whichever
-   player she is on. Structurally identical to the card-portrait redirect.
-3. **Her directory entries at ARAM `$3500`** — the least understood piece. The
-   layout is known (entries 0-3 describe P1's `$B700` region, 4-7 describe P2's
-   `$DB00`; 8-15 are a second set over the same regions) but *what writes it per
-   match* is not, so her sample sizes may need injecting rather than just her
-   samples.
-
-Sounds are triggered per player by id (`$C0:D4F5` sends P1's `+0x78` to APU port
-0, P2's to port 1, the global one-shot `$78` to port 2) and the SPC resolves
-each id against **that player's** resident bank — so once her bank is loaded for
-her player she keeps the same ids and simply speaks in her own voice. **No id
-remapping is needed.** Full detail, including what was ruled out and why:
-**`docs/saturn/sound_scope.md`**.
+**What is left for it:** listen. Everything is verified structurally (bytes,
+addresses, directory entries, correct player — `probe_sms_voicecheck`,
+`voicerestore`, `voicefire`, smoke 228/228, regression 57/57) and the samples
+themselves were approved by ear earlier, but nobody has heard the cues *in play*.
+Build `SATURN_HIDDEN=1 bash tools/saturn/build_refsaturn.sh`, summon her with
+L+R, and check the win laugh and the three specials. `SATURN_VOICE=0` builds
+without it if a comparison helps.
 
 ## The other two open items
 
@@ -74,7 +61,7 @@ attempts failed to make the character jump at all (p1y never leaves `$00C0`), so
 the vertical behaviour is unmeasured — do not infer a cause from those runs.
 Get a jump to happen first (training-mode tooling, or a mid-jump savestate).
 
-## Three lessons this session paid for
+## Lessons these sessions paid for
 
 1. **Anything keyed to one character silently works for that shell only.**
    Saturn can be summoned over ANY of the nine. The card portrait was gated on
@@ -90,6 +77,17 @@ Get a jump to happen first (training-mode tooling, or a mid-jump savestate).
    over four samples looked better arithmetically and was worse by ear, because
    the shortest sample paid the largest proportion. Listening picked differently
    from the maths.
+4. **A convention that holds in one engine context does not hold in all of
+   them.** `$88` is the current object in the proc helper, so the voice hook
+   copied `ldx $88` — but at script-interpretation time it holds whatever object
+   last set it, and her voice came out of the opponent's slot. The interpreter
+   already had the answer in X. Check where a value is *set*, not just where it
+   is read successfully.
+5. **A test that infers layout from ROM size breaks when the layout changes.**
+   The smoke probe located her banks as `romsize - 9 * 0x10000`; a tenth bank
+   turned every frame into a "mismatch" that looked like a ROM regression and was
+   a probe bug. It now reads the bank out of the ROM (the interpreter's data-bank
+   operand), which cannot drift.
 
 ## Build commands
 
@@ -97,7 +95,7 @@ Get a jump to happen first (training-mode tooling, or a mid-jump savestate).
 tools/build_ref_v2.sh                                   # REF v.2 = v.1 + patch 15
 SATURN_HIDDEN=1 python3 tools/saturn/mksaturn_smoke.py  # standalone Saturn (SATURN_VISIBLE=1 for the non-hidden variant)
 SATURN_HIDDEN=1 bash tools/saturn/build_refsaturn.sh    # on REF v.2 (REF_VERSION=1 for v.1)
-bash tools/saturn/build_saturn_stage.sh                 # Saturn + the Pluto-slot stage port
+bash tools/saturn/build_saturn_stage.sh --ref           # Saturn + the Pluto-slot stage port, on REF
 python3 tools/saturn/extract_saturn_voice.py            # her trimmed voice bank + directory
 ROM=<rom> tools/run.sh tools/test_regression.lua 300    # the gate before shipping anything
 ```
