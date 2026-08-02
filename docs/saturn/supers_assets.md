@@ -186,11 +186,23 @@ with a sprite layout shaped to that character's silhouette. Feeding Saturn's
 art through Uranus's layout (what v0.12.0 does) therefore CLIPS everything
 outside his outline — the maintainer saw exactly this: her lower-left hair/face
 and the glaive's Y-piece missing, because her portrait fills nearly a full
-square while his silhouette does not. Fix: give her her OWN layout covering the
-full square, i.e. find the per-character sprite-list source (the card's OAM is
-built around `$80:8DB8`/`$80:8DEC`, the same routine family as the tile upload;
-the layout is likely part of the same per-character asset) and point her at a
-custom list, then generate tiles for every cell of that square.
+square while his silhouette does not. **The layout source is a per-character SPRITE LIST fed to the standard OAM
+emitter** — the same `$80:9B17`/`$9BCB` family the in-match renderer uses.
+Measured live at the card (`probe_cardsaturn.lua`, gated on the card state):
+Uranus draws from a list at `$9F:CBED` with count `$1F` (31), Moon from
+`$9F:C595` count `$12` (18), both anchored at x=`$34`, y=`$78` via the X-flip
+emitter. Those pointers are **computed, not stored** (neither value appears as
+a literal anywhere in the ROM), so the selector still has to be traced — watch
+`$12/$13/$14` during the card's DRAW phase (the loader reuses `$12`, so the
+watch must be gated past it) or disassemble the card's draw loop.
+
+Per-character layout census (sprite count, bounding box):
+`Moon 18 / 66x64`, `Mercury 26 / 63x64`, `Mars 16 / 64x64`,
+`Uranus 31 / 71x72`. Uranus — already our shell — is the **largest**, so
+presenting her as a different character cannot fix the clipping: she needs a
+custom list. Sketch: ~81 8x8 sprites in a 9x9 grid (72x72 px) using tiles
+`$00-$50`, which stays inside the P1 tile budget (P2's portrait starts at tile
+128) and inside the 32-sprites-per-scanline limit at 9 per line.
 
 **Remaining #2: the palette.** The card's portrait colours are CGRAM row 8, and
 neither a direct CGRAM DMA nor seeding the `$7E:0600` OBJ-palette shadow

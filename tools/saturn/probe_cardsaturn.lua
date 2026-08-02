@@ -59,10 +59,35 @@ for _, b in ipairs({0x002118, 0x802118, 0x002119, 0x802119}) do
 end
 local hooks = 0
 local oamw, oamlog = 0, {}
+local cardnow = false
+local emit, emitlog = 0, {}
+local lw, lwlog = 0, {}
+for _, a in ipairs({0x7E0012, 0x000012}) do
+  emu.addMemoryCallback(function(addr, value)
+    if not cardnow or lw > 8 then return end
+    lw = lw + 1
+    local ok, st = pcall(emu.getState)
+    lwlog[#lwlog+1] = string.format("$12<=%02X @%02X:%04X (A=%04X X=%04X Y=%04X)", value or 0,
+      st and (st["cpu.k"] or 0) or 0, st and (st["cpu.pc"] or 0) or 0,
+      st and (st["cpu.a"] or 0) or 0, st and (st["cpu.x"] or 0) or 0, st and (st["cpu.y"] or 0) or 0)
+  end, emu.callbackType.write, a, a, emu.cpuType.snes, emu.memType.snesMemory)
+end
+for _, a in ipairs({0x809B17, 0x809BCB}) do
+  emu.addMemoryCallback(function(addr)
+    if not cardnow or emit > 10 or ram(0x00) < 4 then return end
+    emit = emit + 1
+    local ok, st = pcall(emu.getState)
+    emitlog[#emitlog+1] = string.format("%06X list=%02X:%02X%02X cnt=%02X x=%02X%02X y=%02X%02X DB=%02X",
+      addr, ram(0x14), ram(0x13), ram(0x12), ram(0x00),
+      ram(0x02), ram(0x01), ram(0x04), ram(0x03),
+      st and (st["cpu.db"] or 0) or 0)
+  end, emu.callbackType.exec, a, a, emu.cpuType.snes, emu.memType.snesMemory)
+end
 for _, r in ipairs({{0x7E0200, 0x7E027F}, {0x000200, 0x00027F}}) do
   emu.addMemoryCallback(function(addr, value)
     local v = value or 0
-    if not watching or oamw > 14 or v == 0xE0 or v == 0x00 then return end
+    if oamw > 20 or v == 0xE0 or v == 0x00 then return end
+    if (addr % 4) ~= 2 then return end          -- tile-number byte only
     oamw = oamw + 1
     local ok, st = pcall(emu.getState)
     oamlog[#oamlog+1] = string.format("%04X<=%02X @%02X:%04X", addr % 0x10000, value or 0,
@@ -141,6 +166,8 @@ local function dumpvram(tag)
   for i = 0, 543 do o[#o+1] = string.char(emu.read(i, emu.memType.snesSpriteRam)) end
   local of = assert(io.open(ENV.TRACE .. "saturn/oamcard_" .. tag .. ".bin", "wb"))
   of:write(table.concat(o)); of:close()
+  log("LIST-PTR writers: " .. table.concat(lwlog, " | "))
+  log("EMITTER calls: " .. table.concat(emitlog, " | "))
   log("OAM-shadow writers: " .. table.concat(oamlog, " "))
   log("dumped " .. tag)
 end
@@ -174,7 +201,7 @@ local STEPS = {
     watching = true
     pulse[0] = (sf % 40 < 3) and {start=true} or {}
     if sf % 60 == 0 then log(string.format("sf=%d 70=%02X 8D=%02X 1E05=%02X", sf, ram(0x70), ram(0x8D), ram(0x1E05))) end
-    if ram(0x1E05) == 0xFF and ram(0x70) == 0 then return true end
+    if ram(0x1E05) == 0xFF and ram(0x70) == 0 then cardnow = true; return true end
     if sf > 1200 then log("card not detected"); return true end
     return false
   end,
