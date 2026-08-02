@@ -85,8 +85,18 @@ Saturn without moving anything.
 **How sounds are triggered.** Per frame, `$C0:D4F5` sends three bytes to the
 APU: P1's sound id from its struct `+0x78` (`$1078`) to port 0, P2's from
 `$10F8` to port 1, and the global one-shot `$78` to port 2 — the same `$78` our
-CMD stub already writes. So ids are **per player** and the SPC resolves them
-against *that player's* resident bank. This is the key consequence:
+CMD stub already writes.
+
+> **Not two id spaces.** An earlier phrasing here said ids are "per player",
+> which wrongly implies different addressing for P1 and P2. The id VALUES are
+> the same for both; what is per player is the delivery PORT, and therefore
+> which resident bank the SPC resolves that id against. Verified on a mirror
+> match: P1's and P2's regions hold the same four samples with identical sizes
+> and are byte-identical for 92% of their length (the tail is stale data past
+> P2's shorter upload) — so the same character sounds the same in either slot,
+> which matches play experience.
+
+The consequence for us:
 
 > If Saturn's voice bank is loaded for her player, she keeps using the SAME
 > sound ids and simply speaks in her own voice. No id remapping is needed.
