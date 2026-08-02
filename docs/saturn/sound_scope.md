@@ -260,6 +260,24 @@ the budget is respected:
     entry 32 214P       ARAM $C6A5 +0xd1d
     entry 33 j632K      ARAM $D3C2 +0x72c
 
+### Playback rate: RESOLVED at ~8 kHz [P 08-02]
+
+Worth recording because it looked like an open risk and was actually an
+artefact of my own rendering. The identification batch was written at
+**11025 Hz** and the maintainer reported every sample "notably too high"; the
+A/B batches were written at **8000 Hz** and he reported those as "the correct
+pitch". Same bytes, different WAV header — so:
+
+    her samples play at ~8000 Hz
+    SNES DSP rate = 32000 * P / 0x1000, so the pitch register is about $0400
+
+SMS's own voice samples decode to plausible durations at the same 8 kHz
+(Uranus: 0.33 s, 0.60 s, 0.28 s), which is the encouraging answer for
+injection — if both games voice at ~8 kHz, her samples need no resampling and
+the existing per-sound pitch will be right. **Confirm by ear** against SMS's
+own voices before trusting it; a rate mismatch would make her sound wrong with
+perfectly correct bytes.
+
 **What is still missing.** Super S's per-character audio is NOT the clean
 single ~8 KB bank SMS uses — the differing ranges are scattered (0x80-0x1D0
 bytes each), which is consistent with individual samples rather than one block.
