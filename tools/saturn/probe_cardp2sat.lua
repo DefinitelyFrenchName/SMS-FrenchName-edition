@@ -262,12 +262,13 @@ local STEPS = {
   function() pulse[0]=beat({down=true}); return ram(0x1B10)==1 end,
   function() pulse[0]=beat({start=true}); return sf>40 end,
   function() return sf>300 end,
-  function() wr(0x1B40, CHAR); wr(0x1B80, 4); return sf>20 end,
-  function() code[0] = (os.getenv("SAT") == "1") or nil
-             pulse[0]=beat({a=true})
-             if ram(0x1B42)==1 or sf>150 then code[0] = nil; return true end
+  function() wr(0x1B40, CHAR); wr(0x1B80, 6); return sf>20 end,
+  function() pulse[0]=beat({a=true})
+             if ram(0x1B42)==1 or sf>150 then return true end
              return false end,
-  function() pulse[1]=beat({a=true}); return ram(0x1B82)==1 or sf>150 end,
+  function() code[1] = true; pulse[1]=beat({a=true})
+             if ram(0x1B82)==1 or sf>150 then code[1] = nil; return true end
+             return false end,
   function()
     pulse[0] = (sf % 20 < 3) and {start=true} or {}
     if ram(0x70)==4 and ram(0x1000)~=0 and ram(0x1080)~=0 then return true end
@@ -277,12 +278,12 @@ local STEPS = {
   function() return sf > 150 end,
   -- two quick KOs
   function() wr(0x1021, 0x90); wr(0x1022, 0); wr(0x10A1, 0xA6); wr(0x10A2, 0)
-             wr(0x10C9, 1); pulse[0] = (sf % 12 < 3) and {y=true} or {}
-             return ram(0x10C9) == 0 or sf > 300 end,
-  function() pulse[0]={}; return sf > 420 end,
+             wr(0x1049, 1); pulse[1] = (sf % 12 < 3) and {y=true} or {}
+             return ram(0x1049) == 0 or sf > 300 end,
+  function() pulse[1]={}; return sf > 420 end,
   function() wr(0x1021, 0x90); wr(0x1022, 0); wr(0x10A1, 0xA6); wr(0x10A2, 0)
-             wr(0x10C9, 1); pulse[0] = (sf % 12 < 3) and {y=true} or {}
-             return ram(0x10C9) == 0 or sf > 400 end,
+             wr(0x1049, 1); pulse[1] = (sf % 12 < 3) and {y=true} or {}
+             return ram(0x1049) == 0 or sf > 400 end,
   function()   -- advance to the REPORT CARD, detected by state, then settle
     watching = true
     pulse[0] = (sf % 40 < 3) and {start=true} or {}

@@ -232,6 +232,13 @@ LISTPTR_OLD = bytes.fromhex("b5648512b5668514")
 SITE_LISTBANK = 0x009EA6      # lda $66,X (re-read for `plb`, 8-bit A here)
 LISTBANK_OLD = bytes.fromhex("b566")
 VANILLA_LIST = 0xCBEC         # Uranus's list @ $9F:CBEC — our detection key
+# WHICH PLAYER the card belongs to. Not derivable from the object: the card
+# always builds the winner's portrait through the $1000 slot and always uploads
+# it to VRAM $0000, whoever won — so keying on the slot (or on the upload
+# destination) shows Saturn's portrait on a card won by the OTHER player when
+# that player happens to be Uranus, our shell. Found by diffing all of WRAM
+# between a P1 win and a P2 win: $7E:1E14 = 1 for a P1 win, 2 for a P2 win.
+SITE_WINNER = 0x1E14
 SITE_CARDLOAD = 0x1F949F      # $9F:949F  jsl $80:8DEC (the portrait upload)
 CARDLOAD_OLD = bytes.fromhex("22EC8D80")
 # v0.10.0 FIX (latent since 0.8.0): the $EF helper must NOT transform on the
@@ -956,14 +963,17 @@ def main():
     lh += bytes((0xC9, 0x9F, 0x00)); lbr(0xD0, "lend")  # bank must be $9F
     lh += bytes((0xA5, 0x12, 0xC9, VANILLA_LIST & 0xFF, VANILLA_LIST >> 8))
     lbr(0xD0, "lend")
-    lh += bytes((0xE0, 0x00, 0x10)); lbr(0xD0, "l2")    # cpx #$1000 (P1 slot)
-    lh += bytes((0xE2, 0x20, 0xAF, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8,
-                 SATURN_BANK, 0xC9, SATURN_MAGIC, 0xC2, 0x20)); lbr(0xD0, "lend")
-    lbr(0x80, "lsub")
-    llbl("l2")
-    lh += bytes((0xE0, 0x80, 0x10)); lbr(0xD0, "lend")  # cpx #$1080 (P2 slot)
-    lh += bytes((0xE2, 0x20, 0xAF, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8,
-                 SATURN_BANK, 0xC9, SATURN_MAGIC, 0xC2, 0x20)); lbr(0xD0, "lend")
+    lh += bytes((0xE2, 0x20))                           # sep #$20
+    lh += bytes((0xAF, SITE_WINNER & 0xFF, SITE_WINNER >> 8, 0x7E))
+    lh += bytes((0xC9, 0x01)); lbr(0xF0, "l1")          # winner == P1?
+    lh += bytes((0xC9, 0x02)); lbr(0xD0, "lend")        # winner == P2?
+    lh += bytes((0xAF, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK))
+    lbr(0x80, "lchk")
+    llbl("l1")
+    lh += bytes((0xAF, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK))
+    llbl("lchk")
+    lh += bytes((0xC9, SATURN_MAGIC)); lbr(0xD0, "lend")
+    lh += bytes((0xC2, 0x20))                           # rep #$20
     llbl("lsub")
     lh += bytes((0xA9, EE_SPRLIST & 0xFF, EE_SPRLIST >> 8, 0x85, 0x12))
     # $14 becomes the emitter's DATA BANK (`lda $14 / pha / plb` at $C0:9EA6), and
@@ -1004,21 +1014,21 @@ def main():
     cp += bytes((0x68, 0x28))                      # pla / plp
     cp += bytes((0x22, 0xEC, 0x8D, 0x80))          # the vanilla upload we wrap
     cp += bytes((0x08, 0xC2, 0x30, 0x48, 0xDA, 0x5A))   # php/rep #$30/pha/phx/phy
-    cp += bytes((0xAF, 0x04, 0xF1, SATURN_BANK, 0xC9, 0x00, 0x00)); br(0xF0, "p1")
-    cp += bytes((0xC9, 0x00, 0x08)); br(0xF0, "p2")
+    cp += bytes((0xE2, 0x20))                           # sep #$20
+    cp += bytes((0xAF, SITE_WINNER & 0xFF, SITE_WINNER >> 8, 0x7E))
+    cp += bytes((0xC9, 0x01)); br(0xF0, "p1")
+    cp += bytes((0xC9, 0x02)); br(0xF0, "p2")
     cp += bytes((0x82, 0x00, 0x00)); brl_fix.append(len(cp) - 2)   # brl done
     lbl("p1")
-    # 8-bit compare: a 16-bit `cmp #$00A5` would also require the NEXT flag byte
-    # to be zero, which is false in a Saturn-vs-Saturn match.
-    cp += bytes((0xE2, 0x20, 0xAF, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK,
-                 0xC9, SATURN_MAGIC, 0xC2, 0x20, 0xF0, 0x03))
-    cp += bytes((0x82, 0x00, 0x00)); brl_fix.append(len(cp) - 2)
-    cp += bytes((0xA9, 0x00, 0x00)); br(0x80, "blit")
+    cp += bytes((0xAF, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK))
+    br(0x80, "chk")
     lbl("p2")
-    cp += bytes((0xE2, 0x20, 0xAF, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK,
-                 0xC9, SATURN_MAGIC, 0xC2, 0x20, 0xF0, 0x03))
+    cp += bytes((0xAF, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK))
+    lbl("chk")
+    cp += bytes((0xC9, SATURN_MAGIC, 0xF0, 0x03))
     cp += bytes((0x82, 0x00, 0x00)); brl_fix.append(len(cp) - 2)
-    cp += bytes((0xA9, 0x00, 0x08))
+    # A = the VRAM word address the vanilla loader was given (stashed pre-call)
+    cp += bytes((0xC2, 0x20, 0xAF, 0x04, 0xF1, SATURN_BANK))
     lbl("blit")                                     # A = VRAM word address
     cp += bytes((0x48,))                            # save dest
     cp += bytes((0xE2, 0x20, 0xAF, 0x00, 0x21, 0x00, 0x85, 0x0E))  # $0E = old INIDISP

@@ -148,6 +148,7 @@ $80 FastROM mirror — exec watchpoints need $80:xxxx):
 | $C0:9EB5 | sprlist_emit_call | calls $9B17 (normal) / $9BCB (X-flip) — the report card uses the X-flip path |
 | $C0:9B17 / $C0:9BCB | oam_emit_list / oam_emit_list_flip | 6-byte records `[x, x_flipped, y, unused, tile, attr]`; bytes 4-5 read as `attr<<8\|tile`, bit $0800 = 16x16 size flag (consumed + stripped), then the caller's base (#$3000 = priority 3, palette 0) is added; stops at OAM slot 128 ($C0:9C63) |
 | $9F:CBEC / $9F:C595 | portrait_list_uranus / _moon | per-character card sprite lists (count byte + records); anchored x=$34 y=$78 |
+| $7E:1E14 | match_winner | 1 = P1 won, 2 = P2 won; valid at the report card (the card itself carries no player identity — it always builds the winner's portrait through the $1000 object slot and uploads to VRAM $0000) |
 | $7E:0500 | cgram_shadow | 512-byte CGRAM shadow, DMA'd whole every frame at $80:849F (also $80:8216); OBJ palette 0 (colours 128-143, the card portrait) = $7E:0600 |
 
 ## Uranus crouching LP (2LP) — measured lifecycle (Mesen frame-advance, savestate uranus_vs_moon.mss)

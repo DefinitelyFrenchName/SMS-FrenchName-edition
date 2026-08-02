@@ -239,9 +239,9 @@ match, so pixels inside her that share a colour with the pattern survive.
 
 **The hook** (`SATURN_PORTRAIT=1`): `$C0:9E86`'s 8 bytes become `jsl $EE:CA00`
 + 4 NOPs. The stub replays the displaced loads, then substitutes our own list
-when *all* of: the pointer being loaded is `$9F:CBEC` (that identifies the
-report card unambiguously — nothing in-match can trip it), `X` is a player slot
-(`$1000`/`$1080`), and that slot's Saturn flag (`$7F:F100`/`F101`) is `$A5`.
+when *both*: the pointer being loaded is `$9F:CBEC` (that identifies the report
+card unambiguously — nothing in-match can trip it), and the **winning player's**
+Saturn flag (`$7F:F100`/`F101`) is `$A5`.
 `$C0:9EA6`'s `lda $66,X` becomes `lda $14` (same 2 bytes) so the data bank
 follows the substituted pointer instead of re-reading the object field.
 
@@ -253,6 +253,18 @@ follows the substituted pointer instead of re-reading the object field.
 > emitter the `$80-$BF` alias of the same ROM (`$AE:8000-$FFFF` == `$EE:8000-$FFFF`).
 > Vanilla gets this for free by living in `$9F`. Any future data handed to a
 > vanilla routine that stores through DB must use the alias.
+
+> **The card carries no player identity.** It builds the winner's portrait
+> through the `$1000` slot and uploads it to VRAM `$0000` *whoever won* — so
+> both the obvious keys (the object slot `X`, and the upload destination the
+> tile wrapper used) are constants, not the player. Keying on either shows
+> Saturn's portrait on a card won by the OTHER player whenever that player is
+> Uranus, our shell — reproduced: "2P WIN" over Saturn's face in a
+> Saturn-vs-Uranus match. The winner is **`$7E:1E14`** (`1` = P1, `2` = P2),
+> found by diffing all 8 KB of WRAM at the card between a P1 win and a P2 win
+> (65 bytes differ; `$1E14` is the one that reads as a player number). Both
+> hooks — tile blit and sprite list — now gate on it, so they can never
+> disagree.
 
 ### The palette — SOLVED [P 08-02, v0.12.1]
 
