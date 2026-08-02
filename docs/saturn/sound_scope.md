@@ -132,6 +132,35 @@ Diffing ARAM between **P1 = Saturn** and **P1 = Uranus** (same opponent) gives
 into ROM around `$EF:5688`-`$EF:6829`. So **her audio data is in bank `$EF`**
 and the diff identifies exactly which byte ranges are hers.
 
+**SUPER S'S SAMPLE DIRECTORY: FOUND at ARAM `$1E00`.** Located by scanning for
+a page whose entries are ordered, contiguous and land inside the known sample
+regions (the earlier "most directory-like page" heuristic was too loose and
+returned `$FA00`, where every entry had start == loop).
+
+Diffing the directory between a **P1 = Saturn** run and a **P1 = Uranus** run
+isolates the per-character voice samples exactly: **entries 28-34 change,
+everything else is identical**. So Super S keeps **7 voice samples per
+character**; Saturn's span ARAM `$7500`-`$AB75`, about **13.6 KB**:
+
+| entry | ARAM | size |
+|---|---|---|
+| 28 | `$7500` | `0x237` |
+| 29 | `$7737` | `0x4C8` |
+| 30 | `$7BFF` | `0x546` |
+| 31 | `$8145` | `0xB49` |
+| 32 | `$8C8E` | `0xE07` |
+| 33 | `$9A95` | `0x816` |
+| 34 | `$A2AB` | `0x8CA` |
+
+All seven decode cleanly with proper end flags (`tools/saturn/brr.py`), so the
+bytes and loop points are in hand — extraction is solved.
+
+**THE REAL CONSTRAINT, now measurable.** SMS's per-fighter slot holds **4
+samples in ~9 KB** (its voice directory is a second table at ARAM `$3500`,
+entries 0-3 = P1's region, 4-7 = P2's). Saturn's Super S set is **7 samples in
+13.6 KB**. Her voice therefore does NOT fit as-is: a subset must be chosen —
+realistically the throw shout, the laugh, the select line, and one hit grunt.
+
 **What is still missing.** Super S's per-character audio is NOT the clean
 single ~8 KB bank SMS uses — the differing ranges are scattered (0x80-0x1D0
 bytes each), which is consistent with individual samples rather than one block.
@@ -143,10 +172,11 @@ register would give it directly but is not exposed through the ARAM dump.
 Without that, individual samples cannot be cut with correct loop points — and a
 wrong loop point on a voice sample is an audible buzz, not a subtle flaw.
 
-**Next, in order:** (a) find Super S's DIR page (read DSP `$5D` via a debugger
-callback, or find the driver code that writes it); (b) cut her samples and
-identify which is the throw shout, the laugh and the "Yoroshiku"; (c) only then
-attempt injection.
+**Next, in order:** (a) ~~find the DIR page~~ **done — `$1E00`**; (b) identify
+which of the seven is the throw shout, the laugh and the "Yoroshiku" — they are
+decoded to WAV in `build/saturn/voice/` for a listener to name, since that is an
+ear question, not a disassembly one; (c) pick the subset that fits 4 slots /
+9 KB; (d) only then attempt injection.
 
 ## Open questions, in the order they should be answered
 
