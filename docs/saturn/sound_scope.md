@@ -161,6 +161,51 @@ entries 0-3 = P1's region, 4-7 = P2's). Saturn's Super S set is **7 samples in
 13.6 KB**. Her voice therefore does NOT fit as-is: a subset must be chosen —
 realistically the throw shout, the laugh, the select line, and one hit grunt.
 
+### The samples, IDENTIFIED by the maintainer [P 08-02]
+
+| entry | size | what it is |
+|---|---|---|
+| 28 | `0x237` | throw shout |
+| 29 | `0x4C8` | possibly the looping KO cry (unsure) |
+| **30** | `0x546` | **win laugh** |
+| **31** | `0xB49` | **236P** |
+| **32** | `0xE07` | **214P** |
+| **33** | `0x816` | **j.632K** |
+| 34 | `0x8CA` | unidentified |
+
+The four bolded ones are exactly the field requests — and SMS's slot holds
+exactly four samples, which is a lucky fit in COUNT. **Not in size:**
+
+    the four requested   9900 bytes
+    SMS per-fighter slot 9099 bytes  ($B700-$DA8B)
+    over by               801 bytes  (8%)
+
+Trimming silence does not save it: measured across all four, the quiet tails
+come to only **72 bytes**. These samples are packed tight.
+
+**"Yoroshiku" is NOT in the per-character bank** — the maintainer confirmed it
+is absent from all seven. So the select voice lives in whatever sample set the
+CHARACTER-SELECT screen loads, which is a separate find.
+
+### Three ways to fit, for the maintainer to choose
+
+1. **Drop the win laugh** (`0x546` = 1350 B) — the other three fit with room to
+   spare. Costs the minor request; the laugh stays silent as it is today.
+2. **Truncate one sample.** 729 bytes is about 0.16 s at the likely playback
+   rate; taken off the end of 214P (the longest, ~0.58 s) all four survive with
+   a slight clip.
+3. **Use the unclaimed region.** ARAM `$9B92`-`$B6FF` (**7022 bytes**) has *no
+   directory entry pointing into it* and is **byte-identical across two
+   different matchups**, so it is neither per-match data nor (probably) the echo
+   buffer, which would vary with the audio. It is 93% non-zero, so it holds
+   *something* static — unproven and therefore not safe to claim. If it is
+   dead, everything fits comfortably, with room for the throw shout and the KO
+   cry too. Testing it is cheap: overwrite it at runtime and listen for
+   breakage.
+
+Option 3 is the only one that costs nothing if it works, and the test is one
+probe; options 1 and 2 are the certain fallbacks.
+
 **What is still missing.** Super S's per-character audio is NOT the clean
 single ~8 KB bank SMS uses — the differing ranges are scattered (0x80-0x1D0
 bytes each), which is consistent with individual samples rather than one block.
