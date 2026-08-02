@@ -43,6 +43,33 @@ Versions before 0.6.0 are retroactive labels for the historical lineage
 | **0.12.5** | saturn: `06252268…`(vis)/`2a0ae4db…`(hid); REFsaturn: `2b762c40…`(hid); +stage variant | (this) | **CARD PORTRAIT — ROOT CAUSE: THE GATE ONLY EVER MATCHED ONE SHELL.** The sprite-list hook required the loaded pointer to be `$9F:CBEC`, *Uranus's* portrait list. But Saturn is summoned with L+R over ANY of the nine slots, and the card draws the SHELL character's list — so for every shell except Uranus the gate failed and the card rendered that character's untouched portrait, which is exactly what the field reported. (The earlier garbled-mosaic reports were the Uranus case, where the gate passed and only the tiles were missing — two different symptoms of the same over-narrow key, which is why chasing timing and destinations kept half-explaining it.) Found by shipping a gate-less diagnostic build (`SATURN_PORTRAIT_FORCE=1`): the shell portrait STILL appeared, proving the hook was not acting at all rather than acting on bad inputs. Fix: key on the pointer's BANK (`$9F`) only — measured safe, since across a full boot-to-card run `$C0:9E86` loads exactly one pointer, the card's, and nothing in-match reaches that renderer. Verified with two different shells (Uranus AND Moon): our 67-sprite list, tiles and palette all byte-exact on the card. Suite 42/42. |
 | **0.12.6** | saturn: `f555f2ce…`(vis)/`d1c99cdd…`(hid); REFsaturn: `b9b4347f…`(hid); +stage variant | (this) | **BLACK CARD FIXED + STAGE LAYERS RE-CUT.** (1) Field: Saturn's card is black with correct music, then renders correctly for a few frames on exit. The blit force-blanks to do its DMA and restores the INIDISP it saved — if it runs while the screen is legitimately dark (brightness 0 during a fade) it saves 0 and hands the screen back black, and nothing else rewrites that register on a static card, so it stays black until the player leaves. It now refuses to restore a blank INIDISP and hands back full brightness instead (a fade in progress overwrites it next frame anyway). Measured `INIDISP=00` around that phase, which is what made this the leading candidate. (2) Stage: the ground was hidden behind the palace. Super S composes this stage ACROSS both planes using per-tile priority — map0 holds sky (behind the palace) and ground (in front), the ground being exactly the high-priority cells, rows 10-13. SMS cannot copy that, because a high-priority BG tile also draws over the fighters (the original occlusion report). So the layers are re-cut rather than re-prioritised: every high-priority cell of map0 is MOVED onto the other tilemap and the priority bit is stripped everywhere, giving front = palace + ground, back = sky — correct order with no priority bits, so the fighters stay in front. Verified: card correct with TWO shells (Uranus and Moon), suite 42/42. |
 
+## Field verification, v0.12.6 [P 08-02]
+
+Maintainer testing, recorded because several of these close long-running items:
+
+- **Win screen / card portrait: clean.** The INIDISP fix holds.
+- **close 5HK is NOT a bug.** Super S also starts that move with a knee that
+  becomes a kick depending on spacing and pushback, so the port is faithful.
+  (The investigation is kept in the task history because it re-verified the
+  whole normals chain: selection thresholds, act table, script bytes, and the
+  pose->cel mapping.)
+- **The stage's jump-slide is stage-specific.** No other stage slides on the
+  same ROM, nor on the REF-stacked build — so it is our ported stage's
+  configuration, not an engine-wide regression.
+- **Taunts work with Saturn**, and the other patches behave on the stacked REF
+  build.
+- **AUTO/ACS still active on REF is EXPECTED**, not a bug: REF v.1 is patches
+  1b/2/3/4/5/7/8/9/12/13/14 — **patch 15 (Auto removal) was never part of the
+  bundle**. It is 6 in-place bytes and stacks anywhere, so it can be applied on
+  demand (`tools/mkpatch15.py <ref-rom> <out> --stacked`) or folded into a
+  future REF v.2.
+- **Movelist**, refined: it shows mostly *Uranus's* list (not Jupiter's, as
+  first reported) and is INCOMPLETE — two specials and no desperation. Tracked
+  with the shell lesson from the card portrait: Saturn can be summoned over any
+  of the nine, so anything keyed to one character's data silently works for
+  that shell only, and any fix must be tested with at least two shells.
+
+
 ## Known gaps (as of 0.7.0)
 
 - ~~Desperation~~ RESOLVED in 0.11.2 (412364+HP at low HP). ~~Win pose~~
