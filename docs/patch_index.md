@@ -14,7 +14,13 @@ Current all-patches build: **v0.22** (`3bb9c829…`, rebuilt 2026-07-30 with the
 credit line; pre-credit hash `52bc7e38…`). Also current: the **REF v.1 reference
 bundle** (`sms_reference_v1.bps`, ROM `2873f214…`, title tell "FrenchName REF v.1";
 pre-credit hash `bd1104ee…`) = 1b+2+3+4+5+7+8+9+12+13+14 — the maintainer-requested
-reference combination (true-combo gate; no p6/p10/p11).
+reference combination (true-combo gate; no p6/p10/p11), and **REF v.2**
+(`sms_reference_v2.bps`, ROM `6d79fb5f…`, title tell "FrenchName REF v.2",
+recipe `tools/build_ref_v2.sh`) = **v.1 + patch 15 (AUTO removal)**. v.2 exists
+because v.1 predates patch 15 and therefore still allows AUTO/ACS in 2P VS and
+tournament play. **v.1 is deliberately left byte-identical** — it is a
+published artifact with a recorded hash, so v.2 is a new name rather than a
+redefinition of the old one.
 
 | # | Name | One-liner | Status | Standalone BPS (`build/`) |
 |---|---|---|---|---|

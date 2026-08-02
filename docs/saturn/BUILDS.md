@@ -58,11 +58,12 @@ Maintainer testing, recorded because several of these close long-running items:
   configuration, not an engine-wide regression.
 - **Taunts work with Saturn**, and the other patches behave on the stacked REF
   build.
-- **AUTO/ACS still active on REF is EXPECTED**, not a bug: REF v.1 is patches
-  1b/2/3/4/5/7/8/9/12/13/14 — **patch 15 (Auto removal) was never part of the
-  bundle**. It is 6 in-place bytes and stacks anywhere, so it can be applied on
-  demand (`tools/mkpatch15.py <ref-rom> <out> --stacked`) or folded into a
-  future REF v.2.
+- **AUTO/ACS still active on REF was EXPECTED**, not a bug: REF v.1 is patches
+  1b/2/3/4/5/7/8/9/12/13/14 — patch 15 (Auto removal) was never part of it.
+  **RESOLVED 2026-08-02: REF v.2** (`tools/build_ref_v2.sh`, ROM `6d79fb5f…`)
+  = v.1 + patch 15, regression 57/57. `tools/saturn/build_refsaturn.sh` now
+  builds on v.2 by default (`REF_VERSION=1` for the old base); REFsaturn
+  v0.12.6 on v.2 = `372d2642…`. v.1 is left byte-identical on purpose.
 - **Movelist**, refined: it shows mostly *Uranus's* list (not Jupiter's, as
   first reported) and is INCOMPLETE — two specials and no desperation. Tracked
   with the shell lesson from the card portrait: Saturn can be summoned over any

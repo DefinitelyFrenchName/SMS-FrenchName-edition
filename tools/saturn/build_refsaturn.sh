@@ -7,5 +7,8 @@
 # Usage: tools/saturn/build_refsaturn.sh
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-[ -f build/SailorMoonS_FrenchName_REF_v1.sfc ] || tools/build_ref_v1.sh
-SATURN_BASE=build/SailorMoonS_FrenchName_REF_v1.sfc python3 tools/saturn/mksaturn_smoke.py
+# REF_VERSION=1 selects the original bundle; default is v.2 (adds patch 15,
+# AUTO removal). v.1 stays buildable because it is a published artifact.
+REF="${REF_VERSION:-2}"
+[ -f "build/SailorMoonS_FrenchName_REF_v${REF}.sfc" ] || "tools/build_ref_v${REF}.sh"
+SATURN_BASE="build/SailorMoonS_FrenchName_REF_v${REF}.sfc" python3 tools/saturn/mksaturn_smoke.py
