@@ -184,7 +184,17 @@ end
 
 -- BG H-scroll registers are write-twice; keep the assembled 16-bit value
 local bg, half = {}, {}
+local bgv, halfv = {}, {}
 local REGMAP = {[0x210D] = 1, [0x210F] = 2, [0x2111] = 3}
+local VMAP = {[0x210E] = 1, [0x2110] = 2}
+for reg, idx in pairs(VMAP) do
+  for _, b in ipairs({reg, 0x800000 + reg}) do
+    emu.addMemoryCallback(function(addr, value)
+      if halfv[idx] == nil then halfv[idx] = value or 0
+      else bgv[idx] = (((value or 0) & 7) << 8) | halfv[idx]; halfv[idx] = nil end
+    end, emu.callbackType.write, b, b, emu.cpuType.snes, emu.memType.snesMemory)
+  end
+end
 for reg, idx in pairs(REGMAP) do
   for _, b in ipairs({reg, 0x800000 + reg}) do
     emu.addMemoryCallback(function(addr, value)
@@ -217,6 +227,18 @@ for a = 0x0A10, 0x0A17 do
       if sseen[key] then return end
       sseen[key] = true; sw = sw + 1
       swlog[#swlog + 1] = string.format("%04X<=%02X @%s", addr % 0x10000, value or 0, pc)
+    end, emu.callbackType.write, b, b, emu.cpuType.snes, emu.memType.snesMemory)
+  end
+end
+
+-- BG tilemap bases: which plane holds which of our two maps
+for _, r in ipairs({0x2107, 0x2108}) do
+  for _, b in ipairs({r, 0x800000 + r}) do
+    emu.addMemoryCallback(function(addr, value)
+      if not watching or _G["sc" .. (addr % 0x10000)] then return end
+      _G["sc" .. (addr % 0x10000)] = true
+      log(string.format("BGSC $%04X <= %02X (tilemap base $%04X)", addr % 0x10000,
+        value or 0, ((value or 0) & 0xFC) << 8))
     end, emu.callbackType.write, b, b, emu.cpuType.snes, emu.memType.snesMemory)
   end
 end
@@ -279,11 +301,13 @@ local STEPS = {
   end,
   function() return sf > 60 end,
   function()   -- walk P1 across the stage; log both BG planes' H-scroll
-    local x = 0x40 + math.floor(sf * 1.5)
-    wr(0x1021, x % 256); wr(0x1022, math.floor(x / 256))
-    if sf % 12 == 0 then
-      log(string.format("SCROLL f=%d p1x=%04X BG1=%04X BG2=%04X BG3=%04X",
-        sf, x, bg[1] or 0, bg[2] or 0, bg[3] or 0))
+    -- do NOT poke positions here: the pokes fought the jump last time and the
+    -- camera never moved, so the run proved nothing about the artifact.
+    pulse[0] = ((sf // 60) % 2 == 1) and {up = true} or {}
+    if sf % 8 == 0 then
+      log(string.format("SCROLL f=%d p1y=%04X 0A02=%04X BG1V=%04X BG2V=%04X BG1H=%04X BG2H=%04X",
+        sf, ram(0x1025) + 256 * ram(0x1026), ram(0x0A02) + 256 * ram(0x0A03),
+        bgv[1] or 0, bgv[2] or 0, bg[1] or 0, bg[2] or 0))
     end
     return sf > 240
   end,
@@ -291,7 +315,7 @@ local STEPS = {
 }
 emu.addEventCallback(function()
   frames = frames + 1; sf = sf + 1
-  half = {}          -- resync the write-twice pairing every frame
+  half = {}; halfv = {}   -- resync the write-twice pairing every frame
   if frames > 1780 and frames < 2100 and frames % 25 == 0 then
     local ok, st = pcall(emu.getState)
     log(string.format("PCSAMPLE f=%d %02X:%04X 70=%02X 8D=%02X 1000=%02X",
