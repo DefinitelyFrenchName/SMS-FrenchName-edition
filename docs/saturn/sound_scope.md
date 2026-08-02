@@ -561,3 +561,44 @@ Acceptance (`probe_sms_selectcheck.lua`, on `…v0.13.1-hidden.sfc`):
 
 plus the v0.13.0 suite re-run on the new ROM: in-match voice 8/8 both players,
 restore 4/4 both halves, smoke 228/228, regression ALL PASS (57).
+
+## OPEN (polish, not blocking): her voices play SHARP vs Super S [P 08-03]
+
+Field report, 2026-08-03: everything is present and correct, but the voices sit
+higher than they do in Super S. The measurements already taken explain it, and
+name the lever.
+
+**Pitch is per sound, and SMS's is higher than Super S's for the same audio.**
+The DSP PITCH register (rate = `32000 * P / $1000`) was logged at each voice
+start:
+
+| | PITCH | rate |
+|---|---|---|
+| Super S playing HER select line | `$03FE` | 7984 Hz |
+| SMS playing its select line, Uranus | `$04E7` | 9804 Hz |
+| SMS playing its select line, Moon | `$0533` | 10398 Hz |
+
+So over the Uranus shell she plays about **1.23×** too fast (≈ +3.6 semitones),
+and over Moon about **1.30×** (≈ +4.5). Note the consequence: because she
+borrows the SHELL's sound id for the select line, **how sharp she sounds depends
+on which shell she is summoned over**. For the in-match voices she borrows char
+1's ids, so those are consistently Moon's pitch — that set has not been measured
+yet and should be, before any retune.
+
+Two ways to fix it, with different costs:
+
+1. **Retune the pitch** for the ids she uses. Cheapest if the per-id pitch is
+   table-driven in the SPC driver or supplied by the CPU — not yet located. It
+   would also have to be conditional on Saturn, or it would detune the real
+   character who owns those ids.
+2. **Resample her BRR** at build time so that playing it at SMS's faster rate
+   reproduces the original pitch — i.e. stretch it by the ratio. Purely a data
+   change, no engine hook, and it cannot affect anyone else. But it costs size:
+   the select line has room (2610 → ~3200 bytes against a ~9990 budget), while
+   the in-match bank does **not** — it is already 9198 of 9216 bytes, and
+   stretching it by 1.3× would need ~12 KB. That would force another trim pass,
+   which is an ear question and was hard-won the first time.
+
+So (1) is the promising direction and the first step is finding where the pitch
+for a voice id comes from. Neither is urgent: the maintainer's call is that the
+current state is good.
