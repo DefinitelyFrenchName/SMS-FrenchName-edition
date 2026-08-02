@@ -9,7 +9,8 @@
 ## Objective
 
 A game that **plays like Sailor Moon S** — the SMS engine's rules, timings and
-idiosyncrasies, carrying the **REF v.1 patch set** (1b+2+3+4+5+7+8+9+12+13+14) —
+idiosyncrasies, carrying the **REF v.2 patch set** (1b+2+3+4+5+7+8+9+12+13+14+15 — v.1 plus
+patch 15's AUTO removal, folded in 2026-08-02) —
 extended with:
 
 1. **Sailor Saturn as a 10th playable character** (MUST-HAVE). Source material: the

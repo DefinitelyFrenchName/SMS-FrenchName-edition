@@ -1,6 +1,6 @@
 # HANDOFF — SMS Sailor Moon S balance/feature patch project
 
-**Read this first.** (New session? `docs/NEXT_SESSION.md` is the 60-second orientation.) It is the operational map: current state, deliverables, how to build,
+**Read this first.** §0 is the CURRENT state (SMS + Saturn); §1 onward is the completed base patch project. (New session? `docs/NEXT_SESSION.md` is the 60-second orientation.) It is the operational map: current state, deliverables, how to build,
 how to test, what was learned, and the traps. Deep per-patch detail is in
 `docs/patch_notes.md`; **how the engine works, by subsystem, is in
 `docs/sms_engine_internals.md`** (the synthesis — read it to understand or modify the game);
@@ -16,6 +16,44 @@ Clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c` (HiROM+FastROM, heade
 HiROM mapping: **file offset = SNES address & 0x3FFFFF**.
 Playable roster (charID): 1 Moon, 2 Mercury, 3 Mars, 4 Jupiter, 5 Venus, 6 Uranus,
 7 Neptune, 8 Pluto, 9 Chibi Moon. **Saturn (10) is NOT playable.**
+
+---
+
+## 0. Current state (2026-08-02) — SMS + Saturn
+
+The base patch project below is complete and green; active work is the **SMS +
+Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
+`docs/saturn/BUILDS.md`, next steps: `docs/NEXT_SESSION.md`).
+
+**Saturn is playable in SMS**, summoned by holding **L+R** on any character
+slot at select (she wears that character as a "shell"). Field-tested repeatedly
+by the maintainer. Current builds are **v0.12.7** + a stage-port variant, all on
+**REF v.2**.
+
+**REF v.2** (2026-08-02, maintainer request) = REF v.1 **+ patch 15 (AUTO
+removal)** = 1b+2+3+4+5+7+8+9+12+13+14+15. Recipe `tools/build_ref_v2.sh`, ROM
+`6d79fb5f…`, regression 57/57. **v.1 is deliberately unchanged** — it is a
+published artifact with a recorded hash, so v.2 is a new name rather than a
+redefinition. `tools/saturn/build_refsaturn.sh` now targets v.2 by default
+(`REF_VERSION=1` selects the old base).
+
+Shipped for Saturn this session: card portrait (art, layout and palette),
+push-collision fix, corrected sfx mapping, a Super S stage ported onto Pluto's
+slot, and her voice samples extracted and approved. Open: movelist (#41), a
+stage vertical-scroll artefact (#43), voice injection (#44).
+
+**Three traps this project paid for — they generalise:**
+
+1. **Per-character fixes must be tested with at least TWO shells.** Saturn can
+   be summoned over any of the nine. A hook keyed to *Uranus's* sprite-list
+   pointer worked only for that shell and looked like two unrelated bugs.
+2. **Unreferenced, unchanging memory is not free memory.** A candidate ARAM
+   region passed both "nothing points at it" and "identical across runs" and was
+   still live — proven by finding its bytes in ROM bank `$E4`. Ask where bytes
+   came from; on this console everything is uploaded from ROM.
+3. **Data handed to a vanilla routine must respect the WRAM-mirror rule.** The
+   sprite emitter writes the OAM shadow with plain absolute stores, so a list in
+   bank `$EE` (no WRAM mirror) vanished entirely; it needs the `$AE` alias.
 
 ---
 

@@ -274,9 +274,8 @@ pitch". Same bytes, different WAV header — so:
 SMS's own voice samples decode to plausible durations at the same 8 kHz
 (Uranus: 0.33 s, 0.60 s, 0.28 s), which is the encouraging answer for
 injection — if both games voice at ~8 kHz, her samples need no resampling and
-the existing per-sound pitch will be right. **Confirm by ear** against SMS's
-own voices before trusting it; a rate mismatch would make her sound wrong with
-perfectly correct bytes.
+the existing per-sound pitch will be right. **CONFIRMED by the maintainer** (2026-08-02): SMS's own Uranus voices sound
+correct at 8 kHz, so both games voice alike and **no resampling is needed**.
 
 **What is still missing.** Super S's per-character audio is NOT the clean
 single ~8 KB bank SMS uses — the differing ranges are scattered (0x80-0x1D0
