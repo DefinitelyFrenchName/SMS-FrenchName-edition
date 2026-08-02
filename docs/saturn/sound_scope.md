@@ -60,12 +60,54 @@ lift — BRR is BRR, and what matters is the sample data plus its loop point —
 but it does mean nothing can be assumed by analogy here, which is exactly the
 assumption that has cost time elsewhere in this project.
 
+## PHASE 1 RESULTS [P 08-02] — the lever exists and the table has room
+
+**Per-fighter voice banks: CONFIRMED.** ARAM diffed across three matchups
+(Uranus-vs-Uranus, Moon-vs-Mars, Uranus-vs-Mars): changing only P2 alters only
+`$DB00`+, changing only P1 alters only `$B700`+. So
+
+    $B700 = P1's voice bank (directory entries 48-55)
+    $DB00 = P2's voice bank (directory entries 56-63)
+
+about **9 KB per fighter** — a comfortable budget for her samples.
+
+**Where the banks come from.** Not the `$C0:EC5E` indexed loader that serves
+music: catching the IPL data-port writes live shows the match-time upload comes
+from bank **`$E5`**. That bank holds **8 blocks of ~8 KB, every one targeting
+ARAM `$B700`** — the per-character voice banks.
+
+**How a character selects one.** They are entries **31-38 of the SAME table at
+`$C0:ECE7`** (6-byte records, two 3-byte source pointers; the second is
+`$FFFFFF` here). Entry 39 is `$E6:0000`, plausibly the ninth character. **Entry
+40 onward is zeros** — the table simply ends, so an entry can be APPENDED for
+Saturn without moving anything.
+
+**How sounds are triggered.** Per frame, `$C0:D4F5` sends three bytes to the
+APU: P1's sound id from its struct `+0x78` (`$1078`) to port 0, P2's from
+`$10F8` to port 1, and the global one-shot `$78` to port 2 — the same `$78` our
+CMD stub already writes. So ids are **per player** and the SPC resolves them
+against *that player's* resident bank. This is the key consequence:
+
+> If Saturn's voice bank is loaded for her player, she keeps using the SAME
+> sound ids and simply speaks in her own voice. No id remapping is needed.
+
+So the shape of the work is now: append her voice block, append a table entry,
+and make the loader pick her entry when the Saturn flag is set — structurally
+the same redirect as the card portrait, and with the same shell caveat (she can
+be summoned over any of the nine).
+
+**Still open from Phase 1:** every `$E5` block targets `$B700`, yet P2's bank
+lands at `$DB00` — so either the loader patches the destination for P2 or the
+driver relocates it. That must be understood before injecting, since Saturn
+must work in either slot.
+
 ## Open questions, in the order they should be answered
 
-1. Are `$B700`/`$DB00` really per-fighter voice banks? (ARAM diff between two
-   matchups — cheap, one probe.)
-2. Where is the character → voice-bank mapping? The `$C0:ECE7` table is
-   scene-indexed, not character-indexed, so there is another table.
+1. ~~Are `$B700`/`$DB00` per-fighter voice banks?~~ **ANSWERED: yes.**
+2. ~~Where is the character → voice-bank mapping?~~ **ANSWERED: entries 31-38
+   of `$C0:ECE7`**, sources in bank `$E5`, and the table has free space after
+   entry 39.
+2b. **NEW:** how does P2's bank reach `$DB00` when every block says `$B700`?
 3. Where are Super S's voice samples, and which ids do her scripts request for
    the throw shout, the win laugh and the select "Yoroshiku"?
 4. Is the sfx trigger path (sound id → sample id) table-driven and extensible?

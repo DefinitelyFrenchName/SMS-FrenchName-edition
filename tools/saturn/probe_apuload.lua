@@ -200,7 +200,32 @@ emu.addMemoryCallback(function()
       emu.read(0x7FF101, emu.memType.snesMemory)))
   end
 end, emu.callbackType.exec, 0xEEC900, 0xEEC900, emu.cpuType.snes, emu.memType.snesMemory)
+-- every APU block-load call: A = bank id, then the two source pointers the
+-- table hands it. This is how a character's voice bank gets chosen.
+local ld, ldlog = 0, {}
+for _, a in ipairs({0x80EC5E, 0xC0EC5E}) do
+  emu.addMemoryCallback(function()
+    if ld > 30 then return end
+    ld = ld + 1
+    local ok, st = pcall(emu.getState)
+    local acc = st and (st["cpu.a"] or 0) or 0
+    ldlog[#ldlog + 1] = string.format("f=%d id=%02X", frames, acc & 0xFF)
+  end, emu.callbackType.exec, a, a, emu.cpuType.snes, emu.memType.snesMemory)
+end
+-- and the source pointer actually used (DP $00 long, set at $C0:EC71/EC76)
+local sp, splog = 0, {}
+for _, a in ipairs({0x80EC78, 0xC0EC78}) do
+  emu.addMemoryCallback(function()
+    if sp > 30 then return end
+    sp = sp + 1
+    splog[#splog + 1] = string.format("f=%d src=%02X:%02X%02X", frames,
+      ram(0x02), ram(0x01), ram(0x00))
+  end, emu.callbackType.exec, a, a, emu.cpuType.snes, emu.memType.snesMemory)
+end
+
 local function dumpvram(tag)
+  log("APU LOADS: " .. table.concat(ldlog, " "))
+  log("APU SRCS : " .. table.concat(splog, " "))
   local V = emu.memType.snesVideoRam
   local f = assert(io.open(ENV.TRACE .. "saturn/vramcardsat_" .. tag .. ".bin", "wb"))
   local b = {}

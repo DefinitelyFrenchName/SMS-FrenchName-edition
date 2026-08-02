@@ -200,7 +200,23 @@ emu.addMemoryCallback(function()
       emu.read(0x7FF101, emu.memType.snesMemory)))
   end
 end, emu.callbackType.exec, 0xEEC900, 0xEEC900, emu.cpuType.snes, emu.memType.snesMemory)
+-- catch the IPL data-port writes and report the PC + the DP pointer in use
+local ip, iplog, ipseen = 0, {}, {}
+for _, a in ipairs({0x002141, 0x802141}) do
+  emu.addMemoryCallback(function()
+    if ip > 24 then return end
+    local ok, st = pcall(emu.getState)
+    local pc = string.format("%02X:%04X", st and (st["cpu.k"] or 0) or 0,
+                             st and (st["cpu.pc"] or 0) or 0)
+    if ipseen[pc] then return end
+    ipseen[pc] = true; ip = ip + 1
+    iplog[#iplog+1] = string.format("f=%d @%s dp00=%02X:%02X%02X", frames, pc,
+      ram(0x02), ram(0x01), ram(0x00))
+  end, emu.callbackType.write, a, a, emu.cpuType.snes, emu.memType.snesMemory)
+end
+
 local function dumpvram(tag)
+  log("IPL WRITERS: " .. table.concat(iplog, " | "))
   local V = emu.memType.snesVideoRam
   local f = assert(io.open(ENV.TRACE .. "saturn/vramcardsat_" .. tag .. ".bin", "wb"))
   local b = {}
@@ -284,6 +300,7 @@ local STEPS = {
     for i = 0, 0xFFFF do b[#b+1] = string.char(emu.read(i, mt)) end
     local f = assert(io.open(ENV.TRACE .. "saturn/aram_" .. TAG .. ".bin", "wb"))
     f:write(table.concat(b)); f:close()
+    log("IPL WRITERS: " .. table.concat(iplog, " | "))
     log("aram dumped")
     return true
   end,
