@@ -343,7 +343,13 @@ BOX_READS = {  # site -> (old operand, new operand)
     0xC764: (0xC23D, 0x81C0), 0xC795: (0xC23D, 0x81C0),
 }
 F0_HIT_T, F0_HURT_T, F0_COLL_T = 0x8100, 0x8160, 0x81C0
-F0_HIT_D, F0_HURT_D, F0_COLL_D = 0x8230, 0x8330, 0x8910
+# Box DATA blocks in bank $F0. COLL sat at 0x8910 until 2026-08-02, which put
+# it 16 bytes ahead of the projectile hitbox blob — so the projectile boxes
+# overwrote collision entries 2-5 and Saturn had NO push box in most poses
+# (field report: she walks straight through the opponent). The layout is now
+# asserted non-overlapping at build time.
+F0_HIT_D, F0_HURT_D, F0_COLL_D = 0x8230, 0x8330, 0x8960
+F0_PROJ_HIT_D = 0x8920        # projectile hitboxes (PROJ_HIT_N bytes)
 # 4th layer: OAM sprite-layout. Renderer $C0:9A0E walks the draw list with DB=$84
 # (lda #$84 @ $C0:9A29): char table $84:8000, 3B/id [ptr16, bank] -> per-pose word ->
 # [count, 6B sprite records]. Saturn's Super S blob: $87:8000-$87:BE5E (15.6 KB,
@@ -1225,9 +1231,21 @@ def main():
     f0[F0_HIT_D:F0_HIT_D + len(hitb)] = hitb
     f0[F0_HURT_D:F0_HURT_D + len(hurtb)] = hurtb
     f0[F0_COLL_D:F0_COLL_D + len(collb)] = collb
-    f0[0x8920:0x8920 + PROJ_HIT_N] = sup[PROJ_HIT_LO:PROJ_HIT_LO + PROJ_HIT_N]
+    # every data block in this bank must be disjoint — see F0_COLL_D's comment
+    _blocks = [("hit", F0_HIT_D, len(hitb)), ("hurt", F0_HURT_D, len(hurtb)),
+               ("coll", F0_COLL_D, len(collb)),
+               ("projhit", F0_PROJ_HIT_D, PROJ_HIT_N),
+               ("projoam", 0xB4A6, PROJ_OAM_HI - PROJ_OAM_LO)]
+    for _i, (_n1, _a1, _s1) in enumerate(_blocks):
+        for _n2, _a2, _s2 in _blocks[_i + 1:]:
+            assert _a1 + _s1 <= _a2 or _a2 + _s2 <= _a1, \
+                f"bank $F0 layout: {_n1} ({_a1:#06x}+{_s1:#x}) overlaps {_n2} ({_a2:#06x}+{_s2:#x})"
+    for _n, _a, _sz in _blocks:
+        assert _a + _sz <= 0x10000, f"bank $F0: {_n} overruns the bank"
+    f0[F0_PROJ_HIT_D:F0_PROJ_HIT_D + PROJ_HIT_N] = sup[PROJ_HIT_LO:PROJ_HIT_LO + PROJ_HIT_N]
     for pid in PROJ_SCRIPT_ENTRIES:
-        f0[F0_HIT_T + 2 * pid:F0_HIT_T + 2 * pid + 2] = bytes((0x20, 0x89))
+        f0[F0_HIT_T + 2 * pid:F0_HIT_T + 2 * pid + 2] = \
+            bytes((F0_PROJ_HIT_D & 0xFF, F0_PROJ_HIT_D >> 8))
     # projectile OAM blob at its original in-bank offset (read via $B0 mirror)
     f0[0xB4A6:0xB4A6 + (PROJ_OAM_HI - PROJ_OAM_LO)] = sup[PROJ_OAM_LO:PROJ_OAM_HI]
     write_bank(data, bankbase, bytes(f0))
