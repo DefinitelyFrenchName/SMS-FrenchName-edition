@@ -143,6 +143,12 @@ $80 FastROM mirror — exec watchpoints need $80:xxxx):
 | $C0:A7CB | charsel_draw_blk3 | story single cursor; positions $AAC5+charID*2 (+8 x-shift) |
 | $C0:A630 | charsel_confirm | per-player per-frame; A/Y/Start (mask $5080, normal pal) or B/X ($8040, alt pal); $78=3; dedup $A693/$A6C4 sets samechar→alt palette |
 | — | position tables | each table's char-0 word is never read (reads 1-indexed) = the PREVIOUS table's free char-10 slot; UI sprites emitted via $9B17 are QUEUED (direct $0200 shadow pokes get E0-cleared later in the frame) |
+| $C0:9E86 | sprlist_load_ptr | portrait/list renderer: `lda $64,X / sta $12 / lda $66,X / sta $14` — the sprite-list long pointer comes from the OBJECT's fields, re-read every frame (Saturn's card hook displaces these 8 bytes) |
+| $C0:9EA6 | sprlist_set_db | `lda $66,X / pha / plb` — re-reads the object field for the emitter's data bank; must follow any substituted pointer (patched to `lda $14`) |
+| $C0:9EB5 | sprlist_emit_call | calls $9B17 (normal) / $9BCB (X-flip) — the report card uses the X-flip path |
+| $C0:9B17 / $C0:9BCB | oam_emit_list / oam_emit_list_flip | 6-byte records `[x, x_flipped, y, unused, tile, attr]`; bytes 4-5 read as `attr<<8\|tile`, bit $0800 = 16x16 size flag (consumed + stripped), then the caller's base (#$3000 = priority 3, palette 0) is added; stops at OAM slot 128 ($C0:9C63) |
+| $9F:CBEC / $9F:C595 | portrait_list_uranus / _moon | per-character card sprite lists (count byte + records); anchored x=$34 y=$78 |
+| $7E:0500 | cgram_shadow | 512-byte CGRAM shadow, DMA'd whole every frame at $80:849F (also $80:8216); OBJ palette 0 (colours 128-143, the card portrait) = $7E:0600 |
 
 ## Uranus crouching LP (2LP) — measured lifecycle (Mesen frame-advance, savestate uranus_vs_moon.mss)
 Buttons: Y=LP, X=LK, B=HP, A=HK. Crouching attacks: 2LP=0x53, 2LK=0x55? (X→0x55 str8),

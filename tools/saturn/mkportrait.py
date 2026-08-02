@@ -229,6 +229,139 @@ def cmd_convert(cap_path, oam_path, tiles_out, pal_out, offset="0,0"):
           f"{used} distinct colours in the capture -> 16 (bg {bg})")
 
 
+# ---- custom composition for Saturn (capture -> list + tiles + palette) -------
+# Measured from mockups/saturn_win.png (a 1:1 Super S report card): her portrait
+# occupies x 8..96, y 40..120 — BIGGER than SMS's vanilla box (x 19..90,
+# y 48..120), which is why squeezing her through Uranus's 31-sprite silhouette
+# clipped the lower-left of her face/hair and the Y of the glaive. We keep the
+# Super S screen coordinates 1:1 (both games' cards share the layout) and build
+# her own list out of 8x8 sprites: 8x8 needs no tile-grid alignment, so only
+# cells that actually contain art cost a sprite AND a tile.
+CARD_RECT = (8, 40, 96, 120)       # x0, y0, x1, y1 in capture coordinates
+ANCHOR_X, ANCHOR_Y = 0x34, 0x78    # the portrait object's +0x28/+0x2A at the card
+# Attr byte semantics (emitter $C0:9BCB): record bytes[4..5] form `attr<<8|tile`;
+# bit $0800 (attr bit 3) is a SIZE flag the emitter consumes (it sets the OAM
+# high-table size bit) and strips before adding the caller's base ($3000 =
+# priority 3, palette 0). Vanilla uses $48 = H-flip + 16x16; ours are 8x8 -> $40.
+LIST_ATTR = 0x40
+MAX_SPRITES = 110                  # OAM cursor stops at 128 ($C0:9C63)
+MAX_TILES = 128                    # P2's portrait starts at tile 128
+
+
+def bg_colors(px, w, h):
+    """The card background is a PATTERN (a lavender heart/lace motif), not a flat
+    colour, so 'transparent' is a colour SET learned from clean strips."""
+    s = set()
+    for y in range(40, min(128, h)):
+        for x in range(150, w):
+            s.add(px[x, y])
+        for x in range(0, 6):
+            s.add(px[x, y])
+    return s
+
+
+def opaque_mask(px, bg, rect, size, pad=12):
+    """Flood-fill the background inward from the border. Doing it by connectivity
+    (rather than 'colour is in the bg set') keeps pixels INSIDE her that happen
+    to share a colour with the pattern — no speckled holes. The fill runs on a
+    PADDED rect: seeded from the tight crop border alone it cannot reach lace
+    motifs that touch the crop edge, and those leaked in as stray blobs."""
+    W_IMG, H_IMG = size
+    rx0, ry0, rx1, ry1 = rect
+    x0, y0 = max(0, rx0 - pad), max(0, ry0 - pad)
+    x1, y1 = min(W_IMG, rx1 + pad), min(H_IMG, ry1 + pad)
+    W, H = x1 - x0, y1 - y0
+    trans = [[False] * W for _ in range(H)]
+    stack = []
+    for x in range(W):
+        for y in (0, H - 1):
+            if px[x0 + x, y0 + y] in bg:
+                stack.append((x, y))
+    for y in range(H):
+        for x in (0, W - 1):
+            if px[x0 + x, y0 + y] in bg:
+                stack.append((x, y))
+    while stack:
+        x, y = stack.pop()
+        if not (0 <= x < W and 0 <= y < H) or trans[y][x]:
+            continue
+        if px[x0 + x, y0 + y] not in bg:
+            continue
+        trans[y][x] = True
+        stack += [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+    return [[not trans[y - y0][x - x0] for x in range(rx0, rx1)]
+            for y in range(ry0, ry1)]
+
+
+def cmd_card(cap_path, list_out, tiles_out, pal_out):
+    from PIL import Image
+    from collections import Counter
+    img = Image.open(cap_path).convert("RGB")
+    px, (w, h) = img.load(), img.size
+    x0, y0, x1, y1 = CARD_RECT
+    bg = bg_colors(px, w, h)
+    mask = opaque_mask(px, bg, CARD_RECT, img.size)
+
+    cells = []                       # (col, row) with at least one opaque pixel
+    for r in range((y1 - y0 + 7) // 8):
+        for c in range((x1 - x0 + 7) // 8):
+            if any(mask[r * 8 + dy][c * 8 + dx]
+                   for dy in range(8) for dx in range(8)
+                   if r * 8 + dy < len(mask) and c * 8 + dx < len(mask[0])):
+                cells.append((c, r))
+    if len(cells) > MAX_SPRITES or len(cells) > MAX_TILES:
+        raise SystemExit(f"composition too big: {len(cells)} cells "
+                         f"(max {min(MAX_SPRITES, MAX_TILES)})")
+
+    # palette: index 0 is transparent, 15 colours for the art
+    counts = Counter()
+    for r in range(len(mask)):
+        for c in range(len(mask[0])):
+            if mask[r][c]:
+                counts[px[x0 + c, y0 + r]] += 1
+    art = [c for c, _ in counts.most_common()]
+    palette = [(0, 0, 0)] + art[:15]
+    while len(palette) < 16:
+        palette.append((0, 0, 0))
+    dropped = len(art) - 15
+    if dropped > 0:
+        print(f"note: {dropped} colour(s) quantised away ({len(art)} distinct)")
+
+    def nearest(col):
+        best, bi = None, 1
+        for i in range(1, 16):
+            d = sum((a - b) ** 2 for a, b in zip(col, palette[i]))
+            if best is None or d < best:
+                best, bi = d, i
+        return bi
+
+    tiles = bytearray(32 * len(cells))
+    recs = bytearray([len(cells)])
+    for tile, (c, r) in enumerate(cells):
+        # The sprites are drawn X-FLIPPED (attr bit $40), so store each tile
+        # mirrored: tile column 7-dx lands at screen offset dx.
+        grid = [[0] * 8 for _ in range(8)]
+        for dy in range(8):
+            for dx in range(8):
+                yy, xx = r * 8 + dy, c * 8 + dx
+                if yy < len(mask) and xx < len(mask[0]) and mask[yy][xx]:
+                    grid[dy][7 - dx] = nearest(px[x0 + xx, y0 + yy])
+        tiles[tile * 32:tile * 32 + 32] = pack_tile(grid)
+        sx, sy = x0 + c * 8, y0 + r * 8
+        xf, yo = (sx - ANCHOR_X) & 0xFF, (sy - ANCHOR_Y) & 0xFF
+        recs += bytes((xf, xf, yo, 0x00, tile, LIST_ATTR))
+
+    Path(list_out).write_bytes(bytes(recs))
+    Path(tiles_out).write_bytes(bytes(tiles))
+    pb = bytearray()
+    for col in palette:
+        wv = rgb_to_snes(col)
+        pb += bytes((wv & 0xFF, wv >> 8))
+    Path(pal_out).write_bytes(bytes(pb))
+    print(f"{len(cells)} sprites/tiles (of {((x1-x0)//8)*((y1-y0)//8)} cells), "
+          f"{len(recs)} B list, {len(tiles)} B tiles")
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         raise SystemExit(__doc__)
@@ -236,5 +369,7 @@ if __name__ == "__main__":
         cmd_render(*sys.argv[2:6])
     elif sys.argv[1] == "--convert":
         cmd_convert(*sys.argv[2:7])
+    elif sys.argv[1] == "--card":
+        cmd_card(*sys.argv[2:6])
     else:
         raise SystemExit(__doc__)

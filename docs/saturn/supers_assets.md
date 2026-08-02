@@ -178,35 +178,130 @@ dark-pixel cue drags the frame onto her hair).
 **Status: her portrait renders correctly on SMS's card** (`SATURN_PORTRAIT=1`;
 see `mockups/saturn_card_ingame.png`). Composition, pose and glaive are right.
 
-**Remaining #1: the composition is PER-CHARACTER, not universal.** Measured by
-dumping OAM on two different winners: Uranus's portrait uses **31 sprites**
-spanning x 19-90 / y 48-120, Moon's uses **18** spanning x 20-86 / y 56-120 —
-different counts, positions and tile numbers. Each character's portrait ships
-with a sprite layout shaped to that character's silhouette. Feeding Saturn's
-art through Uranus's layout (what v0.12.0 does) therefore CLIPS everything
-outside his outline — the maintainer saw exactly this: her lower-left hair/face
-and the glaive's Y-piece missing, because her portrait fills nearly a full
-square while his silhouette does not. **The layout source is a per-character SPRITE LIST fed to the standard OAM
-emitter** — the same `$80:9B17`/`$9BCB` family the in-match renderer uses.
-Measured live at the card (`probe_cardsaturn.lua`, gated on the card state):
-Uranus draws from a list at `$9F:CBED` with count `$1F` (31), Moon from
-`$9F:C595` count `$12` (18), both anchored at x=`$34`, y=`$78` via the X-flip
-emitter. Those pointers are **computed, not stored** (neither value appears as
-a literal anywhere in the ROM), so the selector still has to be traced — watch
-`$12/$13/$14` during the card's DRAW phase (the loader reuses `$12`, so the
-watch must be gated past it) or disassemble the card's draw loop.
+### The sprite-list selector — SOLVED [P 08-02, v0.12.1]
 
-Per-character layout census (sprite count, bounding box):
+**The composition is PER-CHARACTER, not universal.** Layout census (sprite
+count, bounding box), measured by dumping OAM at the card for several winners:
 `Moon 18 / 66x64`, `Mercury 26 / 63x64`, `Mars 16 / 64x64`,
-`Uranus 31 / 71x72`. Uranus — already our shell — is the **largest**, so
-presenting her as a different character cannot fix the clipping: she needs a
-custom list. Sketch: ~81 8x8 sprites in a 9x9 grid (72x72 px) using tiles
-`$00-$50`, which stays inside the P1 tile budget (P2's portrait starts at tile
-128) and inside the 32-sprites-per-scanline limit at 9 per line.
+`Uranus 31 / 71x72`. Each character's portrait ships with a sprite layout
+shaped to that character's silhouette, so feeding Saturn's art through the
+shell's layout CLIPS everything outside his outline — exactly what the
+maintainer saw (lower-left hair/face and the glaive's Y-piece missing). Uranus
+is already the LARGEST of the four, so re-shelling cannot fix it: she needs her
+own list.
 
-**Remaining #2: the palette.** The card's portrait colours are CGRAM row 8, and
-neither a direct CGRAM DMA nor seeding the `$7E:0600` OBJ-palette shadow
-sticks (2/32 bytes survive) — the card re-uploads row 8 from somewhere else.
-Next step is one probe: watch `$2121/$2122` writes during the card build, find
-the writer and its source, and inject there. Until then the feature stays
-gated off (the art shows with the shell character's colours).
+**Where the list comes from.** It is not a stored literal (which is why
+grepping for `CBEC`/`C595` found nothing) — the renderer reads it out of the
+portrait OBJECT's own fields, every frame:
+
+```
+$C0:9E86   lda $64,X / sta $12 / lda $66,X / sta $14     ; list pointer -> $12/$14
+$C0:9E8E   lda [$12] / sta $00 / inc $12                 ; count byte
+           ... anchor x -> $01, y -> $03, tile/attr base #$3000 -> $06
+$C0:9EA6   lda $66,X / pha / plb                         ; list bank -> DB
+$C0:9EAE   jsr $9B17 (normal) or $9BCB (X-flip)          ; the card uses X-flip
+```
+
+At the card, the object is the P1 struct slot itself: `$1000 +0x00 = $16`
+(the portrait code, not the char id), `+0x64/65 = $CBEC`, `+0x66 = $9F`.
+
+**Record format** (6 bytes each, after a 1-byte count), decoded from the
+emitter at `$C0:9BCB`:
+
+| byte | meaning |
+|---|---|
+| 0 | x offset, signed — used by the NORMAL emitter (`$9B17`) |
+| 1 | x offset, signed — used by the X-FLIP emitter (`$9BCB`), the card's |
+| 2 | y offset, signed |
+| 3 | unused (padding — the emitter never reads it) |
+| 4 | tile number |
+| 5 | attribute |
+
+Screen position = anchor + offset, with the card's anchor at x=`$34`, y=`$78`.
+Bytes 4-5 are read as ONE word (`attr<<8 | tile`); bit `$0800` (attr bit 3) is
+a **size flag** that the emitter consumes — it sets the OAM high-table size bit
+and is stripped (`and #$F7FF`) before the caller's base (`#$3000` = priority 3,
+palette 0) is added. So vanilla's `$48` = X-flip + 16x16, and 8x8 sprites want
+`$40`. Offsets that put a sprite off-screen are skipped, and the emitter stops
+at OAM slot 128 (`cpx #$0200` at `$C0:9C63`).
+
+**Her list** (`tools/saturn/mkportrait.py --card`): her portrait occupies
+x 8-96 / y 40-120 in the capture — bigger than the vanilla box (x 19-90 /
+y 48-120), which is precisely the clipping. We keep the Super S screen
+coordinates 1:1 (both games' cards share the layout) and rebuild the
+composition out of **8x8 sprites**, which need no tile-grid alignment, so only
+cells that actually contain art cost a sprite AND a tile: **67 sprites / 67
+tiles** out of 110 candidate cells. That fits both budgets (OAM stops at 128;
+P2's portrait starts at tile 128) and peaks at 11 sprites per scanline, well
+under 32. The background is masked by flood-filling the card's PATTERNED
+lavender backdrop inward from a padded border — by connectivity, not by colour
+match, so pixels inside her that share a colour with the pattern survive.
+
+**The hook** (`SATURN_PORTRAIT=1`): `$C0:9E86`'s 8 bytes become `jsl $EE:CA00`
++ 4 NOPs. The stub replays the displaced loads, then substitutes our own list
+when *all* of: the pointer being loaded is `$9F:CBEC` (that identifies the
+report card unambiguously — nothing in-match can trip it), `X` is a player slot
+(`$1000`/`$1080`), and that slot's Saturn flag (`$7F:F100`/`F101`) is `$A5`.
+`$C0:9EA6`'s `lda $66,X` becomes `lda $14` (same 2 bytes) so the data bank
+follows the substituted pointer instead of re-reading the object field.
+
+> **WRAM-mirror trap (cost a full debug cycle).** `$14` becomes the emitter's
+> DATA BANK, and the emitter writes the OAM shadow with plain absolute stores
+> (`sta $0200,X`). Bank `$EE` is `$C0-$FF` = pure ROM with no WRAM mirror, so
+> every one of those stores went to ROM and the portrait vanished COMPLETELY —
+> the list was being read correctly the whole time. The fix is to hand the
+> emitter the `$80-$BF` alias of the same ROM (`$AE:8000-$FFFF` == `$EE:8000-$FFFF`).
+> Vanilla gets this for free by living in `$9F`. Any future data handed to a
+> vanilla routine that stores through DB must use the alias.
+
+### The palette — SOLVED [P 08-02, v0.12.1]
+
+The card's portrait colours are **CGRAM row 8** (colours 128-143 = OBJ palette
+0), and the card is the only thing on screen using OBJ palette 0 — verified by
+dumping OAM at the card: the 67 visible sprites are all ours, nothing else to
+recolour.
+
+CGRAM is never written colour-by-colour during the card: the engine DMAs the
+**whole 512-byte shadow at `$7E:0500`** into CGRAM every frame (`$80:849F`,
+also `$80:8216`), so the shadow is the only lever. Row 8 lives at `$7E:0600`.
+
+The trap: **a one-shot copy does not stick.** Seeding `$7E:0600` from the
+card-load wrapper leaves only a couple of bytes alive by the time the card is
+on screen, and a write-callback watch on `$7E:0600-060F` catches **no** foreign
+writer — because the engine's own refill is itself a transfer, invisible to
+write callbacks. Rather than hunt it, we re-seed from the sprite-list stub,
+which the renderer calls **once per drawn frame** while the portrait is up and
+which already knows it is Saturn's card; it runs before vblank, so it always
+wins the race. Confirmed: CGRAM `$100-$11F` at the card equals our palette
+byte-for-byte, and it is the ONLY part of CGRAM that differs from the same
+build with the palette hook removed (30 of 512 bytes).
+
+Art palette: 16 distinct colours in her portrait, one quantised away
+(15 + transparent), so the card is effectively colour-exact.
+
+**Status: DONE.** `SATURN_PORTRAIT` is ON by default from v0.12.1; the whole
+chain (tiles, layout, palette) is per-player flag-gated, so a card won by any
+other character is byte-identical to vanilla.
+
+#### Regenerating the art
+
+```
+python3 tools/saturn/mkportrait.py --card mockups/saturn_win.png \
+    build/saturn/portrait_list.bin build/saturn/portrait_saturn.bin \
+    build/saturn/portrait_saturn.pal
+```
+Input is a 1:1 (256x224, no scaling/filtering) capture of Super S's report
+card. `--render` redraws a composition from VRAM+OAM+CGRAM dumps and is what
+validated the model in the first place (it reproduces SMS's Uranus portrait
+exactly). Both games place the card at the same screen coordinates, so the
+capture is sampled with no offset.
+
+#### Known limits
+
+- Only the **P1** portrait slot is styled; if a future screen ever shows two
+  card portraits at once, the per-frame palette re-seed would impose Saturn's
+  row 8 on both.
+- The hook at `$C0:9E86` is on the generic sprite-list renderer, so the added
+  compare chain runs for every listed object in-match. It exits on the first
+  compare (list bank != `$9F`) — order of 1% of a frame.
+

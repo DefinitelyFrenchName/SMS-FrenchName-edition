@@ -66,11 +66,13 @@ local lw, lwlog = 0, {}
 local pw, pwlog = 0, {}
 for _, r in ipairs({{0x7E0600, 0x7E060F}, {0x000600, 0x00060F}}) do
   emu.addMemoryCallback(function(addr, value)
-    if not cardnow or pw > 8 then return end
-    pw = pw + 1
+    if not cardnow or pw > 24 then return end
     local ok, st = pcall(emu.getState)
+    local k = st and (st["cpu.k"] or 0) or 0
+    if k == 0xEE then return end          -- ignore our own palette copier
+    pw = pw + 1
     pwlog[#pwlog+1] = string.format("%04X<=%02X @%02X:%04X", addr % 0x10000, value or 0,
-      st and (st["cpu.k"] or 0) or 0, st and (st["cpu.pc"] or 0) or 0)
+      k, st and (st["cpu.pc"] or 0) or 0)
   end, emu.callbackType.write, r[1], r[2], emu.cpuType.snes, emu.memType.snesMemory)
 end
 -- (a) who CALLS the sprite emitter: read the return address off the stack
@@ -97,7 +99,7 @@ for _, b in ipairs({0x00420B, 0x80420B}) do
       if ((value >> ch) & 1) == 1 then
         local c = 0x4300 + ch * 0x10
         local bbus = emu.read(0x800000 + c + 1, emu.memType.snesMemory)
-        if bbus == 0x22 then
+        if bbus == 0x22 and (not cardnow or cgn < 14) then
           cgn = cgn + 1
           local ok, st = pcall(emu.getState)
           cgdma[#cgdma+1] = string.format("CGDMA <- %02X:%02X%02X len %02X%02X cgadd=? @%02X:%04X %s",
@@ -221,6 +223,10 @@ local function dumpvram(tag)
   for i = 0, 511 do cg[#cg+1] = string.char(emu.read(i, emu.memType.snesCgRam)) end
   local cf = assert(io.open(ENV.TRACE .. "saturn/cgcard_" .. tag .. ".bin", "wb"))
   cf:write(table.concat(cg)); cf:close()
+  local sh = {}
+  for i = 0x0500, 0x06FF do sh[#sh+1] = string.char(ram(i)) end
+  local sf2 = assert(io.open(ENV.TRACE .. "saturn/cgshadow_" .. tag .. ".bin", "wb"))
+  sf2:write(table.concat(sh)); sf2:close()
   local parts = {}
   for r = 0x2105, 0x210C do parts[#parts+1] = string.format("%04X=%02X", r, ppu[r] or 0xFF) end
   log("PPU " .. table.concat(parts, " "))
