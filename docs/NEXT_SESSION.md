@@ -65,7 +65,8 @@ and their ROMs are in `build/saturn/stagecandidate_*.sfc`.
 1. **Menu translation — standalone patch 16, not a Saturn feature.** Groundwork
    in `docs/menu_text.md`, including the screen's compressed tilemap at
    `$C3:7C00` (the movelist codec, `sms_lz.py` round-trips it) and the font's
-   reduced Latin alphabet. Blocked on the same font question as the kanji above.
+   reduced Latin alphabet. **No longer blocked** — the font path above is the
+   missing piece it needed.
 2. **Show Saturn BEFORE round start** instead of swapping the shell at the round
    load — "distracting and downright penalizing" for her player. Entrance
    animation is nice-to-have. Hazard: arming the transform earlier is what the
@@ -92,7 +93,7 @@ and their ROMs are in `build/saturn/stagecandidate_*.sfc`.
 ```bash
 tools/build_ref_v2.sh                                   # REF v.2 = v.1 + patch 15
 SATURN_HIDDEN=1 bash tools/saturn/build_refsaturn.sh    # Saturn on REF v.2
-bash tools/saturn/build_saturn_stage.sh --ref           # + the stage port  <- v0.13.9
+bash tools/saturn/build_saturn_stage.sh --ref           # + the stage port  <- v0.14.0
 SUPERS_SCENE=9 STAGE_NAME=… python3 tools/saturn/mkstage_port.py "$CLEAN" out.sfc
 ROM=<rom> tools/run.sh tools/test_regression.lua 900    # the gate before shipping
 ```
