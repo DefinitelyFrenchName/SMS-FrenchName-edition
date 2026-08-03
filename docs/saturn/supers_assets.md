@@ -491,6 +491,55 @@ same ROM is byte-identical before and after, so no other stage moved; regression
 camera clamps at −12 px however high the fighter goes, so the 1:1 ground can
 never scroll far enough to expose the tilemap's wrap.
 
+### Round 2 — the PALACE rate (field, 2026-08-03)
+
+The slide was confirmed gone, with one thing left: the palace. Two captures at
+the same jump apex, Super S vs ours, showed Super S's palace shifted a fraction
+of the way while ours moved with the ground — "the crescent on the central dome
+becomes visible but not entirely, and an extra light gray band appears above the
+ground".
+
+Measured both, per band, between rest and apex (`shift` correlation on the
+probe's own screenshots):
+
+| band | Super S | v0.13.3 | v0.13.4 |
+|---|---|---|---|
+| palace / dome | **+4** | +11 | **+3** |
+| ground / plaza | ~0 | +12 (register-exact) | +12 |
+
+**How Super S does it: per SCANLINE, not per plane.** `probe_supers_stagejump.lua`
+(same measurement, Super S's own VS flow, scene forced at `$80:8530`) shows the
+whole stage on ONE plane, and at the apex `HDMAEN` gains **channel 5 feeding
+`$210E` (BG1VOFS) from a table at `$00:0A50`** — a per-scanline vertical scroll
+that gives the palace band and the ground band different offsets on the same
+tilemap. At rest that channel is absent. SMS has no such machinery on its own
+stages (a vanilla stage shows `HDMAEN=06`, two dummy channels), so the port
+cannot inherit it.
+
+**What we do instead: split by PLANE.** The data allows it because Super S marks
+the ground — and only the ground — with the per-tile priority bit, in a clean
+band of whole rows (map rows 21-25, full width). So `PLANE_SPLIT` in
+`mkstage_port.py` cuts the source into:
+
+* **BG1 = the ground alone**, at camera **1:1** — the fighters stay planted,
+  which is what the maintainer asked for and is better than *either* original
+  (Super S's own ground does not move at all).
+* **BG2 = sky + palace**, at camera **/4** — Super S's rate for that band.
+
+Horizontal is camera/4 on both planes, so the two can never drift sideways
+against each other. This supersedes `MERGE_GROUND` + `SWAP_MAPS`.
+
+**The trap it cost:** the palace is in the SECOND source map, not the first, and
+the first (sky) has no blank cells — so a "fill the gaps" merge silently threw
+the entire palace away and the stage rendered as bare sky with one dome at the
+edge. The second map now wins wherever it has a tile. Ordering matters more than
+it looks: nothing errored, the build was byte-consistent, and only a screenshot
+caught it.
+
+Verified: palace +3 vs Super S's +4, ground 1:1 by register, composition correct
+at rest on two builds, regression **57/57** on
+`SailorMoonS_REFsaturn_v0.13.4-hidden-stage.sfc`.
+
 ### Still open, deliberately: the HORIZONTAL rate
 
 Walking is the same question on the other axis, and it was measured too: over a

@@ -52,6 +52,8 @@ Versions before 0.6.0 are retroactive labels for the historical lineage
 
 | **0.13.3** | REFsaturn+stage: `746183bd…` | (this) | **THE PORTED STAGE'S JUMP SLIDE FIXED (#43).** Root cause measured, not guessed: objects are placed at the FULL camera (dummy's top sprite Y tracks camY 1:1 with her idle pose held constant), while the scroll routine the port borrowed from stage 0 (`$C0:B40A`) gives the ground plane only camera/4 — so a 12 px jump drops the fighters and their shadows 12 px and the ground 3, and undoes it on landing. Vanilla stage 0 does exactly the same (its trace, OAM and WRAM are byte-identical across the jump); it is invisible there because that stage's ground is flat grass with no feature at the fighters' feet, whereas the ported stage has a hard perspective floor line right there. Fix: stage 2's own vortex routine at `$C0:B454` — the only routine that stage selects — is rewritten in place (35 B, ahead of its HDMA table at `$B4C1`) with B40A's horizontal treatment and stage 2's original **1:1 vertical**; the pointer at `$C0:B32F` is no longer repointed. Verified: BG1 vscroll follows camY 1:1, background pixel shift +3 → **+11** = the sprites' +11, scene `$00` byte-identical on the same ROM, regression **57/57**. The horizontal rate is the same question and was measured too (ground moves camera/4 while walking) — left alone deliberately: also vanilla, not in the field report, one `lsr` pair from 1:1 if wanted. Detail: `supers_assets.md` §#43. |
 
+| **0.13.4** | REFsaturn+stage: `0c3403af…` | (this) | **PALACE PARALLAX (#43, field round 2).** The slide fix held; what remained was the palace moving with the ground instead of a fraction as far. Measured Super S itself (`probe_supers_stagejump.lua`): its palace band shifts **+4 px** at a jump apex while its ground stays put — done on ONE plane, per SCANLINE, by enabling an HDMA channel onto `$210E` (BG1VOFS) for the duration of the jump. SMS has no such machinery (a vanilla stage runs no scroll HDMA at all), so the port splits by PLANE instead: Super S marks the ground — and only the ground — with the priority bit, in a clean band of whole rows, so `PLANE_SPLIT` puts **the ground alone on BG1 at camera 1:1** (fighters stay planted, better than either original) and **sky + palace on BG2 at camera/4** (Super S's rate). Horizontal is camera/4 on both, so they cannot drift sideways. Supersedes MERGE_GROUND + SWAP_MAPS. Result: palace **+3** vs Super S's +4, ground 1:1 by register. One trap paid: the palace is in the SECOND source map and the first (sky) has no blank cells, so a fill-the-gaps merge threw the whole palace away and rendered bare sky — nothing errored, only a screenshot caught it. Regression **57/57**. |
+
 ## Field verification, v0.13.2 [P 08-03]
 
 - **Movelist: clean.** Her own list renders correctly in normal play — the
@@ -59,6 +61,11 @@ Versions before 0.6.0 are retroactive labels for the historical lineage
   screen and not just in the harness. #41 closed.
 - **Character-select voice: no regression.** v0.13.1's bank-id swap behaves in
   normal play, with no effect on the other characters' confirm lines.
+- **The ported stage's jump slide (v0.13.3) is gone**, confirmed on the pad —
+  leaving only the palace's parallax rate, fixed in v0.13.4.
+- **Not every Super S stage is worth porting**: the maintainer's call is that
+  several look poor in SMS and only a few are worth adding. The port pipeline is
+  per-stage (`SUPERS_SCENE`), so this is a selection question, not a code one.
 
 ## Field verification, v0.12.6 [P 08-02]
 

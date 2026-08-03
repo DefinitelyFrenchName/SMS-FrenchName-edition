@@ -11,7 +11,7 @@ history.)
 The base patch project is done and green. Current work is **SMS + Saturn**:
 Saturn is playable in SMS, selected by holding **L+R** on any character slot,
 and has been field-tested repeatedly by the maintainer. Current build is
-**v0.13.3** (hashes in BUILDS.md), on **REF v.2** (= REF v.1 + patch 15, AUTO
+**v0.13.4** (hashes in BUILDS.md), on **REF v.2** (= REF v.1 + patch 15, AUTO
 removal; v.1 is deliberately left byte-identical since it is a published
 artifact). **Every bug on the list is now closed**: her voice (#44), her
 character-select line, her movelist (#41 — field-confirmed clean this session)
@@ -39,10 +39,22 @@ the sprites'; scene `$00` byte-identical on the same ROM; regression 57/57. Full
 detail, including the scroll-block map and the five probe traps it cost:
 `docs/saturn/supers_assets.md` §#43.
 
-**Deliberately left open:** the horizontal rate has the same shape (the ground
-moves at camera/4 while walking, so fighters slide over it horizontally too).
-Also vanilla, not in the field report, and one `lsr` pair from 1:1 — the
-maintainer's call, measurement is in §#43.
+**Round 2 (v0.13.4) — the palace parallax, also done.** Field: the slide was
+gone, but the palace moved with the ground instead of a fraction as far. Super S
+gives its palace band +4 px at the apex while its ground stays put, and does it
+on ONE plane, per SCANLINE (an HDMA channel onto `$210E` enabled for the
+duration of the jump — `probe_supers_stagejump.lua`). SMS has no such machinery,
+so the port splits by PLANE: ground alone on BG1 at camera 1:1 (fighters stay
+planted — better than either original), sky + palace on BG2 at camera/4. Palace
+measures +3 against Super S's +4; regression 57/57.
+
+**Deliberately left open:** the horizontal rate (both planes at camera/4, so
+fighters slide over the ground horizontally when walking). Vanilla does the
+same, it is not in any field report, and it is one `lsr` pair from 1:1.
+
+**Stage selection is the open question, not stage code.** The maintainer's call:
+several Super S stages look poor in SMS and only a few are worth adding. Porting
+another is one constant (`SUPERS_SCENE` in `mkstage_port.py`) plus a look.
 
 ## Extended scope (maintainer, 2026-08-03) — the actual next work
 

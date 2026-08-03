@@ -27,7 +27,7 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 
 **Saturn is playable in SMS**, summoned by holding **L+R** on any character
 slot at select (she wears that character as a "shell"). Field-tested repeatedly
-by the maintainer. Current build is **v0.13.3** (Saturn + the stage port), on
+by the maintainer. Current build is **v0.13.4** (Saturn + the stage port), on
 **REF v.2**. **Every tracked bug is closed**; what remains is the extended scope
 in `docs/saturn/PROJECT.md` § Extended scope (menu translation; showing Saturn
 before round start instead of at the round load).
@@ -63,7 +63,7 @@ hook on the two table reads at `$C0:8B59` / `$C0:8B81`. Detail and font tables:
 check it on a BRIGHT stage, since the one bug it hid was body text missing the
 priority bit and rendering behind the background.
 
-**#43 (the ported stage's vertical slide) is FIXED in v0.13.3.** Measured on the
+**#43 (the ported stage) is FIXED — slide in v0.13.3, palace parallax in v0.13.4.** Measured on the
 right scene this time (`STAGE=2` forces `$7E:008E`): objects are placed at the
 FULL camera while the scroll routine the port borrowed from stage 0 gives the
 ground plane only **camera/4** — a 12 px jump drops the fighters and their
@@ -73,9 +73,12 @@ because its ground is flat grass, while the ported stage has a hard floor line a
 the fighters' feet. Fix: stage 2's own routine at `$C0:B454` (the only routine
 that stage selects) rewritten in place with a 1:1 vertical. Background shift
 +3 → +11 = the sprites' +11; scene `$00` byte-identical on the same ROM;
-regression 57/57. The HORIZONTAL rate has the same shape and is deliberately left
-alone (also vanilla, not reported, one `lsr` pair from 1:1).
-`docs/saturn/supers_assets.md` §#43.
+regression 57/57. **Round 2 (v0.13.4): the palace.** Super S gives its palace
+band +4 px at the apex while its ground stays put, and does it on ONE plane per
+SCANLINE (an HDMA channel onto `$210E` for the duration of the jump — measured
+with `probe_supers_stagejump.lua`); SMS has no such machinery, so the port
+splits by PLANE instead — ground alone on BG1 at 1:1, sky+palace on BG2 at
+camera/4. Palace now +3. `docs/saturn/supers_assets.md` §#43.
 
 **Field-confirmed 2026-08-03:** her **movelist renders clean** in normal play
 (#41 closed) and the **character-select voice shows no regression**.

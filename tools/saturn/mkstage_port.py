@@ -90,6 +90,22 @@ SUPERS_SCENE = 1              # moonlit terrace / Elysion skyline
 MERGE_GROUND = True
 STRIP_PRIORITY = True
 
+# PLANE SPLIT (2026-08-03, field round 2 on #43). Measured on Super S itself
+# (probe_supers_stagejump.lua): at a jump apex its palace band moves +4 px while
+# its ground stays put — and it does that on ONE plane, per SCANLINE, by
+# enabling an HDMA channel onto $210E (BG1VOFS) for the duration of the jump.
+# We have no such machinery, and MERGE_GROUND puts the palace and the ground on
+# the SAME plane, so once the ground was made to track the camera 1:1 the palace
+# was dragged along with it (+11 measured, against Super S's +4).
+#
+# So split by plane instead of by scanline, which the data allows because Super S
+# marks the ground with the priority bit and nothing else: ground alone on BG1
+# (1:1, fighters stay planted — the maintainer's preference, and better than
+# either original), sky + palace on BG2 at camera/4 (Super S's own rate).
+# BG1 draws in front of BG2 in mode 1, which is the occlusion order the re-cut
+# was invented to get.
+PLANE_SPLIT = True            # supersedes MERGE_GROUND + SWAP_MAPS
+
 # Per-stage SCROLL ROUTINE. $C0:B317 is a 10-byte table (one per stage) of word
 # offsets into a routine pointer table at $C0:B32B:
 #   +$00 $C0:B40A  BG1 = camera, BG2 = camera/4   (stage 0)
@@ -154,14 +170,15 @@ SCROLL_CODE_NEW = bytes.fromhex(
     "ad000a"        # lda $0A00      camera x
     "8d240a"        # sta $0A24
     "4a4a"          # lsr a : lsr a
-    "8d180a"        # sta $0A18      BG1 h = camera/4   (as B40A: unchanged)
-    "8d200a"        # sta $0A20
-    "9c1c0a"        # stz $0A1C      BG2 h = 0
+    "8d180a"        # sta $0A18      BG1 h = camera/4
+    "8d1c0a"        # sta $0A1C      BG2 h = camera/4  (same as BG1: the two
+    "8d200a"        # sta $0A20       planes must not drift horizontally)
     "ad020a"        # lda $0A02      camera y
-    "8d1a0a"        # sta $0A1A      BG1 v = camera 1:1  <-- the fix
-    "8d220a"        # sta $0A22
     "8d260a"        # sta $0A26
-    "9c1e0a"        # stz $0A1E      BG2 v = 0
+    "8d1a0a"        # sta $0A1A      BG1 v = camera 1:1   — the ground tracks
+    "4a4a"          # lsr a : lsr a    the fighters (they stay planted)
+    "8d1e0a"        # sta $0A1E      BG2 v = camera/4     — the palace parallax,
+    "8d220a"        # sta $0A22        Super S's own rate (+4 px at the apex)
     "60")           # rts
 
 STUB = 0x8000                 # in our appended bank
@@ -226,8 +243,34 @@ def build(src_path, out_path):
         blobs.append((raw, vram))
         print(f"  supers job {j:2d}: {len(raw):#07x} bytes -> VRAM {vram:04X}")
 
-    # --- re-cut the two planes (see MERGE_GROUND) ---
-    if MERGE_GROUND:
+    # --- re-cut the two planes (see PLANE_SPLIT / MERGE_GROUND) ---
+    if PLANE_SPLIT:
+        idx = {v: i for i, (_r, v) in enumerate(blobs)}
+        if 0x0000 in idx and 0x0800 in idx:
+            src = bytearray(blobs[idx[0x0000]][0])      # sky + palace + ground
+            other = bytearray(blobs[idx[0x0800]][0])    # a small foreground block
+            front = bytearray(len(src))                 # ground only
+            back = bytearray(src)                       # sky + palace
+            moved = 0
+            for k in range(0, len(src), 2):
+                if src[k + 1] & 0x20:                   # priority = in front of the palace
+                    front[k:k + 2] = src[k:k + 2]
+                    back[k:k + 2] = b"\x00\x00"
+                    moved += 1
+            # The PALACE is in the second map, not the first — and the first map
+            # (sky) has no blank cells, so a "fill the gaps" merge silently threw
+            # the whole palace away and the stage rendered as bare sky. The
+            # second map wins wherever it has a tile: it is the nearer art.
+            kept = 0
+            for k in range(0, len(other), 2):
+                if (other[k] | other[k + 1] << 8) & 0x3FF:
+                    back[k:k + 2] = other[k:k + 2]
+                    kept += 1
+            blobs[idx[0x0000]] = (bytes(front), 0x0000)
+            blobs[idx[0x0800]] = (bytes(back), 0x0800)
+            print(f"    (plane split: {moved} ground cells to BG1, sky+palace to BG2, "
+                  f"{kept} cells kept from the second map)")
+    elif MERGE_GROUND:
         idx = {v: i for i, (_r, v) in enumerate(blobs)}
         if 0x0000 in idx and 0x0800 in idx:
             near = bytearray(blobs[idx[0x0000]][0])     # sky + ground
@@ -320,7 +363,7 @@ def build(src_path, out_path):
     if len(recs) != 3:
         raise SystemExit(f"SMS scene {SMS_STAGE} is not a 3-asset stage: {recs}")
     order = list(range(len(recs)))
-    if SWAP_MAPS:
+    if SWAP_MAPS and not PLANE_SPLIT:
         maps = [i for i, (_r, v) in enumerate(blobs) if v in (0x0000, 0x0800)]
         if len(maps) == 2:
             order[maps[0]], order[maps[1]] = order[maps[1]], order[maps[0]]

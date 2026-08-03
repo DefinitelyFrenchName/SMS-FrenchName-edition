@@ -161,6 +161,24 @@ local STEPS = {
       -- P2 stands still all run, so her sprites are the rigid marker for what
       -- the camera does to OBJECTS — but only between frames in the SAME idle
       -- pose, hence act/step/tick/frame here and a per-frame OAM dump below.
+      -- HDMA: Super S splits this stage per SCANLINE, not per plane — during a
+      -- jump it enables a channel feeding $210E (BG1VOFS) from a table, so the
+      -- palace band and the ground band scroll by different amounts on ONE
+      -- plane. Log the same thing here to see whether SMS does it at all.
+      local en = emu.read(0x80420C, emu.memType.snesMemory) or 0
+      local hd = {}
+      for ch = 0, 7 do
+        if (en >> ch) & 1 == 1 then
+          hd[#hd + 1] = string.format("ch%d->21%02X tbl=%02X:%02X%02X", ch,
+            emu.read(0x804301 + ch * 16, emu.memType.snesMemory) or 0,
+            emu.read(0x804304 + ch * 16, emu.memType.snesMemory) or 0,
+            emu.read(0x804303 + ch * 16, emu.memType.snesMemory) or 0,
+            emu.read(0x804302 + ch * 16, emu.memType.snesMemory) or 0)
+        end
+      end
+      if sf == 118 or sf == 145 then
+        log(string.format("  HDMAEN=%02X %s", en, table.concat(hd, " ")))
+      end
       log(string.format("  %4d %02X  | %s | %4d,%-4d %4d,%-4d %4d,%-4d %4d,%-4d | pad %04X held %02X%02X | cam %s | p2 %02X %02X %02X %02X y=%02X",
         sf, ram(0x1001), table.concat(st, " "),
         sc[0].h, sc[0].v, sc[1].h, sc[1].v, sc[2].h, sc[2].v, sc[3].h, sc[3].v,
@@ -185,6 +203,14 @@ local STEPS = {
       for a = 0, n - 1 do buf[#buf + 1] = string.char(emu.read(a, emu.memType.snesWorkRam)) end
       local f = io.open(ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_wram" .. sf .. ".bin", "wb")
       f:write(table.concat(buf)); f:close()
+      -- and all of VRAM, so each PLANE can be rendered separately offline: which
+      -- tilemap holds the palace and which the ground is not readable off the
+      -- builder's source labels (they describe Super S's layers, before the
+      -- re-cut and the swap), and it decides which plane needs which rate
+      local vb = {}
+      for a = 0, 0xFFFF do vb[#vb + 1] = string.char(emu.read(a, emu.memType.snesVideoRam) or 0) end
+      local vf = io.open(ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_vram" .. sf .. ".bin", "wb")
+      vf:write(table.concat(vb)); vf:close()
       local ok, ob = pcall(function()
         local t = {}
         for a = 0, 0x21F do t[#t + 1] = string.char(emu.read(a, emu.memType.snesSpriteRam) or 0) end
