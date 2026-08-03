@@ -89,6 +89,16 @@ end
 -- Who WRITES the menu text? The strings are not in ROM in any obvious encoding
 -- (searched the config screen's own glyph codes as words, low bytes, tile>>1,
 -- tile-0x100), so find the code that puts them in VRAM and work back from it.
+-- Track the VRAM ADDRESS register too: $2116/$2117 are write-only, so the only
+-- way to know where a DMA lands is to shadow the writes that set it.
+local vaddr = 0
+for _, a in ipairs({ 0x802116, 0x802117 }) do
+  emu.addMemoryCallback(function(addr, value)
+    if (addr % 0x10000) == 0x2116 then vaddr = (vaddr & 0xFF00) | (value or 0)
+    else vaddr = (vaddr & 0x00FF) | ((value or 0) << 8) end
+  end, emu.callbackType.write, a, a, emu.cpuType.snes, emu.memType.snesMemory)
+end
+
 -- ...and it is not CPU writes to $2118 either (none fire), so the screen is
 -- DMA'd in. Log every VRAM DMA with its SOURCE and the VRAM address it targets.
 local vw = 0
@@ -100,17 +110,38 @@ emu.addMemoryCallback(function(_ad, value)
       if b == 0x18 or b == 0x19 then
         vw = vw + 1
         local ok, st = pcall(emu.getState)
-        log(string.format("  VRAMDMA f=%d ch%d src=%02X:%02X%02X len=%02X%02X vram=%02X%02X @%02X:%04X",
-          frames, ch,
-          emu.read(0x804304 + ch * 16, MEMT) or 0, emu.read(0x804303 + ch * 16, MEMT) or 0,
-          emu.read(0x804302 + ch * 16, MEMT) or 0,
-          emu.read(0x804306 + ch * 16, MEMT) or 0, emu.read(0x804305 + ch * 16, MEMT) or 0,
-          emu.read(0x802117, MEMT) or 0, emu.read(0x802116, MEMT) or 0,
+        local sb = emu.read(0x804304 + ch * 16, MEMT) or 0
+        local sa = ((emu.read(0x804303 + ch * 16, MEMT) or 0) << 8)
+                 | (emu.read(0x804302 + ch * 16, MEMT) or 0)
+        local bytes = {}
+        for k = 0, 3 do
+          bytes[#bytes + 1] = string.format("%02X", emu.read(sb * 0x10000 + sa + k, MEMT) or 0)
+        end
+        log(string.format("  VRAMDMA f=%d ch%d src=$%02X:%04X [%s] len=%04X vram=$%04X (map r%d c%d) @%02X:%04X",
+          frames, ch, sb, sa, table.concat(bytes, " "),
+          ((emu.read(0x804306 + ch * 16, MEMT) or 0) << 8) | (emu.read(0x804305 + ch * 16, MEMT) or 0),
+          vaddr, (vaddr % 0x400) // 32, (vaddr % 0x400) % 32,
           ok and (st["cpu.k"] or 0) or 0, ok and (st["cpu.pc"] or 0) or 0))
       end
     end
   end
 end, emu.callbackType.write, 0x80420B, 0x80420B, emu.cpuType.snes, emu.memType.snesMemory)
+
+-- $83:1906 is not ROM: banks $80-$BF mirror WRAM at $0000-$1FFF, so the glyph
+-- rows are DMA'd from a WRAM staging buffer at $7E:1900+. Watch who fills it.
+local sw, swseen = 0, {}
+for _, a in ipairs({ 0x7E1906, 0x001906, 0x7E190E, 0x00190E }) do
+  emu.addMemoryCallback(function(_ad, value)
+    if frames < 1140 or frames > 1280 or sw > 12 then return end
+    local ok, st = pcall(emu.getState)
+    local pc = string.format("%02X:%04X", ok and (st["cpu.k"] or 0) or 0, ok and (st["cpu.pc"] or 0) or 0)
+    if swseen[pc] then return end
+    swseen[pc] = true; sw = sw + 1
+    log(string.format("  STAGE-BUF f=%d $%06X <= %02X @%s A=%04X X=%04X Y=%04X DB=%02X", frames,
+      _ad, value or 0, pc, ok and (st["cpu.a"] or 0) or 0, ok and (st["cpu.x"] or 0) or 0,
+      ok and (st["cpu.y"] or 0) or 0, ok and (st["cpu.db"] or 0) or 0))
+  end, emu.callbackType.write, a, a, emu.cpuType.snes, emu.memType.snesMemory)
+end
 
 local loads = {}
 emu.addMemoryCallback(function()

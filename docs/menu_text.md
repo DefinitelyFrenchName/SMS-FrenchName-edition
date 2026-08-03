@@ -152,3 +152,24 @@ probes' VS flow fades from character select straight into the match, while the
 flow that does land on the screen is 1P-vs-COM, where the name is absent (its
 row 21/23 are simply not drawn). The maintainer's captures are the evidence that
 the name is there in 2P VS.
+
+### Renaming a stage: what is known, and the one link still missing
+
+* **Kanji CAN be authored.** The live menu font sheet has **20 completely blank
+  16x16 glyph slots** — four immediately after the kanji block (`$368`-`$36E`)
+  and sixteen at `$3C0`-`$3EE`. 沈黙のメシアの玉座 needs four new characters
+  (沈, 黙, 玉, 座 — の, メ, シ, ア already exist), so it fits with room to spare.
+  Kanji is therefore the maintainer's first choice AND the affordable one.
+* **The static template** is the compressed block at `$C3:7C00` (0x800 bytes,
+  `sms_lz.py` round-trips it), carrying `ステージ` at row 21.
+* **The variable text is staged in WRAM.** Each glyph reaches VRAM as an 8-byte
+  DMA (two tilemap words for the top row, two for the bottom) issued by
+  `$80:8C96`, sourced from `$83:1900`+ — which is **not ROM**: banks `$80`-`$BF`
+  mirror WRAM at `$0000`-`$1FFF`, so that is the WRAM buffer at `$7E:1900`.
+* **The buffer is filled before the screen appears** — write callbacks on
+  `$7E:1906`/`$00:1906` across the whole screen catch nothing, so it arrives by
+  block move (MVN or DMA), which byte-write callbacks do not see.
+
+So the remaining link is the ROM source that fills `$7E:1900+`. Next probe:
+watch for the block move itself (execution around `$80:8C96`'s caller, or an MVN
+whose destination is `$7E:19xx`) rather than per-byte writes.
