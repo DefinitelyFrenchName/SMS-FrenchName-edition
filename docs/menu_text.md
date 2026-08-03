@@ -215,24 +215,40 @@ two records.
 Still to locate for that: the ROM source of the menu font sheet, so the four new
 glyphs can be added to it.
 
-### Record layout, and the rename implemented
+### Record layout — CORRECTED after it crashed the game
 
-Each record is **0x66 bytes**, and the two tables point at the palette-3 and
-palette-4 copies of the same name:
+The first reading of this was wrong and the build made from it (v0.13.8)
+**corrupted the screen and hung the game about a second after the stage was
+selected**. The real layout:
 
-    +0x00  header  `e4 02 30 00 02 00`   (0x30 = row-area size, 0x02 = two rows)
-    +0x16  TOP row    glyph words, terminated by 0000, 0x30 bytes of room
-    +0x46  BOTTOM row same glyphs + 0x10, terminated by 0000
+    +0x00  header  `e4 02 30 00 02 00`   (0x30 = a row field's size)
+    +0x06  TOP row     exactly 24 words, ALWAYS
+    +0x36  BOTTOM row  exactly 24 words, ALWAYS   (the same glyphs + 0x10)
+    = 0x66 bytes per record
 
-A glyph contributes two words per row — `(T, T+1)` on top and
-`(T+0x10, T+0x11)` below — each OR'd with the record's palette. 0x30 bytes is
-room for **11 glyphs**, so 沈黙のメシアの玉座 (9) fits with margin.
+**There is no terminator.** The name is *centred* in its 24-word field by
+leading and trailing ZERO words. That is what fooled the first reading: stage
+2's four glyphs sit at +0x16 only because eight zero words precede them, so
+"read from +0x16 until 0000" looked exactly like a terminated string starting
+there. Writing a longer name from +0x16 then ran through the bottom row, and the
+second row ran past the end of the record into the NEXT stage's header.
+
+24 words = **12 glyphs maximum**, so 沈黙のメシアの玉座 (9) still fits.
+
+A glyph contributes two words per row — `(T, T+1)` on top, `(T+0x10, T+0x11)`
+below — each OR'd with the record's own palette bits, which the writer reads
+from the field rather than assuming.
+
+**Lesson:** a run of zeros after a string is not evidence of a terminator. Two
+records side by side would have shown the padding immediately — stage 1's name
+is *nine* glyphs with three zero words of padding each side, and reading it the
+same way returned seven.
 
 `mkstage_port.py` writes it: `STAGE_NAME` (env-overridable) plus a `GLYPH` table
 of tile codes read off the font sheet. It refuses a character the font lacks
 rather than drawing a wrong glyph.
 
-**Proof-of-concept shipped in v0.13.8**: the ported stage is named
+**Proof-of-concept shipped in v0.13.9** (v0.13.8 is the broken one — discard it): the ported stage is named
 **サイレントメシア**, written with glyphs the font already has, so the edit can be
 confirmed on a pad before any tile authoring. Verified in the built ROM by
 decoding both records back (top rows read サイレントメシア in palettes 3 and 4;

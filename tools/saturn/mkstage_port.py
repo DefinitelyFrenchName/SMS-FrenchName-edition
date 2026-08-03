@@ -75,9 +75,28 @@ SITE_LOAD_OLD = bytes.fromhex("c97eb0034c6b91")
 # each OR'd with the record's palette. 0x30 bytes leaves room for 11 glyphs.
 NAME_PTR_PAL3 = 0x00B5AD      # in bank $C3
 NAME_PTR_PAL4 = 0x00B5C1
-NAME_ROW_TOP = 0x16
-NAME_ROW_BOT = 0x46
-NAME_ROW_MAX = 0x30
+NAME_REC_LEN = 0x66           # header + two row fields
+NAME_ROW_TOP = 0x06           # NOT 0x16 -- see below
+NAME_ROW_BOT = 0x36
+NAME_ROW_WORDS = 24           # each row field is exactly 24 words, always
+
+# Record layout, corrected after the first attempt crashed the game on selecting
+# the stage:
+#
+#     +0x00  header  `e4 02 30 00 02 00`     (0x30 = a row field's size)
+#     +0x06  TOP row     24 words, ALWAYS
+#     +0x36  BOTTOM row  24 words, ALWAYS  (the same glyphs + 0x10)
+#
+# There is **no terminator**. The name is CENTRED in its 24-word field by
+# leading and trailing ZERO words, which is what made the first reading wrong:
+# stage 2's four glyphs sit at +0x16 only because eight zero words precede them,
+# and reading "from +0x16 until 0000" looked like a terminated string. Writing a
+# longer name from +0x16 therefore ran through the bottom row and, for the second
+# row, past the end of the record into the NEXT stage's header — corrupting the
+# screen and hanging the game about a second after the stage was selected.
+#
+# 24 words = 12 glyphs maximum, so 沈黙のメシアの玉座 (9) fits comfortably.
+NAME_MAX_GLYPHS = NAME_ROW_WORDS // 2
 
 # Glyph tile codes read off the menu font sheet (tools/saturn/render_chr.py +
 # the 16x16 composer). Kana only for now: the four kanji 沈黙玉座 that the real
@@ -90,13 +109,11 @@ GLYPH = {
     "ョ": 0x1EC, "ラ": 0x1EE, "リ": 0x200, "ル": 0x202, "レ": 0x204, "ン": 0x206,
     "メ": 0x2CC, "ー": 0x164, "の": 0x102, "時": 0x348, "空": 0x34A, "扉": 0x34C,
 }
-# A proof-of-concept name for the ported stage, written with glyphs the font
-# already has, so the edit can be confirmed on a pad before any tile authoring.
 STAGE_NAME = __import__("os").environ.get("STAGE_NAME", "サイレントメシア")
 
 
-def write_stage_name(data, stage, name, E0_unused=None):
-    """Rewrite one stage's name in both palette records."""
+def write_stage_name(data, stage, name):
+    """Rewrite one stage's name in both palette records, centred, in place."""
     B3, B4 = 0x030000, 0x040000
     glyphs = []
     for ch in name:
@@ -104,22 +121,28 @@ def write_stage_name(data, stage, name, E0_unused=None):
             raise SystemExit(f"stage name: no glyph for {ch!r} in the menu font "
                              f"(needs authoring; 20 blank 16x16 slots are free)")
         glyphs.append(GLYPH[ch])
-    need = len(glyphs) * 4 + 2
-    if need > NAME_ROW_MAX:
-        raise SystemExit(f"stage name: {len(glyphs)} glyphs need {need} bytes, "
-                         f"the row area holds {NAME_ROW_MAX}")
+    if len(glyphs) > NAME_MAX_GLYPHS:
+        raise SystemExit(f"stage name: {len(glyphs)} glyphs, the field holds "
+                         f"{NAME_MAX_GLYPHS}")
     for table in (NAME_PTR_PAL3, NAME_PTR_PAL4):
         rec = data[B3 + table + stage * 2] | data[B3 + table + stage * 2 + 1] << 8
         o = B4 + rec
-        pal = (data[o + NAME_ROW_TOP] | data[o + NAME_ROW_TOP + 1] << 8) & 0xFC00
-        for row_off, tile_bias in ((NAME_ROW_TOP, 0), (NAME_ROW_BOT, 0x10)):
-            buf = bytearray()
-            for t in glyphs:
-                for w in (t + tile_bias, t + tile_bias + 1):
-                    buf += ((w & 0x3FF) | pal).to_bytes(2, "little")
-            buf += b"\x00\x00"
-            buf += b"\x00" * (NAME_ROW_MAX - len(buf))
-            data[o + row_off:o + row_off + NAME_ROW_MAX] = buf
+        for row_off, bias in ((NAME_ROW_TOP, 0), (NAME_ROW_BOT, 0x10)):
+            field = data[o + row_off:o + row_off + NAME_ROW_WORDS * 2]
+            pal = 0
+            for k in range(0, len(field), 2):          # keep the record's own
+                v = field[k] | field[k + 1] << 8       # palette bits
+                if v:
+                    pal = v & 0xFC00
+                    break
+            words = [0] * NAME_ROW_WORDS
+            lead = (NAME_ROW_WORDS - 2 * len(glyphs)) // 2
+            for i, t in enumerate(glyphs):
+                words[lead + 2 * i] = ((t + bias) & 0x3FF) | pal
+                words[lead + 2 * i + 1] = ((t + bias + 1) & 0x3FF) | pal
+            buf = b"".join(w.to_bytes(2, "little") for w in words)
+            assert row_off + len(buf) <= NAME_REC_LEN, "name write escapes the record"
+            data[o + row_off:o + row_off + len(buf)] = buf
     return glyphs
 
 
