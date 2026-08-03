@@ -10,14 +10,12 @@
 --      without the code un-picks). Any OTHER shell is refused outright — that is
 --      the story lock (story mode cannot offer the outer senshi), so there is no
 --      mode check to get wrong; see SHELL_GUARD in mksaturn_smoke.py.
---      VISIBLE build: since v0.10.0 Saturn is ON THE
---      SELECT SCREEN (VS/practice): move to
---      Chibimoon and press RIGHT (or Venus + DOWN) — a parked cursor glyph
---      marks the 10th spot bottom-right; confirm there (shows as Uranus until
---      the round loads). Older ways still work: hold L+R on a pad while the
---      round loads (P1 pad since v0.8.0, P2 pad since v0.9.0; SELECT-hold
---      reverts; the ONLY way in story/1P mode) or load this script in the
---      Script Window (auto-transform + version label).
+--      Older route, still working: hold L+R on a pad while the round LOADS
+--      (P1 pad since v0.8.0, P2 pad since v0.9.0; SELECT-hold reverts), or load
+--      this script in the Script Window (auto-transform + version label).
+--      (The v0.10.0 VISIBLE slot-10 variant was retired 2026-08-04 and its code
+--      deleted — it was a placeholder and it added the one char-select surface
+--      the story lock exists to avoid. History: BUILDS.md 0.10.0/0.11.0.)
 --
 -- WHAT SHOULD WORK: idle/walk, all normals (standing/crouch/air; Y=LP X=HP
 -- B=LK A=HK), qcf+P specials with a VISIBLE traveling fireball that hits, the
@@ -31,9 +29,12 @@
 -- (without it the fireball renders with Uranus's effect tiles — still visible).
 -- Her REAL PALETTE is applied automatically (embedded in the ROM, injected into
 -- the CGRAM shadow at transform).
--- KNOWN GAPS: her moves are SILENT (Super S sound handler has no SMS twin yet);
--- throws/desperation unverified; win-pose/dizzy/etc. cosmetics may glitch;
--- P2 stays whoever you picked.
+-- STALE-GAP NOTE (cleared 2026-08-04): her moves are NOT silent (sound landed in
+-- v0.7.0, her own voice in v0.13.0), throws and desperation ARE verified (0.11.2
+-- desperation, 0.11.3 win screen, 0.14.7-0.14.9 throws incl. command grabs), and
+-- P2 can be Saturn too (P2_ALSO below, or L+R on pad 2). Parked, not gaps:
+-- approximate sfx mapping, shell-dependent voice pitch, and balance —
+-- docs/saturn/PROJECT.md "Parked".
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local P2_ALSO = false   -- set true for a Saturn MIRROR match (P2 transforms too;
                         -- P2's fireball art + palette use P2 slots automatically)

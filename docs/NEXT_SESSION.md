@@ -15,7 +15,15 @@ Pluto** slot (that restriction is the story lock). Current build is **v0.14.8**
 57/57) on **REF v.2**. Everything the project set out to build exists, **all
 three field bugs from 2026-08-03 are fixed**, and the follow-up side effect the
 maintainer found on v0.14.7 (L+R on a disallowed shell still armed her sfx and
-palette) is fixed too. No known open bugs; what remains is the extended scope.
+palette) is fixed too. **No known open bugs and no open scope.** The extended scope is closed
+(`docs/saturn/PROJECT.md`): menu translation moved out to standalone patch 16,
+and "reveal Saturn earlier" shipped in v0.14.1-v0.14.3 (must-have delivered; the
+entrance animation dropped with cause — her act-`$22` script never completes, so
+preserving it wedged the intro sequencer). Char-select is **hidden-only** since
+2026-08-04; the visible slot-10 variant is retired and deleted, proven inert by a
+byte-identical rebuild. Topics deliberately **parked, not open**: approximate sfx
+mapping, shell-dependent voice pitch, balance, and the OBJ palette 5/6 curiosity
+— see PROJECT.md "Parked".
 
 **v0.14.9 — her projectiles have their own OBJ palette row.** Field report:
 fighting *against* Saturn, the projectiles and only the projectiles came out

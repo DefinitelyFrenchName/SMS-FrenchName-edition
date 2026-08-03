@@ -85,12 +85,11 @@ check "opponent's projectile still on OBJ pal 2" "+08=1A" "$T/v_pal_vs.txt" "pro
 
 if [ "$QUICK" != 1 ]; then
   echo "== L+R coverage (independent harness) =="
-  for m in practice vscpu; do
-    echo "return \"$m\"" > tools/saturn/lrmode_cfg.lua
-    SHELL_ID=6 ROM="$ROM" tools/run.sh tools/saturn/probe_sms_lrmodes.lua 400 >/dev/null 2>&1
+  # story is expected to REFUSE her; probe_sms_lrmodes judges against its own mode
+  for m in practice vscom story; do
+    MODE=$m SHELL_ID=6 ROM="$ROM" tools/run.sh tools/saturn/probe_sms_lrmodes.lua 500 >/dev/null 2>&1
     check "lrmodes $m shell 6" "LR PASS" "$T/lrmodes_$m.txt" "FINAL"
   done
-  rm -f tools/saturn/lrmode_cfg.lua
 
   echo "== stress: wedge / VRAM corruption over a full match =="
   MIRROR=1 SEED=7 ROM="$ROM" tools/run.sh tools/saturn/probe_sms_stress.lua 400 >/dev/null 2>&1

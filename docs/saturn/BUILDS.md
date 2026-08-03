@@ -158,10 +158,15 @@ SATURN_HIDDEN=1 python3 tools/saturn/mksaturn_smoke.py   # -> ..._v<ver>-hidden.
 # one-time, for correct fireball art (needs the Super S ROM):
 ROM=<SuperS.sfc> tools/run.sh tools/saturn/probe_supers_effecttiles.lua 60
 ```
-**Hidden variant (0.11.0, `-hidden.sfc`)**: nothing visible — hold **L+R while
-confirming Uranus, Neptune or Pluto** at the select screen (any other shell is
-refused since 0.14.5 — that restriction IS the story lock); that character
-becomes Saturn at the round load. Works for P1, P2, and the practice dummy (the code follows
+**Character select — the hidden code is the ONLY variant since 2026-08-04**
+(`-hidden.sfc`): nothing visible — hold **L+R while confirming Uranus, Neptune or
+Pluto** at the select screen (any other shell is refused since 0.14.5 — that
+restriction IS the story lock, and since 0.14.8 an illegal shell does not even
+arm her sfx/palette); that character becomes Saturn at the round load.
+The v0.10.0 VISIBLE slot-10 variant is **retired and its code deleted**: a
+placeholder (parked cursor glyph, no portrait or name) that added the one
+char-select surface the story lock exists to avoid. Removal is byte-identical to
+the last hidden build, so no ROM changed. The rows below are history. Works for P1, P2, and the practice dummy (the code follows
 the pad that drives the confirming cursor). Confirming without the code always
 un-picks. **Visible variant — since 0.10.0**: in VS or practice char select, go to Chibimoon and press
 RIGHT (or Venus + DOWN) — the cursor lands on a marked 10th spot at the

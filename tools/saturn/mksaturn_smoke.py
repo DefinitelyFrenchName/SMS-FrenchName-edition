@@ -46,21 +46,22 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
 SATURN_VERSION = "0.14.9"
 
-# Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
-# canonical character-select — it is now the DEFAULT build.
-#   default          -> HIDDEN (no visible trace: no marker, no navigable slot);
-#   SATURN_VISIBLE=1 -> the 0.10.0 visible slot 10 (kept buildable for A/B);
-#                      instead HOLD L+R WHILE CONFIRMING any character at the
-#                      select screen -> that character becomes Saturn at round
-#                      load. Every confirm press re-decides (no code held =
-#                      flag cleared), so stale flags self-clean per select.
-#                      The physical pad is chosen from the confirm handler's
-#                      own [$FE] pad pointer ($60=P1 pad, $62=P2 pad), so in
-#                      practice mode P1 holding L+R while confirming the DUMMY
-#                      correctly makes the dummy Saturn. L+R-at-load and the
-#                      0.10.0 latent-bug fixes are in BOTH variants.
-# Ship-time balance call: keep whichever variant fits (filenames + version
-# strings differ: v<ver> vs v<ver>-hidden / "SATURN v<ver>H").
+# Character select. The HIDDEN code is now the ONLY variant (maintainer,
+# 2026-08-04): "let's keep only the hidden variant — it solves our story mode
+# issues and we built and tested everything around it." Hold **L+R while
+# CONFIRMING** Uranus, Neptune or Pluto at the select screen and that character
+# becomes Saturn at round load. Every confirm press re-decides (no code held =
+# flag cleared), so stale flags self-clean per select. The physical pad comes
+# from the confirm handler's own [$FE] pad pointer ($60=P1 pad, $62=P2 pad), so
+# in practice mode P1 holding L+R while confirming the DUMMY makes the dummy
+# Saturn. L+R-at-round-load still works as a second route.
+# The v0.10.0 VISIBLE slot-10 variant is RETIRED and its code deleted: it was a
+# placeholder (parked cursor glyph, no portrait or name, post-confirm screens
+# showed the shell), and it added a navigable char-select entry — exactly the
+# surface the story lock exists to avoid. Removal was proven inert by rebuilding
+# and diffing: byte-identical ROM. History: BUILDS.md 0.10.0/0.11.0, and git.
+# The "-hidden"/"H" tags stay in the filename and the on-screen version string:
+# every recorded hash and doc reference uses them, and they are a continuity tell.
 import os as _osv
 # Card-portrait: ON since v0.12.1 (complete — art, layout and palette). Three
 # pieces, all under per-player flag control so a non-Saturn card is untouched:
@@ -72,17 +73,10 @@ import os as _osv
 #      stub, because a one-shot copy is overwritten by the engine's own refill.
 # Set SATURN_PORTRAIT=0 to build without it.
 SATURN_PORTRAIT = _osv.environ.get("SATURN_PORTRAIT") != "0"
-# DIAGNOSTIC: SATURN_PORTRAIT_FORCE=1 drops the "whose card is this" gate from
-# the sprite-list hook, leaving only "the card's own portrait list is being
-# drawn". Her portrait then appears on ANY card, which is wrong for shipping but
-# answers one question in a single match: if her art shows, the hooks run and
-# the GATE inputs differ in that flow; if the shell's portrait still shows, the
-# hooks are not running there at all.
 SATURN_PORTRAIT_FORCE = _osv.environ.get("SATURN_PORTRAIT_FORCE") == "1"
-SATURN_HIDDEN = _osv.environ.get("SATURN_VISIBLE") != "1"
 SATURN_STACKED = bool(_osv.environ.get("SATURN_BASE"))
-VARIANT_FILE = f"{SATURN_VERSION}-hidden" if SATURN_HIDDEN else SATURN_VERSION
-VARIANT_STR = SATURN_VERSION + ("H" if SATURN_HIDDEN else "") + ("R" if SATURN_STACKED else "")
+VARIANT_FILE = f"{SATURN_VERSION}-hidden"
+VARIANT_STR = SATURN_VERSION + "H" + ("R" if SATURN_STACKED else "")
 ROM_STEM = "SailorMoonS_REFsaturn" if SATURN_STACKED else "SailorMoonS_saturn"
 
 SAT_ID = 0x1C
@@ -481,20 +475,9 @@ SATURN_MAGIC = 0xA5
 # engine clears the OAM shadow AFTER the confirm poll, so the marker is written
 # by the DRAW-phase hooks (draw-blk1 for VS/practice — hooked for this purpose
 # alone — and draw-blk3 for story), never by the confirm stub.
-CHARSEL_DRAW1 = 0x0A77D       # sep #$30 / lda $AA9D,Y head
-CHARSEL_DRAW1_OLD = bytes.fromhex("E230B99DAA")
 CHARSEL_CONFIRM = 0x0A630     # rep #$30 / lda [$FE] head
 CHARSEL_CONFIRM_OLD = bytes.fromhex("C230A7FE")
-T1_IDX10 = 0xAA75             # t1 row 10 == t2 row 0 (dead)
-T1_ID9_RIGHT = 0xAA74         # Chibimoon right: 9 -> 10
-T1_ID5_DOWN = 0xAA62          # Venus down: 5 -> 10
-POS1_10 = 0xAAB1              # blk1 char-10 word == blk2 char-0 (dead)
-POS2_10 = 0xAAC5              # blk2 char-10 word == blk3 char-0 (dead)
-SLOT10_XY = (0xAA, 0xA2)      # (170,162): bottom-right, beside Chibimoon
-CHARSEL_SHELL = 0x06          # shell charID stored on confirm (Uranus)
-EE_DRAW1 = 0xC1A0             # draw-blk1 reimpl (+marker call)
 EE_CONFIRM = 0xC220           # confirm stub: slot-10 translation + flags
-EE_MARKER = 0xC2A0            # shared marker-sprite enqueuer (jsr'd by the draws)
 # v0.14.7 — THE THROW CORRUPTION (field bug 1). When a character is thrown, the
 # THROWER's script supplies the VICTIM's pose, via a per-victim list: the throw
 # interpreter reads the other object's id (`jsr $C1:03DC` returns the OTHER
@@ -562,7 +545,6 @@ EE_WINSTUB_QT = 0xC540
 EE_WIN_NP = 0xC5A0
 EE_WIN_QARR = 0xC620
 EE_WIN_QREC = 0xC630
-EMIT_GADGET = 0xA782          # jsr $9B17 / rtl — carved from dead draw-blk1 body
 # Box tables: appended bank $F0 = full bank-$8A copy read via WRAM-mirror $B0
 # (6x plb #$8A -> #$B0); widened ptr tables (0x30 entries) + Saturn's box data
 # grafted into the copy's upper half; 7 table-read operands repointed.
@@ -1040,12 +1022,6 @@ def main():
                 code[pos] = d & 0xFF
         return code, lbl, br, fix
 
-    # shared marker enqueuer: UI sprites are QUEUED via the $9B17 emitter and
-    # written to the OAM shadow later in the frame (direct shadow pokes get
-    # E0-cleared), so the marker is a second $9B17 call with its own params:
-    # same cursor def ($AADA), parked at the slot-10 photo spot. The emitter
-    # is reached via the EMIT_GADGET (jsr $9B17 / rtl) carved from the dead
-    # body of the hooked draw-blk1 routine — PB=$80 exactly like the original.
     # confirm-site chaining (v0.11.5): on a REF base the site holds patch 5's
     # 4-byte JSL (alt-palette/default-stage hook), which itself replicates the
     # displaced head (rep #$30 / lda [$FE]). Our stub's tail then CALLS that
@@ -1058,108 +1034,57 @@ def main():
     else:
         raise SystemExit(f"error: unrecognized confirm head {conf_head.hex()}")
 
-    if not SATURN_HIDDEN:
-        mk = bytearray()
-        mk += bytes((0xA9, SLOT10_XY[0], 0x85, 0x01, 0x64, 0x02))  # x
-        mk += bytes((0xA9, SLOT10_XY[1], 0x85, 0x03, 0x64, 0x04))  # y
-        mk += bytes((0x64, 0x06, 0xA9, 0x30, 0x85, 0x07))          # attr/prio
-        mk += bytes((0xAF, 0xD9, 0xAA, 0xC0, 0x85, 0x00))          # count ($AAD9)
-        mk += bytes((0xA9, 0xDA, 0x85, 0x12, 0xA9, 0xAA, 0x85, 0x13))  # def $AADA
-        mk += bytes((0x22, EMIT_GADGET & 0xFF, EMIT_GADGET >> 8, 0x80))
-        mk += bytes((0x60,))
-        ee[EE_MARKER:EE_MARKER + len(mk)] = mk
-
-        # draw reimpl: original routine body with long position reads (so the
-        # char-10 row exists), emitter via the gadget, then the marker call;
-        # plain rtl — the hooked site's trailing rts returns to the caller.
-        d1 = bytearray()
-        d1 += bytes((0xE2, 0x30))               # sep #$30
-        d1 += bytes((0xDA, 0xBB))               # phx / tyx
-        d1 += bytes((0xBF, 0x9D, 0xAA, 0xC0, 0x85, 0x01, 0x64, 0x02))
-        d1 += bytes((0xBF, 0x9E, 0xAA, 0xC0, 0x85, 0x03))
-        d1 += bytes((0x64, 0x04, 0x64, 0x06))
-        d1 += bytes((0xA9, 0x30, 0x85, 0x07))   # attr/prio template
-        d1 += bytes((0xAF, 0xD9, 0xAA, 0xC0, 0x85, 0x00))  # count byte ($AAD9)
-        d1 += bytes((0xA9, 0xDA, 0x85, 0x12, 0xA9, 0xAA, 0x85, 0x13))  # def $AADA
-        d1 += bytes((0xFA,))                    # plx
-        d1 += bytes((0x22, EMIT_GADGET & 0xFF, EMIT_GADGET >> 8, 0x80))  # cursor
-        d1 += bytes((0x20, EE_MARKER & 0xFF, EE_MARKER >> 8))            # marker
-        d1 += bytes((0x6B,))
-        assert len(d1) <= EE_CONFIRM - EE_DRAW1, f"draw1 stub too big: {len(d1)}"
-        ee[EE_DRAW1:EE_DRAW1 + len(d1)] = d1
-
-        # confirm stub (VISIBLE variant): slot-10 translation + flag
-        # maintenance; ends by replicating the replaced head and rtl.
-        c, lbl, br, fix = _asm()
-        c += bytes((0xC2, 0x30))                   # rep #$30
-        c += bytes((0xC0, 0x40, 0x1B)); br(0xF0, "known")   # cpy #$1B40
-        c += bytes((0xC0, 0x80, 0x1B)); br(0xD0, "finish")  # cpy #$1B80
-        lbl("known")
-        c += bytes((0xB9, 0x02, 0x00)); br(0xD0, "finish")  # already confirmed
-        c += bytes((0xB9, 0x00, 0x00, 0xC9, 0x0A, 0x00)); br(0xF0, "on10")
-        c += bytes((0xE2, 0x20, 0xA9, 0x00)); br(0x80, "setflag")  # browsing: clear
-        lbl("on10")
-        c += bytes((0xA7, 0xFE, 0x29, 0xC0, 0xD0)); br(0xF0, "finish")  # press?
-        c += bytes((0xA9, CHARSEL_SHELL, 0x00, 0x99, 0x00, 0x00))  # cursor -> shell
-        c += bytes((0xE2, 0x20, 0xA9, SATURN_MAGIC))
-        lbl("setflag")
-        c += bytes((0xC0, 0x40, 0x1B)); br(0xD0, "p2f")
-        c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK)); br(0x80, "finish")
-        lbl("p2f")
-        c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK))
-        lbl("finish")
-        c += confirm_tail + bytes((0x6B,))   # original head or chained JSL / rtl
-        fix()
-    else:
-        # confirm stub (HIDDEN variant, Gouki-style): no slot, no marker — a
-        # confirm press with L+R HELD on the confirming pad picks Saturn for
-        # that player; without the code the flag is cleared (per-press
-        # re-decision, so stale flags self-clean). Held state comes from the
-        # autopoll regs; the physical pad follows the handler's own [$FE]
-        # pointer low byte ($60 = P1 pad, $62 = P2 pad) so the practice dummy
-        # (P1-driven, Y=$1B80) reads P1's pad.
-        c, lbl, br, fix = _asm()
-        c += bytes((0xC2, 0x30))                   # rep #$30
-        c += bytes((0xC0, 0x40, 0x1B)); br(0xF0, "known")   # cpy #$1B40
-        c += bytes((0xC0, 0x80, 0x1B)); br(0xD0, "finish")  # cpy #$1B80
-        lbl("known")
-        c += bytes((0xB9, 0x02, 0x00)); br(0xD0, "finish")  # already confirmed
-        c += bytes((0xA7, 0xFE, 0x29, 0xC0, 0xD0)); br(0xF0, "finish")  # press?
-        c += bytes((0xE2, 0x20))                   # sep #$20
-        c += bytes((0xA5, 0xFE, 0xC9, 0x62)); br(0xF0, "p2pad")  # pad ptr low
-        c += bytes((0xAF, 0x18, 0x42, 0x00)); br(0x80, "got")    # JOY1L
-        lbl("p2pad")
-        c += bytes((0xAF, 0x1A, 0x42, 0x00))                     # JOY2L
-        lbl("got")
-        c += bytes((0x29, 0x30, 0xC9, 0x30)); br(0xD0, "noflag") # L+R held?
-        if SHELL_GUARD:
-            # v0.14.8: the code only counts on a shell she is allowed to wear.
-            # Applied HERE, at the confirm, rather than only in the helper —
-            # everything downstream (select voice, in-match sound remap, the
-            # effect-tile/palette override) keys off the FLAG, so an illegal
-            # shell used to keep Saturn's confirm sfx, palette and sfx while
-            # playing as itself. The cursor's charID is `$0000,y`, exactly where
-            # the visible variant reads it.
-            c += bytes((0xB9, 0x00, 0x00, 0xC9, 0x06)); br(0x90, "noflag")
-            c += bytes((0xC9, 0x09)); br(0xB0, "noflag")
-        c += bytes((0xA9, SATURN_MAGIC)); br(0x80, "store")
-        lbl("noflag")
-        c += bytes((0xA9, 0x00))
-        lbl("store")
-        c += bytes((0xC0, 0x40, 0x1B)); br(0xD0, "p2f")
-        c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK))
-        # remember WHICH character this player confirmed, for the round-load
-        # arming route (L+R held as the round loads), where the cursor is gone
-        c += bytes((0xB9, 0x00, 0x00,
-                    0x8F, SATURN_SHELL & 0xFF, SATURN_SHELL >> 8, SATURN_BANK))
-        br(0x80, "finish")
-        lbl("p2f")
-        c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK))
-        c += bytes((0xB9, 0x00, 0x00,
-                    0x8F, SATURN_SHELL2 & 0xFF, SATURN_SHELL2 >> 8, SATURN_BANK))
-        lbl("finish")
-        c += confirm_tail + bytes((0x6B,))   # original head or chained JSL / rtl
-        fix()
+    # char-select stub (the ONLY variant since v0.14.10): no slot, no marker
+    # — a confirm press with L+R HELD on the confirming pad picks Saturn.
+    # confirm stub (HIDDEN variant, Gouki-style): no slot, no marker — a
+    # confirm press with L+R HELD on the confirming pad picks Saturn for
+    # that player; without the code the flag is cleared (per-press
+    # re-decision, so stale flags self-clean). Held state comes from the
+    # autopoll regs; the physical pad follows the handler's own [$FE]
+    # pointer low byte ($60 = P1 pad, $62 = P2 pad) so the practice dummy
+    # (P1-driven, Y=$1B80) reads P1's pad.
+    c, lbl, br, fix = _asm()
+    c += bytes((0xC2, 0x30))                   # rep #$30
+    c += bytes((0xC0, 0x40, 0x1B)); br(0xF0, "known")   # cpy #$1B40
+    c += bytes((0xC0, 0x80, 0x1B)); br(0xD0, "finish")  # cpy #$1B80
+    lbl("known")
+    c += bytes((0xB9, 0x02, 0x00)); br(0xD0, "finish")  # already confirmed
+    c += bytes((0xA7, 0xFE, 0x29, 0xC0, 0xD0)); br(0xF0, "finish")  # press?
+    c += bytes((0xE2, 0x20))                   # sep #$20
+    c += bytes((0xA5, 0xFE, 0xC9, 0x62)); br(0xF0, "p2pad")  # pad ptr low
+    c += bytes((0xAF, 0x18, 0x42, 0x00)); br(0x80, "got")    # JOY1L
+    lbl("p2pad")
+    c += bytes((0xAF, 0x1A, 0x42, 0x00))                     # JOY2L
+    lbl("got")
+    c += bytes((0x29, 0x30, 0xC9, 0x30)); br(0xD0, "noflag") # L+R held?
+    if SHELL_GUARD:
+        # v0.14.8: the code only counts on a shell she is allowed to wear.
+        # Applied HERE, at the confirm, rather than only in the helper —
+        # everything downstream (select voice, in-match sound remap, the
+        # effect-tile/palette override) keys off the FLAG, so an illegal
+        # shell used to keep Saturn's confirm sfx, palette and sfx while
+        # playing as itself. The cursor's charID is `$0000,y`, exactly where
+        # the visible variant reads it.
+        c += bytes((0xB9, 0x00, 0x00, 0xC9, 0x06)); br(0x90, "noflag")
+        c += bytes((0xC9, 0x09)); br(0xB0, "noflag")
+    c += bytes((0xA9, SATURN_MAGIC)); br(0x80, "store")
+    lbl("noflag")
+    c += bytes((0xA9, 0x00))
+    lbl("store")
+    c += bytes((0xC0, 0x40, 0x1B)); br(0xD0, "p2f")
+    c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK))
+    # remember WHICH character this player confirmed, for the round-load
+    # arming route (L+R held as the round loads), where the cursor is gone
+    c += bytes((0xB9, 0x00, 0x00,
+                0x8F, SATURN_SHELL & 0xFF, SATURN_SHELL >> 8, SATURN_BANK))
+    br(0x80, "finish")
+    lbl("p2f")
+    c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK))
+    c += bytes((0xB9, 0x00, 0x00,
+                0x8F, SATURN_SHELL2 & 0xFF, SATURN_SHELL2 >> 8, SATURN_BANK))
+    lbl("finish")
+    c += confirm_tail + bytes((0x6B,))   # original head or chained JSL / rtl
+    fix()
     assert len(c) <= 0x100, f"confirm stub too big: {len(c)}"
     ee[EE_CONFIRM:EE_CONFIRM + len(c)] = c
 
@@ -2033,22 +1958,6 @@ def main():
     assert bytes(data[CHARSEL_CONFIRM:CHARSEL_CONFIRM + 4]) == conf_head
     data[CHARSEL_CONFIRM:CHARSEL_CONFIRM + 4] = \
         bytes((0x22, EE_CONFIRM & 0xFF, EE_CONFIRM >> 8, B_MISC))
-    if not SATURN_HIDDEN:
-        expect(CHARSEL_DRAW1, CHARSEL_DRAW1_OLD, "draw-blk1 head")
-        data[CHARSEL_DRAW1:CHARSEL_DRAW1 + 5] = \
-            bytes((0x22, EE_DRAW1 & 0xFF, EE_DRAW1 >> 8, B_MISC, 0x60))
-        expect(EMIT_GADGET, bytes.fromhex("85016402"), "gadget slot (dead blk1 body)")
-        data[EMIT_GADGET:EMIT_GADGET + 4] = bytes((0x20, 0x17, 0x9B, 0x6B))
-        expect(T1_IDX10, b"\x00\x00\x00\x00", "t1 row 10 (t2 dead row 0)")
-        data[T1_IDX10:T1_IDX10 + 4] = bytes((0x05, 0x0A, 0x09, 0x0A))
-        expect(T1_ID9_RIGHT, b"\x09", "t1 Chibimoon right")
-        data[T1_ID9_RIGHT] = 0x0A
-        expect(T1_ID5_DOWN, b"\x05", "t1 Venus down")
-        data[T1_ID5_DOWN] = 0x0A
-        expect(POS1_10, b"\x00\x00", "blk1 char-10 word")
-        data[POS1_10:POS1_10 + 2] = bytes(SLOT10_XY)
-        expect(POS2_10, b"\x00\x00", "blk2 char-10 word")
-        data[POS2_10:POS2_10 + 2] = bytes((SLOT10_XY[0] + 0x10, SLOT10_XY[1]))
     # -- v0.11.3 win-screen per-id table hooks --
     for site in WIN_NP_SITES:
         expect(site, WIN_NP_OLD, f"win nameplate site {site:#x}")

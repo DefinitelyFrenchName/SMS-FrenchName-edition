@@ -27,6 +27,12 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 
 **Saturn is playable in SMS**, summoned by holding **L+R** on a **Uranus,
 Neptune or Pluto** slot at select (she wears that character as a "shell").
+The **hidden code is the only character-select variant** — the v0.10.0 visible
+slot-10 build was retired 2026-08-04 and its code deleted (a placeholder that
+added the one char-select surface the story lock exists to avoid; removal proven
+inert by a byte-identical rebuild). **No open bugs; the parked topics — sfx
+mapping, shell-dependent voice pitch, balance, the OBJ pal 5/6 curiosity — are
+listed in `docs/saturn/PROJECT.md` "Parked".**
 Field-tested repeatedly by the maintainer. Current build is **v0.14.9**, on
 **REF v.2**. **All three bugs from the 2026-08-03 field round are fixed**: #2
 (2P VS did not transform) and #3 (Saturn reachable in story) shared one root

@@ -36,6 +36,29 @@ local hold = false
 local function beat(on) return (frames % 7) < 3 and on or {} end
 local seen, shot, projframes = {}, false, 0
 
+-- WHO loads OBJ palette rows 5 and 6, and does anything ever DRAW with them?
+-- They differ between a Saturn and a vanilla match (found 2026-08-04) but no
+-- sprite used them in the first sample, so the question is what subsystem owns
+-- them. Rows are $7E:0600 + row*0x20, so row 5 = $06A0..$06BF, row 6 = $06C0..$06DF.
+local cw, cwseen = 0, {}
+if os.getenv("PALWATCH") == "1" then
+  for a = 0x06A0, 0x06DF do
+    emu.addMemoryCallback(function(addr, value)
+      local ok, st = pcall(emu.getState)
+      local pc = string.format("%02X:%04X", ok and st["cpu.k"] or 0, ok and st["cpu.pc"] or 0)
+      local row = (addr >= 0x06C0) and 6 or 5
+      local key = pc .. "/row" .. row
+      if not cwseen[key] then
+        cwseen[key] = true; cw = cw + 1
+        if cw <= 12 then
+          log(string.format("  CGRAMW row%d <= %02X @ %s (first write from this PC)",
+            row, value or -1, pc))
+        end
+      end
+    end, emu.callbackType.write, a, a, emu.cpuType.snes, emu.memType.snesWorkRam)
+  end
+end
+
 -- WHO writes the projectile's +0x08 (the attr/palette byte: OAM attr = +0x08<<1,
 -- so palette = +0x08 & 7). WorkRam-typed, because WRAM $0000-$1FFF is aliased
 -- into every $00-$3F / $80-$BF bank and an address-typed watch misses stores

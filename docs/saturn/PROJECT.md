@@ -102,27 +102,64 @@ was in SMS.
    desperation compendium entry), builders with SIG fingerprints, recipes committed.
 5. Nice-to-have (separate milestone): Super S stages/music selectable.
 
-## Extended scope (maintainer, 2026-08-03)
+## Extended scope — CLOSED (2026-08-04)
 
-Neither is a blocker — Saturn is a hidden character of admittedly rough balance,
-which is exactly why she is shippable without them. Both are real improvements.
+1. ~~**Menu translation.**~~ **MOVED OUT of this project** (2026-08-03): a
+   **standalone patch** in the main line (patch 16), not a Saturn feature, and it
+   must work with or without her. Groundwork, budgets and the font inventory are
+   in `docs/menu_text.md`; the font path that unblocked it is in
+   `docs/NEXT_SESSION.md`. The maintainer supplies the translations.
+2. ~~**Reveal Saturn earlier in the fight.**~~ **DONE (v0.14.1-v0.14.3).**
+   - **Must have — delivered:** she is on screen before the round starts. The
+     transform happens one frame after the round goes live (f=1856 against
+     f=2099), during the ENTRANCE act `$22`, so she is present for
+     STAGE 01 / FIRST BATTLE / READY / GO with no shell frame. `EARLY_TRANSFORM`
+     drops the `$1E04` intro-sequencer gate and accepts act `$22`, keeping the
+     per-round latch and the live-round gate — the two that actually prove a real
+     fight load, which is what made the re-timing safe.
+   - **Nice to have — DROPPED, with cause:** the entrance animation cannot be
+     hers. v0.14.2 preserved the act across the transform so her own entrance
+     script would run; the field found her with no animation and **no inputs
+     until she was hit**, because her act-`$22` script never completes and the
+     intro sequencer therefore never hands control over. v0.14.3 stopped
+     preserving it (`EARLY_KEEP_ACT=0`): she stands at neutral through the
+     entrance, visible from the first frame. A/B-verified headless
+     (`probe_sms_inputcheck.lua`).
 
-1. ~~**Menu translation.**~~ **MOVED OUT of this project** (maintainer,
-   2026-08-03): it is a **standalone patch** in the main line, not a Saturn
-   feature, and must work with or without her. Groundwork, budgets and the font
-   inventory are in **`docs/menu_text.md`**; the maintainer supplies the
-   translations, with shorthand where a string has a fixed cell count.
-2. **Reveal Saturn EARLIER in the fight (major, not blocking).** Today the shell
-   character is swapped for Saturn at the round load, so the player picking her
-   watches someone else through the pre-round sequence and only then becomes
-   Saturn. The maintainer's words: the change moment is *distracting and downright
-   penalizing* for the Saturn player.
-   - **Must have:** Saturn is on screen **before the round starts** — i.e. the swap
-     happens no later than the point where the fighters are first drawn.
-   - **Nice to have:** the introduction/entrance animation preserved as hers.
-   The transform is currently armed by per-round latches at the effects-DMA
-   transfer (`$1F62/63` era, now `$7F:F100+`) precisely because earlier arming
-   reached the helper during load/dialogue windows and was unsafe (BUILDS 0.10.0).
-   So this is a re-timing job with a known hazard, not a new mechanism: find the
-   earliest point at which her four data layers + effect tiles are resident and
-   the object struct is stable, and move the swap there.
+## Character select — one variant only (2026-08-04)
+
+The **hidden code is the only variant**; the v0.10.0 visible slot-10 build is
+**retired and its code deleted**. Maintainer: "let's keep only the hidden variant
+— it solves our story mode issues and we built and tested everything around it."
+
+It was a placeholder anyway (parked cursor glyph, no portrait or name,
+post-confirm screens showed the shell), and it added a navigable char-select
+entry — the exact surface the story lock exists to avoid. Removal was proven
+inert by rebuilding and diffing: **byte-identical ROM** (`76ba6d8c…` hidden,
+`03b73cdd…` stage), so no version bump. The `-hidden` filename tag and the `H` in
+the on-screen version string stay: every recorded hash and doc reference uses
+them, and they are a continuity tell. History: `docs/saturn/BUILDS.md`
+0.10.0/0.11.0, and git.
+
+## Parked — not open work, worth revisiting (2026-08-04)
+
+Reviewed with the maintainer and explicitly **not** open items. Listed so they
+are not rediscovered later as bugs.
+
+* **Sound mapping is approximate.** SMS whoosh/starter sfx stand in for her Super
+  S command sounds. Good enough for now; refine per-move if it ever grates.
+* **Her voice pitch varies with the shell character.** Known and accepted — she
+  borrows char 1's sound ids on whichever side she plays and the shell's own
+  pitch rides along. Same verdict.
+* **Balance.** No balance pass has been done; she is a hidden character of
+  admittedly rough balance, which is part of why she is shippable. Her data is
+  documented Uranus-grade precisely so a pass is possible later.
+* **OBJ palette rows 5 and 6 differ** between a Saturn and a vanilla match.
+  Cosmetically invisible and NOT the port's doing: measured over a full match,
+  **no sprite ever selects palette 5 or 6** (0 uses in both builds), and the code
+  that loads those rows is identical engine code at identical addresses in both
+  (`$80:8042`, `$80:8DB8`, `$80:0083`, `$82:C0F1`, `$80:8CCA`). Residual: a
+  situation the probe never reached (a KO or desperation flash, another stage)
+  could draw with them. To close it, run the palette histogram over a randomised
+  stress match and confirm pal5/6 stay at zero. Tool:
+  `tools/saturn/probe_sms_objpal.lua` (`PALWATCH=1` adds the CGRAM writer trace).
