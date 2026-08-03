@@ -107,12 +107,11 @@ was in SMS.
 Neither is a blocker — Saturn is a hidden character of admittedly rough balance,
 which is exactly why she is shippable without them. Both are real improvements.
 
-1. **Menu translation (minor).** Partial or complete English/French translation of
-   the menu text. Some of it reportedly exists already in the tournament edition,
-   so check there before authoring anything. Scope it as text + font work in the
-   same family as the movelist job (`movelist.md`): SMS's own font tables and the
-   `$C0:916B` codec are already decoded and re-encodable, so menu strings are
-   likely reachable with the tooling that exists.
+1. ~~**Menu translation.**~~ **MOVED OUT of this project** (maintainer,
+   2026-08-03): it is a **standalone patch** in the main line, not a Saturn
+   feature, and must work with or without her. Groundwork, budgets and the font
+   inventory are in **`docs/menu_text.md`**; the maintainer supplies the
+   translations, with shorthand where a string has a fixed cell count.
 2. **Reveal Saturn EARLIER in the fight (major, not blocking).** Today the shell
    character is swapped for Saturn at the round load, so the player picking her
    watches someone else through the pre-round sequence and only then becomes

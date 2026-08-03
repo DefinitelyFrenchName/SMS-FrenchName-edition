@@ -50,11 +50,18 @@ Recorded in full in `docs/saturn/PROJECT.md` § Extended scope. Neither blocks a
 release; Saturn is a hidden character of admittedly rough balance, which is
 precisely why she ships without them.
 
-1. **Menu translation (minor).** Partial or complete translation of menu text.
-   Some of it reportedly exists in the tournament edition — look there first
-   rather than authoring from scratch. The tooling is in place: SMS's font tables
-   and the `$C0:916B` codec were decoded and made re-encodable for the movelist
-   (`tools/saturn/sms_lz.py`, `mkmovelist.py`, `docs/saturn/movelist.md`).
+1. **Menu translation — a STANDALONE PATCH (planned patch 16), not a Saturn
+   feature** (maintainer's ruling). Groundwork done this session in
+   **`docs/menu_text.md`**: menu text is 16×16 glyphs (2×2 tiles) in ordinary
+   tilemaps, so a string edit is a tilemap edit; the button-config screen is
+   inventoried with per-string cell budgets. Two findings that shape the job —
+   the font's Latin capitals are a **reduced set with no F, J, Q, S, Z**, so the
+   patch must author glyphs as well as edit tilemaps; and the **tournament
+   edition does not translate the menus** (checked in-game and by byte diff), so
+   there is nothing to lift. Open: where the text lives in ROM (it is compressed,
+   and the front-end does NOT go through `$C0:916B` — chase the VRAM DMA), the
+   remaining screens, and how many free CHR slots the font sheet has.
+   Survey tool: `tools/probe_menu_survey.lua`.
 2. **Show Saturn EARLIER in the fight (major, not a blocker).** Today the shell
    is swapped for Saturn at the round load, so her player watches someone else
    through the pre-round sequence. The maintainer: the change moment is
