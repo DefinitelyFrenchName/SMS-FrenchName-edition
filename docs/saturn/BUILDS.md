@@ -62,6 +62,8 @@ Versions before 0.6.0 are retroactive labels for the historical lineage
 
 | **0.14.2** | REFsaturn+stage: `ee20d99b…` | (this) | **STORY GUARD** (maintainer's call: "we can just prevent Saturn from being selectable [in story] … already Uranus, Neptune and Pluto are not selectable in story mode"). The DMA stub now refuses to arm when `$7E:008D == 1` (story), and **forces the latch to 0** rather than merely skipping, so a stale arm from a previous VS round cannot survive into a story fight. This removes the only risk the v0.14.1 early transform carried, since the `$1E04` gate it drops existed to protect the story sequencer. Verified: **VS (`$8D=00`) and practice (`$8D=04`) still transform** — and still EARLY (VS: first `id=1C` at f=2100 with act `$22`, against f=2325 on v0.13.9, so the entrance gain holds outside story too); story refuses; regression 57/57; smoke PASS; randomised mirror match clean. ⚠ `probe_sms_lrboth.lua` navigates through the story row, so it FAILS on a guarded build by design — the same ROM built with `STORY_GUARD=0` passes it. Use `probe_sms_lrmodes.lua` for L+R coverage. |
 
+| **0.14.3** | REFsaturn+stage: `f1611041…` | (this) | **FIELD FIX: inputs dead in 2P VS and 1P-vs-COM.** Field on v0.14.2: training perfect (immediate, no shell frame, all correct), but in VS and vs-COM she appeared with **no entrance animation and no inputs — until she was hit**, after which commands worked. Diagnosis from that last clue: v0.14.1 preserved the entrance act `$22` across the transform so that HER entrance script would play, but her act-`$22` script never completes, so the intro sequencer never hands control over; a hit is what forces her out of the state. Training was clean only because it has no entrance. **Fix: stop preserving the act** (`EARLY_KEEP_ACT=0`) — the transform still happens during the entrance, she is still visible from the first frame with no shell, but she stands at neutral instead of running an entrance that cannot finish. Reproduced and verified headless (`probe_sms_inputcheck.lua`, new): on v0.14.2 the act stays `22` with x frozen at `$80` for 24+ frames until act `17` (she is hit); on v0.14.3 the act goes `00→01` and x runs `80→88→94→A0` within 18 frames of holding RIGHT. Regression 57/57, smoke PASS, randomised mirror clean, input OK in both practice and vs-COM. **The entrance animation is dropped as not achievable** with her data — the must-have (on screen before round start, no shell) stands. |
+
 ## Field verification, v0.13.2 [P 08-03]
 
 - **Movelist: clean.** Her own list renders correctly in normal play — the
@@ -69,6 +71,11 @@ Versions before 0.6.0 are retroactive labels for the historical lineage
   screen and not just in the harness. #41 closed.
 - **Character-select voice: no regression.** v0.13.1's bank-id swap behaves in
   normal play, with no effect on the other characters' confirm lines.
+- **Kanji font relocation (v0.14.0): clean** — no corruption seen anywhere in
+  the field, so the block move and the repointed `$C3:BEF2` are sound.
+- **Story mode with Saturn forced in (pre-guard): confirmed bad** — graphical
+  corruption, unresponsiveness at the stage start, broken framing. The maintainer
+  agrees she should simply be unselectable there, which v0.14.2 does.
 - **The ported stage's jump slide (v0.13.3) is gone**, confirmed on the pad —
   leaving only the palace's parallax rate, fixed in v0.13.4.
 - **v0.13.4 field round:** all scrolling correct; black masks on the palace

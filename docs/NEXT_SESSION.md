@@ -10,8 +10,8 @@ history.)
 
 The base patch project is done and green. Current work is **SMS + Saturn**:
 Saturn is playable in SMS, selected by holding **L+R** on any character slot,
-field-tested repeatedly. Current build is **v0.14.2**
-(`SailorMoonS_REFsaturn_v0.14.2-hidden-stage.sfc`, `ee20d99b…`, regression
+field-tested repeatedly. Current build is **v0.14.3**
+(`SailorMoonS_REFsaturn_v0.14.3-hidden-stage.sfc`, `f1611041…`, regression
 57/57) on **REF v.2**. **Everything set out for the Saturn project is done**:
 her voice, her character-select line, her movelist, the ported stage (#43) and
 its name — **沈黙のメシアの玉座**, with the four missing kanji authored into the

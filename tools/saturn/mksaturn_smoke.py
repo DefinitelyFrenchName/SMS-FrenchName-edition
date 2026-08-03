@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.2"
+SATURN_VERSION = "0.14.3"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -396,6 +396,11 @@ CARDLOAD_OLD = bytes.fromhex("22EC8D80")
 # the $1E04 (intro-sequencer) gate and accepts act $22, keeping the latch and the
 # live-round gate, which are what actually prove this is a real fight load.
 EARLY_TRANSFORM = __import__("os").environ.get("EARLY_TRANSFORM", "1") == "1"
+# Keep the entrance act across the transform. Off: the field showed her act-$22
+# script never completes, which wedges the intro sequencer (no animation, no
+# inputs until she is hit). Off means she simply stands at neutral through the
+# entrance — visible from the first frame, which is the must-have.
+EARLY_KEEP_ACT = __import__("os").environ.get("EARLY_KEEP_ACT", "0") == "1"
 # Maintainer's call (2026-08-03): "we can just prevent Saturn from being
 # selectable [in story], which anyway no one would expect to work, all the more
 # so since already Uranus, Neptune and Pluto are not selectable in story mode."
@@ -1382,9 +1387,16 @@ def main():
     for o in (0x01, 0x02, 0x04, 0x05, 0x06, 0x07):
         h += bytes((0x74, o))
     if EARLY_TRANSFORM:
-        # put the act back, so HER script for it runs from step 0 rather than
-        # the shell's entrance being cut short
-        h += bytes((0x68, 0x95, 0x01))           # pla / sta $01,x
+        if EARLY_KEEP_ACT:
+            # Put the act back so HER script for it runs. FIELD-DISPROVEN in
+            # v0.14.2: in 2P VS and 1P-vs-COM she got no entrance animation AND
+            # no inputs until she was hit — her act-$22 script never completes,
+            # so the intro sequencer never hands control over, and a hit is what
+            # finally forces her out of the state. Training was unaffected only
+            # because it has no entrance at all.
+            h += bytes((0x68, 0x95, 0x01))       # pla / sta $01,x
+        else:
+            h += bytes((0x68,))                  # pla — discard; act stays 0
     # palette copy moved to $EE (EE_PALCOPY) — the helper slot is 0x90 bytes
     h += bytes((0x22, EE_PALCOPY & 0xFF, EE_PALCOPY >> 8, B_MISC))
     h += bytes((0x68, 0xA9, 0x1C, 0xE2, 0x10)); _br(0x80, "sat")
