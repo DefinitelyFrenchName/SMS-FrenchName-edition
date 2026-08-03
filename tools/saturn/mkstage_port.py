@@ -63,6 +63,66 @@ SMS_STAGE = 2                 # Pluto — the space-time door
 SITE_LOAD = 0x008561          # cmp #$7E / bcs $8568 / jmp $916B
 SITE_LOAD_OLD = bytes.fromhex("c97eb0034c6b91")
 
+# ---- the stage NAME on the button-mapping screen -------------------------
+# Found by following the fact that the stage is SELECTABLE there:
+#   $7E:1838              the selected stage
+#   $C3:B5AD + s*2        -> that stage's name record, palette 3   (bank $C4)
+#   $C3:B5C1 + s*2        -> the same name, palette 4
+# Each record is 0x66 bytes: a 6-byte header (`e4 02 30 00 02 00`, where 0x30 is
+# the size of a row area and 0x02 the number of rows), the glyph words for the
+# TOP row at +0x16 and for the BOTTOM row at +0x46, each terminated by 0000.
+# A glyph contributes two words per row: (T, T+1) on top, (T+0x10, T+0x11) below,
+# each OR'd with the record's palette. 0x30 bytes leaves room for 11 glyphs.
+NAME_PTR_PAL3 = 0x00B5AD      # in bank $C3
+NAME_PTR_PAL4 = 0x00B5C1
+NAME_ROW_TOP = 0x16
+NAME_ROW_BOT = 0x46
+NAME_ROW_MAX = 0x30
+
+# Glyph tile codes read off the menu font sheet (tools/saturn/render_chr.py +
+# the 16x16 composer). Kana only for now: the four kanji 沈黙玉座 that the real
+# name needs are NOT in the font and have to be authored first.
+GLYPH = {
+    "ア": 0x166, "イ": 0x168, "ウ": 0x16A, "キ": 0x180, "ク": 0x182, "コ": 0x184,
+    "サ": 0x186, "シ": 0x188, "ス": 0x18A, "セ": 0x18C, "ジ": 0x18E, "タ": 0x1A2,
+    "チ": 0x1A4, "テ": 0x1A6, "ト": 0x1A8, "ド": 0x1AA, "ナ": 0x1AC, "ニ": 0x1AE,
+    "マ": 0x1E0, "ミ": 0x1E2, "ム": 0x1E4, "モ": 0x1E6, "ャ": 0x1E8, "ュ": 0x1EA,
+    "ョ": 0x1EC, "ラ": 0x1EE, "リ": 0x200, "ル": 0x202, "レ": 0x204, "ン": 0x206,
+    "メ": 0x2CC, "ー": 0x164, "の": 0x102, "時": 0x348, "空": 0x34A, "扉": 0x34C,
+}
+# A proof-of-concept name for the ported stage, written with glyphs the font
+# already has, so the edit can be confirmed on a pad before any tile authoring.
+STAGE_NAME = __import__("os").environ.get("STAGE_NAME", "サイレントメシア")
+
+
+def write_stage_name(data, stage, name, E0_unused=None):
+    """Rewrite one stage's name in both palette records."""
+    B3, B4 = 0x030000, 0x040000
+    glyphs = []
+    for ch in name:
+        if ch not in GLYPH:
+            raise SystemExit(f"stage name: no glyph for {ch!r} in the menu font "
+                             f"(needs authoring; 20 blank 16x16 slots are free)")
+        glyphs.append(GLYPH[ch])
+    need = len(glyphs) * 4 + 2
+    if need > NAME_ROW_MAX:
+        raise SystemExit(f"stage name: {len(glyphs)} glyphs need {need} bytes, "
+                         f"the row area holds {NAME_ROW_MAX}")
+    for table in (NAME_PTR_PAL3, NAME_PTR_PAL4):
+        rec = data[B3 + table + stage * 2] | data[B3 + table + stage * 2 + 1] << 8
+        o = B4 + rec
+        pal = (data[o + NAME_ROW_TOP] | data[o + NAME_ROW_TOP + 1] << 8) & 0xFC00
+        for row_off, tile_bias in ((NAME_ROW_TOP, 0), (NAME_ROW_BOT, 0x10)):
+            buf = bytearray()
+            for t in glyphs:
+                for w in (t + tile_bias, t + tile_bias + 1):
+                    buf += ((w & 0x3FF) | pal).to_bytes(2, "little")
+            buf += b"\x00\x00"
+            buf += b"\x00" * (NAME_ROW_MAX - len(buf))
+            data[o + row_off:o + row_off + NAME_ROW_MAX] = buf
+    return glyphs
+
+
 # ---- Super S side -------------------------------------------------------
 SUP_SCENES = 0xAB22           # scene-script pointer table (bank $E0)
 SUP_PALRECS = 0xAC7A          # palette record 0 (bank $E0)
@@ -473,6 +533,12 @@ def build(src_path, out_path):
         data[dst:dst + n] = s_data[:n]
         print(f"  palette {dpid}: {n} bytes from Super S palette {spid} "
               f"(colours {d_start}..{d_start + n // 2 - 1})")
+
+    # --- the stage name on the button-mapping screen ---
+    if STAGE_NAME:
+        g = write_stage_name(data, SMS_STAGE, STAGE_NAME)
+        print(f"  stage name: {STAGE_NAME} ({len(g)} glyphs, "
+              f"tiles {[f'{t:03X}' for t in g]}) written to both palette records")
 
     # --- the loader hook, last (the only code bytes we touch) ---
     got = bytes(data[SITE_LOAD:SITE_LOAD + len(SITE_LOAD_OLD)])

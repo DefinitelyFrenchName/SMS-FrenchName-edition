@@ -214,3 +214,31 @@ two records.
 
 Still to locate for that: the ROM source of the menu font sheet, so the four new
 glyphs can be added to it.
+
+### Record layout, and the rename implemented
+
+Each record is **0x66 bytes**, and the two tables point at the palette-3 and
+palette-4 copies of the same name:
+
+    +0x00  header  `e4 02 30 00 02 00`   (0x30 = row-area size, 0x02 = two rows)
+    +0x16  TOP row    glyph words, terminated by 0000, 0x30 bytes of room
+    +0x46  BOTTOM row same glyphs + 0x10, terminated by 0000
+
+A glyph contributes two words per row — `(T, T+1)` on top and
+`(T+0x10, T+0x11)` below — each OR'd with the record's palette. 0x30 bytes is
+room for **11 glyphs**, so 沈黙のメシアの玉座 (9) fits with margin.
+
+`mkstage_port.py` writes it: `STAGE_NAME` (env-overridable) plus a `GLYPH` table
+of tile codes read off the font sheet. It refuses a character the font lacks
+rather than drawing a wrong glyph.
+
+**Proof-of-concept shipped in v0.13.8**: the ported stage is named
+**サイレントメシア**, written with glyphs the font already has, so the edit can be
+confirmed on a pad before any tile authoring. Verified in the built ROM by
+decoding both records back (top rows read サイレントメシア in palettes 3 and 4;
+bottom rows are exactly top + 0x10), and the only bytes touched in that region
+are inside the two stage-2 records.
+
+Next, for the real name: author 沈, 黙, 玉, 座 into four of the sheet's 20 free
+slots and extend `GLYPH`. That needs the ROM source of the menu font, still to
+be located.
