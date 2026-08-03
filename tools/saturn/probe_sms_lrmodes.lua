@@ -6,6 +6,7 @@
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local MODE = "practice"
+local SHELL = tonumber(os.getenv("SHELL") or "6")   -- which character to wear
 pcall(function() MODE = dofile(ENV.TOOLS .. "saturn/lrmode_cfg.lua") end)
 local LOG = assert(io.open(ENV.TRACE .. "saturn/lrmodes_" .. MODE .. ".txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
@@ -36,7 +37,7 @@ local STEPS = {
   end,
   function() pulse[0] = beat({start = true}); return sf > 40 end,
   function() pulse[0] = {}; return sf > 240 end,
-  function() wr(0x1B40, 6); if MODE ~= "vscpu" then wr(0x1B80, 4) end; hold = true; return sf > 20 end,
+  function() wr(0x1B40, SHELL); if MODE ~= "vscpu" then wr(0x1B80, 4) end; hold = true; return sf > 20 end,
   function() pulse[0] = beat({a = true}); return ram(0x1B42) == 1 or sf > 90 end,
   function() pulse[0] = {}; return sf > 30 end,
   function()  -- mash A/Start until actually IN MATCH ($0070==4)

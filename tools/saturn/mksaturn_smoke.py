@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.3"
+SATURN_VERSION = "0.14.4"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -405,6 +405,15 @@ EARLY_KEEP_ACT = __import__("os").environ.get("EARLY_KEEP_ACT", "0") == "1"
 # selectable [in story], which anyway no one would expect to work, all the more
 # so since already Uranus, Neptune and Pluto are not selectable in story mode."
 STORY_GUARD = __import__("os").environ.get("STORY_GUARD", "1") == "1"
+# Only transform Uranus/Neptune/Pluto shells (charID 6/7/8) — the three the game
+# already keeps out of story mode, so this locks story without depending on when
+# the mode byte is valid.
+# NOT YET WORKING — default OFF. Placed in the DMA stub it never arms (the
+# player struct is not populated at the effects transfer); placed in the helper
+# (where `lda $01,x` for the act demonstrably works) it blocks EVERY shell,
+# including 6/7/8, which is not yet explained. Next step is to log $00,x at the
+# gates and find what the id actually reads there.
+SHELL_GUARD = __import__("os").environ.get("SHELL_GUARD", "0") == "1"
 SATURN_LATCH = 0xF102     # P1 armed-this-round latch
 SATURN_MARK = 0xF105   # "her card tiles are uploaded" marker
 SATURN_INIDISP = 0xF106  # INIDISP saved across the blit's forced blank
@@ -1371,6 +1380,15 @@ def main():
         h += bytes((0xAD, 0x04, 0x1E)); _br(0xD0, "popn")    # intro sequencer busy
     h += bytes((0xAD, 0xFA, 0x01, 0xC9, 0x80)); _br(0xD0, "popn")  # not-live
     h += bytes((0xC2, 0x10, 0xA6, 0x88))         # rep #$10 / ldx $88
+    if SHELL_GUARD:
+        # Maintainer (2026-08-03): "make selecting Saturn only possible via L+R
+        # on Uranus, Neptune or Pluto … those three are not selectable in story
+        # mode." A far more robust story lock than the mode byte, which the field
+        # showed still let her in. It must be tested HERE, not in the DMA stub:
+        # at the effects transfer the player struct is not populated yet, so the
+        # id reads as junk and nothing arms at all (measured).
+        h += bytes((0xB5, 0x00, 0xC9, 0x06)); _br(0x90, "pop8")   # shell < 6
+        h += bytes((0xC9, 0x09)); _br(0xB0, "pop8")               # shell > 8
     h += bytes((0xB5, 0x01, 0xC9, 0x03))         # act
     if EARLY_TRANSFORM:
         # act < 3 is the old "standing at neutral" case. ALSO accept the

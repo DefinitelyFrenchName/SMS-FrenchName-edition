@@ -27,7 +27,7 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 
 **Saturn is playable in SMS**, summoned by holding **L+R** on any character
 slot at select (she wears that character as a "shell"). Field-tested repeatedly
-by the maintainer. Current build is **v0.14.3** (Saturn + the stage, named in kanji, arriving before the round, story-guarded), on
+by the maintainer. Current build is **v0.14.4** (Saturn + the stage, named in kanji, arriving before the round, story-guarded), on
 **REF v.2**. **Every tracked bug is closed**; what remains is the extended scope
 in `docs/saturn/PROJECT.md` § Extended scope (menu translation; showing Saturn
 before round start instead of at the round load).
