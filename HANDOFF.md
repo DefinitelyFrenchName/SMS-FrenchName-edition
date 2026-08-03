@@ -27,7 +27,7 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 
 **Saturn is playable in SMS**, summoned by holding **L+R** on any character
 slot at select (she wears that character as a "shell"). Field-tested repeatedly
-by the maintainer. Current build is **v0.13.4** (Saturn + the stage port), on
+by the maintainer. Current build is **v0.13.5** (Saturn + the stage port), on
 **REF v.2**. **Every tracked bug is closed**; what remains is the extended scope
 in `docs/saturn/PROJECT.md` § Extended scope (menu translation; showing Saturn
 before round start instead of at the round load).
@@ -78,7 +78,15 @@ band +4 px at the apex while its ground stays put, and does it on ONE plane per
 SCANLINE (an HDMA channel onto `$210E` for the duration of the jump — measured
 with `probe_supers_stagejump.lua`); SMS has no such machinery, so the port
 splits by PLANE instead — ground alone on BG1 at 1:1, sky+palace on BG2 at
-camera/4. Palace now +3. `docs/saturn/supers_assets.md` §#43.
+camera/4. Palace now +3. **Round 3 (v0.13.5): transparency + drift.** Super S
+composes the stage in THREE depths via priority bits, which works there because
+its fighters are OBJ priority 3 — SMS's are OBJ 2, so a priority-1 BG tile
+covers them (the original occlusion report). Two depths for three layers means
+one pair shares a plane and a rate; sky+palace is the pair, and the palace's
+transparent pixels are fixed in the DATA by baking the sky behind them into 111
+composited tiles. Both planes now scroll h = 0 and the palace is shifted 2 cells
+left to keep Super S's framing (verified at offset +0). Black pixels over the
+palace 2141 → 270. `docs/saturn/supers_assets.md` §#43.
 
 **Field-confirmed 2026-08-03:** her **movelist renders clean** in normal play
 (#41 closed) and the **character-select voice shows no regression**.

@@ -540,6 +540,84 @@ Verified: palace +3 vs Super S's +4, ground 1:1 by register, composition correct
 at rest on two builds, regression **57/57** on
 `SailorMoonS_REFsaturn_v0.13.4-hidden-stage.sfc`.
 
+### Round 3 — transparency and the horizontal drift (field, 2026-08-03)
+
+Field on v0.13.4: scrolling all correct, but (a) solid black blocks around the
+palace's outline where the sky should show, and (b) the furthest layer "again
+left shifted", worst at the rightmost camera position.
+
+**Why the stage cannot simply be layered.** Super S composes it in THREE depths:
+
+    BG1 priority 0   sky
+    BG2 priority 1   palace
+    BG1 priority 1   ground
+
+In mode 1 that renders sky < palace < ground, which is exactly right — and it
+works there because **Super S draws its fighters at OBJ priority 3**. SMS draws
+its fighters at **OBJ priority 2** (measured: every visible sprite in a match,
+`$7E:0200` shadow), and in mode 1 a priority-1 BG tile of either plane draws in
+FRONT of OBJ2. That is the original occlusion report ("the castle covering
+everything below the characters' chests"), and it is why the port strips the
+priority bits. Stripped, we have exactly **two** usable depths (BG1.0 > BG2.0)
+for three layers, so one pair must share a plane — and a shared plane means a
+shared scroll rate.
+
+That is the whole tension, and every symptom so far has been one face of it:
+
+| pairing | cost |
+|---|---|
+| palace + ground (v0.13.3) | palace inherits the ground's rate — the parallax report |
+| sky + palace (v0.13.4) | the palace's transparent pixels have no sky behind them — the black blocks |
+| sky + ground | impossible: the sky would then draw in front of the palace |
+
+**v0.13.5 keeps sky + palace together and fixes the transparency in the DATA.**
+Where a palace tile is only partly opaque, the sky cell it covers is baked into
+a new tile (`TileComposer`): 111 composited tiles, allocated from the 272 tile
+slots the stage's own tileset leaves unreferenced. The two palettes differ
+(palace row 2, sky rows 5-6), so each baked sky pixel is remapped to the nearest
+colour in the palace's row — the two ramps are near-identical, several entries
+matching exactly. Black pixels across the palace region: **2141 → 270**, the
+remainder being the stage's own dark art.
+
+Compositing is only valid because the two layers now share a plane: the pairing
+between a palace cell and the sky cell behind it is then fixed forever. An
+earlier attempt that split them and still composited produced *holes* instead —
+the planes scroll at different rates, so "the sky cell behind this palace cell"
+is not a constant.
+
+**And the drift.** Merging also forced a choice of horizontal rate, since the two
+layers can no longer differ: Super S runs its sky+ground plane at h = 0 and its
+palace plane at h = camera/4. v0.13.4 gave the merged plane camera/4, which
+dragged the sky sideways — the "left shifted" report. v0.13.5 sets **both planes
+to h = 0**, so nothing drifts horizontally at all, and shifts the palace **2
+cells left in the data** to put it back where Super S's camera/4 had it at the
+neutral camera. Verified: the palace band aligns with a Super S capture at
+offset **+0**.
+
+Net vs Super S: vertical is faithful (ground 1:1, palace camera/4), transparency
+is faithful, framing is faithful; what is gone is the horizontal parallax
+between the palace and the ground, and the sky rides the palace's vertical rate
+instead of standing still (3 px at a jump apex).
+
+**Getting all of it back needs one engine change:** raise sprites to OBJ
+priority 3 while this scene is loaded, and keep Super S's priority bits verbatim.
+The insertion point is already located — the OAM shadow is `$7E:0200` and it is
+DMA'd to `$2104` from a single kick at **`$80:8476`** (`probe_sms_oamdma.lua`),
+so a per-frame pass could OR the priority in just before it, gated on
+`$7E:008E`. Not done: it changes sprite ordering for everything on that stage,
+which is the maintainer's call.
+
+### Two things that made this round hard
+
+1. **A 64x32 tilemap is TWO 32x32 screens** (the right half at +0x800), not
+   64-entry rows. Reading it the obvious way gives the left half of alternating
+   rows — which is why three separate analyses of these maps contradicted each
+   other, including a confident "the palace is in the second map" that was
+   nonsense. `cell_off()` in the builder now encapsulates it.
+2. **Screenshots beat inference.** The "fill only the gaps" merge was silently
+   dropping the entire palace; the build was clean and self-consistent and only
+   a rendered frame showed bare sky.
+
 ### Still open, deliberately: the HORIZONTAL rate
 
 Walking is the same question on the other axis, and it was measured too: over a
