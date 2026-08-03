@@ -72,7 +72,7 @@ tenth row means relocating a table and repointing every reader. Removing story
 mode or moving to a 6 MB ExHiROM cartridge would buy ROM, which we already have,
 and would break `file offset = SNES address & 0x3FFFFF` in the second case.
 
-## The remaining open item
+## Open items
 
 **#41 movelist — DONE in v0.13.2.** She has her own list (SAILOR SATURN + her
 three specials). It could not be lifted from Super S — that game has neither the
@@ -80,14 +80,30 @@ codec nor these tilemaps — so it is authored from SMS's own font and compresse
 with `tools/saturn/sms_lz.py`. Full write-up, font tables and the acceptance
 matrix: `docs/saturn/movelist.md`.
 
-**#43 stage vertical slide.** On the ported stage only — confirmed by the
-maintainer that no other stage does it, on either build — during a jump the
-shadows and opponent slide toward the bottom of the screen and return on
-landing. Measured: BG1 holds palace+ground and takes the full camera, so "the
-ground moves at quarter speed" is ruled out. **Not reproduced:** two probe
-attempts failed to make the character jump at all (p1y never leaves `$00C0`), so
-the vertical behaviour is unmeasured — do not infer a cause from those runs.
-Get a jump to happen first (training-mode tooling, or a mid-jump savestate).
+**#43 stage vertical slide — REPRODUCED, half-diagnosed. Resume here.**
+
+A jump is now measurable (`probe_sms_stagejump.lua`) and shows the mechanism:
+during a jump the vertical camera moves **BG1 alone** (vscroll 0 -> -1 -> -2 ->
+-3) while BG2/BG3/BG4 stay flat at 0. On a vanilla stage that is invisible
+because everything that must track the camera is on BG1 — but the port
+deliberately re-cut the layers (moving the high-priority ground cells onto the
+other tilemap to fix the palace occlusion), so on this stage the ground sits on a
+plane that does not follow the camera.
+
+**Do not call that the diagnosis yet.** That run is on scene `$00`, the pink
+crystal stage — P1 = Pluto does NOT select stage 2, so stage choice is not simply
+P1's character. **Next step:** force `$7E:008E` to the ported scene (the
+documented way to summon a specific stage) and repeat the same measurement. If
+BG1 moves and the plane holding the ground does not, the cause is confirmed and
+the fix is to make that plane's vscroll follow BG1.
+
+Three probe traps this cost, all now in the probe's header and
+`docs/saturn/supers_assets.md`: `$01FA == $80` does not mean the pads work (the
+entrance and the "GO!" banner come first — wait ~120 frames past neutral); BG
+scroll registers are write-only so shadowing them captures nothing, and Mesen's
+`emu.getState()` is a FLAT table with dotted keys (`ppu.layers[0].vscroll`); and
+a nil inside a step function makes a probe print "done" having logged nothing,
+which reads exactly like "the game did nothing".
 
 ## Lessons these sessions paid for
 

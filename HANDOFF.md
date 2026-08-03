@@ -48,7 +48,24 @@ acceptance evidence: `docs/saturn/sound_scope.md` § PHASE 3. **Field-confirmed
 plays through a fixed directory entry — so she needed only the bank id swapped,
 no sound-id change and no directory patch. The player is identified from the
 three per-player writers of `$1B1E`, since `$1B1E` itself names the CHARACTER
-and she can wear any shell.
+and she can wear any shell. **Field-confirmed.**
+
+**v0.13.2 gives her HER OWN MOVELIST** (#41). It could not be lifted: Super S has
+neither `$C0:916B`'s codec nor these tilemaps — the first Saturn asset where the
+two games genuinely diverge. So the codec was decoded and made writable
+(`tools/saturn/sms_lz.py`; all nine vanilla lists decode to exactly 0x800 and
+both encoders round-trip) and her list is authored from SMS's own font
+(`tools/saturn/mkmovelist.py`), 595 compressed bytes selected by a per-player
+hook on the two table reads at `$C0:8B59` / `$C0:8B81`. Detail and font tables:
+`docs/saturn/movelist.md`. **Not yet seen by the maintainer in normal play** —
+check it on a BRIGHT stage, since the one bug it hid was body text missing the
+priority bit and rendering behind the background.
+
+**Only #43 is open:** the ported stage's vertical slide, now **reproduced and
+half-diagnosed** — a jump moves BG1's vertical scroll alone while BG2/3/4 stay
+flat, and the port re-cut the layers so the ground no longer rides the camera.
+That measurement was taken on the WRONG scene, so confirm it on the ported one
+before fixing. `docs/saturn/supers_assets.md` §#43 and `docs/NEXT_SESSION.md`.
 
 **REF v.2** (2026-08-02, maintainer request) = REF v.1 **+ patch 15 (AUTO
 removal)** = 1b+2+3+4+5+7+8+9+12+13+14+15. Recipe `tools/build_ref_v2.sh`, ROM
@@ -87,6 +104,13 @@ and immediately followed by live data.
    `ldx $88` — but during script interpretation it holds whatever object last
    set it, and Saturn's voice came out of the opponent's slot. The interpreter
    already had the object base in X. Check where a value gets SET.
+5. **A probe that reports nothing is usually broken, not evidence of nothing.**
+   Three separate cases this session: a movelist search that missed because a
+   tilemap interleaves tile+attribute; "the character never jumps", which was the
+   entrance and the GO! banner rather than an input fault (the pad read correctly
+   the whole time); and a step function that threw on a nil and printed "done"
+   having logged only its header. Prove the harness sees the thing before
+   concluding the game does not do it.
 
 ---
 

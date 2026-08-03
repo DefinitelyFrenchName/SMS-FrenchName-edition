@@ -411,3 +411,51 @@ capture is sampled with no offset.
   compare chain runs for every listed object in-match. It exits on the first
   compare (list bank != `$9F`) — order of 1% of a frame.
 
+
+
+## #43 — the ported stage's vertical slide: REPRODUCED and half-diagnosed [P 08-03]
+
+Field report: on the ported stage only, during a jump the shadows and the
+opponent slide toward the bottom of the screen and return on landing. Two earlier
+sessions failed to reproduce it — the character never jumped — so nothing had
+ever been measured. It has now been measured (`probe_sms_stagejump.lua`).
+
+**What a jump actually does to the layers.** Across a jump (act `00` -> `05` ->
+`06`, Y climbing `$C0 -> $B7 -> $AF -> $A6 …`):
+
+    BG1 vscroll:  0 -> 1023 -> 1022 -> 1021 …   (i.e. -1, -2, -3: the camera pans up)
+    BG2 vscroll:  0    0       0       0
+    BG3 vscroll:  0    0       0       0
+    BG4 vscroll:  0    0       0       0
+
+So **the vertical camera moves BG1 and nothing else.** On a vanilla stage that is
+invisible, because the art that has to track the camera is all on BG1. The port
+deliberately **re-cut the layers** — every high-priority cell of map0 was MOVED
+onto the other tilemap so the ground would draw in front of the palace without a
+priority bit (see the 0.12.6 entry) — so on this stage the ground lives on a
+plane that does not follow the camera, and slides against everything that does.
+
+**That is a hypothesis, not yet the diagnosis.** The run above is on **scene
+`$00`** (the pink crystal stage), because P1 = Pluto does NOT select stage 2 —
+stage choice is not simply P1's character, and forcing `$7E:008E` is the
+documented way to summon a specific one. The next step is to force the ported
+scene and repeat exactly this measurement: if BG1 moves and the plane now holding
+the ground does not, the cause is confirmed and the fix is to make that plane's
+vertical scroll follow BG1.
+
+### Three probe traps this cost, all worth remembering
+
+1. **`$01FA == $80` does not mean the players can act.** The round is live but the
+   fighters are still in their entrance (act `$22`), and even at neutral the pads
+   do nothing while the "GO!" banner is up. Waiting ~120 frames past neutral is
+   what finally produced a jump. The old note that "p1y never leaves `$00C0`" was
+   this, not an input fault: the pad autopoll and the engine's own held word both
+   read `$0800` (Up) the whole time while nothing happened.
+2. **BG scroll registers cannot be shadowed.** `$210D`-`$2114` are write-only and
+   a write-callback approach captures *nothing at all*. Mesen exposes the real
+   values — but `emu.getState()` returns a **FLAT table with dotted string keys**
+   (`ppu.layers[0].vscroll`), not nested tables, so indexing it as nested yields
+   nil silently.
+3. **A nil in a step function fails invisibly.** The logging step threw on that
+   nil, and the probe reported "done" having written only its header — which
+   looks exactly like "the game did nothing". Read defensively in step functions.
