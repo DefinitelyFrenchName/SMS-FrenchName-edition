@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.6"
+SATURN_VERSION = "0.14.7"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -484,6 +484,38 @@ CHARSEL_SHELL = 0x06          # shell charID stored on confirm (Uranus)
 EE_DRAW1 = 0xC1A0             # draw-blk1 reimpl (+marker call)
 EE_CONFIRM = 0xC220           # confirm stub: slot-10 translation + flags
 EE_MARKER = 0xC2A0            # shared marker-sprite enqueuer (jsr'd by the draws)
+# v0.14.7 — THE THROW CORRUPTION (field bug 1). When a character is thrown, the
+# THROWER's script supplies the VICTIM's pose, via a per-victim list: the throw
+# interpreter reads the other object's id (`jsr $C1:03DC` returns the OTHER
+# object's base, so `$0E` = the victim's charID), doubles it, and indexes a
+# pointer table at **`$C1:0881`** — which has exactly TEN entries: idx 0 dead
+# (the read is 1-indexed) and idx 1-9 = the nine characters' 21-byte lists at
+# $0895, $08AA … $093D. Another nine-wide table, and Saturn is id 0x1C: the read
+# lands 0x38 bytes past the table, inside character 2's pose data, so the "list
+# pointer" is two bytes of pose values. The poses that come out are junk — pose
+# $F6 measured, against her table's last real pose $83 — and an out-of-range pose
+# indexes past her pose->spritelist table in the OAM layer, whose first byte is a
+# sprite COUNT. Measured result: the emitter writes 102 identical sprites and
+# floods OAM (127 visible entries against ~48 for the same throw with a vanilla
+# dummy). That is the "random tiles" the field sees.
+# TWO read sites, byte-identical in shape: `$C1:0735` (normal throws) and
+# `$C1:0C51` — the second is why a COMMAND throw is worse.
+# The fix needs no space in bank $C1: hook the 5 bytes `B1 0C AB E2 20` at each
+# site (the list read plus the plb/sep the stub reproduces) and, for id 0x1C
+# only, read her own 21-byte list from our bank with `lda long,Y`.
+# Her list is LIFTED, not authored: Super S has the same system at `$C1:0883`
+# with ELEVEN entries, and its idx 10 is Saturn's. The two games' nine shared
+# lists are BYTE-IDENTICAL, which is what proves the step semantics match and her
+# Super S list drops straight into SMS.
+SITE_THROWPOSE = (0x10740, 0x10C5C)   # file offsets, both `B1 0C AB E2 20`
+THROWPOSE_OLD = bytes.fromhex("B10CABE220")
+SUP_THROWTBL = 0x10883        # Super S twin table (11 entries, 1-indexed)
+THROWLIST_LEN = 0x15          # 21 bytes per character
+EE_THROWSTUB = 0xCC00         # the per-victim substitution stub
+EE_THROWLIST = 0xCC40         # her 21 bytes, read by `lda EE_THROWLIST,Y` long
+# (0xC700 was tried first and is NOT free: it is zero when this code runs and is
+#  overwritten later in the bank build, so the "slot busy" assert passed and the
+#  stub silently vanished. Hence the read-back tripwire at the patch site.)
 EE_PALCOPY = 0xC300           # transform palette copier (JSL'd by the $EF helper:
                               # fighter row -> $0600+hint($0E), effects row ->
                               # $0640; moved out of the helper in v0.11.1 — the
@@ -1095,6 +1127,61 @@ def main():
                   0x88, 0x10, (0x100 - 10) & 0xFF))   # effects row loop
     pc_ += bytes((0xFA, 0x6B))                   # plx / rtl
     ee[EE_PALCOPY:EE_PALCOPY + len(pc_)] = pc_
+
+    # -- thrown-pose substitution (v0.14.7, see SITE_THROWPOSE) --
+    # Entered by JSL over `B1 0C AB E2 20`, with DB still $C1, A 16-bit,
+    # Y = the throw step index and $0C = the per-victim list pointer the vanilla
+    # table produced (garbage when the victim is Saturn). Reproduces the original
+    # read for every other victim, byte for byte.
+    sup_tbl = SUP_THROWTBL + 10 * 2                 # Super S idx 10 = Saturn
+    sat_list_ptr = sup[sup_tbl] | (sup[sup_tbl + 1] << 8)
+    sat_list = sup[0x10000 + sat_list_ptr:0x10000 + sat_list_ptr + THROWLIST_LEN]
+    assert len(sat_list) == THROWLIST_LEN and sat_list[:7] == bytes((0, 1, 2, 3, 5, 6, 7)), \
+        f"Super S Saturn thrown-pose list looks wrong: {sat_list.hex()}"
+    # sanity: her poses must be inside her own pose->spritelist table
+    assert max(sat_list) <= 0x83, f"thrown pose out of her table: {max(sat_list):#04x}"
+    # and the nine shared lists must be identical across the games, or the step
+    # semantics differ and lifting hers is not justified
+    for i in range(1, 10):
+        s_ = SUP_THROWTBL + i * 2
+        p_ = sup[s_] | (sup[s_ + 1] << 8)
+        m_ = 0x10881 + i * 2
+        q_ = data[m_] | (data[m_ + 1] << 8)
+        assert sup[0x10000 + p_:0x10000 + p_ + THROWLIST_LEN] == \
+            data[0x10000 + q_:0x10000 + q_ + THROWLIST_LEN], \
+            f"thrown-pose list {i} differs between the games — do not lift Saturn's"
+    # The stub must NOT do the `plb` itself. The vanilla `plb` at +2 pops the DB
+    # that `phb` pushed back at $C1:0715 — but inside a JSL'd stub the return
+    # address sits on top of it, so a `plb` there pops a return byte and the rtl
+    # then returns into hyperspace. Measured as: the throw stalls at act $1C
+    # forever, for a VANILLA victim as well as Saturn (the A/B is what caught it).
+    # So the hook keeps the original `AB` as its 5th byte and the stub only
+    # replaces `lda ($0C),y` + `sep #$20`; net state is identical, since `plb`
+    # after `sep #$20` leaves A/DB/M exactly as `plb` before it did, and the next
+    # instruction ($C1:0745 `ldy $10`) overwrites the flags either way.
+    ts = bytearray()
+    ts += bytes((0xE2, 0x20))                        # sep #$20
+    ts += bytes((0xA5, 0x0E))                        # lda $0E   (victim charID)
+    ts += bytes((0xC9, SAT_ID))                      # cmp #$1C
+    ts += bytes((0xF0, 0x06))                        # beq sat
+    ts += bytes((0xC2, 0x20))                        # rep #$20
+    ts += bytes((0xB1, 0x0C))                        # lda ($0C),y   — vanilla path
+    ts += bytes((0x80, 0x09))                        # bra done
+    # `lda long,Y` DOES NOT EXIST on the 65816 — $BF is long,**X**. Written as a
+    # long,Y it indexed with X, which here is the THROWER's object base, and the
+    # read came back as her list[0] every frame (pose 00 for the whole hold, where
+    # the vanilla victim cycles 5C/5D/5E/58/59). Transfer the index into X instead.
+    ts += bytes((0xDA, 0xBB))                        # sat: phx / tyx
+    ts += bytes((0xC2, 0x20))                        # rep #$20
+    ts += bytes((0xBF, EE_THROWLIST & 0xFF, EE_THROWLIST >> 8, B_MISC))   # lda long,x
+    ts += bytes((0xFA,))                             # plx
+    ts += bytes((0xE2, 0x20, 0x6B))                  # done: sep #$20 / rtl
+    assert ee[EE_THROWSTUB:EE_THROWSTUB + len(ts)] == bytes(len(ts)), "throw stub slot busy"
+    assert EE_THROWSTUB + len(ts) <= EE_THROWLIST, "throw stub overruns her list"
+    ee[EE_THROWSTUB:EE_THROWSTUB + len(ts)] = ts
+    assert ee[EE_THROWLIST:EE_THROWLIST + THROWLIST_LEN] == bytes(THROWLIST_LEN), \
+        "throw list slot busy"
+    ee[EE_THROWLIST:EE_THROWLIST + THROWLIST_LEN] = sat_list
 
     # -- win-screen records + stubs (v0.11.3, see WIN_* constants) --
     def _win_rec(p_):
@@ -1832,6 +1919,20 @@ def main():
     data[SITE_CEL_T2:SITE_CEL_T2 + 2] = bytes(((EA_TABLE + 2) & 0xFF, (EA_TABLE + 2) >> 8))
     hook = bytes((0x22, E8_STUB & 0xFF, E8_STUB >> 8, B_SCR)) + b"\xEA" * 7
     data[SITE_RECOG:SITE_RECOG + 11] = hook
+    # thrown-pose substitution: both throw interpreters (normal + command throw).
+    # Read the stub back out of the ASSEMBLED bank first — an "is this slot zero"
+    # check at emission time proves nothing, because later steps of the bank build
+    # can overwrite it (measured: the first slot chosen was quietly clobbered and
+    # the hook jumped into data).
+    _sb = (B_MISC << 16) & 0x3FFFFF
+    assert bytes(data[_sb + EE_THROWSTUB:_sb + EE_THROWSTUB + len(ts)]) == bytes(ts), \
+        f"throw stub was overwritten in bank ${B_MISC:02X} — pick another slot"
+    assert bytes(data[_sb + EE_THROWLIST:_sb + EE_THROWLIST + THROWLIST_LEN]) == bytes(sat_list), \
+        f"throw list was overwritten in bank ${B_MISC:02X} — pick another slot"
+    for _i, _site in enumerate(SITE_THROWPOSE):
+        expect(_site, THROWPOSE_OLD, f"thrown-pose list read {_i + 1}")
+        data[_site:_site + 5] = \
+            bytes((0x22, EE_THROWSTUB & 0xFF, EE_THROWSTUB >> 8, B_MISC, 0xAB))
     expect(SITE_PROC_HOOK, PROC_HOOK_OLD, "main proc-dispatch head")
     data[SITE_PROC_HOOK:SITE_PROC_HOOK + 7] = \
         bytes((0x22, EF_HELPER & 0xFF, EF_HELPER >> 8, B_C1)) + b"\xEA" * 3

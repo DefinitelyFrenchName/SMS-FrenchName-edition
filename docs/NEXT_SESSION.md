@@ -1,4 +1,4 @@
-# Next-session handoff — 2026-08-03 (field round; bugs 2 and 3 closed)
+# Next-session handoff — 2026-08-03 (field round; all three bugs closed)
 
 Fast orientation. **Full operational map: `HANDOFF.md`; Saturn brief:
 `docs/saturn/PROJECT.md`; test-ROM registry: `docs/saturn/BUILDS.md`; patch
@@ -10,13 +10,21 @@ history.)
 
 The base patch project is done and green. Current work is **SMS + Saturn**:
 Saturn is playable in SMS, selected by holding **L+R** on a **Uranus, Neptune or
-Pluto** slot (that restriction is the story lock — see below). Current build is
-**v0.14.6** (`SailorMoonS_REFsaturn_v0.14.6-hidden-stage.sfc`, `876983ff…`,
-regression 57/57) on **REF v.2**. Everything the project set out to build exists
-(voice, select line, movelist, the ported stage and its kanji name, and she
-arrives before the round starts). Of the three bugs the 2026-08-03 field round
-opened, **#2 and #3 are fixed** — they turned out to share a root cause — and
-**#1 (throw corruption) is the only one left**.
+Pluto** slot (that restriction is the story lock). Current build is **v0.14.7**
+(`SailorMoonS_REFsaturn_v0.14.7-hidden-stage.sfc`, `c4f51fe7…`, regression
+57/57) on **REF v.2**. Everything the project set out to build exists (voice,
+select line, movelist, the ported stage and its kanji name, and she arrives
+before the round starts). **All three bugs from the 2026-08-03 field round are
+now fixed** — #2 and #3 shared one root cause (the game-mode byte), #1 was a
+third nine-wide table. What is left is the extended scope, plus one gap in the
+throw fix that only the field can close (see below).
+
+**Field-check list for v0.14.7**, in priority order:
+1. **Saturn thrown by a COMMAND throw** (Jupiter SPD+P). The normal throw is
+   fixed and A/B-proven headless; the command-throw hook site is patched
+   identically but could not be exercised in the harness.
+2. 2P VS with L+R on either pad, and a Saturn mirror with L+R on both.
+3. Story still refuses her on every selectable character.
 
 ## The mode byte was wrong, and it caused two of the three bugs
 
@@ -36,32 +44,55 @@ Lua, **wrong**) and "VS 1P-vs-2P = 01" (right) — and the story guard was writt
 against the wrong one. So `$8D == 1` blocked **2P VS** and never touched story.
 Both entries are now corrected, in `annotations.md` and `sms_engine_internals.md`.
 
-## THE BUGS (field, v0.14.3)
+## THE BUGS (field, v0.14.3) — all three closed
 
 Field verdict: training **good**, 1P-vs-COM **good**, and:
 
-**1. Throw corruption — the important one, and NOT caused by this session's
-work (it predates it).** When Saturn is thrown her sprite becomes random tiles;
-thrown by a COMMAND throw (Jupiter SPD+P) the corruption spreads into the stage
-tiles. **Reproduced headlessly**: `probe_sms_throwbug.lua` (practice, Saturn as
-the dummy, P1 throws her). What it shows: acts `1C→1D→1E→20` run normally, her
-cels DO stream (banks `$F3/$F4`, plausible lengths), stage-tile VRAM is
-untouched for a *normal* throw (0/128 samples), and her downed sprite is still
-drawn from tiles that are not hers — another character's hair is visible in it.
+**1. Throw corruption — FIXED in v0.14.7. A third nine-wide table.**
+When a character is thrown, the THROWER's script drives the VICTIM's pose:
+`jsr $C1:03DC` returns the *other* object's base, so `$0E` is the victim's
+charID, and `$0E*2` indexes a pointer table at **`$C1:0881`** — ten entries,
+1-indexed, idx 1–9 being the nine characters' 21-byte pose lists. Saturn is id
+**`0x1C`**, so the read lands 0x38 bytes past the table, inside character 2's
+pose data, and the "list pointer" is two bytes of pose values.
 
-*Ruled out, so do not re-walk these:* cel-record validity (115 records, banks all
-rebased, no oversize, only record 0 zero-size); cel sizes (her max `0x900` vs
-SMS's own `0x9a0`); dropped act-table entries (none); missing cel DMA; and the
-blank-cel size theory — poses `$7E-$83` do use the sentinel and it was only
-`0x480` against a `0x900` max payload, but enlarging it changed nothing, so that
-change was reverted rather than shipped unproven. Also: the `+0x18` byte reads
-`$F8` during the throw, which looks like an out-of-range pose index and is not —
-it is the pose-record CLASS, and no SMS character's pose table reaches `$F8`.
+The chain from there, all measured: garbage poses (**`$F6`**, against her
+table's last real pose `$83`) → an out-of-range index into her pose→spritelist
+table in the OAM layer, whose first byte is a sprite **COUNT** → the emitter
+writes **102 identical sprites and floods OAM**. That is the "random tiles".
 
-*Where to look next:* the OAM sprite-layout layer (the `$84:8000` system) for the
-victim poses, and how SMS draws a thrown victim at all — if the thrower's
-animation supplies the victim's tiles, a ported character would show the
-thrower's.
+Fix: hook the list read at both sites (`$C1:0740` normal, `$C1:0C5C`
+command/carry — byte-identical in shape) and, for victim id `0x1C` only, read
+her own list. Her list is **lifted, not authored**: Super S's twin table at
+`$C1:0883` has ELEVEN entries and idx 10 is hers, and the nine shared lists are
+**byte-identical across the games** — which is what proves the step semantics
+match and justifies lifting.
+
+A/B on the same throw (`probe_sms_throwoam.lua`, dummy as Saturn vs as the plain
+shell):
+
+| build | Saturn's poses | max sprites |
+|---|---|---|
+| v0.14.6 | `95 / 78 / 46 / F6` | **127 — OAM flood** |
+| v0.14.7 | `73 / 74 / 75 / 6F / 70` | 57 (vanilla: 60) |
+
+Those are list indices 12/13/14/8/9 — exactly the indices vanilla uses into its
+own list. Stage-tile VRAM 0% changed; regression 57/57 including the two SPD
+command-throw tests.
+
+⚠️ **Still unexercised: Saturn as the victim of a COMMAND throw** (site 2 with id
+`0x1C`). The harness cannot land Jupiter's SPD — he reaches act `$4D` on
+schedule, but the motion's up-steps make him jump and it whiffs; parking the
+victim and poking the act both failed. The patch there is byte-identical and its
+context was verified identical by disassembly, so this is a field check, not a
+known gap in the reasoning.
+
+*Two bugs paid for on the way, both caught by the A/B rather than by reasoning:*
+a `plb` inside a JSL'd stub pops the **return address**, not the saved DB (it
+stalled every throw, vanilla victims included — the vanilla arm of the A/B is
+what exposed it); and **`lda long,Y` does not exist on the 65816** — `$BF` is
+long,**X**, so the read indexed with the thrower's object base and returned her
+list[0] every frame.
 
 **2. 2P VS: the shell is not replaced, though her sfx play — FIXED in v0.14.6.**
 Root cause: the story guard's `$8D == 1` test *is* 2P VS (see the mode-byte
@@ -205,7 +236,19 @@ and their ROMs are in `build/saturn/stagecandidate_*.sfc`.
    unrelated for a week. The measurement that settled it took one probe and ten
    minutes, and it works by finding a discriminator the game itself exposes
    (cursor count and reachable roster), not by trusting any label.
-7. **Name harness modes after what you measured, not what you assumed.** The
+7. **A/B against the vanilla path, always.** Both bugs introduced while fixing
+   the throw were invisible in the Saturn arm alone and obvious in the vanilla
+   one: a stalled throw looked like "the fix worked, no flood" until the vanilla
+   dummy stalled identically. An A/B harness is not a nicety here; it is the only
+   thing that distinguishes "fixed" from "broken in a quieter way".
+8. **Check the addressing mode exists before assuming symmetry.** `lda long,X`
+   exists; `lda long,Y` does not. The assembled `$BF` silently indexed with the
+   wrong register and returned a plausible-looking constant.
+9. **"Is this slot zero?" does not mean "is this slot free."** The first stub
+   slot passed a zero-check at emission and was overwritten later in the same
+   bank build, so the hook jumped into data. Read the bytes back out of the
+   ASSEMBLED image — that tripwire is now in the builder.
+10. **Name harness modes after what you measured, not what you assumed.** The
    probes' "vscpu" mode was story and their "story" mode was 2P VS, so a correct
    result was filed under the wrong heading and a real bug hid behind a passing
    test. Mode names in `probe_sms_shellguard.lua` now come from the measured

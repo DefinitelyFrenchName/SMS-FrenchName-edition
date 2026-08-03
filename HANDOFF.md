@@ -27,12 +27,31 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 
 **Saturn is playable in SMS**, summoned by holding **L+R** on a **Uranus,
 Neptune or Pluto** slot at select (she wears that character as a "shell").
-Field-tested repeatedly by the maintainer. Current build is **v0.14.6** (Saturn +
-the stage, named in kanji, arriving before the round, shell-guarded), on
-**REF v.2**. Of the three bugs the 2026-08-03 field round opened, **#2 (2P VS
-does not transform) and #3 (Saturn reachable in story) are fixed — they shared a
-root cause**; the throw corruption is the only one left. See
-`docs/NEXT_SESSION.md`.
+Field-tested repeatedly by the maintainer. Current build is **v0.14.7**, on
+**REF v.2**. **All three bugs from the 2026-08-03 field round are fixed**: #2
+(2P VS did not transform) and #3 (Saturn reachable in story) shared one root
+cause — the game-mode byte — and #1 (throw corruption) was a third nine-wide
+table. Details in `docs/NEXT_SESSION.md`; one field check remains, Saturn thrown
+by a COMMAND throw.
+
+**The throw corruption was a per-VICTIM table with nine entries (v0.14.7).**
+When a character is thrown, the THROWER's script drives the VICTIM's pose:
+`jsr $C1:03DC` returns the *other* object's base, so `$0E` is the victim's
+charID, and `$0E*2` indexes a ten-entry, 1-indexed pointer table at `$C1:0881`
+(idx 1-9 = the nine characters' 21-byte pose lists). Saturn is id `0x1C`, so the
+read lands 0x38 bytes past the table, inside another character's pose data.
+The chain from there is worth knowing because it is not obvious from the
+symptom: a garbage pose (`$F6`, against her last real pose `$83`) indexes past
+her pose→spritelist table in the OAM layer, **whose first byte is a sprite
+COUNT** — so the emitter writes 102 identical sprites and floods OAM (127
+visible against ~50). "Random tiles" was a runaway sprite emitter, not bad tile
+data. Fixed by hooking the list read at both sites (`$C1:0740` normal,
+`$C1:0C5C` command/carry) and giving victim id `0x1C` her own 21-byte list,
+**lifted** from Super S (its twin table at `$C1:0883` has eleven entries, idx 10
+is hers, and the nine shared lists are byte-identical across the games).
+**This is the THIRD nine-wide table to bite this port** — see
+`docs/saturn/memory_and_shell.md`. When something misbehaves only for Saturn,
+look for a table sized to the roster before anything else.
 
 **THE MODE BYTE WAS WRONG, and that one constant caused both bugs.** `$7E:008D`
 is **0 = story, 1 = 2P VS, 2 = 1P-vs-COM, 4/5 = training** — measured from the
