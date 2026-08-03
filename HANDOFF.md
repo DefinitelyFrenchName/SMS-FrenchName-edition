@@ -27,7 +27,7 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 
 **Saturn is playable in SMS**, summoned by holding **L+R** on any character
 slot at select (she wears that character as a "shell"). Field-tested repeatedly
-by the maintainer. Current builds are **v0.13.1** + a stage-port variant, all on
+by the maintainer. Current builds are **v0.13.2** + a stage-port variant, all on
 **REF v.2**.
 
 **She has her own voice as of v0.13.0** (task #44 closed): her win laugh, 236P,
@@ -59,8 +59,9 @@ redefinition. `tools/saturn/build_refsaturn.sh` now targets v.2 by default
 
 Shipped for Saturn recently: card portrait (art, layout and palette),
 push-collision fix, corrected sfx mapping, a Super S stage ported onto Pluto's
-slot, and her voice — extracted, approved, and now injected and playing. Open:
-movelist (#41) and a stage vertical-scroll artefact (#43).
+slot, her voice (in-match and the character-select line), and **her own
+movelist** — authored from SMS's font, since Super S shares neither the codec nor
+the data. Open: the stage vertical-scroll artefact (#43).
 
 **Why she wears a shell rather than being a tenth character** — and why more
 ROM would not change that: `docs/saturn/memory_and_shell.md` (the four memories

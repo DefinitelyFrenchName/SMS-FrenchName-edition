@@ -11,12 +11,14 @@ the base patch project's review remediation, is in git history.)
 The base patch project is done and green. Current work is **SMS + Saturn**:
 Saturn is playable in SMS, selected by holding **L+R** on any character slot,
 and has been field-tested repeatedly by the maintainer. Current builds are
-**v0.13.1** (hashes in BUILDS.md) plus a stage-port variant, all on **REF v.2**
+**v0.13.2** (hashes in BUILDS.md) plus a stage-port variant, all on **REF v.2**
 (= REF v.1 + patch 15, AUTO removal; v.1 is deliberately left byte-identical
 since it is a published artifact). **Her voice is in** as of v0.13.0 — the last
-step of task #44, field-confirmed — and v0.13.1 adds her **character-select
-line** ("Yoroshiku") on top. The open items are now her **movelist** (#41) and
-the **vertical scroll artefact** on the ported stage (#43).
+step of task #44, field-confirmed; v0.13.1 added her **character-select line**
+("Yoroshiku"); and v0.13.2 gives her **her own movelist** (#41). The only open
+item is the **vertical scroll artefact** on the ported stage (#43) — plus a
+listening/looking pass on the last two features, neither of which the maintainer
+has seen in normal play yet.
 
 ## Voice — DONE (task #44 closed, plus the select line in v0.13.1)
 
@@ -70,13 +72,13 @@ tenth row means relocating a table and repointing every reader. Removing story
 mode or moving to a 6 MB ExHiROM cartridge would buy ROM, which we already have,
 and would break `file offset = SNES address & 0x3FFFFF` in the second case.
 
-## The other two open items
+## The remaining open item
 
-**#41 movelist.** Shows mostly Uranus's list and is incomplete — two specials,
-no desperation. Maintainer prefers it lifted from Super S rather than recreated.
-It is the pre-staged BG3 tilemap (`$01FA` 0x80→0xE4 on Start, restaged on every
-press). Needs: SMS's per-character movelist data + entry count, then the Super S
-equivalent.
+**#41 movelist — DONE in v0.13.2.** She has her own list (SAILOR SATURN + her
+three specials). It could not be lifted from Super S — that game has neither the
+codec nor these tilemaps — so it is authored from SMS's own font and compressed
+with `tools/saturn/sms_lz.py`. Full write-up, font tables and the acceptance
+matrix: `docs/saturn/movelist.md`.
 
 **#43 stage vertical slide.** On the ported stage only — confirmed by the
 maintainer that no other stage does it, on either build — during a jump the
