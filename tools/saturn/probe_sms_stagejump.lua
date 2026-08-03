@@ -12,14 +12,28 @@
 -- build and on a vanilla stage and diff: whatever tracks the camera on one and
 -- not the other is the fault.
 --
--- usage: CHAR=8 ROM=build/saturn/<rom> tools/run.sh \
+-- STAGE forces the scene id at $7E:008E just before the loader reads it
+-- ($C0:8586), which is the documented way to summon a specific stage — stage
+-- choice is NOT simply P1's character, and the first run of this probe measured
+-- scene $00 while believing it had the ported one. STAGE=2 = Pluto's slot = the
+-- ported stage on a stage build. The header line records the scene actually
+-- loaded; check it before trusting anything below.
+--
+-- Also logs each layer's TILEMAP ADDRESS, because the question for #43 is which
+-- PLANE holds the ground after the port's re-cut, not merely that some plane
+-- fails to track.
+--
+-- usage: STAGE=2 CHAR=8 ROM=build/saturn/<rom> tools/run.sh \
 --            tools/saturn/probe_sms_stagejump.lua 500
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "8")
 local CHAR2 = tonumber(os.getenv("CHAR2") or "4")
+local STAGE = tonumber(os.getenv("STAGE") or "") -- nil = whatever the game picks
+local WALK = os.getenv("WALK") == "1"
 local TAG = os.getenv("TAG") or ("jump" .. (os.getenv("CHAR") or "8"))
 local LOG = assert(io.open(ENV.TRACE .. "saturn/stagejump_" .. TAG .. ".txt", "w"))
+local oamseq = assert(io.open(ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_oamseq.bin", "wb"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
 local MEM = emu.memType.snesMemory
@@ -48,6 +62,20 @@ local function sc4()
   return t
 end
 
+-- which VRAM tilemap/CHR each BG plane is pointed at (the port SWAPs the two
+-- stage maps between planes, so "BG1" alone does not say which art moved)
+local function bases()
+  local ok, s = pcall(emu.getState)
+  if not ok or not s then return "?" end
+  local t = {}
+  for i = 0, 3 do
+    t[#t + 1] = string.format("BG%d map=%04X chr=%04X", i + 1,
+      s[string.format("ppu.layers[%d].tilemapAddress", i)] or 0xFFFF,
+      s[string.format("ppu.layers[%d].chrAddress", i)] or 0xFFFF)
+  end
+  return table.concat(t, "  ")
+end
+
 local frames, step, sf = 0, 1, 0
 local pulse = {}
 emu.addEventCallback(function()
@@ -57,6 +85,17 @@ local function beat(on) return (frames % 7) < 3 and on or {} end
 
 local watching, shots = false, 0
 local basey
+local forced = 0
+
+-- Force the scene id every time the loader is about to read it. The write must
+-- happen at $C0:8586 (the instruction before the read at $858C) — poking $8E
+-- earlier is useless, the scene is re-derived per load.
+if STAGE then
+  emu.addMemoryCallback(function()
+    forced = forced + 1
+    wr(0x8E, STAGE * 2)
+  end, emu.callbackType.exec, 0x808586, 0x808586, emu.cpuType.snes, emu.memType.snesMemory)
+end
 
 local STEPS = {
   function() return frames >= 900 end,
@@ -86,14 +125,21 @@ local STEPS = {
   function()
     if sf == 1 then
       watching = true
-      log(string.format("=== running: P1 char %d, $01FA=$%02X, scene $%02X ===",
-        ram(0x1000), ram(0x01FA), ram(0x008E)))
+      log(string.format("=== running: P1 char %d, $01FA=$%02X, scene $%02X (id %d)%s ===",
+        ram(0x1000), ram(0x01FA), ram(0x008E), ram(0x008E) // 2,
+        STAGE and string.format(" [forced STAGE=%d, %d hits]", STAGE, forced) or ""))
+      log("  planes: " .. bases())
       log("  frame act | +21..+28 (x/y candidates)      | BG1 h,v  BG2 h,v  BG3 h,v  BG4 h,v")
     end
     -- The "GO!" banner is still up for a while after $01FA turns $80 and the act
     -- reaches neutral, and the pads do nothing until it clears — so wait well
     -- past it before trying to jump.
-    if sf >= 120 and sf <= 150 then pulse[0] = { up = true } else pulse[0] = {} end
+    -- WALK=1 holds forward instead of jumping: the horizontal camera is the
+    -- same question as the vertical one (does the ground plane track the
+    -- fighters, or a fraction of them?), and only walking moves camera x.
+    if WALK then
+      pulse[0] = (sf >= 112 and sf <= 200) and { right = true } or {}
+    elseif sf >= 120 and sf <= 150 then pulse[0] = { up = true } else pulse[0] = {} end
     if sf >= 110 and sf <= 200 then
       local sc = sc4()
       local st = {}
@@ -102,10 +148,54 @@ local STEPS = {
       -- and $5C-$5F the engine's own held words, so a jump that never happens
       -- can be told apart from an input that never arrived
       local pad = emu.read(0x804218, MEM) + 256 * emu.read(0x804219, MEM)
-      log(string.format("  %4d %02X  | %s | %4d,%-4d %4d,%-4d %4d,%-4d %4d,%-4d | pad %04X held %02X%02X",
+      -- the scroll block: camera at $0A00 (x) / $0A02 (y), and the four
+      -- per-plane (h,v) pairs the per-stage routines fill in at $0A18..$0A27.
+      -- Logging it is what ties "which plane moved" to "what the stage's
+      -- routine decided", which the PPU registers alone cannot say.
+      local function w(a) return ram(a) + 256 * ram(a + 1) end
+      local cam = {}
+      for _, a in ipairs({ 0x0A00, 0x0A02, 0x0A18, 0x0A1A, 0x0A1C, 0x0A1E,
+                           0x0A20, 0x0A22, 0x0A24, 0x0A26 }) do
+        cam[#cam + 1] = string.format("%04X", w(a))
+      end
+      -- P2 stands still all run, so her sprites are the rigid marker for what
+      -- the camera does to OBJECTS — but only between frames in the SAME idle
+      -- pose, hence act/step/tick/frame here and a per-frame OAM dump below.
+      log(string.format("  %4d %02X  | %s | %4d,%-4d %4d,%-4d %4d,%-4d %4d,%-4d | pad %04X held %02X%02X | cam %s | p2 %02X %02X %02X %02X y=%02X",
         sf, ram(0x1001), table.concat(st, " "),
         sc[0].h, sc[0].v, sc[1].h, sc[1].v, sc[2].h, sc[2].v, sc[3].h, sc[3].v,
-        pad, ram(0x005D), ram(0x005C)))
+        pad, ram(0x005D), ram(0x005C), table.concat(cam, " "),
+        ram(0x1081), ram(0x1082), ram(0x1086), ram(0x1087), ram(0x10A5)))
+      local ok, ob = pcall(function()
+        local t = {}
+        for a = 0, 0x21F do t[#t + 1] = string.char(emu.read(a, emu.memType.snesSpriteRam) or 0) end
+        return table.concat(t)
+      end)
+      if ok then oamseq:write(string.char(sf % 256) .. ob) end
+    end
+    -- WRAM snapshots at rest and at the jump apex. Diffing the pair names the
+    -- camera variables outright, which beats inferring them from the scroll
+    -- registers: the registers say what MOVED, the diff says what DROVE it.
+    -- Also dumps the OAM shadow so the sprites' real screen Y is measurable —
+    -- a pixel correlation on the standing dummy cannot separate a camera pan
+    -- from her idle bob.
+    if sf == 118 or sf == 145 then
+      local n = 0x2000
+      local buf = {}
+      for a = 0, n - 1 do buf[#buf + 1] = string.char(emu.read(a, emu.memType.snesWorkRam)) end
+      local f = io.open(ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_wram" .. sf .. ".bin", "wb")
+      f:write(table.concat(buf)); f:close()
+      local ok, ob = pcall(function()
+        local t = {}
+        for a = 0, 0x21F do t[#t + 1] = string.char(emu.read(a, emu.memType.snesSpriteRam) or 0) end
+        return table.concat(t)
+      end)
+      if ok then
+        local g = io.open(ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_oam" .. sf .. ".bin", "wb")
+        g:write(ob); g:close()
+      else
+        log("  (OAM unavailable: " .. tostring(ob) .. ")")
+      end
     end
     if (sf == 118 or sf == 132 or sf == 145 or sf == 175) and shots < 4 then
       shots = shots + 1
