@@ -17,6 +17,19 @@ three field bugs from 2026-08-03 are fixed**, and the follow-up side effect the
 maintainer found on v0.14.7 (L+R on a disallowed shell still armed her sfx and
 palette) is fixed too. No known open bugs; what remains is the extended scope.
 
+**v0.14.9 — her projectiles have their own OBJ palette row.** Field report:
+fighting *against* Saturn, the projectiles and only the projectiles came out
+wrong. Projectile palettes are chosen **per slot** — 2 for `$1100`, 3 for
+`$1180` — and since v0.11.1 the transform overwrote row 2 with Super S's blue
+effects palette so her fireballs would not be fire-orange. Row 2 is the
+opponent's row too, and pal 3 is not free either (it is slot 2's own authored
+palette). Over a full match only OBJ pals **0/1/2/4** are used by any sprite, and
+**row 7 is all zeros in both a Saturn and a vanilla match**, so her projectile
+procs now select row 7 and the palette copy targets row 7. The change is to HER
+copy of the setup routine only; the engine's `$C1` copy that every vanilla
+projectile runs is untouched. Rows 2 and 3 are now byte-identical to vanilla.
+Tool: `probe_sms_objpal.lua`.
+
 **Where the shell restriction lives now, and why it moved.** v0.14.5 put it in
 the helper — at the transform. But the **flag** is set earlier, by the
 char-select confirm stub, and the select voice, the in-match sound remap and the

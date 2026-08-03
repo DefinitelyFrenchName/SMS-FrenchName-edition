@@ -27,11 +27,20 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 
 **Saturn is playable in SMS**, summoned by holding **L+R** on a **Uranus,
 Neptune or Pluto** slot at select (she wears that character as a "shell").
-Field-tested repeatedly by the maintainer. Current build is **v0.14.8**, on
+Field-tested repeatedly by the maintainer. Current build is **v0.14.9**, on
 **REF v.2**. **All three bugs from the 2026-08-03 field round are fixed**: #2
 (2P VS did not transform) and #3 (Saturn reachable in story) shared one root
 cause — the game-mode byte — and #1 (throw corruption) was a third nine-wide
 table. Details in `docs/NEXT_SESSION.md`. No known open bugs.
+
+**Projectile palettes are per-SLOT, and row 7 is free (v0.14.9).** Both games
+pick a projectile's palette from its slot — 2 for `$1100`, 3 for `$1180` —
+written into the object's `+0x08`, whose value becomes the OAM attr byte via
+`<<1` (so palette = `+0x08 & 7`). Saturn's ported effects palette used to be
+injected over row 2, which recoloured the OPPONENT's projectiles (field report).
+Measured over a full match, only OBJ pals 0/1/2/4 are used by any sprite and row
+7 is never loaded, so hers now live there. Rows 5/6 hold authored ramps nothing
+drew — do not assume they are free.
 
 **Guard the thing that ARMS, not the thing that acts (v0.14.8).** The shell
 restriction started life in the helper, at the transform — but the select

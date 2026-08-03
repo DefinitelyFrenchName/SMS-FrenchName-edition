@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.8"
+SATURN_VERSION = "0.14.9"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -518,6 +518,12 @@ EE_MARKER = 0xC2A0            # shared marker-sprite enqueuer (jsr'd by the draw
 # with ELEVEN entries, and its idx 10 is Saturn's. The two games' nine shared
 # lists are BYTE-IDENTICAL, which is what proves the step semantics match and her
 # Super S list drops straight into SMS.
+# OBJ palette row her projectiles use (and where the transform puts Super S's
+# effects palette). 0/1 = the two fighters, 2/3 = the two projectile SLOTS,
+# 4 = in use; 5 and 6 hold authored ramps that nothing drew in the sample, so
+# they are not trusted as free. 7 is all zeros in both a Saturn and a vanilla
+# match — never loaded, never used. Measured with probe_sms_objpal.lua.
+SAT_PROJ_PAL = 7
 SITE_THROWPOSE = (0x10740, 0x10C5C)   # file offsets, both `B1 0C AB E2 20`
 THROWPOSE_OLD = bytes.fromhex("B10CABE220")
 SUP_THROWTBL = 0x10883        # Super S twin table (11 entries, 1-indexed)
@@ -1009,13 +1015,15 @@ def main():
     # (written into the CGRAM shadow row $0600 = OBJ palette 0 = P1's fighter pal)
     ee[0xC000:0xC020] = sup[0x20B0C8:0x20B0C8 + 32]
     ee[0xC020:0xC040] = sup[0x20B0A8:0x20B0A8 + 32]
-    # v0.11.1 (field report: red fireballs): both games draw projectiles with
-    # OAM PALETTE 2 (attrs x34/x74/xB4/xF4, measured mid-flight in both) —
-    # Super S loads a blue EFFECTS palette there ($E0:B208), SMS's row 2 holds
-    # the shell game's effect colors (fire-orange ramp) -> red fireballs. The
-    # helper injects this row into shadow $0640 at transform. Tradeoff: OBJ
-    # pal 2 is shared, so a non-Saturn opponent's own projectile art recolors
-    # slightly while a Saturn is in play.
+    # v0.11.1 (field report: red fireballs): projectiles are drawn from a
+    # per-SLOT palette (2 for slot $1100, 3 for $1180; attrs x34/x74/xB4/xF4
+    # measured mid-flight in both games) — Super S loads a blue EFFECTS palette
+    # ($E0:B208), SMS's row holds the shell game's fire-orange ramp -> red
+    # fireballs. The helper injects this row at transform.
+    # v0.14.9: it now goes to row SAT_PROJ_PAL (7), NOT row 2. Row 2 is the
+    # OPPONENT's projectile row as well, and overwriting it recoloured their
+    # projectiles while a Saturn was in play (field report 2026-08-04). See the
+    # SAT_PROJ_PAL note and the PROJ-block patch for the other half of the fix.
     ee[0xC060:0xC080] = sup[0x20B208:0x20B208 + 32]
     ver = ("SATURN v" + VARIANT_STR).encode()
     ee[0xC040:0xC040 + len(ver) + 1] = ver + b"\x00"
@@ -1162,7 +1170,7 @@ def main():
     pc_ += bytes((0xDA, 0xA0, 0x1F, 0x00))       # phx / ldy #$001F
     pc_ += bytes((0xBB, 0xBF, 0x00, 0xC0, B_MISC, 0x91, 0x0C,
                   0x88, 0x10, (0x100 - 10) & 0xFF))   # fighter row loop
-    pc_ += bytes((0xA9, 0x40, 0x85, 0x0C))       # -> $0640 (OBJ pal 2)
+    pc_ += bytes((0xA9, SAT_PROJ_PAL * 0x20, 0x85, 0x0C))   # -> her projectile row
     pc_ += bytes((0xA0, 0x1F, 0x00))
     pc_ += bytes((0xBB, 0xBF, 0x60, 0xC0, B_MISC, 0x91, 0x0C,
                   0x88, 0x10, (0x100 - 10) & 0xFF))   # effects row loop
@@ -1602,6 +1610,33 @@ def main():
     if prep["unresolved"]:
         raise SystemExit(f"error: projectile port unresolved: {prep['unresolved']}")
     ef[PROJ_BLOCK_LO:PROJ_BLOCK_HI] = pblk
+    # v0.14.9 — HER PROJECTILES GET THEIR OWN OBJ PALETTE ROW (field report: the
+    # opponent's projectiles recolour while a Saturn is in play). Both games draw
+    # projectiles from a per-SLOT palette: the projectile setup routine sets the
+    # attr byte's palette field to 2 for slot $1100 and 3 for slot $1180, then ORs
+    # the priority bits from $8F (giving the $1A / $1B measured live). Since
+    # v0.11.1 the transform overwrote CGRAM shadow row $0640 = OBJ pal 2 with
+    # Super S's blue effects palette so HER fireballs are not fire-orange — but
+    # pal 2 is the OPPONENT's projectile row too, which is exactly what the field
+    # saw. pal 3 is not free either (it is slot $1180's row, a different authored
+    # palette). Measured over a full match with projectiles firing, OBJ palettes
+    # 0/1/2/4 are the only ones any sprite uses, and row 7 is all zeros in both a
+    # Saturn and a vanilla match — never loaded, never used. So: her projectile
+    # procs select row 7, and the palette copy targets row 7 instead of row 2.
+    # This is a change to HER COPY of the routine only (bank $EF/PROJ block); the
+    # engine's own $C1 copy, which every vanilla projectile runs, is untouched.
+    _pp = bytes.fromhex("A902950 8A9A0950AA900950BE00011F00CA903950 8".replace(" ", ""))
+    _n = 0
+    _i = PROJ_BLOCK_LO
+    while True:
+        _i = bytes(ef).find(_pp, _i, PROJ_BLOCK_HI)
+        if _i < 0:
+            break
+        ef[_i + 1] = SAT_PROJ_PAL          # slot $1100 base: 2 -> 7
+        ef[_i + 17] = SAT_PROJ_PAL         # slot $1180 base: 3 -> 7
+        _n += 1
+        _i += len(_pp)
+    assert _n >= 1, "projectile palette-select routine not found in her proc block"
     # tramp3 @ $EF:DB30: re-dispatch the projectile id to its proc (jsr keeps
     # rts semantics; entered via JSL from the $C1 mini-stub)
     # ldx $88 / lda $00,X / cmp #$20 / beq p20 / cmp #$21 / beq p21
