@@ -124,6 +124,46 @@ SCROLL_PTR = 0x00B32F         # the entry stage 2 selects
 SCROLL_PTR_OLD = bytes.fromhex("54b4")    # $C0:B454, the vortex
 SCROLL_PTR_NEW = bytes.fromhex("0ab4")    # $C0:B40A, plain camera parallax
 
+# ---- the jump slide (#43) ----------------------------------------------
+# Measured (probe_sms_stagejump.lua, scene forced to 2): the scroll block at
+# $0A00 holds camera x/y, and $0A18..$0A27 the four per-plane (h,v) pairs, of
+# which BG1 = $0A18/$0A1A and BG2 = $0A1C/$0A1E. OBJECTS are placed at the FULL
+# camera -- with the dummy's idle pose held constant, her sprite top tracks camY
+# 1:1 (topY + camY == 89 across camY 0..-12). So whatever a plane does NOT do
+# with the full camera, everything standing on that plane slides against.
+#
+#   $C0:B40A (stage 0):  BG1 = camera/4 both axes, BG2 = 0
+#   $C0:B454 (stage 2):  BG1 = camera 1:1 both axes, BG2 = camera - vortex counter
+#
+# Borrowing B40A to kill the vortex drift therefore traded the drift for a
+# quarter-rate VERTICAL: on a 12px jump the fighters and their shadows drop 12px
+# while the ground drops 3 -- the reported slide. (Stage 0 does the same in
+# vanilla; nobody notices, because its ground is a flat grass field with no
+# feature at the fighters' feet, while the ported stage has a hard perspective
+# floor line exactly there.)
+#
+# Fix: keep B40A's horizontal treatment, restore stage 2's own 1:1 vertical, in
+# a routine written over the vortex -- which only stage 2 selects, so no other
+# stage can see it, and the pointer at $C0:B32F is then left alone.
+GROUND_TRACKS_CAMERA = True
+SCROLL_CODE = 0x00B454        # the vortex routine's body; code runs to $B4C0,
+                              # data (its HDMA table) starts at $B4C1
+SCROLL_CODE_OLD = bytes.fromhex("c220ad000a38ed180a8500")   # its first 11 bytes
+SCROLL_CODE_NEW = bytes.fromhex(
+    "c220"          # rep #$20
+    "ad000a"        # lda $0A00      camera x
+    "8d240a"        # sta $0A24
+    "4a4a"          # lsr a : lsr a
+    "8d180a"        # sta $0A18      BG1 h = camera/4   (as B40A: unchanged)
+    "8d200a"        # sta $0A20
+    "9c1c0a"        # stz $0A1C      BG2 h = 0
+    "ad020a"        # lda $0A02      camera y
+    "8d1a0a"        # sta $0A1A      BG1 v = camera 1:1  <-- the fix
+    "8d220a"        # sta $0A22
+    "8d260a"        # sta $0A26
+    "9c1e0a"        # stz $0A1E      BG2 v = 0
+    "60")           # rts
+
 STUB = 0x8000                 # in our appended bank
 BLOBS = 0x8100
 
@@ -317,13 +357,24 @@ def build(src_path, out_path):
                          f"expected {SITE_LOAD_OLD.hex()}")
     data[SITE_LOAD:SITE_LOAD + 7] = bytes((0x5C, STUB & 0xFF, STUB >> 8, bank)) + b"\xEA" * 3
 
-    # scroll routine (see SCROLL_PTR)
-    got = bytes(data[SCROLL_PTR:SCROLL_PTR + 2])
-    if got != SCROLL_PTR_OLD:
-        raise SystemExit(f"scroll pointer @{SCROLL_PTR:#08x}: found {got.hex()}, "
-                         f"expected {SCROLL_PTR_OLD.hex()}")
-    data[SCROLL_PTR:SCROLL_PTR + 2] = SCROLL_PTR_NEW
-    print("  scroll routine: $C0:B454 (vortex) -> $C0:B40A (camera parallax)")
+    # scroll routine (see SCROLL_PTR / GROUND_TRACKS_CAMERA)
+    if GROUND_TRACKS_CAMERA:
+        got = bytes(data[SCROLL_CODE:SCROLL_CODE + len(SCROLL_CODE_OLD)])
+        if got != SCROLL_CODE_OLD:
+            raise SystemExit(f"scroll routine @{SCROLL_CODE:#08x}: found {got.hex()}, "
+                             f"expected {SCROLL_CODE_OLD.hex()}")
+        if SCROLL_CODE + len(SCROLL_CODE_NEW) > 0x00B4C1:
+            raise SystemExit("scroll routine would run into the vortex HDMA table at $B4C1")
+        data[SCROLL_CODE:SCROLL_CODE + len(SCROLL_CODE_NEW)] = SCROLL_CODE_NEW
+        print(f"  scroll routine: $C0:B454 rewritten in place "
+              f"({len(SCROLL_CODE_NEW)} B) — BG1 h = camera/4, BG1 v = camera 1:1")
+    else:
+        got = bytes(data[SCROLL_PTR:SCROLL_PTR + 2])
+        if got != SCROLL_PTR_OLD:
+            raise SystemExit(f"scroll pointer @{SCROLL_PTR:#08x}: found {got.hex()}, "
+                             f"expected {SCROLL_PTR_OLD.hex()}")
+        data[SCROLL_PTR:SCROLL_PTR + 2] = SCROLL_PTR_NEW
+        print("  scroll routine: $C0:B454 (vortex) -> $C0:B40A (camera parallax)")
 
     fix_checksum(data)
     open(out_path, "wb").write(data)

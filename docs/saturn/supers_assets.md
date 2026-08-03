@@ -413,37 +413,94 @@ capture is sampled with no offset.
 
 
 
-## #43 — the ported stage's vertical slide: REPRODUCED and half-diagnosed [P 08-03]
+## #43 — the ported stage's vertical slide: DIAGNOSED and FIXED [P 08-03]
 
 Field report: on the ported stage only, during a jump the shadows and the
 opponent slide toward the bottom of the screen and return on landing. Two earlier
 sessions failed to reproduce it — the character never jumped — so nothing had
-ever been measured. It has now been measured (`probe_sms_stagejump.lua`).
+ever been measured. It has now been measured on the RIGHT scene
+(`STAGE=2 … probe_sms_stagejump.lua`, which forces `$7E:008E` at `$C0:8586`; the
+first run measured scene `$00` while believing it had the ported one), root-caused,
+fixed, and the fix verified.
 
-**What a jump actually does to the layers.** Across a jump (act `00` -> `05` ->
-`06`, Y climbing `$C0 -> $B7 -> $AF -> $A6 …`):
+### The scroll model (measured, not inferred)
 
-    BG1 vscroll:  0 -> 1023 -> 1022 -> 1021 …   (i.e. -1, -2, -3: the camera pans up)
-    BG2 vscroll:  0    0       0       0
-    BG3 vscroll:  0    0       0       0
-    BG4 vscroll:  0    0       0       0
+There is a scroll block at `$7E:0A00`:
 
-So **the vertical camera moves BG1 and nothing else.** On a vanilla stage that is
-invisible, because the art that has to track the camera is all on BG1. The port
-deliberately **re-cut the layers** — every high-priority cell of map0 was MOVED
-onto the other tilemap so the ground would draw in front of the palace without a
-priority bit (see the 0.12.6 entry) — so on this stage the ground lives on a
-plane that does not follow the camera, and slides against everything that does.
+    $0A00/$0A02   camera x / camera y (16-bit, signed)
+    $0A18/$0A1A   BG1 h / v      $0A1C/$0A1E   BG2 h / v
+    $0A20..$0A27  the remaining two pairs (BG3/BG4 — the HUD planes here, held at 0)
 
-**That is a hypothesis, not yet the diagnosis.** The run above is on **scene
-`$00`** (the pink crystal stage), because P1 = Pluto does NOT select stage 2 —
-stage choice is not simply P1's character, and forcing `$7E:008E` is the
-documented way to summon a specific one. The next step is to force the ported
-scene and repeat exactly this measurement: if BG1 moves and the plane now holding
-the ground does not, the cause is confirmed and the fix is to make that plane's
-vertical scroll follow BG1.
+A per-stage routine fills that block each frame, selected through the pointer
+table at `$C0:B32B`:
 
-### Three probe traps this cost, all worth remembering
+    $C0:B40A (stage 0)   BG1 = camera/4 on BOTH axes, BG2 = 0
+    $C0:B42F (stage 1)   the mirror of it
+    $C0:B454 (stage 2)   BG1 = camera 1:1 on both axes, BG2 = camera − a vortex counter
+
+**Objects are placed at the FULL camera.** Proven with the animation controlled
+for: holding the standing dummy's idle pose constant (act/step/tick/frame all
+equal) her top sprite Y is 89 at `camY = 0` and 100–101 at `camY = −11/−12` —
+`topY + camY` is constant at +89 across the whole jump. So anything a plane does
+*not* do with the full camera, everything standing on that plane slides against.
+
+### Root cause
+
+The port replaced stage 2's vortex routine with **stage 0's** (`$C0:B32F`:
+`B454` → `B40A`) to kill the vortex's continuous horizontal drift. That trade
+also dropped the VERTICAL from 1:1 to a quarter rate. Measured on the ported
+scene, at the apex of a jump:
+
+    camera y      −12 px
+    objects       −12 px   (fighters, shadows: 1:1)
+    BG1 (ground)   −3 px   (camera/4)
+    BG2 (sky)       0
+
+Nine pixels of disagreement, appearing over ~20 frames and undone on landing —
+exactly "slides toward the bottom of the screen and returns".
+
+Vanilla stage 0 does the identical thing (same routine): its trace, its OAM and
+its WRAM globals are **byte-identical** to the ported stage's across the same
+jump. It is not reported as a bug there because that stage's ground is a flat
+grass field with no feature at the fighters' feet, while the ported stage has a
+hard perspective floor line exactly there. So the port did not invent the
+behaviour; it inherited it onto art that shows it.
+
+### Fix
+
+`mkstage_port.py`, `GROUND_TRACKS_CAMERA = True` (default): instead of
+repointing `$C0:B32F`, the **vortex routine's body at `$C0:B454` is rewritten in
+place** (35 bytes, code region ends at `$B4C0`; its HDMA data table starts at
+`$B4C1` and is untouched) with B40A's horizontal treatment and stage 2's own 1:1
+vertical:
+
+    rep #$20 / lda $0A00 / sta $0A24 / lsr / lsr / sta $0A18 / sta $0A20 / stz $0A1C
+             / lda $0A02 / sta $0A1A  ← the fix: BG1 v = camera, 1:1
+                         / sta $0A22 / sta $0A26 / stz $0A1E / rts
+
+Only stage 2 can see it: the pointer table contains exactly one `B454` entry,
+the per-stage selector maps a single stage onto it, and stage 2 demonstrably
+executes it (rewriting the body changed the ported stage's scroll). The pointer
+at `$C0:B32F` is now left alone.
+
+**Verified.** BG1's vscroll follows camY 1:1 through the jump; the background's
+measured pixel shift goes from +3 to **+11**, equal to the sprites' +11 (frames
+118 → 145, `traces/saturn/stagejump_{cam2,fix2,ship2}_*.png`); scene `$00` on the
+same ROM is byte-identical before and after, so no other stage moved; regression
+**57/57 ALL PASS** on `SailorMoonS_REFsaturn_v0.13.3-hidden-stage.sfc`. The
+camera clamps at −12 px however high the fighter goes, so the 1:1 ground can
+never scroll far enough to expose the tilemap's wrap.
+
+### Still open, deliberately: the HORIZONTAL rate
+
+Walking is the same question on the other axis, and it was measured too: over a
+58 px walk the camera moves ~28 px and BG1 moves ~7 (camera/4), so the fighters
+slide over the ground horizontally as well. That is *also* vanilla stage-0
+behaviour, it is not in the field report, and it is far less legible on a
+repeating floor pattern — so it is left alone. Making it 1:1 is a one-word change
+(drop the two `lsr`s), and it is what vanilla stage 2 did. Maintainer's call.
+
+### Probe traps this cost, all worth remembering
 
 1. **`$01FA == $80` does not mean the players can act.** The round is live but the
    fighters are still in their entrance (act `$22`), and even at neutral the pads
@@ -459,3 +516,13 @@ vertical scroll follow BG1.
 3. **A nil in a step function fails invisibly.** The logging step threw on that
    nil, and the probe reported "done" having written only its header — which
    looks exactly like "the game did nothing". Read defensively in step functions.
+4. **Do not measure a moving character against a moving background by pixel
+   correlation.** The first pass "showed" sprites at +11 and background at +3 on
+   BOTH stages and nearly buried the finding, because the standing dummy's idle
+   bob is worth ±8 px of apparent shift. The measurement only became evidence once
+   it was taken from OAM with her animation state held equal.
+5. **The layer that fails to track is not always the one that was re-cut.** The
+   working hypothesis was that the port's layer re-cut had left the ground on a
+   plane that does not follow the camera. It had not: the ground is on BG1, the
+   only plane that follows at all. The fault was the RATE, inherited from a
+   routine borrowed off another stage.
