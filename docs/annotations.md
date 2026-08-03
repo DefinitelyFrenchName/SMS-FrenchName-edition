@@ -8,7 +8,7 @@ and findings made in this project (marked NEW, with evidence).
 
 | Address | Label | Comment | Source |
 |---|---|---|---|
-| $7E:008D | game_mode | 0=VS, 1=Story, 4=Training (5=training pause helper) | training Lua `mem_game_mode` |
+| $7E:008D | game_mode | **0=Story, 1=VS (2 players), 2=1P-vs-COM, 4=Training (5=training w/ damage & attract demo)** — MEASURED from the game 2026-08-03 (`probe_sms_menurows.lua`); the old "0=VS, 1=Story" reading came from the training Lua and is WRONG. It cost two field bugs: a `$8D == 1` guard blocked 2P VS and never touched story. | probe_sms_menurows.lua (row->mode + cursor count + roster) |
 | $7E:0802 | game_timer_bcd | round timer BCD (training Lua freezes it) | training Lua |
 | $7E:1000 | p1 struct | player struct base P1 (0x80 bytes); P2 $7E:1080; base formula 0x7E0F80+n*0x80 | ground truth |
 | +0x00 | charID | 1=Moon…6=Uranus…9=Chibimoon (10 "Saturn" = Super S carry-over, not in this game) | ground truth |
@@ -348,7 +348,7 @@ tools/hudfont.py (glyphs), tools/test_labels.lua (oracle), tools/perf_patch10.lu
 | Addr / fact | Meaning |
 |---|---|
 | $7E:1B10 title menu | **2 cols x 3 rows** (nav table $C0:A29D+cursor*4 confirmed): left col 0/1/2, right col 3/**4=Practice**/5. Reach Practice: down (0->1), right (1->4). The old "6 vertical entries" reading was wrong. |
-| $7E:008D values | VS 1P-vs-2P match = **01**; native training = **04**; attract demo = **05**; training w/ damage = **05**. Poking $8D 4->5 mid-match enables damage (vendor semantic CONFIRMED on this game). |
+| $7E:008D values | **story = 00**; VS 1P-vs-2P match = **01**; 1P-vs-COM = **02**; native training = **04**; attract demo = **05**; training w/ damage = **05**. Poking $8D 4->5 mid-match enables damage (vendor semantic CONFIRMED on this game). Discriminators measured per menu row: story has ONE cursor and a roster of 1-5 only; VS has TWO independent cursors and the full 1-8; vs-COM has one cursor plus a fixed opponent. |
 | mode 4 hit rule | Hits fully connect in mode 4 (attacker +0x43 latch set, defender hitstun act 0x12, hitstop 8) — **only the HP subtraction is gated**. Mode 5 = same + damage. Blocks/combos/throws all work natively in 4. |
 | $7E:0070 | = **4 while in any match** (VS and training), 0 outside. In-match qualifier for gates ($008D alone is ambiguous at training char-select, which is already mode 4). |
 | $7E:01FA | 0x80 = match running; **0xE4 = movelist open** (Start toggles it). **Select exits the training match** (~60f fade, $0070->0). |

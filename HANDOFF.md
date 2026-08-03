@@ -27,21 +27,36 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 
 **Saturn is playable in SMS**, summoned by holding **L+R** on a **Uranus,
 Neptune or Pluto** slot at select (she wears that character as a "shell").
-Field-tested repeatedly by the maintainer. Current build is **v0.14.5** (Saturn +
+Field-tested repeatedly by the maintainer. Current build is **v0.14.6** (Saturn +
 the stage, named in kanji, arriving before the round, shell-guarded), on
-**REF v.2**. Of the three bugs the 2026-08-03 field round opened, **#3 (Saturn
-reachable in story) is fixed**; the throw corruption and the 2P-VS
-no-transform remain open — see `docs/NEXT_SESSION.md`.
+**REF v.2**. Of the three bugs the 2026-08-03 field round opened, **#2 (2P VS
+does not transform) and #3 (Saturn reachable in story) are fixed — they shared a
+root cause**; the throw corruption is the only one left. See
+`docs/NEXT_SESSION.md`.
+
+**THE MODE BYTE WAS WRONG, and that one constant caused both bugs.** `$7E:008D`
+is **0 = story, 1 = 2P VS, 2 = 1P-vs-COM, 4/5 = training** — measured from the
+game (`probe_sms_menurows.lua`) by two discriminators per menu row: how many
+cursors move, and which charIDs each can reach (story = one cursor, roster 1-5;
+VS = two independent cursors, full 1-8; vs-COM = one cursor + fixed opponent).
+`docs/annotations.md` carried both "0=VS, 1=Story" (from the training Lua —
+wrong) and "VS 1P-vs-2P = 01" (right), and the Saturn story guard was written
+against the wrong one. So `$8D == 1` **blocked 2P VS** while leaving story open.
+Both doc entries are corrected. If you write a mode gate, gate on the corrected
+map and confirm it in the mode you mean.
 
 **The story lock is the SHELL, not the mode byte (v0.14.5).** Restricting her to
 charID 6/7/8 locks story structurally: those three are the game's own story
 bosses and its story nav table cannot reach them, so there is no shell in story
-for her to arm on and no mode check to get wrong. The `$8D == 1` guard the field
-defeated is kept as a second layer, covering the one residual (a story fight
-whose P1 has been *forced* to charID 6 — a poke the UI cannot produce, and one
-that crashes vanilla too). Measured, `probe_sms_shellguard.lua`: shells 6/7/8
-transform, 1/4/9 are refused, and with the mode guard removed entirely the story
-latch still arms and the shell guard still refuses it every frame.
+for her to arm on and no mode check to get wrong. Proven by building with
+`STORY_GUARD=0`: the story latch still arms and the helper still runs every
+frame, and the guard refuses all of it. `STORY_GUARD` is kept as a second layer
+and, since v0.14.6, finally tests the right mode — which is what closes the one
+residual the shell test cannot see (a story fight whose P1 has been *forced* to
+charID 6, a `$1B40` poke the UI cannot produce). Measured on v0.14.6: VS,
+vs-COM and practice transform on shells 6/7/8 and refuse 1/4; story refuses
+everything, forced charID 6 included. Two-pad VS coverage: L+R on P1 → P1 only,
+on P2 → P2 only, on both → a Saturn mirror.
 ⚠️ The earlier "SHELL_GUARD blocks EVERY shell, including 6/7/8" reading was a
 **harness artifact**, not a code fault: that flow pokes `$1B40` once and then
 mashes A/Start through a second selection screen that reuses it, so the fight

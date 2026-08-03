@@ -14,8 +14,7 @@
 --   +0x33 B5 01  lda $01,x   <- the guard would sit here
 --   +0x40 95 00  sta $00,x   (the transform)
 --
--- Navigation follows probe_sms_lrmodes.lua (MODE vscpu = menu row 0, the flow
--- that is known to transform; practice = row 4).
+-- MODE = story|vs|vscom|practice (see the measured row->mode map below).
 --
 -- Result (v0.14.5): the guard always read the right byte — D=0, X=$1000/$1080,
 -- $00,x = the true shell (06 for a Uranus shell, 04 for a Jupiter one). The
@@ -26,20 +25,18 @@
 --
 -- Acceptance matrix (SHELL_GUARD on; XFORM_OFF=0x4A because the guard shifts the
 -- transform 10 bytes later):
---   practice 6/7/8 -> LR PASS   practice 1/4/9 -> LR FAIL, xforms=0
---   vscpu 6 -> LR PASS          vscpu 1 -> LR FAIL
---   story -> LR FAIL (and still LR FAIL on a STORY_GUARD=0 build, where the
---            latch DOES arm — that is the proof the shell test alone locks story)
+--   practice/vs/vscom 6/7/8 -> LR PASS;  1/4/9 -> LR FAIL, xforms=0
+--   story -> LR FAIL (shell guard: story cannot offer an outer senshi)
 --
 --   MODE=practice SHELL=6 XFORM_OFF=0x4A ROM=<saturn build> \
 --     tools/run.sh tools/saturn/probe_sms_shellguard.lua 500
--- envs: MODE=vscpu|practice|story  SHELL  DUMMY  STORY_SHELL=1 (force the story
+-- envs: MODE  SHELL_ID  DUMMY  P2SHELL  HOLD=p1|p2|both  STORY_SHELL=1 (force the story
 --       cursor, adversarial only)  TAG  HELPER  GATE_OFF  XFORM_OFF
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local ram, wr = PL.ram, PL.wr
 
-local MODE = os.getenv("MODE") or "vscpu"
+local MODE = os.getenv("MODE") or "vs"
 -- NOTE: $SHELL is a standard shell variable (/bin/zsh), so a bare run inherits a
 -- non-numeric value — prefer SHELL_ID, and fall back to 6 rather than to nil
 -- (a nil here made wr() throw and the script die with no verdict at all).
@@ -48,6 +45,8 @@ local function shellid(default)
 end
 local SHELL = shellid(6)                               -- P1 shell char (6=Uranus)
 local DUMMY = tonumber(os.getenv("DUMMY") or "") or 4  -- practice dummy char
+local P2SHELL = tonumber(os.getenv("P2SHELL") or "")   -- vs: force P2's char too
+local HOLD = os.getenv("HOLD") or "p1"                 -- which pad holds L+R
 local HELPER = tonumber(os.getenv("HELPER") or "0xF7DB70")
 -- offsets into the helper; defaults are the SHELL_GUARD-off layout. With the
 -- guard built in, the shell test sits at +0x33 and the transform moves to +0x4A.
@@ -79,68 +78,86 @@ end
 emu.addEventCallback(function()
   for p = 0, 1 do
     local b = pulse[p] and PL.pad(pulse[p]) or PL.pad()
-    if p == 0 and hold then b.l = true; b.r = true end
+    if hold and (HOLD == "both" or (HOLD == "p1" and p == 0)
+                 or (HOLD == "p2" and p == 1)) then b.l = true; b.r = true end
     emu.setInput(b, 0, p)
   end
 end, emu.eventType.inputPolled)
 
--- menu rows: vscpu = 0, story = 1, practice = 4.
--- The story flow needs its own step list: after P1 confirms, the screen wants a
--- SECOND confirm on pad 2 and then Start on both pads (the practice-style A/Start
--- mash on pad 1 alone stalls there forever — measured).
-local STEPS_STORY = {
-  function() return frames >= 900 end,
-  function() pulse[0] = beat({ down = true }); return ram(0x1B10) == 1 end,
-  function() pulse[0] = beat({ start = true }); return sf > 40 end,
-  function() return sf > 240 end,
-  function()
-    -- STORY_SHELL=1 forces the cursor (a direct poke bypasses the nav table's
-    -- story roster restriction — used only to prove the guard, never a real flow)
-    if os.getenv("STORY_SHELL") == "1" then wr(0x1B40, SHELL) end
-    hold = true; return sf > 20
-  end,
-  function() pulse[0] = beat({ a = true }); return ram(0x1B42) == 1 or sf > 90 end,
-  function() pulse[0] = {}; return sf > 30 end,
-  function() pulse[1] = beat({ a = true }); return sf > 60 end,
-  function() return sf > 240 end,
-  function() pulse[0] = beat({ start = true }); pulse[1] = beat({ start = true })
-             return (ram(0x1000) ~= 0 and ram(0x1080) ~= 0) or sf > 600 end,
-  function() pulse[0] = {}; pulse[1] = {}; return sf > 400 end,
+-- MEASURED menu-row -> game-mode map (probe_sms_menurows.lua, clean ROM):
+--   row 0 -> $8D=00  ONE cursor, roster 1-5 only            = STORY
+--   row 1 -> $8D=01  TWO independent cursors, full roster   = 2P VS
+--   row 2 -> $8D=02  one cursor + fixed opponent            = 1P vs COM
+--   row 4 -> $8D=04  (down then RIGHT from row 1)           = PRACTICE
+-- docs/annotations.md's "0=VS, 1=Story" line was wrong and is corrected; that one
+-- constant is what made the mode guard block 2P VS and miss story entirely.
+local MODES = {
+  story    = { row = 0, confirm2 = "none" },
+  vs       = { row = 1, confirm2 = "pad2" },   -- P2 confirms with its OWN pad
+  vscom    = { row = 2, confirm2 = "none" },
+  practice = { row = 4, confirm2 = "pad1" },   -- P1 confirms the dummy too
 }
+local M = MODES[MODE] or error("MODE must be one of story|vs|vscom|practice")
 
-local STEPS_VS = {
+local function poke()
+  wr(0x1B40, SHELL)
+  if MODE == "practice" then wr(0x1B80, DUMMY) end
+  if P2SHELL then wr(0x1B80, P2SHELL) end
+end
+
+local STEPS = {
   function() return frames >= 900 end,
-  function()
-    if MODE == "vscpu" then return sf > 30 end
-    pulse[0] = beat({ down = true }); return ram(0x1B10) == 1
+  function()  -- column: down to row 1 (vs / practice) or row 2 (vscom)
+    local want = (M.row == 4) and 1 or M.row
+    if want == 0 then return sf > 30 end
+    pulse[0] = beat({ down = true }); return ram(0x1B10) == want
   end,
-  function()
-    if MODE ~= "practice" then return true end
+  function()  -- practice is one RIGHT off row 1
+    if M.row ~= 4 then return true end
     pulse[0] = beat({ right = true }); return ram(0x1B10) == 4
   end,
   function() pulse[0] = beat({ start = true }); return sf > 40 end,
-  function() pulse[0] = {}; return sf > 240 end,
-  function() wr(0x1B40, SHELL); if MODE == "practice" then wr(0x1B80, DUMMY) end
-             hold = true; return sf > 20 end,
-  function() pulse[0] = beat({ a = true }); return ram(0x1B42) == 1 or sf > 90 end,
-  function() pulse[0] = {}; return sf > 30 end,
-  function()  -- mash A/Start until actually IN MATCH ($0070==4)
-    -- keep poking the cursor: in vscpu the A/Start mash walks through a SECOND
-    -- selection screen that reuses $1B40, so a one-shot poke at step 5 is
-    -- silently undone and the fight loads charID 1 (this is what made the
-    -- 2026-08-03 "SHELL_GUARD blocks 6/7/8" reading wrong)
-    wr(0x1B40, SHELL)
-    if MODE == "practice" then wr(0x1B80, DUMMY) end
-    pulse[0] = (frames % 14 < 3) and { a = true }
-      or ((frames % 14 >= 7 and frames % 14 < 10) and { start = true } or {})
+  function() return sf > 240 end,
+  function()  -- story puts a screen before char select; mash until a cursor exists
+    local m = frames % 16
+    pulse[0] = (m < 3) and { start = true } or ((m >= 8 and m < 11) and { a = true } or {})
+    if ram(0x1B40) ~= 0 then return true end
+    return sf > 400
+  end,
+  function()
+    -- STORY_SHELL=1 forces the story cursor onto an outer senshi. The story nav
+    -- table cannot reach 6/7/8 on its own and forcing it crashes VANILLA too, so
+    -- this is an adversarial probe only, never a reachable flow.
+    if MODE ~= "story" or os.getenv("STORY_SHELL") == "1" then poke() end
+    hold = true; return sf > 20
+  end,
+  function()
+    if MODE ~= "story" or os.getenv("STORY_SHELL") == "1" then poke() end
+    pulse[0] = beat({ a = true }); return ram(0x1B42) == 1 or sf > 120
+  end,
+  function() pulse[0] = {}; return sf > 20 end,
+  function()  -- the second confirm, on whichever pad owns it in this mode
+    if M.confirm2 == "none" then return true end
+    if M.confirm2 == "pad2" then pulse[1] = beat({ a = true })
+    else pulse[0] = beat({ a = true }) end
+    return ram(0x1B82) == 1 or sf > 120
+  end,
+  function() pulse[0] = {}; pulse[1] = {}; return sf > 30 end,
+  function()  -- mash both pads through the config screen until IN MATCH
+    if MODE ~= "story" or os.getenv("STORY_SHELL") == "1" then poke() end
+    local m = frames % 14
+    local b = (m < 3) and { a = true } or ((m >= 7 and m < 10) and { start = true } or {})
+    pulse[0] = b; if M.confirm2 == "pad2" then pulse[1] = b end
     if ram(0x70) == 4 and ram(0x1000) ~= 0 then return true end
-    if sf > 1500 then log("MATCH-LOAD-FAIL"); emu.stop(1) end
+    if sf > 2000 then
+      log(string.format("MATCH-LOAD-FAIL $8D=%02X $70=%02X 1000=%02X 1080=%02X",
+        ram(0x8D), ram(0x70), ram(0x1000), ram(0x1080)))
+      emu.stop(1)
+    end
     return false
   end,
-  function() pulse[0] = {}; return sf > 400 end,
+  function() pulse[0] = {}; pulse[1] = {}; return sf > 400 end,
 }
-
-local STEPS = (MODE == "story") and STEPS_STORY or STEPS_VS
 
 emu.addMemoryCallback(function()
   if hits >= 40 then return end
@@ -205,9 +222,12 @@ emu.addEventCallback(function()
     step = step + 1; sf = 0; pulse = {}
   end
   if not STEPS[step] then
-    log(string.format("FINAL: p1=%02X p2=%02X %s  gate_hits=%d xforms=%d",
-      ram(0x1000), ram(0x1080),
-      ram(0x1000) == 0x1C and "LR PASS" or "LR FAIL", hits, xforms))
+    local who = {}
+    if ram(0x1000) == 0x1C then who[#who + 1] = "P1" end
+    if ram(0x1080) == 0x1C then who[#who + 1] = "P2" end
+    log(string.format("FINAL: $8D=%02X p1=%02X p2=%02X  SATURN=%s  gate_hits=%d xforms=%d",
+      ram(0x8D), ram(0x1000), ram(0x1080),
+      #who > 0 and table.concat(who, "+") or "none", hits, xforms))
     emu.stop(0)
   end
   if frames > 6000 then

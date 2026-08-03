@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.5"
+SATURN_VERSION = "0.14.6"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -424,7 +424,8 @@ STORY_GUARD = __import__("os").environ.get("STORY_GUARD", "1") == "1"
 #     reached every frame, and the guard refuses all of it — story cannot offer an
 #     outer senshi, so there is no shell to arm on. This is why it is the deeper
 #     lock: it never asks what mode the game thinks it is in.
-# STORY_GUARD stays on as well: it is the only thing covering the one residual —
+# STORY_GUARD stays on as well, and from v0.14.6 it finally tests the right mode
+# ($8D == 0, story — 1 is 2P VS): it covers the one residual the shell test cannot,
 # a story fight whose P1 has been FORCED to charID 6 (poked $1B40; the story nav
 # table cannot reach 6/7/8, and forcing the cursor there crashes VANILLA too).
 SHELL_GUARD = __import__("os").environ.get("SHELL_GUARD", "1") == "1"
@@ -770,14 +771,26 @@ def main():
         fix = []
         b += bytes((0xE2, 0x20))                             # sep #$20
         if STORY_GUARD:
-            # Story mode ($7E:008D == 1) never arms. The game itself keeps the
-            # outer senshi out of story (they are its bosses), so a hidden tenth
-            # character has no business there either — and it removes the one
-            # risk the early transform carries, since the $1E04 gate it drops
-            # existed to protect the story sequencer. The latch is FORCED TO 0
-            # rather than merely skipped, so a stale arm from a previous VS
-            # round cannot survive into a story fight.
-            b += bytes((0xA5, 0x8D, 0xC9, 0x01, 0xD0, 0x09))     # lda $8D/cmp #1/bne
+            # Story mode never arms. The game itself keeps the outer senshi out of
+            # story (they are its bosses), so a hidden tenth character has no
+            # business there either — and it removes the one risk the early
+            # transform carries, since the $1E04 gate it drops existed to protect
+            # the story sequencer. The latch is FORCED TO 0 rather than merely
+            # skipped, so a stale arm from a previous VS round cannot survive into
+            # a story fight.
+            # v0.14.6 — THE MODE VALUE WAS WRONG, and that single constant caused
+            # BOTH field bugs 2 and 3. Story is `$7E:008D == 0`, not 1; **1 is 2P
+            # VS**. So this guard was blocking 2P VS (bug 2: "the shell is not
+            # replaced although her sfx play" — the flag is set by the char-select
+            # confirm hook, which is what the sound remap keys off, but the latch
+            # was forced to 0 so the helper never ran) while leaving story wide
+            # open (bug 3). Measured from the game with probe_sms_menurows.lua:
+            #   row 0 -> $8D=00  ONE cursor, roster 1-5 only          = STORY
+            #   row 1 -> $8D=01  TWO independent cursors, full roster = 2P VS
+            #   row 2 -> $8D=02  one cursor + fixed opponent          = 1P vs COM
+            # docs/annotations.md carried both readings ("0=VS, 1=Story" and "VS
+            # 1P-vs-2P = 01"); the first was wrong and is now corrected there.
+            b += bytes((0xA5, 0x8D, 0xC9, 0x00, 0xD0, 0x09))     # lda $8D/cmp #0/bne
             b += bytes((0xA9, 0x00, 0x8F, latch & 0xFF, latch >> 8, SATURN_BANK))
             b += bytes((0x82, 0x00, 0x00)); fix.append(len(b) - 2)
         b += bytes((0xA5, 0x36, 0xC9, 0x7F, 0xF0, 0x03))     # ==7F: skip the brl

@@ -36,7 +36,7 @@ Low WRAM (`$7E:0000–$1FFF`, mirrored in bank $00):
 |---|---|
 | `$005C` / `$005E` | raw joypad word, P1 / P2 (SNES pad bit order: B=0x8000,Y=0x4000,…,A=0x80,X=0x40,L=0x20,R=0x10); press edges in `$0060/$0062`, previous frame in `$0064/$0066` — all derived by joy_read (§3) |
 | `$0070` | **in-match flag** — 4 while any match runs (VS *and* Practice), 0 outside |
-| `$008D` | **game_mode** — 1 = VS (1P-vs-2P), **4 = Practice (no HP subtraction)**, **5 = Practice with damage / attract demo**, others story/menu (§10). The producer self-gates to matches; a strict mode gate reads `$008D` |
+| `$008D` | **game_mode** — **0 = Story**, **1 = VS (1P-vs-2P)**, **2 = 1P-vs-COM**, **4 = Practice (no HP subtraction)**, **5 = Practice with damage / attract demo** (§10). Full map measured 2026-08-03 (`probe_sms_menurows.lua`) after a wrong "0=VS" annotation cost two field bugs — a `$8D == 1` gate hits **2P VS**, not story. The producer self-gates to matches; a strict mode gate reads `$008D` |
 | `$01FA` | screen state: 0x80 = match running, **0xE4 = movelist open** (Start in Practice) |
 | `$0800` / `$0801` | **displayed** HP bar value P1 / P2 (drains toward struct HP; written only by the HUD producer) |
 | `$0802` | round timer (BCD; decremented by the producer) |
