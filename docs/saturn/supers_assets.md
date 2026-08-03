@@ -706,3 +706,39 @@ the HUD and OBJ rows — i.e. the fighters, which differ by cast).
 * **Stage names.** Two Silver Millenniums now exist; the maintainer wants the
   ported one marked (e.g. "light"). Where SMS displays a stage name at all is
   not yet established.
+
+### Add a stage, or swap one? (measured 2026-08-03)
+
+**Swapping is data-only; adding is a project.** Evidence:
+
+* The scene pointer table at `$E0:017A` is **exactly 10 entries** and the scene
+  scripts start immediately after it, at `$018E` — the same "table sized to the
+  roster, followed straight away by live data" pattern as the nine-wide
+  character tables (`memory_and_shell.md`). An 11th pointer overwrites scene 0's
+  script, so it means relocating the table and repointing its reader.
+* The asset records the stages use are `0-29` (three per stage, contiguous);
+  records `30+` are already in use for other assets (`vram $30E0/$C0E0`). A new
+  stage needs three more record slots, so the record table would have to grow or
+  move too.
+* And the stage is **chosen at character select** — `$7E:008E` is written from
+  `$C0:A47A` during that phase — so an 11th id would also need that selection
+  code to be able to produce it.
+
+So a swap costs nothing but the slot; an addition costs a table relocation, a
+record-table change, and a change to how a stage is picked. Worth revisiting
+only if more than one Super S stage is wanted.
+
+### Stage names
+
+The maintainer reports the stage name is printed at the bottom of the
+**button-mapping screen**, between character select and the fight — the same
+screen `docs/menu_text.md` inventories for the translation patch. The harness's
+VS flow does not pass through it (it pokes the character ids and the transition
+fades straight into the match), and the blind Start-mash flow that *did* reach
+it is 1P-vs-COM, whose capture shows no name. So the name table is not located
+yet; reaching that screen in the right mode is the next step.
+
+Note the naming problem only exists for ONE of the four candidates: replacing
+the space-time door with Super S's Silver Millennium puts two Silver
+Millenniums in the game (SMS's own is stage 1), which is what needs the "light"
+marker. Dead Moon Circus or the Silent Throne clash with nothing.
