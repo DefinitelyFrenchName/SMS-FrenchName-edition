@@ -33,6 +33,15 @@ Field-tested repeatedly by the maintainer. Current build is **v0.14.9**, on
 cause — the game-mode byte — and #1 (throw corruption) was a third nine-wide
 table. Details in `docs/NEXT_SESSION.md`. No known open bugs.
 
+**Verifying the port: `tools/saturn/verify_saturn.sh`** — the full headless
+regression path, and a real gate (exits 1 on failure; every check asserts a
+measured string, not just a clean exit). Covers the base regression suite, L+R
+arming across modes x shells including flag/latch and the story lock, 2P VS on
+both pads, throws with Saturn as the victim (normal + command, OAM flood and
+stage-tile VRAM), the projectile palette split, the independent L+R harness and
+the randomised stress match. `QUICK=1` for a ~4-minute subset. Sanity-checked
+against v0.14.6, where the quick matrix fails 7 of 16.
+
 **Projectile palettes are per-SLOT, and row 7 is free (v0.14.9).** Both games
 pick a projectile's palette from its slot — 2 for `$1100`, 3 for `$1180` —
 written into the object's `+0x08`, whose value becomes the OAM attr byte via

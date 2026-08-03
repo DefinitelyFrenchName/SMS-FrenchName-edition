@@ -286,6 +286,28 @@ and their ROMs are in `build/saturn/stagecandidate_*.sfc`.
    test. Mode names in `probe_sms_shellguard.lua` now come from the measured
    row→mode map.
 
+## Verifying a build
+
+`tools/saturn/verify_saturn.sh` is the full headless regression path for the
+port, and a real gate — it exits 1 on any failure and every check asserts a
+MEASURED string, never just "the probe exited 0". It covers the five subsystems
+the v0.14.5-v0.14.9 run touched: the base regression suite, L+R arming
+(flag/latch as well as the transform, across modes x shells, including the story
+lock and the forced-charID-6 residual), 2P VS on both pads, throws with Saturn as
+the victim (normal and command, OAM flood + stage-tile VRAM), the projectile
+palette split, the independent L+R harness, and the randomised stress match.
+
+```bash
+tools/saturn/verify_saturn.sh            # full matrix
+QUICK=1 tools/saturn/verify_saturn.sh    # smaller matrix, ~4 min
+ROM=<rom> tools/saturn/verify_saturn.sh  # a specific build
+```
+
+Sanity-checked against a known-bad build: pointed at v0.14.6 the quick matrix
+fails 7 of 16 — the illegal-shell arming, the story arming, both throw cases with
+a Saturn victim, the stage-tile corruption and the projectile palette. A gate
+that cannot fail is not a gate.
+
 ## Build commands
 
 ```bash

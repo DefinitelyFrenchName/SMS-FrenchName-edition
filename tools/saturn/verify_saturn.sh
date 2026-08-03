@@ -1,0 +1,104 @@
+#!/bin/bash
+# verify_saturn.sh — the full headless regression path for the Saturn port.
+#
+# v0.14.5 -> v0.14.9 touched five separate subsystems (the shell/story guard, the
+# game-mode gate, the thrown-pose table, the flag-arming path and the projectile
+# palette), and the checks for each were ad-hoc shell one-liners. This is them,
+# made repeatable and turned into a gate: it exits 1 if anything fails.
+#
+#   tools/saturn/verify_saturn.sh                  # current build, full matrix
+#   ROM=<rom> tools/saturn/verify_saturn.sh        # a specific ROM
+#   QUICK=1 tools/saturn/verify_saturn.sh          # smaller matrix, ~4 min
+#
+# Every check asserts a MEASURED string, never just "the probe exited 0" — a probe
+# that reports nothing is usually broken, not evidence of nothing (HANDOFF §5).
+set -uo pipefail
+cd "$(dirname "$0")/../.."
+
+ROM="${ROM:-build/saturn/SailorMoonS_REFsaturn_v0.14.9-hidden-stage.sfc}"
+[ -f "$ROM" ] || { echo "verify_saturn: ROM not found: $ROM" >&2; exit 1; }
+QUICK="${QUICK:-0}"
+T=traces/saturn
+pass=0; fail=0; failed=()
+
+ok()   { printf '  \033[32mPASS\033[0m  %s\n' "$1"; pass=$((pass+1)); }
+bad()  { printf '  \033[31mFAIL\033[0m  %s\n     expected: %s\n     got:      %s\n' "$1" "$2" "${3:-<nothing>}"; fail=$((fail+1)); failed+=("$1"); }
+# check <name> <expected-substring> <file> [grep-filter]
+check() {
+  local name="$1" want="$2" file="$3" filt="${4:-.}"
+  local got; got="$(grep -E "$filt" "$file" 2>/dev/null | tail -1)"
+  case "$got" in *"$want"*) ok "$name";; *) bad "$name" "$want" "$got";; esac
+}
+
+echo "verify_saturn: $ROM"
+echo "== base engine + patch regression =="
+ROM="$ROM" tools/run.sh tools/test_regression.lua 900 >/dev/null 2>&1
+check "regression suite" "ALL PASS" traces/regression.txt "ALL PASS|FAIL"
+
+echo "== L+R arming: shell guard, story lock, per-mode =="
+# flag/latch matter as much as the transform: the select voice, the sound remap
+# and the effect-tile/palette override all key off the FLAG (v0.14.8 field bug)
+modes="vs vscom practice story"; shells="6 7 8 1 4 9"
+[ "$QUICK" = 1 ] && { modes="vs story"; shells="6 1"; }
+for m in $modes; do for sh in $shells; do
+  MODE=$m SHELL_ID=$sh XFORM_OFF=0x4A TAG=v_${m}_$sh ROM="$ROM" \
+    tools/run.sh tools/saturn/probe_sms_shellguard.lua 600 >/dev/null 2>&1
+  case "$m:$sh" in
+    story:*)            want="SATURN=none  flag=00" ;;   # story never arms
+    *:6|*:7|*:8)        want="SATURN=P1  flag=A5" ;;     # allowed shells arm
+    *)                  want="SATURN=none  flag=00" ;;   # and nothing else does
+  esac
+  check "$m shell $sh" "$want" "$T/shellguard_v_${m}_$sh.txt" "FINAL"
+done; done
+MODE=story SHELL_ID=6 STORY_SHELL=1 XFORM_OFF=0x4A TAG=v_advstory ROM="$ROM" \
+  tools/run.sh tools/saturn/probe_sms_shellguard.lua 600 >/dev/null 2>&1
+check "story with charID 6 FORCED (mode guard)" "SATURN=none" "$T/shellguard_v_advstory.txt" "FINAL"
+
+if [ "$QUICK" != 1 ]; then
+  echo "== 2P VS, both pads =="
+  for h in p1 p2 both; do
+    case $h in p1) want="SATURN=P1 ";; p2) want="SATURN=P2 ";; both) want="SATURN=P1+P2";; esac
+    MODE=vs SHELL_ID=6 P2SHELL=7 HOLD=$h XFORM_OFF=0x4A TAG=v_hold_$h ROM="$ROM" \
+      tools/run.sh tools/saturn/probe_sms_shellguard.lua 600 >/dev/null 2>&1
+    check "2P VS L+R on $h" "$want" "$T/shellguard_v_hold_$h.txt" "FINAL"
+  done
+fi
+
+echo "== throws: Saturn as the victim (OAM flood + stage-tile VRAM) =="
+for cmd in 0 1; do for sat in 1 0; do
+  n=$([ "$sat" = 1 ] && echo saturn || echo vanilla)
+  k=$([ "$cmd" = 1 ] && echo command || echo normal)
+  CMD=$cmd SATURN=$sat TAG=v_throw_${k}_$n ROM="$ROM" \
+    tools/run.sh tools/saturn/probe_sms_throwoam.lua 700 >/dev/null 2>&1
+  check "$k throw, $n victim" "(healthy)" "$T/v_throw_${k}_$n.txt" "FINAL|NEVER"
+  check "$k throw, $n victim: stage tiles" "stage-tile VRAM changed 0%" \
+    "$T/v_throw_${k}_$n.txt" "FINAL"
+done; done
+
+echo "== projectile palettes: hers on her own row, the opponent's untouched =="
+SATP1=1 SATURN=1 DUMMY=4 TAG=v_pal_hers ROM="$ROM" \
+  tools/run.sh tools/saturn/probe_sms_objpal.lua 700 >/dev/null 2>&1
+check "her projectile uses OBJ pal 7" "+08=1F" "$T/v_pal_hers.txt" "proj slot"
+SATURN=1 TAG=v_pal_vs ROM="$ROM" \
+  tools/run.sh tools/saturn/probe_sms_objpal.lua 700 >/dev/null 2>&1
+check "opponent's projectile still on OBJ pal 2" "+08=1A" "$T/v_pal_vs.txt" "proj slot"
+
+if [ "$QUICK" != 1 ]; then
+  echo "== L+R coverage (independent harness) =="
+  for m in practice vscpu; do
+    echo "return \"$m\"" > tools/saturn/lrmode_cfg.lua
+    SHELL_ID=6 ROM="$ROM" tools/run.sh tools/saturn/probe_sms_lrmodes.lua 400 >/dev/null 2>&1
+    check "lrmodes $m shell 6" "LR PASS" "$T/lrmodes_$m.txt" "FINAL"
+  done
+  rm -f tools/saturn/lrmode_cfg.lua
+
+  echo "== stress: wedge / VRAM corruption over a full match =="
+  MIRROR=1 SEED=7 ROM="$ROM" tools/run.sh tools/saturn/probe_sms_stress.lua 400 >/dev/null 2>&1
+  check "randomised mirror match" "ENDED CLEANLY" "$T/stress_1m.txt" "ENDED|WEDGE"
+fi
+
+echo
+if [ "$fail" -eq 0 ]; then
+  printf '\033[32mALL PASS\033[0m (%d checks)\n' "$pass"; exit 0
+fi
+printf '\033[31m%d FAILED\033[0m of %d: %s\n' "$fail" "$((pass+fail))" "${failed[*]}"; exit 1
