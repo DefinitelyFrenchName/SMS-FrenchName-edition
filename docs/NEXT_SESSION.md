@@ -1,4 +1,4 @@
-# Next-session handoff — 2026-08-03 (evening)
+# Next-session handoff — 2026-08-03 (late)
 
 Fast orientation. **Full operational map: `HANDOFF.md`; Saturn brief:
 `docs/saturn/PROJECT.md`; test-ROM registry: `docs/saturn/BUILDS.md`; patch
@@ -10,129 +10,106 @@ history.)
 
 The base patch project is done and green. Current work is **SMS + Saturn**:
 Saturn is playable in SMS, selected by holding **L+R** on any character slot,
-and has been field-tested repeatedly by the maintainer. Current build is
-**v0.13.4** (hashes in BUILDS.md), on **REF v.2** (= REF v.1 + patch 15, AUTO
-removal; v.1 is deliberately left byte-identical since it is a published
-artifact). **Every bug on the list is now closed**: her voice (#44), her
-character-select line, her movelist (#41 — field-confirmed clean this session)
-and the ported stage's jump slide (#43 — root-caused and fixed this session).
-What remains is the **extended scope** the maintainer set out below.
+field-tested repeatedly. Current build is **v0.13.9**
+(`SailorMoonS_REFsaturn_v0.13.9-hidden-stage.sfc`, `a63f7a06…`, regression
+57/57) on **REF v.2**. Everything on the bug list is closed and
+field-confirmed: her voice, her character-select line, her movelist, the ported
+stage (#43), and the stage's name. What remains is **one small task** (four font
+glyphs) plus the maintainer's **extended scope**.
 
-## Field verification received 2026-08-03
+## THE ONE OPEN TASK: four kanji
 
-- **Movelist is clean** in normal play. The priority-bit fix holds on a real
-  screen; #41 is closed for good.
-- **Select voice: no regression.** The bank-id swap behaves, other characters
-  unaffected.
+The ported stage is currently named **サイレントメシア** — a proof-of-concept
+written with glyphs the font already has, confirmed on the pad ("reads correctly
+and cause no side effect I could trigger"). The intended name is
+**沈黙のメシアの玉座**, which needs four characters the font lacks: **沈, 黙, 玉,
+座** (の, メ, シ, ア exist).
 
-## #43 — DONE this session
+Everything except the glyphs is done and proven:
 
-The ported stage's jump slide is fixed in **v0.13.3**. One-paragraph version:
-objects are drawn at the FULL camera, but the scroll routine the port borrowed
-from stage 0 gives the ground plane only **camera/4** — so a 12 px jump drops the
-fighters and their shadows 12 px and the ground 3. Vanilla stage 0 does exactly
-the same thing (byte-identical traces); it is invisible there because its ground
-is flat grass, while the ported stage has a hard floor line at the fighters'
-feet. The fix rewrites stage 2's own routine at `$C0:B454` (the only routine that
-stage selects) with a 1:1 vertical. Verified: background shift +3 → +11, equal to
-the sprites'; scene `$00` byte-identical on the same ROM; regression 57/57. Full
-detail, including the scroll-block map and the five probe traps it cost:
-`docs/saturn/supers_assets.md` §#43.
+* `mkstage_port.py` writes stage names — `STAGE_NAME` (env-overridable) plus a
+  `GLYPH` table of tile codes. It refuses a character the font lacks rather than
+  drawing a wrong one, so it will error on those four until they exist.
+* The name field holds **12 glyphs**; 沈黙のメシアの玉座 is 9.
+* The font sheet has **20 free 16×16 slots**, four of them (`$368`-`$36E`) right
+  after the existing kanji.
 
-**Round 2 (v0.13.4) — the palace parallax, also done.** Field: the slide was
-gone, but the palace moved with the ground instead of a fraction as far. Super S
-gives its palace band +4 px at the apex while its ground stays put, and does it
-on ONE plane, per SCANLINE (an HDMA channel onto `$210E` enabled for the
-duration of the jump — `probe_supers_stagejump.lua`). SMS has no such machinery,
-so the port splits by PLANE: ground alone on BG1 at camera 1:1 (fighters stay
-planted — better than either original), sky + palace on BG2 at camera/4. Palace
-measures +3 against Super S's +4; regression 57/57.
+**The missing link:** where the menu font comes from. It is not raw in ROM and
+not DMA'd from ROM — logging every VRAM DMA from boot shows the CHR arriving in
+0x40-byte chunks from a **WRAM staging buffer at `$7E:3640`+**. So the chain is
+`ROM → (decompress) → $7E:3640 → VRAM`, and the open question is what fills that
+buffer. Catch the block move or decompressor call that writes it — the same hunt
+that found `$C3:7C00` for the screen's tilemap. `probe_menu_survey.lua` takes
+`MINLEN` to filter the DMA log to large transfers.
 
-**Deliberately left open:** the horizontal rate (both planes at camera/4, so
-fighters slide over the ground horizontally when walking). Vanilla does the
-same, it is not in any field report, and it is one `lsr` pair from 1:1.
+Two things to check first, both cheap:
 
-**Stage selection is the open question, not stage code.** The maintainer's call:
-several Super S stages look poor in SMS and only a few are worth adding. Porting
-another is one constant (`SUPERS_SCENE` in `mkstage_port.py`) plus a look.
+1. The **tournament edition**'s 7.3 KB diff is in bank `$C4` — the same bank as
+   the name records. If it renamed stages, it is a worked example of this exact
+   edit, and possibly of extending the font.
+2. Extending the font is **shared work with the translation patch** (planned
+   patch 16), which needs F, J, Q, S, Z for English. Solve it once.
 
-## Extended scope (maintainer, 2026-08-03) — the actual next work
+## Where the stage work landed
 
-Recorded in full in `docs/saturn/PROJECT.md` § Extended scope. Neither blocks a
-release; Saturn is a hidden character of admittedly rough balance, which is
-precisely why she ships without them.
+`docs/saturn/supers_assets.md` §#43 has the full account. Short version, because
+it cost four rounds and the lesson generalises: **read the game's own data before
+reasoning about its limits.** SMS ships its own Silver Millennium (scene 1) and
+composes it exactly like Super S; the port had simply never carried the scene
+script's `$8F` byte, which sets sprite OBJ priority — `0x18` on nine of ten
+stages, `0x10` on stage 2 alone, the slot the port targets. That one byte is why
+the castle covered the fighters, why priority bits got stripped, and why every
+"clever" fix after that was working around a missing configuration byte. The
+port now carries `$8F` and picks a stock scroll routine per source scene; the
+merges, plane splits, tile compositing and rewritten scroll code are all deleted.
 
-1. **Menu translation — a STANDALONE PATCH (planned patch 16), not a Saturn
-   feature** (maintainer's ruling). Groundwork done this session in
-   **`docs/menu_text.md`**: menu text is 16×16 glyphs (2×2 tiles) in ordinary
-   tilemaps, so a string edit is a tilemap edit; the button-config screen is
-   inventoried with per-string cell budgets. Two findings that shape the job —
-   the font's Latin capitals are a **reduced set with no F, J, Q, S, Z**, so the
-   patch must author glyphs as well as edit tilemaps; and the **tournament
-   edition does not translate the menus** (checked in-game and by byte diff), so
-   there is nothing to lift. Open: where the text lives in ROM (it is compressed,
-   and the front-end does NOT go through `$C0:916B` — chase the VRAM DMA), the
-   remaining screens, and how many free CHR slots the font sheet has.
-   Survey tool: `tools/probe_menu_survey.lua`.
-2. **Show Saturn EARLIER in the fight (major, not a blocker).** Today the shell
-   is swapped for Saturn at the round load, so her player watches someone else
-   through the pre-round sequence. The maintainer: the change moment is
-   *distracting and downright penalizing* for the player who picked her.
-   - **Must have:** Saturn on screen **before round start**.
-   - **Nice to have:** the entrance animation preserved as hers.
-   Known hazard, so this is a re-timing job rather than a new mechanism: arming
-   the transform earlier is exactly what the per-round latches were introduced to
-   prevent (BUILDS 0.10.0 — a flag set before load could reach the helper during
-   the load/dialogue window). Find the earliest point where her four data layers
-   and effect tiles are resident and the object struct is stable, and move the
-   swap there.
+Decisions recorded: stages are **swapped, not added** (the scene table is exactly
+10 entries with the scripts immediately after it; the maintainer: "adding them is
+like adding characters"). The space-time door is the slot;
+**Silent Throne of the Messiah** (Super S scene 8) takes it; its BGM stays the
+space-time door's. `SUPERS_SCENE` defaults to 8. The other three candidates
+(Silver Millennium 1, Dead Moon day 0, Dead Moon night 9) are one env var away
+and their ROMs are in `build/saturn/stagecandidate_*.sfc`.
 
-## Background: memory, and the shell design
+## Extended scope (maintainer, 2026-08-03)
 
-`docs/saturn/memory_and_shell.md` answers "couldn't we just get more memory?" —
-ROM is not our constraint (clean 2.50 MB, current build 3.62 MB, 384 KB spare);
-ARAM is the only hard wall (64 KB, full — it forced the by-ear voice trim); and
-the real constraint is that per-character tables are nine wide and immediately
-followed by live data, so a tenth row means relocating a table and repointing
-every reader. This is directly relevant to scope item 2: the swap-at-load design
-exists because she is a shell, not a tenth character.
+1. **Menu translation — standalone patch 16, not a Saturn feature.** Groundwork
+   in `docs/menu_text.md`, including the screen's compressed tilemap at
+   `$C3:7C00` (the movelist codec, `sms_lz.py` round-trips it) and the font's
+   reduced Latin alphabet. Blocked on the same font question as the kanji above.
+2. **Show Saturn BEFORE round start** instead of swapping the shell at the round
+   load — "distracting and downright penalizing" for her player. Entrance
+   animation is nice-to-have. Hazard: arming the transform earlier is what the
+   per-round latches were introduced to prevent.
 
-## Lessons these sessions paid for
+## Lessons this run paid for
 
-1. **Anything keyed to one character silently works for that shell only.**
-   Saturn can be summoned over ANY of the nine. Test any per-character fix with
-   at least two shells.
-2. **"Nothing points at it and it never changes" does not mean memory is free.**
-   Ask where the bytes came from; on this console everything is uploaded from ROM.
-3. **Equal byte cuts are not equal proportional cuts.** Listening picked
-   differently from the arithmetic when trimming her voice samples.
-4. **A convention that holds in one engine context does not hold in all of them.**
-   `$88` is the current object in the proc helper but not during script
-   interpretation. Check where a value is *set*, not just where it reads fine.
-5. **A test that infers layout from ROM size breaks when the layout changes.**
-6. **Do not measure a moving character against a moving background by pixel
-   correlation** (new, #43). The dummy's idle bob is worth ±8 px of apparent
-   shift and nearly buried the diagnosis. Take it from OAM with the animation
-   state held equal.
-7. **The layer that fails to track is not always the one that was re-cut** (new,
-   #43). The prior hypothesis blamed the port's layer re-cut; the ground was on
-   the right plane all along and the fault was the *rate*.
+1. **Read the game's own data first.** Every question about the ported stage —
+   layer split, priority, scroll rates, sprite priority — was answerable by
+   dumping SMS's own copy of that stage.
+2. **A run of zeros after a string is not a terminator.** The stage-name records
+   are fixed 24-word fields with the name *centred* by zero padding. Reading it
+   as terminated made a longer name overrun into the next record, corrupting the
+   screen and hanging the game a second after the stage was selected. Comparing
+   two records would have shown it at once.
+3. **A 64×32 tilemap is TWO 32×32 screens** (right half at +0x800), not 64-entry
+   rows. Reading it wrong made three analyses contradict each other.
+4. **Don't measure a moving character against a moving background by pixel
+   correlation** — the dummy's idle bob is worth ±8 px. Take it from OAM with the
+   animation state held equal.
 
 ## Build commands
 
 ```bash
 tools/build_ref_v2.sh                                   # REF v.2 = v.1 + patch 15
-SATURN_HIDDEN=1 python3 tools/saturn/mksaturn_smoke.py  # standalone Saturn (SATURN_VISIBLE=1 for the non-hidden variant)
-SATURN_HIDDEN=1 bash tools/saturn/build_refsaturn.sh    # on REF v.2 (REF_VERSION=1 for v.1)
-bash tools/saturn/build_saturn_stage.sh --ref           # Saturn + the Pluto-slot stage port, on REF  <- v0.13.3
-python3 tools/saturn/extract_saturn_voice.py            # her trimmed voice bank + directory
-ROM=<rom> tools/run.sh tools/test_regression.lua 900    # the gate before shipping anything
-STAGE=2 CHAR=8 TAG=x ROM=<rom> tools/run.sh tools/saturn/probe_sms_stagejump.lua 400   # stage scroll/camera (WALK=1 for the horizontal axis)
+SATURN_HIDDEN=1 bash tools/saturn/build_refsaturn.sh    # Saturn on REF v.2
+bash tools/saturn/build_saturn_stage.sh --ref           # + the stage port  <- v0.13.9
+SUPERS_SCENE=9 STAGE_NAME=… python3 tools/saturn/mkstage_port.py "$CLEAN" out.sfc
+ROM=<rom> tools/run.sh tools/test_regression.lua 900    # the gate before shipping
 ```
 
 ## Session hygiene
 
 Commit per finding; `.sfc` gitignored (rebuild from BPS); never patch in place;
-every timing/behaviour claim emulator-verified (`ROM=<build> tools/run.sh
-<script> <timeout>`); temp files in `$CLAUDE_JOB_DIR/tmp`; all Saturn/Super-S
-material stays in the `saturn/` subfolders.
+every timing/behaviour claim emulator-verified; temp files in `$CLAUDE_JOB_DIR/tmp`;
+all Saturn/Super-S material stays in the `saturn/` subfolders.
