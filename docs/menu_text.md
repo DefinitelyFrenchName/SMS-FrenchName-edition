@@ -264,7 +264,40 @@ be located.
 v0.13.9's rename "reads correctly and cause no side effect I could trigger" —
 so the record layout above is right and the mechanism is proven end to end.
 
-### What is left for the kanji name
+### DONE — the kanji name (v0.14.0)
+
+The stage is named **沈黙のメシアの玉座**. What it took, and where the font lives:
+
+* **The menu font is TWO compressed blocks**, same codec as everything else:
+  `$C3:48D0` (kana and general glyphs, 0x4C00 bytes) and **`$C7:07F0` (the kanji,
+  0x16C0 bytes, tiles based at 0x300** — a tile's data is at
+  `(tile - 0x300) * 32`).
+* Finding them: the CHR is staged in WRAM before upload, and the writer at
+  `$C0:91C7` is the decompressor's literal store. Its documented entry `$C0:916B`
+  is NOT the one this path uses, so a hook there never fires — hooking the loop
+  setup at **`$C0:91A0`** instead logs every call with its source and
+  destination. The screen's own loads are `$C3:6D30`, `$C3:48D0`, `$C7:07F0`,
+  `$C3:7C00`, `$C6:0000`, all to `$7E:2000`.
+* The job table that feeds it is at `$C3:BEE0`+: records of
+  `[src24][dest24][…][flag]`. The kanji block's source is the **only** `F0 07 C7`
+  in the ROM, at **`$C3:BEF2`**.
+* **The block must be relocated, not patched in place** — our encoder is weaker
+  than the original's, so even the *untouched* block re-encodes to 0x13AD against
+  the original 0xD5B. `mkkanji.py` decompresses it, writes the new glyphs into
+  blank slots, re-encodes, appends it to the port's bank and rewrites the three
+  pointer bytes.
+* **The glyphs** (`mkkanji.py`) are rendered from Hiragino at 16x16 and styled
+  like the game's own kanji: a colour-1 outline with the stroke interior running
+  a light vertical ramp.
+
+Verified: the relocated block is byte-identical to the original except exactly
+the 16 tiles of the four new glyphs; in live VRAM the new slots are populated and
+時/空/扉/サ/の/メ are untouched; and the name record renders 沈黙のメシアの玉座
+against the live font. Regression 57/57.
+
+Everything below was the groundwork.
+
+#### Historical: what was left before v0.14.0
 
 Only the font. `沈黙のメシアの玉座` needs 沈, 黙, 玉, 座 authored into four of the
 sheet's 20 free 16x16 slots (four sit at `$368`-`$36E`, right after the existing

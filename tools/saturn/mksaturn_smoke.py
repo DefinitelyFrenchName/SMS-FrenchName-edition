@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.13.9"
+SATURN_VERSION = "0.14.0"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.

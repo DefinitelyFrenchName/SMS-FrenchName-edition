@@ -108,8 +108,14 @@ GLYPH = {
     "マ": 0x1E0, "ミ": 0x1E2, "ム": 0x1E4, "モ": 0x1E6, "ャ": 0x1E8, "ュ": 0x1EA,
     "ョ": 0x1EC, "ラ": 0x1EE, "リ": 0x200, "ル": 0x202, "レ": 0x204, "ン": 0x206,
     "メ": 0x2CC, "ー": 0x164, "の": 0x102, "時": 0x348, "空": 0x34A, "扉": 0x34C,
+    # authored by mkkanji.py into the kanji block's blank slots (see AUTHOR_KANJI)
+    "沈": 0x368, "黙": 0x36A, "玉": 0x36C, "座": 0x36E,
 }
-STAGE_NAME = __import__("os").environ.get("STAGE_NAME", "サイレントメシア")
+# The four kanji the real name needs and the font lacks, authored into the blank
+# slots above. Set to "" to build with the stock font (STAGE_NAME must then use
+# only characters the font already has).
+AUTHOR_KANJI = __import__("os").environ.get("AUTHOR_KANJI", "沈黙玉座")
+STAGE_NAME = __import__("os").environ.get("STAGE_NAME", "沈黙のメシアの玉座")
 
 
 def write_stage_name(data, stage, name):
@@ -556,6 +562,22 @@ def build(src_path, out_path):
         data[dst:dst + n] = s_data[:n]
         print(f"  palette {dpid}: {n} bytes from Super S palette {spid} "
               f"(colours {d_start}..{d_start + n // 2 - 1})")
+
+    # --- author the missing kanji, relocating the font block ---
+    if AUTHOR_KANJI:
+        import mkkanji
+
+        def blob_at(n):
+            nonlocal cur
+            if cur + n > 0x10000:
+                raise SystemExit("no room in the appended bank for the font block")
+            at = cur
+            cur += n + 16
+            return bank, at
+        placed, fb, fo, flen = mkkanji.patch_font(data, AUTHOR_KANJI, blob_at)
+        print(f"  font: authored {' '.join(f'{c}=${t:03X}' for c, t in placed.items())}; "
+              f"kanji block relocated to ${fb:02X}:{fo:04X} ({flen:#x} B) "
+              f"and $C3:BEF2 repointed")
 
     # --- the stage name on the button-mapping screen ---
     if STAGE_NAME:

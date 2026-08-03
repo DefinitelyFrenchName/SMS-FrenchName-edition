@@ -34,6 +34,14 @@ from pathlib import Path
 
 def decompress(data, src, limit=0x10000):
     """Expand the stream at `data[src:]`. -> bytes."""
+    return decompress_ex(data, src, limit)[0]
+
+
+def decompress_ex(data, src, limit=0x10000):
+    """Expand the stream at `data[src:]`. -> (bytes, compressed length).
+
+    The length matters when patching a block in place: a re-encoded block has to
+    fit the space the original occupied."""
     out = bytearray()
     ctrl, nbits = 0, 0
 
@@ -57,6 +65,7 @@ def decompress(data, src, limit=0x10000):
         return b
 
     # the routine loads its first control word before the loop
+    start = src
     ctrl = data[src] | data[src + 1] << 8
     src += 2
     nbits = 16
@@ -87,7 +96,7 @@ def decompress(data, src, limit=0x10000):
             raise ValueError(f"back-reference before start at out+{len(out)}")
         for i in range(count):
             out.append(out[p + i])
-    return bytes(out)
+    return bytes(out), src - start
 
 
 def _emit(ops):
