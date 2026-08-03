@@ -22,8 +22,12 @@ entrance animation dropped with cause — her act-`$22` script never completes, 
 preserving it wedged the intro sequencer). Char-select is **hidden-only** since
 2026-08-04; the visible slot-10 variant is retired and deleted, proven inert by a
 byte-identical rebuild. Topics deliberately **parked, not open**: approximate sfx
-mapping, shell-dependent voice pitch, balance, and the OBJ palette 5/6 curiosity
-— see PROJECT.md "Parked".
+mapping, shell-dependent voice pitch, balance, — see PROJECT.md "Parked". The OBJ
+palette 5/6 curiosity is **closed**: those rows are dynamic (reloaded per effect,
+alternating states within one match), so the "difference" compared two snapshots
+at unrelated instants. Chasing it was still worth it — it found that **pal 6 is
+the hit spark**, which a practice-mode census had missed, and re-proved at match
+scale that pal 7 is free and that Saturn no longer touches pal 2.
 
 **v0.14.9 — her projectiles have their own OBJ palette row.** Field report:
 fighting *against* Saturn, the projectiles and only the projectiles came out

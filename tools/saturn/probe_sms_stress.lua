@@ -3,7 +3,19 @@
 -- frames of pseudo-random inputs (both players), watching for a wedge:
 -- act/pose frozen while the engine "runs", PC parked, or the object update
 -- ceasing. On detection, dump the last N frames of state + a screenshot.
--- SEED env picks the input stream; MOVES biases toward specials.
+-- SEED env picks the input stream; MOVES biases toward specials; VANILLA=1 runs
+-- the same stream with no transform (calibration).
+--
+-- PALHIST=1 adds an OBJ-palette census: which of the eight sprite palettes any
+-- sprite actually selects, accumulated over the whole match (KO and round end
+-- included, which a practice-mode probe never reaches). Added 2026-08-04 to
+-- close two questions with one run:
+--   * is OBJ pal 7 REALLY free? v0.14.9 moved her projectiles onto it on the
+--     evidence of a single practice match. If anything vanilla ever draws with
+--     pal 7 — a KO flash, a desperation — that choice is wrong.
+--   * do pals 5/6 (whose CONTENTS differ Saturn vs vanilla) ever get drawn?
+-- Read the PALETTE CENSUS line at the end; compare a VANILLA=1 run against a
+-- Saturn one.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local SEED = tonumber(os.getenv("SEED") or "1")
@@ -102,9 +114,60 @@ for _, b in ipairs({0x00420B, 0x80420B}) do
     end
   end, emu.callbackType.write, b, b, emu.cpuType.snes, emu.memType.snesMemory)
 end
+local PALHIST = os.getenv("PALHIST") == "1"
+local palseen, palframes = {}, 0
+for i = 0, 7 do palseen[i] = 0 end
+local pal6shot, pal6last = 0, -999
+local function palcensus()
+  palframes = palframes + 1
+  local n6, lo, hi = 0, 0xFFF, 0
+  for i = 0, 127 do
+    local o = i * 4
+    if (emu.read(o + 1, emu.memType.snesSpriteRam) or 0) < 0xE0 then
+      local a = emu.read(o + 3, emu.memType.snesSpriteRam) or 0
+      local pi = (a >> 1) & 7
+      palseen[pi] = palseen[pi] + 1
+      if pi == 6 then
+        n6 = n6 + 1
+        local tl = (emu.read(o + 2, emu.memType.snesSpriteRam) or 0) | ((a & 1) << 8)
+        if tl < lo then lo = tl end
+        if tl > hi then hi = tl end
+      end
+    end
+  end
+  -- pal 6 is DRAWN (measured over full matches incl. KO), and its CONTENTS
+  -- differ between a Saturn and a vanilla match — so capture what uses it, once,
+  -- to judge whether that difference is actually visible
+  if n6 >= 4 and pal6shot < 5 and (t - pal6last) > 120 then
+    pal6shot = pal6shot + 1; pal6last = t
+    -- and the row's CONTENTS at that instant: an earlier dump taken before any
+    -- hit showed Saturn/vanilla differing, but the row may simply be loaded on
+    -- demand. What matters is whether it differs WHEN IT IS DRAWN.
+    local cols = {}
+    for i = 0, 15 do
+      cols[#cols + 1] = string.format("%04X", ram(0x6C0 + i * 2) + 256 * ram(0x6C1 + i * 2))
+    end
+    log(string.format("PAL6 IN USE at t=%d: %d sprites, tiles $%03X..$%03X, p1act=%02X p2act=%02X",
+      t, n6, lo, hi, ram(0x1001), ram(0x1081)))
+    log("PAL6 ROW: " .. table.concat(cols, " "))
+    if pal6shot == 1 then
+      local f = io.open(ENV.TRACE .. "saturn/pal6_" .. SEED
+        .. (os.getenv("VANILLA") == "1" and "_vanilla" or "_saturn") .. ".png", "wb")
+      f:write(emu.takeScreenshot()); f:close()
+    end
+  end
+end
+local function palreport()
+  if not PALHIST then return end
+  local parts = {}
+  for i = 0, 7 do parts[#parts + 1] = string.format("pal%d=%d", i, palseen[i]) end
+  log(string.format("PALETTE CENSUS over %d frames: %s", palframes, table.concat(parts, " ")))
+end
+
 emu.addEventCallback(function()
   if t < 0 then return end
   t = t + 1
+  if PALHIST then palcensus() end
   if t == 60 and os.getenv("VANILLA") == "1" then
     -- calibration mode: no transform, same input stream
   elseif t == 60 then
@@ -196,6 +259,7 @@ emu.addEventCallback(function()
   end
   if ram(0x1000) == 0 and ram(0x1080) == 0 then
     log(string.format("MATCH ENDED CLEANLY at t=%d — no wedge; suspect DMAs: %d", t, dmaflag))
+    palreport()
     emu.stop(0)
   end
   if os.getenv("VANILLA") ~= "1" and ram(0x1000) ~= 0x1C and ram(0x1000) ~= 0 then
@@ -213,6 +277,8 @@ emu.addEventCallback(function()
     f:write(png); f:close()
     emu.stop(1)
   end
-  if t > 12000 then log("SURVIVED " .. t .. " frames; suspect DMAs: " .. dmaflag); emu.stop(0) end
+  if t > 12000 then
+    log("SURVIVED " .. t .. " frames; suspect DMAs: " .. dmaflag); palreport(); emu.stop(0)
+  end
 end, emu.eventType.endFrame)
 print("stress loaded seed=" .. SEED)

@@ -48,6 +48,19 @@ stage-tile VRAM), the projectile palette split, the independent L+R harness and
 the randomised stress match. `QUICK=1` for a ~4-minute subset. Sanity-checked
 against v0.14.6, where the quick matrix fails 7 of 16.
 
+**A palette census taken in PRACTICE mode does not see a real match.** Practice
+never lands a KO and produced no hit sparks, so a first census said OBJ pals
+5/6/7 were all unused. Over three full randomised matches (`probe_sms_stress.lua
+PALHIST=1`, which reaches KO and round end) **pal 6 turns out to be the HIT
+SPARK** — 4 sprites, tiles `$1C2..$1C4`, during hitstun. Had Saturn's projectiles
+been moved onto row 6 instead of 7, hit sparks would have broken. The same run
+proves **pal 7 is genuinely free** (0 uses in vanilla, 1537-1939 in Saturn runs)
+and that **Saturn draws on pal 2 exactly 0 times** where vanilla uses it
+718-1605. Both are permanent checks in `verify_saturn.sh` now.
+Related: rows 5/6 are **dynamic** — reloaded per effect, alternating states
+several times inside a single match — so the old "they differ between Saturn and
+vanilla" was comparing two snapshots at unrelated instants. Closed, not a bug.
+
 **Projectile palettes are per-SLOT, and row 7 is free (v0.14.9).** Both games
 pick a projectile's palette from its slot — 2 for `$1100`, 3 for `$1180` —
 written into the object's `+0x08`, whose value becomes the OAM attr byte via

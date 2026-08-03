@@ -154,12 +154,23 @@ are not rediscovered later as bugs.
 * **Balance.** No balance pass has been done; she is a hidden character of
   admittedly rough balance, which is part of why she is shippable. Her data is
   documented Uranus-grade precisely so a pass is possible later.
-* **OBJ palette rows 5 and 6 differ** between a Saturn and a vanilla match.
-  Cosmetically invisible and NOT the port's doing: measured over a full match,
-  **no sprite ever selects palette 5 or 6** (0 uses in both builds), and the code
-  that loads those rows is identical engine code at identical addresses in both
-  (`$80:8042`, `$80:8DB8`, `$80:0083`, `$82:C0F1`, `$80:8CCA`). Residual: a
-  situation the probe never reached (a KO or desperation flash, another stage)
-  could draw with them. To close it, run the palette histogram over a randomised
-  stress match and confirm pal5/6 stay at zero. Tool:
-  `tools/saturn/probe_sms_objpal.lua` (`PALWATCH=1` adds the CGRAM writer trace).
+* ~~**OBJ palette rows 5 and 6 differ** between a Saturn and a vanilla match.~~
+  **CLOSED 2026-08-04 — it was a measurement artifact, and chasing it found
+  something worth having.** The rows are **dynamic**: the engine reloads them per
+  effect. Sampled at five separate moments inside ONE vanilla match, row 6
+  alternates between a flat state and a colour ramp (t=218 flat, 632 ramp, 903
+  flat, 1244 ramp, 1915 flat). Comparing a Saturn snapshot against a vanilla
+  snapshot taken at different instants therefore compares nothing. Two real
+  findings came out of the run, both now permanent checks in
+  `verify_saturn.sh`:
+  * **OBJ pal 6 is the HIT SPARK** (4 sprites, tiles `$1C2..$1C4`, during
+    hitstun). The earlier "nothing uses 5/6" came from a practice-only sample
+    that never landed a hit. Had her projectiles been moved onto row 6 instead
+    of 7, hit sparks would have broken.
+  * **OBJ pal 7 really is free** — 0 uses across three full vanilla matches
+    including KO and round end, against 1537-1939 uses in the Saturn runs (her
+    projectiles). And **Saturn now draws on pal 2 exactly 0 times** where vanilla
+    uses it 718-1605 times, which is the v0.14.9 projectile fix confirmed at
+    match scale rather than on one practice screen.
+  Lesson, and the reason this was worth doing: **a palette census taken in
+  practice mode does not see the effects that only a real match produces.**

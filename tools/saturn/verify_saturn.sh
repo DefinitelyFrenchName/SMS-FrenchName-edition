@@ -94,6 +94,20 @@ if [ "$QUICK" != 1 ]; then
   echo "== stress: wedge / VRAM corruption over a full match =="
   MIRROR=1 SEED=7 ROM="$ROM" tools/run.sh tools/saturn/probe_sms_stress.lua 400 >/dev/null 2>&1
   check "randomised mirror match" "ENDED CLEANLY" "$T/stress_1m.txt" "ENDED|WEDGE"
+
+  echo "== OBJ palette census over a FULL match (KO + round end included) =="
+  # A practice-mode sample said pals 5/6/7 were all unused; over a full match
+  # pal 6 turns out to be the HIT SPARK. So the row her projectiles moved onto
+  # has to be re-proved at match scale, not assumed — if anything vanilla ever
+  # draws with pal 7, v0.14.9 picked the wrong row.
+  PALHIST=1 VANILLA=1 SEED=1 ROM="$ROM" \
+    tools/run.sh tools/saturn/probe_sms_stress.lua 500 >/dev/null 2>&1
+  check "OBJ pal 7 is free in vanilla (her projectiles' row)" "pal7=0" \
+    "$T/stress_1.txt" "PALETTE CENSUS"
+  PALHIST=1 SEED=1 ROM="$ROM" \
+    tools/run.sh tools/saturn/probe_sms_stress.lua 500 >/dev/null 2>&1
+  check "Saturn never draws on OBJ pal 2 (the opponent's row)" "pal2=0 pal3" \
+    "$T/stress_1.txt" "PALETTE CENSUS"
 fi
 
 echo
