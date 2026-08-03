@@ -1,4 +1,10 @@
 -- probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
+-- NOTE (v0.14.2): this probe's navigation goes through the player-select row
+-- whose game mode is $8D == 1 = STORY, and STORY_GUARD deliberately refuses to
+-- arm Saturn there — so "LR-BOTH FAIL" on a guarded build is the guard working,
+-- not a regression. Verified: the same ROM built with STORY_GUARD=0 passes.
+-- For L+R coverage in the modes that matter, use probe_sms_lrmodes.lua, which
+-- reaches practice ($8D=04) and VS ($8D=00) and passes on the guarded build.
 -- load, is the manifest "anim payload" decompressed (via ~$C0:916B) to a WRAM
 -- staging buffer and DMA'd to VRAM $6A00? Boots to Uranus-vs-Jupiter (SMS
 -- charselect flow from coltest.lua), watches: DMA to VRAM $6800-7100 (source),

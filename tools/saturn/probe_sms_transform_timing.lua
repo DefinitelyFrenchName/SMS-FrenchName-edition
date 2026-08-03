@@ -73,9 +73,10 @@ emu.addEventCallback(function()
   end
 end, emu.eventType.inputPolled)
 
+local ROW = tonumber(os.getenv("ROW") or "1")   -- player-select row = game mode
 local STEPS = {
   function() return frames >= 900 end,
-  function() pulse[0]=beat({down=true}); return ram(0x1B10)==1 end,
+  function() pulse[0]=beat({down=true}); return ram(0x1B10)==ROW end,
   function() pulse[0]=beat({start=true}); return sf>40 end,
   function() return sf>240 end,
   function() wr(0x1B40, 6); wr(0x1B80, 4); return sf>20 end,     -- Uranus vs Jupiter
@@ -100,13 +101,13 @@ emu.addEventCallback(function()
   local latch = emu.read(0x7FF102, emu.memType.snesMemory) or 0
   if latch == 0xA5 and not armed_at then
     armed_at = frames
-    log(string.format("f=%d LATCH ARMED  id=%02X act=%02X $1E04=%02X $01FA=%02X",
-      frames, ram(0x1000), ram(0x1001), ram(0x1E04), ram(0x1FA)))
+    log(string.format("f=%d LATCH ARMED  id=%02X act=%02X $1E04=%02X $01FA=%02X MODE $8D=%02X",
+      frames, ram(0x1000), ram(0x1001), ram(0x1E04), ram(0x1FA), ram(0x8D)))
   end
   if armed_at and not became_at and ram(0x1000) == 0x1C then
     became_at = frames
-    log(string.format("f=%d BECAME SATURN (+%d frames)  act=%02X $1E04=%02X $01FA=%02X",
-      frames, frames - armed_at, ram(0x1001), ram(0x1E04), ram(0x1FA)))
+    log(string.format("f=%d BECAME SATURN (+%d frames)  act=%02X $1E04=%02X $01FA=%02X MODE $8D=%02X",
+      frames, frames - armed_at, ram(0x1001), ram(0x1E04), ram(0x1FA), ram(0x8D)))
   end
   if armed_at and frames <= armed_at + 260 then
     log(string.format("  f=%d id=%02X act=%02X $1E04=%02X $01FA=%02X $70=%02X",

@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.1"
+SATURN_VERSION = "0.14.2"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -396,6 +396,10 @@ CARDLOAD_OLD = bytes.fromhex("22EC8D80")
 # the $1E04 (intro-sequencer) gate and accepts act $22, keeping the latch and the
 # live-round gate, which are what actually prove this is a real fight load.
 EARLY_TRANSFORM = __import__("os").environ.get("EARLY_TRANSFORM", "1") == "1"
+# Maintainer's call (2026-08-03): "we can just prevent Saturn from being
+# selectable [in story], which anyway no one would expect to work, all the more
+# so since already Uranus, Neptune and Pluto are not selectable in story mode."
+STORY_GUARD = __import__("os").environ.get("STORY_GUARD", "1") == "1"
 SATURN_LATCH = 0xF102     # P1 armed-this-round latch
 SATURN_MARK = 0xF105   # "her card tiles are uploaded" marker
 SATURN_INIDISP = 0xF106  # INIDISP saved across the blit's forced blank
@@ -737,6 +741,17 @@ def main():
         b = bytearray()
         fix = []
         b += bytes((0xE2, 0x20))                             # sep #$20
+        if STORY_GUARD:
+            # Story mode ($7E:008D == 1) never arms. The game itself keeps the
+            # outer senshi out of story (they are its bosses), so a hidden tenth
+            # character has no business there either — and it removes the one
+            # risk the early transform carries, since the $1E04 gate it drops
+            # existed to protect the story sequencer. The latch is FORCED TO 0
+            # rather than merely skipped, so a stale arm from a previous VS
+            # round cannot survive into a story fight.
+            b += bytes((0xA5, 0x8D, 0xC9, 0x01, 0xD0, 0x09))     # lda $8D/cmp #1/bne
+            b += bytes((0xA9, 0x00, 0x8F, latch & 0xFF, latch >> 8, SATURN_BANK))
+            b += bytes((0x82, 0x00, 0x00)); fix.append(len(b) - 2)
         b += bytes((0xA5, 0x36, 0xC9, 0x7F, 0xF0, 0x03))     # ==7F: skip the brl
         b += bytes((0x82, 0x00, 0x00)); fix.append(len(b) - 2)   # operand idx
         # LONG reads (v0.11.7): these were DB-relative `lda $4218` — the stub is
