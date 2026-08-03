@@ -97,6 +97,22 @@ if STAGE then
   end, emu.callbackType.exec, 0x808586, 0x808586, emu.cpuType.snes, emu.memType.snesMemory)
 end
 
+-- $7E:008F is the per-stage sprite-attribute byte: 0x18 on the nine stages that
+-- draw the fighters at OBJ priority 3, 0x10 on stage 2 (the slot the port
+-- targets) which draws them at 2. It is mirrored into each player's +0x08.
+-- Log who writes it, so the port can set it like every other stage.
+local sf8 = 0
+for _, a in ipairs({ 0x00008F, 0x7E008F }) do
+  emu.addMemoryCallback(function(_ad, value)
+    if frames < 1200 or sf8 > 8 then return end
+    sf8 = sf8 + 1
+    local ok, st = pcall(emu.getState)
+    log(string.format("  $008F <= %02X @%02X:%04X A=%04X X=%04X Y=%04X",
+      value or 0, ok and (st["cpu.k"] or 0) or 0, ok and (st["cpu.pc"] or 0) or 0,
+      ok and (st["cpu.a"] or 0) or 0, ok and (st["cpu.x"] or 0) or 0, ok and (st["cpu.y"] or 0) or 0))
+  end, emu.callbackType.write, a, a, emu.cpuType.snes, emu.memType.snesMemory)
+end
+
 local STEPS = {
   function() return frames >= 900 end,
   function() pulse[0] = beat({ down = true }); return ram(0x1B10) == 1 end,

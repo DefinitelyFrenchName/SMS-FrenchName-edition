@@ -540,83 +540,85 @@ Verified: palace +3 vs Super S's +4, ground 1:1 by register, composition correct
 at rest on two builds, regression **57/57** on
 `SailorMoonS_REFsaturn_v0.13.4-hidden-stage.sfc`.
 
-### Round 3 — transparency and the horizontal drift (field, 2026-08-03)
+### Round 3 — CORRECTED: the scene script's tail (2026-08-03)
 
-Field on v0.13.4: scrolling all correct, but (a) solid black blocks around the
-palace's outline where the sky should show, and (b) the furthest layer "again
-left shifted", worst at the rightmost camera position.
+Round 3 as first written is **wrong** and the build it produced (v0.13.5) broke
+scrolling speed and input in the field. It is superseded by this, which is
+simpler than anything before it. The maintainer's steer is what found it: **SMS
+already ships this stage** — scene 1 is its own Silver Millennium, the same
+palace over the same plaza — so instead of reasoning about what SMS "cannot do",
+read what it already does.
 
-**Why the stage cannot simply be layered.** Super S composes it in THREE depths:
+**SMS's own Silver Millennium composes the stage exactly like Super S:**
 
-    BG1 priority 0   sky
-    BG2 priority 1   palace
+    BG1 priority 0   sky          BG1 fixed (h=0, v=0)
+    BG2 priority 1   palace       BG2 camera/4 both axes
     BG1 priority 1   ground
 
-In mode 1 that renders sky < palace < ground, which is exactly right — and it
-works there because **Super S draws its fighters at OBJ priority 3**. SMS draws
-its fighters at **OBJ priority 2** (measured: every visible sprite in a match,
-`$7E:0200` shadow), and in mode 1 a priority-1 BG tile of either plane draws in
-FRONT of OBJ2. That is the original occlusion report ("the castle covering
-everything below the characters' chests"), and it is why the port strips the
-priority bits. Stripped, we have exactly **two** usable depths (BG1.0 > BG2.0)
-for three layers, so one pair must share a plane — and a shared plane means a
-shared scroll rate.
+with the fighters drawn **over** the priority-1 ground, boots and shadows
+intact. Which contradicted the port's founding assumption — that a priority-1 BG
+tile must cover an OBJ-priority-2 sprite — so the assumption was measured
+instead of assumed: on SMS's own stage 1 the fighters are at **OBJ priority 3**;
+on stage 2, the slot the port targets, they are at **2**. Nine of ten SMS stages
+use 3. Stage 2 is the only one that does not, and it is the one we build on.
 
-That is the whole tension, and every symptom so far has been one face of it:
+**Where that comes from.** The scene script is not two lists but four parts, read
+at `$C0:85C8-$85FC`:
 
-| pairing | cost |
-|---|---|
-| palace + ground (v0.13.3) | palace inherits the ground's rate — the parallax report |
-| sky + palace (v0.13.4) | the palace's transparent pixels have no sky behind them — the black blocks |
-| sky + ground | impossible: the sky would then draw in front of the palace |
+    [record ids .. FF][palette ids .. FF][third list .. FF][$6F][$8F][$A2]
 
-**v0.13.5 keeps sky + palace together and fixes the transparency in the DATA.**
-Where a palace tile is only partly opaque, the sky cell it covers is baked into
-a new tile (`TileComposer`): 111 composited tiles, allocated from the 272 tile
-slots the stage's own tileset leaves unreferenced. The two palettes differ
-(palace row 2, sky rows 5-6), so each baked sky pixel is remapped to the nearest
-colour in the palace's row — the two ramps are near-identical, several entries
-matching exactly. Black pixels across the palace region: **2141 → 270**, the
-remainder being the stage's own dark art.
+`$8F` is the sprite-attribute byte, mirrored into each player's `+0x08`: `0x18`
+= fighters at OBJ priority 3, `0x10` = priority 2. Stage 1's tail reads
+`a0 18 0a`, Super S scene 1's reads `a0 18 00`, stage 2's reads `50 10 0f`. The
+port copied records and palettes and never carried the tail — so the ported art
+ran under the one configuration in the game that puts the fighters *below* the
+background's priority tiles.
 
-Compositing is only valid because the two layers now share a plane: the pairing
-between a palace cell and the sky cell behind it is then fixed forever. An
-earlier attempt that split them and still composited produced *holes* instead —
-the planes scroll at different rates, so "the sky cell behind this palace cell"
-is not a constant.
+That single byte is the whole saga. At priority 2 the castle covered the
+characters (the first field report), so the port stripped the priority bits;
+stripped, three layers had to share two depths, so the palace could not have its
+own parallax without either burying the sky or blacking out its own edges — and
+every fix since has been paying interest on that.
 
-**And the drift.** Merging also forced a choice of horizontal rate, since the two
-layers can no longer differ: Super S runs its sky+ground plane at h = 0 and its
-palace plane at h = camera/4. v0.13.4 gave the merged plane camera/4, which
-dragged the sky sideways — the "left shifted" report. v0.13.5 sets **both planes
-to h = 0**, so nothing drifts horizontally at all, and shifts the palace **2
-cells left in the data** to put it back where Super S's camera/4 had it at the
-neutral camera. Verified: the palace band aligns with a Super S capture at
-offset **+0**.
+**The port now carries `$8F` (0x10 -> 0x18) and does nothing else clever:**
+priority bits kept verbatim, no layer merge, no plane swap, no tile compositing,
+no rewritten scroll routine. The stage-2 scroll entry is simply repointed at
+**`$C0:B42F`** — the routine SMS's own Silver Millennium uses.
 
-Net vs Super S: vertical is faithful (ground 1:1, palace camera/4), transparency
-is faithful, framing is faithful; what is gone is the horizontal parallax
-between the palace and the ground, and the sky rides the palace's vertical rate
-instead of standing still (3 px at a jump apex).
+Only `$8F` is copied. Porting the third list and the other two tail bytes as
+well **hangs the round load** (measured: the match never starts) — they are
+SMS-side ids, exactly like the record and palette ids, which is why those have
+always been kept as SMS's with only their data repointed.
 
-**Getting all of it back needs one engine change:** raise sprites to OBJ
-priority 3 while this scene is loaded, and keep Super S's priority bits verbatim.
-The insertion point is already located — the OAM shadow is `$7E:0200` and it is
-DMA'd to `$2104` from a single kick at **`$80:8476`** (`probe_sms_oamdma.lua`),
-so a per-frame pass could OR the priority in just before it, gated on
-`$7E:008E`. Not done: it changes sprite ordering for everything on that stage,
-which is the maintainer's call.
+Acceptance, against SMS's own version of the same stage:
 
-### Two things that made this round hard
+| | SMS scene 1 | our port |
+|---|---|---|
+| BG1 (sky+ground) | `0,0` fixed | `0,0` fixed |
+| BG2 (palace) | `16, camera/4` | `16, camera/4` |
+| sprite priority | 3 | 3 |
+| black pixels over the palace | 270 | 270 |
 
-1. **A 64x32 tilemap is TWO 32x32 screens** (the right half at +0x800), not
-   64-entry rows. Reading it the obvious way gives the left half of alternating
-   rows — which is why three separate analyses of these maps contradicted each
-   other, including a confident "the palace is in the second map" that was
-   nonsense. `cell_off()` in the builder now encapsulates it.
-2. **Screenshots beat inference.** The "fill only the gaps" merge was silently
-   dropping the entire palace; the build was clean and self-consistent and only
-   a rendered frame showed bare sky.
+Regression 57/57 on `SailorMoonS_REFsaturn_v0.13.6-hidden-stage.sfc`.
+
+Note what this also means: making the ground track the camera 1:1 (v0.13.3/4)
+was a deviation from **both** originals — SMS's own stage keeps its sky+ground
+plane completely still during a jump and drifts only the palace. That code is
+gone.
+
+### What the earlier rounds got wrong, and why
+
+* **"A priority-1 BG tile always covers the fighters."** True only at OBJ
+  priority 2, which is a per-stage setting, not an engine constant. Measuring
+  one stage and generalising cost four rounds of increasingly clever
+  workarounds — merging layers, splitting planes, compositing tiles — all of
+  them working around a byte.
+* **Reading the game's own data beats reasoning about its limits.** Every
+  question in this task — layer split, priority use, scroll rates, sprite
+  priority — was answerable by dumping SMS's own version of the same stage.
+* **A 64x32 tilemap is TWO 32x32 screens** (right half at +0x800), not 64-entry
+  rows; reading it wrong made three analyses of these maps contradict each other.
+  `cell_off()` documents it.
 
 ### Still open, deliberately: the HORIZONTAL rate
 

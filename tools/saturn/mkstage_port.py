@@ -87,8 +87,8 @@ SUPERS_SCENE = 1              # moonlit terrace / Elysion skyline
 #     front plane = palace + ground      back plane = sky
 # which renders in the right order with no priority bits at all, so the
 # fighters stay in front of everything.
-MERGE_GROUND = True
-STRIP_PRIORITY = True
+MERGE_GROUND = False
+STRIP_PRIORITY = False
 
 # PLANE SPLIT (2026-08-03, field round 2 on #43). Measured on Super S itself
 # (probe_supers_stagejump.lua): at a jump apex its palace band moves +4 px while
@@ -104,7 +104,10 @@ STRIP_PRIORITY = True
 # either original), sky + palace on BG2 at camera/4 (Super S's own rate).
 # BG1 draws in front of BG2 in mode 1, which is the occlusion order the re-cut
 # was invented to get.
-PLANE_SPLIT = True            # supersedes MERGE_GROUND + SWAP_MAPS
+PLANE_SPLIT = False           # superseded by PORT_SCRIPT_TAIL: with $8F ported
+                              # the fighters sit at OBJ priority 3 and Super S's
+                              # own priority bits compose the stage correctly,
+                              # so the maps go in VERBATIM — no re-cut at all
 
 # Per-stage SCROLL ROUTINE. $C0:B317 is a 10-byte table (one per stage) of word
 # offsets into a routine pointer table at $C0:B32B:
@@ -134,11 +137,21 @@ MAP1_SHIFT = 0                # tiles; horizontal re-framing (unused: the
 # plane. Field symptoms of exactly that: the sky/horizon drawn IN FRONT of the
 # palace, the far layer framed wrong, and the two planes scrolling at each
 # other's rates.
-SWAP_MAPS = True
+SWAP_MAPS = False
+
+# Carry the scene script's THIRD LIST and its three tail bytes across with the
+# art (see parse_script). Without this the ported stage keeps SMS stage 2's
+# configuration -- including $8F = 0x10, the one stage in the game that draws
+# the fighters at OBJ priority 2 -- and no arrangement of two BG planes can then
+# reproduce the three depths the art was drawn for.
+PORT_SCRIPT_TAIL = True
 
 SCROLL_PTR = 0x00B32F         # the entry stage 2 selects
 SCROLL_PTR_OLD = bytes.fromhex("54b4")    # $C0:B454, the vortex
-SCROLL_PTR_NEW = bytes.fromhex("0ab4")    # $C0:B40A, plain camera parallax
+SCROLL_PTR_NEW = bytes.fromhex("2fb4")    # $C0:B42F — the routine SMS's OWN
+                                          # Silver Millennium (stage 1) uses:
+                                          # BG1 (sky+ground) fixed, BG2 (palace)
+                                          # camera/4. Measured on both games.
 
 # ---- the jump slide (#43) ----------------------------------------------
 # Measured (probe_sms_stagejump.lua, scene forced to 2): the scroll block at
@@ -161,7 +174,7 @@ SCROLL_PTR_NEW = bytes.fromhex("0ab4")    # $C0:B40A, plain camera parallax
 # Fix: keep B40A's horizontal treatment, restore stage 2's own 1:1 vertical, in
 # a routine written over the vortex -- which only stage 2 selects, so no other
 # stage can see it, and the pointer at $C0:B32F is then left alone.
-GROUND_TRACKS_CAMERA = True
+GROUND_TRACKS_CAMERA = False
 SCROLL_CODE = 0x00B454        # the vortex routine's body; code runs to $B4C0,
                               # data (its HDMA table) starts at $B4C1
 SCROLL_CODE_OLD = bytes.fromhex("c220ad000a38ed180a8500")   # its first 11 bytes
@@ -170,15 +183,15 @@ SCROLL_CODE_NEW = bytes.fromhex(
     "ad000a"        # lda $0A00      camera x
     "8d240a"        # sta $0A24
     "4a4a"          # lsr a : lsr a
-    "8d200a"        # sta $0A20
-    "9c180a"        # stz $0A18      BG1 h = 0  — NOTHING scrolls horizontally,
-    "9c1c0a"        # stz $0A1C      BG2 h = 0    which is what Super S does with
-    "ad020a"        # lda $0A02      camera y     its sky+ground plane. Letting
-    "8d260a"        # sta $0A26                   the sky ride camera/4 is what
-    "8d1a0a"        # sta $0A1A      BG1 v = camera 1:1   the field saw as "the
-    "4a4a"          # lsr a : lsr a                       background is again
-    "8d1e0a"        # sta $0A1E      BG2 v = camera/4     left shifted".
-    "8d220a"        # sta $0A22
+    "8d180a"        # sta $0A18      BG1 h = camera/4
+    "8d1c0a"        # sta $0A1C      BG2 h = camera/4  (same as BG1: the two
+    "8d200a"        # sta $0A20       planes must not drift horizontally)
+    "ad020a"        # lda $0A02      camera y
+    "8d260a"        # sta $0A26
+    "8d1a0a"        # sta $0A1A      BG1 v = camera 1:1   — the ground tracks
+    "4a4a"          # lsr a : lsr a    the fighters (they stay planted)
+    "8d1e0a"        # sta $0A1E      BG2 v = camera/4     — the palace parallax,
+    "8d220a"        # sta $0A22        Super S's own rate (+4 px at the apex)
     "60")           # rts
 
 STUB = 0x8000                 # in our appended bank
@@ -198,16 +211,46 @@ def supers_rom():
 
 def read_script(rom, base, idx, bank_file):
     """-> (record ids, palette ids) for one scene."""
+    return parse_script(rom, base, idx, bank_file)[:2]
+
+
+def parse_script(rom, base, idx, bank_file):
+    """Full scene script: -> (records, palettes, third list, tail bytes, offset).
+
+    The script does NOT end at the palette list. Measured at $C0:85C8-$85FC, it
+    is FOUR parts:
+
+        [record ids .. FF][palette ids .. FF][third list .. FF][$6F][$8F][$A2]
+
+    and those last three bytes are the per-stage configuration. **`$8F` is the
+    sprite-attribute byte**: `0x18` on the nine SMS stages that draw the
+    fighters at OBJ priority 3, `0x10` on stage 2 — the one slot this port
+    targets, and the only stage in the game whose fighters sit at priority 2.
+    It is mirrored into each player's +0x08.
+
+    That single byte is behind the whole layering saga. At priority 2 a BG tile
+    with the priority bit draws in FRONT of the fighters, which is the original
+    "the castle covers everything below their chests" report; that is why the
+    port stripped the priority bits, which cost it the third depth (sky <
+    palace < ground), which is why the palace could not be given its own
+    parallax without either burying the sky or blacking out its own edges.
+
+    SMS's OWN Silver Millennium (scene 1) is the same stage and composes it the
+    same way as Super S does — sky BG1.0, palace BG2.1, ground BG1.1 — and its
+    script tail reads `a0 18 0a`. Super S scene 1's reads `a0 18 00`. So the
+    port has to carry the script tail across, not just the art.
+    """
     p = rom[bank_file + base + idx * 2] | rom[bank_file + base + idx * 2 + 1] << 8
-    o = bank_file + p
-    recs = []
-    while rom[o] != 0xFF:
-        recs.append(rom[o]); o += 1
-    o += 1
-    pals = []
-    while rom[o] != 0xFF:
-        pals.append(rom[o]); o += 1
-    return recs, pals
+    o = start = bank_file + p
+    out = []
+    for _ in range(3):
+        lst = []
+        while rom[o] != 0xFF:
+            lst.append(rom[o]); o += 1
+        o += 1
+        out.append(lst)
+    tail = (rom[o], rom[o + 1], rom[o + 2])
+    return out[0], out[1], out[2], tail, start
 
 
 def palette_block(rom, table, pid, bank_file):
@@ -216,155 +259,6 @@ def palette_block(rom, table, pid, bank_file):
     # bank $E0 == file 0x200000 in both ROMs (both are 4 MB HiROM)
     off = (bank - 0xC0) * 0x10000 + src
     return start, rom[off:off + n], n
-
-
-PALACE_SHIFT = 2              # cells; see the merge in build()
-
-
-def cell_off(col, row):
-    """Byte offset of (col,row) in a 64x32 tilemap.
-
-    The SNES stores one of those as TWO 32x32 screens, the right half at
-    +0x800 — NOT as 64-entry rows. Reading it the obvious way silently gives
-    you the left half of alternating rows, which is what made three separate
-    analyses of this stage disagree with each other.
-    """
-    col %= 64
-    row %= 32
-    return (0x800 if col >= 32 else 0) + (row * 32 + (col % 32)) * 2
-
-
-def cell_get(m, col, row):
-    o = cell_off(col, row)
-    return m[o] | m[o + 1] << 8
-
-
-def palette_rgb(rom, table, pid, bank_file):
-    """-> {colour index: (r,g,b)} for the stage's BG palette block."""
-    start, data, n = palette_block(rom, table, pid, bank_file)
-    out = {}
-    for i in range(n // 2):
-        w = data[i * 2] | data[i * 2 + 1] << 8
-        out[start + i] = ((w & 31) * 8, ((w >> 5) & 31) * 8, ((w >> 10) & 31) * 8)
-    return out
-
-
-class TileComposer:
-    """Bake the sky that a palace tile lets through INTO that tile.
-
-    Why this exists: the fighters are drawn at OBJ priority 2, and in mode 1 a
-    priority-1 BG tile of either plane draws in FRONT of OBJ2 — which is the
-    original occlusion report ("the castle covering everything below the
-    characters' chests"). So Super S's own three-depth trick (sky = BG1.0,
-    palace = BG2.1, ground = BG1.1) is closed to us: every plane we use has to
-    stay at priority 0, which leaves exactly two depths for three layers.
-
-    The way out is to composite instead of stack: the palace keeps its own
-    plane and its own scroll rate, and wherever its tiles are partially
-    transparent the sky pixels behind them are baked in. The one compromise is
-    that those baked fringes do not track the real sky as the two planes move
-    apart — invisible in practice, since the sky behind the palace is a smooth
-    vertical gradient.
-
-    Palettes differ (the palace is row 2, the sky rows 5-6), so each baked sky
-    pixel is remapped to the nearest colour in the palace's row. That ramp is
-    nearly the same in both, several entries matching exactly.
-    """
-
-    def __init__(self, tiles, pal_rgb):
-        self.tiles = bytearray(tiles)
-        self.rgb = pal_rgb
-        self.made = {}                 # key -> new tile index
-        self.pending = []              # (index, 32 bytes)
-        self.free = []            # set_used() fills this
-        self._nearest = {}
-
-    def set_used(self, used):
-        """Tile slots nothing references, plus the tail of the VRAM window."""
-        n = len(self.tiles) // 32
-        window = 0x6000 // 32                    # the stage tileset's VRAM budget
-        self.free = [t for t in range(1, n) if t not in used] + list(range(n, window))
-
-    def _pixels(self, t, flip_h, flip_v):
-        o = t * 32
-        px = [[0] * 8 for _ in range(8)]
-        for y in range(8):
-            p0, p1 = self.tiles[o + y * 2], self.tiles[o + y * 2 + 1]
-            p2, p3 = self.tiles[o + 16 + y * 2], self.tiles[o + 16 + y * 2 + 1]
-            for x in range(8):
-                b = 7 - x
-                px[y][x] = (((p0 >> b) & 1) | (((p1 >> b) & 1) << 1)
-                            | (((p2 >> b) & 1) << 2) | (((p3 >> b) & 1) << 3))
-        if flip_h:
-            px = [row[::-1] for row in px]
-        if flip_v:
-            px = px[::-1]
-        return px
-
-    @staticmethod
-    def _encode(px):
-        out = bytearray(32)
-        for y in range(8):
-            for x in range(8):
-                v = px[y][x]
-                b = 7 - x
-                out[y * 2] |= (v & 1) << b
-                out[y * 2 + 1] |= ((v >> 1) & 1) << b
-                out[16 + y * 2] |= ((v >> 2) & 1) << b
-                out[16 + y * 2 + 1] |= ((v >> 3) & 1) << b
-        return out
-
-    def _map_colour(self, src_row, src_idx, dst_row):
-        if src_idx == 0:
-            return 0
-        key = (src_row, src_idx, dst_row)
-        if key in self._nearest:
-            return self._nearest[key]
-        want = self.rgb.get(src_row * 16 + src_idx)
-        best, bd = 1, 1 << 30
-        if want:
-            for i in range(1, 16):                       # never map onto index 0:
-                have = self.rgb.get(dst_row * 16 + i)    # that IS transparency
-                if not have:
-                    continue
-                d = sum((a - b) ** 2 for a, b in zip(want, have))
-                if d < bd:
-                    bd, best = d, i
-        self._nearest[key] = best
-        return best
-
-    def has_transparency(self, pw):
-        return 0 in [v for row in self._pixels(pw & 0x3FF, 0, 0) for v in row]
-
-    def composite(self, pw, sw):
-        """-> a tilemap entry drawing the palace cell with the sky baked in."""
-        key = (pw, sw)
-        if key in self.made:
-            return self.made[key]
-        pt, prow = pw & 0x3FF, (pw >> 10) & 7
-        st, srow = sw & 0x3FF, (sw >> 10) & 7
-        p = self._pixels(pt, pw & 0x4000, pw & 0x8000)
-        s = self._pixels(st, sw & 0x4000, sw & 0x8000)
-        for y in range(8):
-            for x in range(8):
-                if p[y][x] == 0:
-                    p[y][x] = self._map_colour(srow, s[y][x], prow)
-        if not self.free:
-            return None
-        slot = self.free.pop(0)
-        self.pending.append((slot, self._encode(p)))
-        # flips are baked in, so the new entry carries none
-        entry = slot | (prow << 10)
-        self.made[key] = entry
-        return entry
-
-    def apply(self):
-        need = len(self.tiles) // 32
-        for slot, data in self.pending:
-            if slot >= need:
-                self.tiles.extend(b"\x00" * ((slot + 1) * 32 - len(self.tiles)))
-        for slot, data in self.pending:
-            self.tiles[slot * 32:slot * 32 + 32] = data
 
 
 def build(src_path, out_path):
@@ -392,59 +286,33 @@ def build(src_path, out_path):
         blobs.append((raw, vram))
         print(f"  supers job {j:2d}: {len(raw):#07x} bytes -> VRAM {vram:04X}")
 
-    # --- re-cut the two planes (see PLANE_SPLIT) ---
+    # --- re-cut the two planes (see PLANE_SPLIT / MERGE_GROUND) ---
     if PLANE_SPLIT:
         idx = {v: i for i, (_r, v) in enumerate(blobs)}
         if 0x0000 in idx and 0x0800 in idx:
-            sky = bytearray(blobs[idx[0x0000]][0])      # sky (+ ground, flagged)
-            palace = bytearray(blobs[idx[0x0800]][0])   # the palace
-            tiles = bytearray(blobs[idx[0x2000]][0])
-            pal_rgb = palette_rgb(sup, SUP_PALRECS, spals[0], E0)
-            front = bytearray(len(sky))                 # ground only   -> BG1
-            back = bytearray(sky)                       # sky + palace  -> BG2
-            comp = TileComposer(tiles, pal_rgb)
-            used = set()
-            for m in (sky, palace):
-                for k in range(0, len(m), 2):
-                    used.add((m[k] | m[k + 1] << 8) & 0x3FF)
-            comp.set_used(used)
-            moved = fixed = 0
-            for k in range(0, len(sky), 2):
-                if sky[k + 1] & 0x20:                   # priority = the ground
-                    front[k:k + 2] = sky[k:k + 2]
+            src = bytearray(blobs[idx[0x0000]][0])      # sky + palace + ground
+            other = bytearray(blobs[idx[0x0800]][0])    # a small foreground block
+            front = bytearray(len(src))                 # ground only
+            back = bytearray(src)                       # sky + palace
+            moved = 0
+            for k in range(0, len(src), 2):
+                if src[k + 1] & 0x20:                   # priority = in front of the palace
+                    front[k:k + 2] = src[k:k + 2]
                     back[k:k + 2] = b"\x00\x00"
                     moved += 1
-            # Super S draws the palace on a plane scrolled camera/4 (16 px at the
-            # neutral camera) while its sky plane sits at 0. Merging them onto
-            # one plane freezes that offset, so the palace has to be shifted by
-            # those 2 cells in the DATA or it lands 16 px right of where Super S
-            # puts it — and the composite would bake the wrong sky cell in.
-            for col in range(64):
-                for row in range(32):
-                    k = cell_off(col, row)
-                    pw = cell_get(palace, col + PALACE_SHIFT, row)
-                    if not pw & 0x3FF:
-                        continue
-                    sw = back[k] | back[k + 1] << 8
-                    entry = pw
-                    # A palace tile that is only partly opaque used to let the
-                    # BACKDROP through as a solid black block, because
-                    # overwriting the sky cell is the only way to put the palace
-                    # in front of it on one plane. Bake in the sky it covers.
-                    if sw & 0x3FF and comp.has_transparency(pw):
-                        new_entry = comp.composite(pw, sw)
-                        if new_entry is not None:
-                            entry = new_entry
-                            fixed += 1
-                    back[k] = entry & 0xFF
-                    back[k + 1] = entry >> 8
-            comp.apply()
-            blobs[idx[0x2000]] = (bytes(comp.tiles), 0x2000)
+            # The PALACE is in the second map, not the first — and the first map
+            # (sky) has no blank cells, so a "fill the gaps" merge silently threw
+            # the whole palace away and the stage rendered as bare sky. The
+            # second map wins wherever it has a tile: it is the nearer art.
+            kept = 0
+            for k in range(0, len(other), 2):
+                if (other[k] | other[k + 1] << 8) & 0x3FF:
+                    back[k:k + 2] = other[k:k + 2]
+                    kept += 1
             blobs[idx[0x0000]] = (bytes(front), 0x0000)
             blobs[idx[0x0800]] = (bytes(back), 0x0800)
-            print(f"    (plane split: {moved} ground cells -> BG1, sky+palace -> BG2; "
-                  f"{fixed} palace tiles composited over the sky "
-                  f"into {len(comp.made)} new tiles)")
+            print(f"    (plane split: {moved} ground cells to BG1, sky+palace to BG2, "
+                  f"{kept} cells kept from the second map)")
     elif MERGE_GROUND:
         idx = {v: i for i, (_r, v) in enumerate(blobs)}
         if 0x0000 in idx and 0x0800 in idx:
@@ -534,6 +402,23 @@ def build(src_path, out_path):
 
     # --- repoint SMS stage 2's three asset records ---
     recs, pals = read_script(bytes(data), 0x017A, SMS_STAGE, E0)
+    if PORT_SCRIPT_TAIL:
+        _sr, _sp, s_third, s_tail, _so = parse_script(sup, SUP_SCENES, SUPERS_SCENE, E0)
+        d_recs, d_pals, d_third, d_tail, d_off = parse_script(bytes(data), 0x017A, SMS_STAGE, E0)
+        if len(s_third) != len(d_third):
+            raise SystemExit(f"scene tail: third list is {len(s_third)} entries in Super S "
+                             f"but {len(d_third)} in SMS — no room to copy in place")
+        # ONLY $8F. The third list and the other two tail bytes are SMS
+        # resource ids / SMS-side config: copying Super S's numbers over them
+        # hangs the round load (measured — the match never starts), exactly like
+        # the record and palette ids, which is why those are kept as SMS's and
+        # only their DATA is repointed.
+        o = d_off + len(d_recs) + 1 + len(d_pals) + 1 + len(d_third) + 1
+        data[o + 1] = s_tail[1]
+        print(f"  scene script tail: $8F {d_tail[1]:02X} -> {s_tail[1]:02X} "
+              f"= fighters at OBJ priority {(d_tail[1] >> 3) & 3} -> "
+              f"{(s_tail[1] >> 3) & 3} (SMS's own Silver Millennium, scene 1, "
+              f"also uses 18); $6F and $A2 and the third list left as SMS's")
     recs = [r for r in recs if r != 4]
     if len(recs) != 3:
         raise SystemExit(f"SMS scene {SMS_STAGE} is not a 3-asset stage: {recs}")
@@ -585,15 +470,15 @@ def build(src_path, out_path):
             raise SystemExit("scroll routine would run into the vortex HDMA table at $B4C1")
         data[SCROLL_CODE:SCROLL_CODE + len(SCROLL_CODE_NEW)] = SCROLL_CODE_NEW
         print(f"  scroll routine: $C0:B454 rewritten in place "
-              f"({len(SCROLL_CODE_NEW)} B) — BG1 (ground) h = 0, v = camera; "
-              f"BG2 (sky+palace) h = 0, v = camera/4")
+              f"({len(SCROLL_CODE_NEW)} B) — BG1 h = camera/4, BG1 v = camera 1:1")
     else:
         got = bytes(data[SCROLL_PTR:SCROLL_PTR + 2])
         if got != SCROLL_PTR_OLD:
             raise SystemExit(f"scroll pointer @{SCROLL_PTR:#08x}: found {got.hex()}, "
                              f"expected {SCROLL_PTR_OLD.hex()}")
         data[SCROLL_PTR:SCROLL_PTR + 2] = SCROLL_PTR_NEW
-        print("  scroll routine: $C0:B454 (vortex) -> $C0:B40A (camera parallax)")
+        print("  scroll routine: $C0:B454 (vortex) -> $C0:B42F "
+              "(SMS's own Silver Millennium: BG1 sky+ground fixed, BG2 palace camera/4)")
 
     fix_checksum(data)
     open(out_path, "wb").write(data)

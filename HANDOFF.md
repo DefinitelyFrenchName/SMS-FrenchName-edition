@@ -27,7 +27,7 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 
 **Saturn is playable in SMS**, summoned by holding **L+R** on any character
 slot at select (she wears that character as a "shell"). Field-tested repeatedly
-by the maintainer. Current build is **v0.13.5** (Saturn + the stage port), on
+by the maintainer. Current build is **v0.13.6** (Saturn + the stage port), on
 **REF v.2**. **Every tracked bug is closed**; what remains is the extended scope
 in `docs/saturn/PROJECT.md` § Extended scope (menu translation; showing Saturn
 before round start instead of at the round load).
@@ -63,30 +63,22 @@ hook on the two table reads at `$C0:8B59` / `$C0:8B81`. Detail and font tables:
 check it on a BRIGHT stage, since the one bug it hid was body text missing the
 priority bit and rendering behind the background.
 
-**#43 (the ported stage) is FIXED — slide in v0.13.3, palace parallax in v0.13.4.** Measured on the
-right scene this time (`STAGE=2` forces `$7E:008E`): objects are placed at the
-FULL camera while the scroll routine the port borrowed from stage 0 gives the
-ground plane only **camera/4** — a 12 px jump drops the fighters and their
-shadows 12 px and the ground 3, undone on landing. Vanilla stage 0 does the
-identical thing (byte-identical traces, OAM and WRAM); it is invisible there
-because its ground is flat grass, while the ported stage has a hard floor line at
-the fighters' feet. Fix: stage 2's own routine at `$C0:B454` (the only routine
-that stage selects) rewritten in place with a 1:1 vertical. Background shift
-+3 → +11 = the sprites' +11; scene `$00` byte-identical on the same ROM;
-regression 57/57. **Round 2 (v0.13.4): the palace.** Super S gives its palace
-band +4 px at the apex while its ground stays put, and does it on ONE plane per
-SCANLINE (an HDMA channel onto `$210E` for the duration of the jump — measured
-with `probe_supers_stagejump.lua`); SMS has no such machinery, so the port
-splits by PLANE instead — ground alone on BG1 at 1:1, sky+palace on BG2 at
-camera/4. Palace now +3. **Round 3 (v0.13.5): transparency + drift.** Super S
-composes the stage in THREE depths via priority bits, which works there because
-its fighters are OBJ priority 3 — SMS's are OBJ 2, so a priority-1 BG tile
-covers them (the original occlusion report). Two depths for three layers means
-one pair shares a plane and a rate; sky+palace is the pair, and the palace's
-transparent pixels are fixed in the DATA by baking the sky behind them into 111
-composited tiles. Both planes now scroll h = 0 and the palace is shifted 2 cells
-left to keep Super S's framing (verified at offset +0). Black pixels over the
-palace 2141 → 270. `docs/saturn/supers_assets.md` §#43.
+**#43 (the ported stage) is FIXED in v0.13.6 — by reading SMS's own copy of the
+stage.** SMS ships this stage already (scene 1 = its Silver Millennium), and it
+composes it exactly like Super S: sky BG1.0, palace BG2.1, ground BG1.1, with
+the fighters drawn over the priority-1 ground. That is possible because SMS
+draws its fighters at **OBJ priority 3 on nine of ten stages** — and at **2 only
+on stage 2**, the slot the port targets. The source is the scene script, which
+has FOUR parts rather than two (`[records..FF][palettes..FF][third list..FF]
+[$6F][$8F][$A2]`, read at `$C0:85C8-85FC`); `$8F` is the sprite-attribute byte
+and the port never carried it. That one byte is why the castle covered the
+fighters, why the priority bits were stripped, and why every layering fix since
+was working around a missing configuration byte. v0.13.6 copies `$8F`
+(0x10→0x18) and repoints the scroll entry to `$C0:B42F` (SMS's own routine for
+this stage) — no priority stripping, layer merge, plane swap, tile compositing
+or rewritten scroll code. It now matches SMS's own version measurement for
+measurement. **v0.13.5 was a bad build** (broke scrolling speed and input) and
+is reverted. `docs/saturn/supers_assets.md` §#43.
 
 **Field-confirmed 2026-08-03:** her **movelist renders clean** in normal play
 (#41 closed) and the **character-select voice shows no regression**.
