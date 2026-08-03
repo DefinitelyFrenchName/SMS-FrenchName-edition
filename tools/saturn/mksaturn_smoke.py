@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.4"
+SATURN_VERSION = "0.14.5"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -406,14 +406,28 @@ EARLY_KEEP_ACT = __import__("os").environ.get("EARLY_KEEP_ACT", "0") == "1"
 # so since already Uranus, Neptune and Pluto are not selectable in story mode."
 STORY_GUARD = __import__("os").environ.get("STORY_GUARD", "1") == "1"
 # Only transform Uranus/Neptune/Pluto shells (charID 6/7/8) — the three the game
-# already keeps out of story mode, so this locks story without depending on when
-# the mode byte is valid.
-# NOT YET WORKING — default OFF. Placed in the DMA stub it never arms (the
-# player struct is not populated at the effects transfer); placed in the helper
-# (where `lda $01,x` for the act demonstrably works) it blocks EVERY shell,
-# including 6/7/8, which is not yet explained. Next step is to log $00,x at the
-# gates and find what the id actually reads there.
-SHELL_GUARD = __import__("os").environ.get("SHELL_GUARD", "0") == "1"
+# already keeps out of story mode, so this locks story WITHOUT depending on when
+# the mode byte is valid. It must live in the helper, not the DMA stub: at the
+# effects transfer the player struct is not populated yet, so the id reads as junk
+# there and nothing arms at all (measured).
+# v0.14.5: DEFAULT ON, and this is now the load-bearing story lock.
+# The 2026-08-03 "it blocks EVERY shell, including 6/7/8" report was a MEASUREMENT
+# ERROR, not a code fault: the harness it was taken with pokes $1B40 and then mashes
+# through the load, and the poke does not stick in that flow — the fight loaded with
+# charID 1 while the probe believed it had selected 6. Re-measured at the gate itself
+# (tools/saturn/probe_sms_shellguard.lua, exec hook on the guard's own `lda $00,x`):
+# D=0, X=$1000/$1080, and $00,x reads the true shell — 06 for a Uranus shell, 04 for
+# a Jupiter one. The guard has always read the right byte.
+# Measured behaviour (practice, v0.14.5 builds):
+#   shell 6/7/8 -> transforms;  shell 1/4 -> refused, xforms=0
+#   story, SHELL_GUARD alone (STORY_GUARD=0): the latch DOES arm and the helper is
+#     reached every frame, and the guard refuses all of it — story cannot offer an
+#     outer senshi, so there is no shell to arm on. This is why it is the deeper
+#     lock: it never asks what mode the game thinks it is in.
+# STORY_GUARD stays on as well: it is the only thing covering the one residual —
+# a story fight whose P1 has been FORCED to charID 6 (poked $1B40; the story nav
+# table cannot reach 6/7/8, and forcing the cursor there crashes VANILLA too).
+SHELL_GUARD = __import__("os").environ.get("SHELL_GUARD", "1") == "1"
 SATURN_LATCH = 0xF102     # P1 armed-this-round latch
 SATURN_MARK = 0xF105   # "her card tiles are uploaded" marker
 SATURN_INIDISP = 0xF106  # INIDISP saved across the blit's forced blank
@@ -1387,6 +1401,10 @@ def main():
         # showed still let her in. It must be tested HERE, not in the DMA stub:
         # at the effects transfer the player struct is not populated yet, so the
         # id reads as junk and nothing arms at all (measured).
+        # Verified at this exact instruction with an exec hook: D=0, X=$1000/$1080
+        # (reloaded from $88 on the line above — X was truncated to 8 bits by the
+        # entry `sep #$30`), so `$00,x` is the player struct's charID. See the
+        # SHELL_GUARD block near the top for the evidence and the residual.
         h += bytes((0xB5, 0x00, 0xC9, 0x06)); _br(0x90, "pop8")   # shell < 6
         h += bytes((0xC9, 0x09)); _br(0xB0, "pop8")               # shell > 8
     h += bytes((0xB5, 0x01, 0xC9, 0x03))         # act

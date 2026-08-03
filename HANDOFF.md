@@ -25,12 +25,28 @@ The base patch project below is complete and green; active work is the **SMS +
 Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 `docs/saturn/BUILDS.md`, next steps: `docs/NEXT_SESSION.md`).
 
-**Saturn is playable in SMS**, summoned by holding **L+R** on any character
-slot at select (she wears that character as a "shell"). Field-tested repeatedly
-by the maintainer. Current build is **v0.14.4** (Saturn + the stage, named in kanji, arriving before the round, story-guarded), on
-**REF v.2**. **Every tracked bug is closed**; what remains is the extended scope
-in `docs/saturn/PROJECT.md` § Extended scope (menu translation; showing Saturn
-before round start instead of at the round load).
+**Saturn is playable in SMS**, summoned by holding **L+R** on a **Uranus,
+Neptune or Pluto** slot at select (she wears that character as a "shell").
+Field-tested repeatedly by the maintainer. Current build is **v0.14.5** (Saturn +
+the stage, named in kanji, arriving before the round, shell-guarded), on
+**REF v.2**. Of the three bugs the 2026-08-03 field round opened, **#3 (Saturn
+reachable in story) is fixed**; the throw corruption and the 2P-VS
+no-transform remain open — see `docs/NEXT_SESSION.md`.
+
+**The story lock is the SHELL, not the mode byte (v0.14.5).** Restricting her to
+charID 6/7/8 locks story structurally: those three are the game's own story
+bosses and its story nav table cannot reach them, so there is no shell in story
+for her to arm on and no mode check to get wrong. The `$8D == 1` guard the field
+defeated is kept as a second layer, covering the one residual (a story fight
+whose P1 has been *forced* to charID 6 — a poke the UI cannot produce, and one
+that crashes vanilla too). Measured, `probe_sms_shellguard.lua`: shells 6/7/8
+transform, 1/4/9 are refused, and with the mode guard removed entirely the story
+latch still arms and the shell guard still refuses it every frame.
+⚠️ The earlier "SHELL_GUARD blocks EVERY shell, including 6/7/8" reading was a
+**harness artifact**, not a code fault: that flow pokes `$1B40` once and then
+mashes A/Start through a second selection screen that reuses it, so the fight
+loaded charID **1** while the probe believed it had selected 6. Poke the cursor
+for the whole load, or read `$1000` and believe it over the cursor.
 
 **She has her own voice as of v0.13.0** (task #44 closed): her win laugh, 236P,
 214P and j.632K, injected as a fifth data layer. SMS voices a fighter from a
@@ -107,8 +123,9 @@ and immediately followed by live data.
 **Four traps this project paid for — they generalise:**
 
 1. **Per-character fixes must be tested with at least TWO shells.** Saturn can
-   be summoned over any of the nine. A hook keyed to *Uranus's* sprite-list
-   pointer worked only for that shell and looked like two unrelated bugs.
+   be summoned over Uranus, Neptune or Pluto (over any of the nine before
+   v0.14.5). A hook keyed to *Uranus's* sprite-list pointer worked only for that
+   shell and looked like two unrelated bugs.
 2. **Unreferenced, unchanging memory is not free memory.** A candidate ARAM
    region passed both "nothing points at it" and "identical across runs" and was
    still live — proven by finding its bytes in ROM bank `$E4`. Ask where bytes
@@ -127,7 +144,12 @@ and immediately followed by live data.
    entrance and the GO! banner rather than an input fault (the pad read correctly
    the whole time); and a step function that threw on a nil and printed "done"
    having logged only its header. Prove the harness sees the thing before
-   concluding the game does not do it.
+   concluding the game does not do it. **Corollary (2026-08-03): a probe that
+   reports a feature REFUSING everything is usually not testing what it thinks
+   it selected.** SHELL_GUARD "blocked 6/7/8" because the harness's char poke
+   never survived the load; one exec hook reading the byte the guard reads
+   settled it. Assert the precondition (here: `$1000` == the shell you asked
+   for) before trusting the verdict.
 
 ---
 

@@ -2,11 +2,15 @@
 --
 -- HOW TO USE (Mesen GUI):
 --   1. Build the ROM:  python3 tools/saturn/mksaturn_smoke.py build/saturn/SailorMoonS_saturn_smoke.sfc
---   2. Open it in Mesen, start a match (2P VS or vs COM; pick ANY character as P1).
+--   2. Open it in Mesen, start a match (2P VS or vs COM; pick URANUS, NEPTUNE or
+--      PLUTO as P1 — since v0.14.5 those are the only shells she will wear).
 --   3. HIDDEN build (the DEFAULT since the 2026-07-31 consensus): hold L+R
---      while CONFIRMING any character at the select screen; that character
---      becomes Saturn at round load (P1/P2/practice dummy; confirming without
---      the code un-picks). VISIBLE build: since v0.10.0 Saturn is ON THE
+--      while CONFIRMING Uranus, Neptune or Pluto at the select screen; that
+--      character becomes Saturn at round load (P1/P2/practice dummy; confirming
+--      without the code un-picks). Any OTHER shell is refused outright — that is
+--      the story lock (story mode cannot offer the outer senshi), so there is no
+--      mode check to get wrong; see SHELL_GUARD in mksaturn_smoke.py.
+--      VISIBLE build: since v0.10.0 Saturn is ON THE
 --      SELECT SCREEN (VS/practice): move to
 --      Chibimoon and press RIGHT (or Venus + DOWN) — a parked cursor glyph
 --      marks the 10th spot bottom-right; confirm there (shows as Uranus until

@@ -6,7 +6,13 @@
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local MODE = "practice"
-local SHELL = tonumber(os.getenv("SHELL") or "6")   -- which character to wear
+-- NOTE: $SHELL is a standard shell variable (/bin/zsh), so a bare run inherits a
+-- non-numeric value — prefer SHELL_ID, and fall back to 6 rather than to nil
+-- (a nil here made wr() throw and the script die with no verdict at all).
+local function shellid(default)
+  return tonumber(os.getenv("SHELL_ID") or "") or tonumber(os.getenv("SHELL") or "") or default
+end
+local SHELL = shellid(6)                           -- which character to wear
 pcall(function() MODE = dofile(ENV.TOOLS .. "saturn/lrmode_cfg.lua") end)
 local LOG = assert(io.open(ENV.TRACE .. "saturn/lrmodes_" .. MODE .. ".txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
@@ -41,6 +47,12 @@ local STEPS = {
   function() pulse[0] = beat({a = true}); return ram(0x1B42) == 1 or sf > 90 end,
   function() pulse[0] = {}; return sf > 30 end,
   function()  -- mash A/Start until actually IN MATCH ($0070==4)
+    -- Re-poke the cursor for the WHOLE load, not once at step 6: the A/Start
+    -- mash walks through a second selection screen that reuses $1B40, so a
+    -- one-shot poke is silently undone and the fight loads charID 1 (vscpu) or
+    -- 0 (practice). That artifact is what made SHELL_GUARD look like it blocked
+    -- every shell on 2026-08-03 — see docs/saturn/BUILDS.md v0.14.5.
+    wr(0x1B40, SHELL)
     if MODE == "practice" then wr(0x1B80, 4) end
     pulse[0] = (frames % 14 < 3) and {a = true}
       or ((frames % 14 >= 7 and frames % 14 < 10) and {start = true} or {})

@@ -1,4 +1,4 @@
-# Next-session handoff — 2026-08-03 (field round)
+# Next-session handoff — 2026-08-03 (field round; bug 3 closed)
 
 Fast orientation. **Full operational map: `HANDOFF.md`; Saturn brief:
 `docs/saturn/PROJECT.md`; test-ROM registry: `docs/saturn/BUILDS.md`; patch
@@ -9,17 +9,16 @@ history.)
 ## Status in one paragraph
 
 The base patch project is done and green. Current work is **SMS + Saturn**:
-Saturn is playable in SMS, selected by holding **L+R** on any character slot.
-Current build is **v0.14.4**
-(`SailorMoonS_REFsaturn_v0.14.4-hidden-stage.sfc`, `8d2d33be…`, regression
-57/57) on **REF v.2**. It is **behaviourally identical to v0.14.3** — a 4-byte
-diff, the checksum and one version-string character — so there is nothing new to
-field-test in it; what it carries is the investigation below. Everything the
-project set out to build exists (voice, select line, movelist, the ported stage
-and its kanji name, and she now arrives before the round starts), but the
-2026-08-03 field round opened **three bugs, none fixed yet**. Fix those first.
+Saturn is playable in SMS, selected by holding **L+R** on a **Uranus, Neptune or
+Pluto** slot (that restriction is new in v0.14.5 and is the story lock — see
+below). Current build is **v0.14.5**
+(`SailorMoonS_REFsaturn_v0.14.5-hidden-stage.sfc`, `c74b2cdc…`, regression
+57/57) on **REF v.2**. Everything the project set out to build exists (voice,
+select line, movelist, the ported stage and its kanji name, and she now arrives
+before the round starts). The 2026-08-03 field round opened three bugs;
+**#3 is fixed in v0.14.5**, #1 and #2 are still open. Fix those first.
 
-## THE THREE OPEN BUGS (field, v0.14.3)
+## THE OPEN BUGS (field, v0.14.3)
 
 Field verdict: training **good**, 1P-vs-COM **good**, and:
 
@@ -52,19 +51,46 @@ the harness's "vscpu" flow is mode `$8D=00` and transforms correctly, so the
 failing case is specifically **two human players**, which no probe covers. A
 two-pad VS flow is the first thing to build.
 
-**3. Saturn is still reachable in story mode.** The `$8D == 1` guard (v0.14.2)
-does not hold in the field. The maintainer's fallback is the right one: **arm
-only on Uranus/Neptune/Pluto shells** (charID 6/7/8), the three story cannot
-select. It is implemented behind `SHELL_GUARD` but **defaults OFF because it does
-not work yet**: in the DMA stub nothing arms at all (the player struct is not
-populated at the effects transfer), and in the helper — where the neighbouring
-`lda $01,x` for the act demonstrably works — it blocks *every* shell including
-6/7/8. Unexplained. **Next step is one measurement:** log `$00,x` at the helper's
-gates and see what the id actually reads there.
+**3. Saturn reachable in story mode — FIXED in v0.14.5.** The `$8D == 1` guard
+(v0.14.2) did not hold in the field. The maintainer's fallback is now the lock:
+**arm only on Uranus/Neptune/Pluto shells** (charID 6/7/8), the three story
+cannot select. `SHELL_GUARD` **defaults ON**.
+
+The previous session's "it blocks every shell including 6/7/8" was a **harness
+artifact, not a code fault**. The one measurement it asked for
+(`tools/saturn/probe_sms_shellguard.lua`, an exec hook on the guard's own
+`lda $00,x`) shows D=0, X=`$1000`/`$1080`, and `$00,x` reading the true shell —
+`06` for a Uranus shell, `04` for a Jupiter one. The guard always read the right
+byte; the *flow* that "selected 6" was loading charID **1**, because it pokes
+`$1B40` once and then mashes A/Start through a second selection screen that
+reuses that cursor. The probe now holds the poke for the whole load.
+
+Measured on the shipping v0.14.5 stage build:
+
+| flow | shell | result |
+|---|---|---|
+| practice | 6 / 7 / 8 | transforms (`p1=1C`) |
+| practice | 1 / 4 / 9 | refused, `xforms=0` |
+| vs-COM | 6 | transforms |
+| vs-COM | 1 | refused |
+| story | (its own roster, 1) | refused |
+| story, `STORY_GUARD=0` | 1 | latch **arms**, helper runs every frame, guard refuses all of it |
+
+That last row is why this is the deeper fix and not a workaround: with the mode
+byte taken out of the picture entirely, story is still locked, because story has
+no outer senshi to arm on. `STORY_GUARD` stays on as a second layer — it is the
+only thing covering the residual, a story fight whose P1 has been *forced* to
+charID 6 (measured: that does let her in, but it needs a `$1B40` poke the UI
+cannot produce, and forcing the story cursor there crashes vanilla too).
 
 Forcing Saturn into story (pre-guard) is confirmed bad by the field: graphical
 corruption, unresponsiveness at the stage start, broken framing. So blocking her
 there is the goal, not a compromise.
+
+*Side finding, not a bug:* in practice, P1 confirms BOTH cursors, so holding L+R
+through both confirms arms both players (writer `$F6:C265`, the confirm stub,
+which arms per cursor by design). With a Uranus dummy that gives a Saturn
+mirror — useful, and it is how you get a Saturn dummy to train against.
 
 ## The font is now writable — which unblocks the translation patch
 
@@ -136,6 +162,13 @@ and their ROMs are in `build/saturn/stagecandidate_*.sfc`.
 4. **Don't measure a moving character against a moving background by pixel
    correlation** — the dummy's idle bob is worth ±8 px. Take it from OAM with the
    animation state held equal.
+5. **Assert the precondition before believing the verdict.** "SHELL_GUARD blocks
+   6/7/8" was three sessions of an unexplained result, and the explanation was
+   that the harness never selected 6/7/8 in the first place. A probe that reports
+   a feature refusing *everything* is usually not testing what it thinks it
+   selected — check `$1000` against the shell you asked for before drawing a
+   conclusion, and when a byte's value is in doubt, hook the instruction that
+   reads it rather than reasoning about it.
 
 ## Build commands
 
