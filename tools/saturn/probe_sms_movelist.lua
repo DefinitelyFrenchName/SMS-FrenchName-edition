@@ -117,7 +117,12 @@ local STEPS = {
   function() pulse[0] = beat({ start = true }); return sf > 40 end,
   function() pulse[0] = {}; return sf > 240 end,
   function() wr(0x1B40, CHAR); wr(0x1B80, DUMMY); return sf > 20 end,
-  function() pulse[0] = beat({ a = true }); return ram(0x1B42) == 1 or sf > 90 end,
+  function()   -- SAT=1 holds L+R at confirm to summon her
+    local b = beat({ a = true })
+    if (os.getenv("SAT") or "0") ~= "0" then b.l = true; b.r = true end
+    pulse[0] = b
+    return ram(0x1B42) == 1 or sf > 90
+  end,
   function() pulse[0] = {}; return sf > 30 end,
   function()
     -- watch from the MATCH LOAD, not from the Start press: no asset-loader call

@@ -1,6 +1,9 @@
-# Saturn's movelist (task #41) — mechanism fully mapped [P 08-03]
+# Saturn's movelist (task #41) — DONE [P 08-03]
 
-**Status: RE complete, implementation not started.** Everything about how SMS
+**Status: SHIPPED in v0.13.2**, verified in-emulator on two shells with the
+vanilla path unchanged. She has her own list: SAILOR SATURN, サイレンス バスター
+(236+P), プレス クラッシャー (JUMP中 632+K), デス リボン レボリューション
+(214+P). Not yet seen by the maintainer in normal play. Everything about how SMS
 picks and draws a character's movelist is now known and measured, including the
 exact per-player hook to use. What is NOT solved is producing HER data — and the
 approach the maintainer preferred (lift it from Super S) is ruled out, for a
@@ -109,11 +112,61 @@ Even the naive one is fine — appended banks are free and the DMA length comes
 from how much was written, not from the stream size — but the RLE version lands
 close enough to vanilla to be tidy.
 
-## What is left
+## The font, and how her list is built
 
-1. the **code -> glyph table** (below), to turn her text into tile codes;
-2. build her 0x800 tilemap, `encode` it into an appended bank;
-3. the pointer hook: 4 bytes at `$C0:8B59` and `$C0:8B81` (see above).
+The BG3 CHR base is **word `$5000` = byte `$A000`** (read from the PPU, after
+inferring it from tile codes gave contradictory answers — `$210C` is the
+authority, not arithmetic). With that, the tables read straight off a rendered
+sheet (`tools/saturn/render_chr.py`):
+
+* **roman caps** — a REDUCED alphabet: `$090`-`$099` = A-J, `$09A`-`$09E` = L-P,
+  `$09F` = R, `$0B0`-`$0B4` = S-W, `$0B5` = Y, `$0B6` = `!`. There is no K, Q, X
+  or Z, which is why the letter codes look irregular. SATURN needs S A T U R N —
+  all present.
+* **katakana** — gojuon-ordered, `code = $100 + (i//16)*$20 + (i%16)`, confirmed
+  against vanilla text (ワ=`$14B`, ル=`$148`, キ=`$106`, シ=`$10B`).
+* **dakuten/handakuten** — a reduced set at `$14E`,`$14F`,`$160`-`$16C`:
+  ガ グ ゴ ジ ズ ダ デ ド バ ビ ブ ボ パ ピ プ.
+* **small kana** — ィ ェ ャ ュ ョ ッ ー at `$180`-`$186`.
+* **input icons**, 2 tiles wide: ⬇ `$1A4`, ↘ `$1A6`, ➡ `$1A8`, ✚ `$1AA`,
+  中 `$1A0`, JUMP `$1AC`+`$1AE`, Ⓟ `$1C4` / Ⓟ小 `$1C2`, Ⓚ `$1C6` / Ⓚ小 `$1C0`,
+  "or" `$1CA`. **There are no left or up arrows** — ⬅ ↙ ⬆ are the same glyphs
+  flipped, and flipping a 2-tile glyph also SWAPS ITS HALVES (vanilla writes
+  `1A7|H 1A6|H` for ↙).
+
+`tools/saturn/mkmovelist.py` builds her 0x800 tilemap from a text spec, starting
+from **Moon's** list because she is the only vanilla character with three moves,
+so the frame and row positions already fit. Only the text rows are rewritten —
+the 右向きの時 line is left exactly as it is, being identical for all nine.
+
+**The one non-obvious byte: priority.** Body text is attribute `$2D`, not `$0D`.
+`$2105` has the mode-1 BG3-priority bit set, so a BG3 tile *without* priority
+renders behind the stage. Building with `$0D` produced a movelist whose title
+appeared and whose body was invisible — and it only showed up on a bright stage,
+which is exactly the kind of thing that ships.
+
+## Wiring
+
+Her compressed list (595 bytes) sits in the voice bank at `$F9:3400`, and the
+two table reads are replaced by JSLs to stubs that substitute her pointer when
+that player's Saturn flag or latch is set:
+
+    $C0:8B59  lda $E0021C,X  ->  jsl $F9:3700   (P1)
+    $C0:8B81  lda $E0021C,X  ->  jsl $F9:3740   (P2)
+
+The stub sets `$00` to her pointer and returns her bank in A, which is exactly
+what the instruction it replaced fed the caller; the non-Saturn path performs the
+original `lda` and returns.
+
+## Acceptance
+
+| case | result |
+|---|---|
+| Saturn over the **Uranus** shell | expands from `$F9:3400`; staged tilemap byte-identical to the authored one |
+| Saturn over the **Moon** shell | identical — the shell is irrelevant |
+| nobody armed | the vanilla `$E2:7790` list, unchanged |
+| in-game screenshot | `traces/saturn/movelist_satml2.png` — all three moves render |
+| regression / smoke / voice / select-voice | ALL PASS (57) / 228+228 / 8+8 / 4+4 |
 
 ## Her content — SUPPLIED by the maintainer [P 08-03]
 

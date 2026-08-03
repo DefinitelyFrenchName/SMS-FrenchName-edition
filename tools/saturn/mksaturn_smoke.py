@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.13.1"
+SATURN_VERSION = "0.13.2"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -291,6 +291,26 @@ V_RESP1, V_RESP2 = 0x2640, 0x2660
 V_HOOK1, V_HOOK2 = 0x2700, 0x2780
 V_SEL = 0x2800                # her select-line stream (2610 B + headers)
 V_SELHOOK, V_WHO1, V_WHO2 = 0x3300, 0x3360, 0x3380
+# v0.13.2 — HER MOVELIST (task #41). SMS picks a character's list from a table
+# of nine 3-byte pointers at $E0:021A + charID*3, expands it into the staging
+# buffer and DMAs it to BG3 (P1 -> VRAM word $1000, P2 -> $1400). The two reads
+# of that table are per player and each sits in a block fed by that player's own
+# struct charID, so the override needs no shell-specific code:
+#   $C0:8B53  lda $E0021A,X -> $00      (P1, from $1000)
+#   $C0:8B59  lda $E0021C,X -> $02
+#   $C0:8B7B / $C0:8B81                 (P2, from $1080)
+# We hook the SECOND read of each pair, because a stub there can set BOTH halves
+# of the pointer: $00 was already loaded by the vanilla first read, and A on
+# return becomes $02. There is no free tenth row in the table (row 10 starts
+# exactly at $E0:0238, the manifest pointer table), which is why this is a hook.
+# Her tilemap is authored by tools/saturn/mkmovelist.py and compressed with
+# tools/saturn/sms_lz.py — Super S does not share this codec, so it cannot be
+# lifted; see docs/saturn/movelist.md.
+SITE_ML_P1 = 0x008B59
+SITE_ML_P2 = 0x008B81
+ML_OLD = bytes.fromhex("BF1C02E0")
+V_MOVELIST = 0x3400           # her compressed movelist
+V_MLHOOK1, V_MLHOOK2 = 0x3700, 0x3740   # clear of the ~600-byte blob at $3400
 # v0.8.0 — IN-ROM SATURN SELECT (P1): hold L+R while a round loads -> flag
 # $7E:1F60 set; the effects-DMA helper hook ($C0:92A4, generic VRAM-DMA kick,
 # filtered on $30==0x6A00/$36==$7F) also overrides the $7F:0000 staging with her
@@ -1617,7 +1637,39 @@ def main():
             emit(0x22, 0x4B, 0xEB, 0x80)                            # jsl $80:EB4B
             emit(0x6B)
 
-        for off, blob in ((V_WHO1, _who(0)), (V_WHO2, _who(1)),
+        # --- movelist ------------------------------------------------------
+        _mspec = _ilu.spec_from_file_location(
+            "mkmovelist", str(REPO / "tools" / "saturn" / "mkmovelist.py"))
+        _mv = _ilu.module_from_spec(_mspec); _mspec.loader.exec_module(_mv)
+        mlblob = _mv.sms_lz.encode(_mv.build())
+        assert _mv.sms_lz.decompress(mlblob, 0, 0x800) == _mv.build(), \
+            "movelist round-trip failed"
+
+        def _mlhook(player):
+            """Replacement for `lda $E0021C,X`, which the caller stores to $02.
+            When this player is Saturn, point $00/$02 at her list instead; the
+            vanilla path does exactly what it replaced. A/M is 16-bit here."""
+            flag = SATURN_FLAG if player == 0 else SATURN_FLAG2
+            latch = SATURN_LATCH if player == 0 else SATURN_LATCH2
+            b = bytearray()
+            b += bytes((0x08, 0xE2, 0x20))                       # php / sep #$20
+            b += bytes((0xAF, flag & 0xFF, flag >> 8, SATURN_BANK))
+            b += bytes((0xC9, SATURN_MAGIC, 0xF0, 0x0A))         # beq sat
+            b += bytes((0xAF, latch & 0xFF, latch >> 8, SATURN_BANK))
+            b += bytes((0xC9, SATURN_MAGIC, 0xF0, 0x02))         # beq sat
+            b += bytes((0x80, 0x0A))                             # bra vanilla
+            # sat: $00 = her pointer low word, A = her bank
+            b += bytes((0x28,))                                  # plp (A 16-bit)
+            b += bytes((0xA9, V_MOVELIST & 0xFF, V_MOVELIST >> 8, 0x85, 0x00))
+            b += bytes((0xA9, B_VOICE, 0x00, 0x6B))              # lda #bank / rtl
+            # vanilla:
+            b += bytes((0x28,))                                  # plp
+            b += bytes((0xBF, 0x1C, 0x02, 0xE0, 0x6B))           # lda $E0021C,X / rtl
+            return bytes(b)
+
+        for off, blob in ((V_MOVELIST, mlblob),
+                          (V_MLHOOK1, _mlhook(0)), (V_MLHOOK2, _mlhook(1)),
+                          (V_WHO1, _who(0)), (V_WHO2, _who(1)),
                           (V_SELHOOK, _asm(_selbank))):
             assert not any(f1[off:off + len(blob)]), f"select stub at {off:#06x} overlaps"
             f1[off:off + len(blob)] = blob
@@ -1652,6 +1704,9 @@ def main():
         expect(SITE_SELBANK, SELBANK_OLD, "select-voice bank pick")
         data[SITE_SELBANK:SITE_SELBANK + 7] = \
             bytes((0x22, V_SELHOOK & 0xFF, V_SELHOOK >> 8, B_VOICE)) + b"\xEA" * 3
+        for site, tgt in ((SITE_ML_P1, V_MLHOOK1), (SITE_ML_P2, V_MLHOOK2)):
+            expect(site, ML_OLD, f"movelist table read {site:#x}")
+            data[site:site + 4] = bytes((0x22, tgt & 0xFF, tgt >> 8, B_VOICE))
         for site, player in SITE_SELWHO:
             expect(site, SELWHO_OLD[player], f"select-voice $1B1E writer {site:#x}")
             tgt = V_WHO1 if player == 0 else V_WHO2
