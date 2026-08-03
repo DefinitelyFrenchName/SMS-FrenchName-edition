@@ -101,3 +101,29 @@ was in SMS.
 4. Test estate: Saturn cases in the regression suite (fixtures, frame-data locks,
    desperation compendium entry), builders with SIG fingerprints, recipes committed.
 5. Nice-to-have (separate milestone): Super S stages/music selectable.
+
+## Extended scope (maintainer, 2026-08-03)
+
+Neither is a blocker — Saturn is a hidden character of admittedly rough balance,
+which is exactly why she is shippable without them. Both are real improvements.
+
+1. **Menu translation (minor).** Partial or complete English/French translation of
+   the menu text. Some of it reportedly exists already in the tournament edition,
+   so check there before authoring anything. Scope it as text + font work in the
+   same family as the movelist job (`movelist.md`): SMS's own font tables and the
+   `$C0:916B` codec are already decoded and re-encodable, so menu strings are
+   likely reachable with the tooling that exists.
+2. **Reveal Saturn EARLIER in the fight (major, not blocking).** Today the shell
+   character is swapped for Saturn at the round load, so the player picking her
+   watches someone else through the pre-round sequence and only then becomes
+   Saturn. The maintainer's words: the change moment is *distracting and downright
+   penalizing* for the Saturn player.
+   - **Must have:** Saturn is on screen **before the round starts** — i.e. the swap
+     happens no later than the point where the fighters are first drawn.
+   - **Nice to have:** the introduction/entrance animation preserved as hers.
+   The transform is currently armed by per-round latches at the effects-DMA
+   transfer (`$1F62/63` era, now `$7F:F100+`) precisely because earlier arming
+   reached the helper during load/dialogue windows and was unsafe (BUILDS 0.10.0).
+   So this is a re-timing job with a known hazard, not a new mechanism: find the
+   earliest point at which her four data layers + effect tiles are resident and
+   the object struct is stable, and move the swap there.

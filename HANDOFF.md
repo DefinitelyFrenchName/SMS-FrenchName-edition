@@ -27,8 +27,10 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 
 **Saturn is playable in SMS**, summoned by holding **L+R** on any character
 slot at select (she wears that character as a "shell"). Field-tested repeatedly
-by the maintainer. Current builds are **v0.13.2** + a stage-port variant, all on
-**REF v.2**.
+by the maintainer. Current build is **v0.13.3** (Saturn + the stage port), on
+**REF v.2**. **Every tracked bug is closed**; what remains is the extended scope
+in `docs/saturn/PROJECT.md` § Extended scope (menu translation; showing Saturn
+before round start instead of at the round load).
 
 **She has her own voice as of v0.13.0** (task #44 closed): her win laugh, 236P,
 214P and j.632K, injected as a fifth data layer. SMS voices a fighter from a
@@ -61,11 +63,22 @@ hook on the two table reads at `$C0:8B59` / `$C0:8B81`. Detail and font tables:
 check it on a BRIGHT stage, since the one bug it hid was body text missing the
 priority bit and rendering behind the background.
 
-**Only #43 is open:** the ported stage's vertical slide, now **reproduced and
-half-diagnosed** — a jump moves BG1's vertical scroll alone while BG2/3/4 stay
-flat, and the port re-cut the layers so the ground no longer rides the camera.
-That measurement was taken on the WRONG scene, so confirm it on the ported one
-before fixing. `docs/saturn/supers_assets.md` §#43 and `docs/NEXT_SESSION.md`.
+**#43 (the ported stage's vertical slide) is FIXED in v0.13.3.** Measured on the
+right scene this time (`STAGE=2` forces `$7E:008E`): objects are placed at the
+FULL camera while the scroll routine the port borrowed from stage 0 gives the
+ground plane only **camera/4** — a 12 px jump drops the fighters and their
+shadows 12 px and the ground 3, undone on landing. Vanilla stage 0 does the
+identical thing (byte-identical traces, OAM and WRAM); it is invisible there
+because its ground is flat grass, while the ported stage has a hard floor line at
+the fighters' feet. Fix: stage 2's own routine at `$C0:B454` (the only routine
+that stage selects) rewritten in place with a 1:1 vertical. Background shift
++3 → +11 = the sprites' +11; scene `$00` byte-identical on the same ROM;
+regression 57/57. The HORIZONTAL rate has the same shape and is deliberately left
+alone (also vanilla, not reported, one `lsr` pair from 1:1).
+`docs/saturn/supers_assets.md` §#43.
+
+**Field-confirmed 2026-08-03:** her **movelist renders clean** in normal play
+(#41 closed) and the **character-select voice shows no regression**.
 
 **REF v.2** (2026-08-02, maintainer request) = REF v.1 **+ patch 15 (AUTO
 removal)** = 1b+2+3+4+5+7+8+9+12+13+14+15. Recipe `tools/build_ref_v2.sh`, ROM
@@ -78,7 +91,8 @@ Shipped for Saturn recently: card portrait (art, layout and palette),
 push-collision fix, corrected sfx mapping, a Super S stage ported onto Pluto's
 slot, her voice (in-match and the character-select line), and **her own
 movelist** — authored from SMS's font, since Super S shares neither the codec nor
-the data. Open: the stage vertical-scroll artefact (#43).
+the data — and the stage's jump slide (#43). Next: the extended scope (menu
+translation; showing Saturn before round start).
 
 **Why she wears a shell rather than being a tenth character** — and why more
 ROM would not change that: `docs/saturn/memory_and_shell.md` (the four memories
