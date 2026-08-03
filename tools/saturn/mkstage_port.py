@@ -66,7 +66,10 @@ SITE_LOAD_OLD = bytes.fromhex("c97eb0034c6b91")
 # ---- Super S side -------------------------------------------------------
 SUP_SCENES = 0xAB22           # scene-script pointer table (bank $E0)
 SUP_PALRECS = 0xAC7A          # palette record 0 (bank $E0)
-SUPERS_SCENE = int(__import__("os").environ.get("SUPERS_SCENE", "1"))
+# Maintainer's ruling (2026-08-03): the space-time door is the one slot worth
+# losing, and **Silent Throne of the Messiah** is what takes it. Its BGM stays
+# the space-time door's, untouched.
+SUPERS_SCENE = int(__import__("os").environ.get("SUPERS_SCENE", "8"))
 
 # Which Super S scene is what, and which SMS scroll routine matches it. The
 # right-hand column is MEASURED (probe_supers_stagejump.lua, per scene): what

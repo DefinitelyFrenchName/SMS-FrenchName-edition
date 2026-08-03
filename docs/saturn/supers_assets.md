@@ -742,3 +742,34 @@ Note the naming problem only exists for ONE of the four candidates: replacing
 the space-time door with Super S's Silver Millennium puts two Silver
 Millenniums in the game (SMS's own is stage 1), which is what needs the "light"
 marker. Dead Moon Circus or the Silent Throne clash with nothing.
+
+### DECIDED (maintainer, 2026-08-03): Silent Throne takes the slot
+
+Swap, not add — "adding them is like adding characters, we'd be shifting too
+much code; it could be done but it's not worth the effort or the regressions
+right now". The space-time door is the one stage worth losing, and **Silent
+Throne of the Messiah** (Super S scene 8) is what replaces it. `SUPERS_SCENE`
+now defaults to 8, so `build_saturn_stage.sh` builds it.
+
+**BGM: unchanged.** The ported stage keeps the space-time door's track, by
+decision — nothing to do, and it makes the "how is music assigned" question moot
+for now.
+
+**Still to do: the stage NAME** on the button-mapping screen, so the slot no
+longer announces the space-time door. Not located yet, and here is exactly what
+has been ruled out, so the next attempt does not repeat it:
+
+* The screen itself is reached by the blind Start-mash flow (`probe_menu_survey`
+  at ~f1180-1300) — it is 1P-vs-COM there, and dense captures every 10 frames
+  across the whole screen show the button rows and **nothing below them**. Its
+  BG1 tilemap has no cells in rows 19-25.
+* The 2P VS flow the other probes use never displays it at all: after both
+  characters are confirmed the transition is a ~45-frame black fade straight
+  into the match (captured every 3 frames).
+* The config screen's own bank (`$C3`) contains **no read of `$7E:008E`** — the
+  two `A5 8E` byte pairs in it disassemble as data, not `lda $8E`. So the name
+  is not keyed off the scene id anywhere in that bank.
+
+Which leaves: the name is drawn in some other mode or by code in another bank.
+Cheapest next step is a capture from the maintainer showing the name on screen —
+one frame is enough to find the glyphs in VRAM and walk back to the table.
