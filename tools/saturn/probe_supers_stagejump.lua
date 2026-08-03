@@ -117,6 +117,12 @@ local STEPS = {
       shots = shots + 1
       local f = io.open(ENV.TRACE .. "saturn/supersjump_" .. TAG .. "_" .. sf .. ".png", "wb")
       f:write(emu.takeScreenshot()); f:close()
+      -- CGRAM too: colour 0 is the BACKDROP, which no palette record carries and
+      -- which a stage's sky may well be showing through transparent tiles
+      local cg = {}
+      for a = 0, 0x1FF do cg[#cg + 1] = string.char(emu.read(a, emu.memType.snesCgRam) or 0) end
+      local cf = io.open(ENV.TRACE .. "saturn/supersjump_" .. TAG .. "_cgram" .. sf .. ".bin", "wb")
+      cf:write(table.concat(cg)); cf:close()
     end
     return sf > 205
   end,

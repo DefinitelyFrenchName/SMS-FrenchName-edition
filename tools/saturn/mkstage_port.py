@@ -66,7 +66,23 @@ SITE_LOAD_OLD = bytes.fromhex("c97eb0034c6b91")
 # ---- Super S side -------------------------------------------------------
 SUP_SCENES = 0xAB22           # scene-script pointer table (bank $E0)
 SUP_PALRECS = 0xAC7A          # palette record 0 (bank $E0)
-SUPERS_SCENE = 1              # moonlit terrace / Elysion skyline
+SUPERS_SCENE = int(__import__("os").environ.get("SUPERS_SCENE", "1"))
+
+# Which Super S scene is what, and which SMS scroll routine matches it. The
+# right-hand column is MEASURED (probe_supers_stagejump.lua, per scene): what
+# Super S itself does to the two planes, matched against the SMS routine with
+# the same shape. Anything not listed keeps SMS stage 2's own vortex routine.
+#   $C0:B40A  BG1 = camera/4, BG2 fixed
+#   $C0:B42F  BG1 fixed,      BG2 = camera/4
+#   $C0:B454  the vortex: one plane drifts continuously (SMS stage 2's own)
+SUPERS_STAGES = {
+    0: ("Dead Moon Circus, day",   0xB40A),
+    1: ("Silver Millennium",       0xB42F),
+    8: ("Silent Throne of the Messiah", None),   # its foreground DRIFTS in Super
+                                                 # S too (BG2 h +1/frame), so
+                                                 # SMS's vortex is the near twin
+    9: ("Dead Moon Circus, night", 0xB40A),
+}
 
 # Tilemap entry bit $2000 is the per-tile PRIORITY bit. Super S leans on it far
 # more than SMS does (this stage: 336 and 948 entries of 2048, vs 0 and 192 on
@@ -145,13 +161,13 @@ SWAP_MAPS = False
 # the fighters at OBJ priority 2 -- and no arrangement of two BG planes can then
 # reproduce the three depths the art was drawn for.
 PORT_SCRIPT_TAIL = True
+PORT_A2 = __import__("os").environ.get("PORT_A2") == "1"
 
 SCROLL_PTR = 0x00B32F         # the entry stage 2 selects
 SCROLL_PTR_OLD = bytes.fromhex("54b4")    # $C0:B454, the vortex
-SCROLL_PTR_NEW = bytes.fromhex("2fb4")    # $C0:B42F — the routine SMS's OWN
-                                          # Silver Millennium (stage 1) uses:
-                                          # BG1 (sky+ground) fixed, BG2 (palace)
-                                          # camera/4. Measured on both games.
+_SCROLL_TARGET = SUPERS_STAGES.get(SUPERS_SCENE, (None, None))[1]
+SCROLL_PTR_NEW = (bytes([_SCROLL_TARGET & 0xFF, _SCROLL_TARGET >> 8])
+                  if _SCROLL_TARGET else None)
 
 # ---- the jump slide (#43) ----------------------------------------------
 # Measured (probe_sms_stagejump.lua, scene forced to 2): the scroll block at
@@ -405,9 +421,8 @@ def build(src_path, out_path):
     if PORT_SCRIPT_TAIL:
         _sr, _sp, s_third, s_tail, _so = parse_script(sup, SUP_SCENES, SUPERS_SCENE, E0)
         d_recs, d_pals, d_third, d_tail, d_off = parse_script(bytes(data), 0x017A, SMS_STAGE, E0)
-        if len(s_third) != len(d_third):
-            raise SystemExit(f"scene tail: third list is {len(s_third)} entries in Super S "
-                             f"but {len(d_third)} in SMS — no room to copy in place")
+        # (no length check: only $8F is copied, and it is found by walking
+        # SMS's own three lists, so the two scripts need not be the same shape)
         # ONLY $8F. The third list and the other two tail bytes are SMS
         # resource ids / SMS-side config: copying Super S's numbers over them
         # hangs the round load (measured — the match never starts), exactly like
@@ -415,6 +430,9 @@ def build(src_path, out_path):
         # only their DATA is repointed.
         o = d_off + len(d_recs) + 1 + len(d_pals) + 1 + len(d_third) + 1
         data[o + 1] = s_tail[1]
+        if PORT_A2:
+            data[o + 2] = s_tail[2]
+            print(f"  scene script tail: $A2 {d_tail[2]:02X} -> {s_tail[2]:02X} (PORT_A2)")
         print(f"  scene script tail: $8F {d_tail[1]:02X} -> {s_tail[1]:02X} "
               f"= fighters at OBJ priority {(d_tail[1] >> 3) & 3} -> "
               f"{(s_tail[1] >> 3) & 3} (SMS's own Silver Millennium, scene 1, "
@@ -471,14 +489,17 @@ def build(src_path, out_path):
         data[SCROLL_CODE:SCROLL_CODE + len(SCROLL_CODE_NEW)] = SCROLL_CODE_NEW
         print(f"  scroll routine: $C0:B454 rewritten in place "
               f"({len(SCROLL_CODE_NEW)} B) — BG1 h = camera/4, BG1 v = camera 1:1")
+    elif SCROLL_PTR_NEW is None:
+        print("  scroll routine: left as SMS stage 2's vortex "
+              "(the source scene drifts a plane too)")
     else:
         got = bytes(data[SCROLL_PTR:SCROLL_PTR + 2])
         if got != SCROLL_PTR_OLD:
             raise SystemExit(f"scroll pointer @{SCROLL_PTR:#08x}: found {got.hex()}, "
                              f"expected {SCROLL_PTR_OLD.hex()}")
         data[SCROLL_PTR:SCROLL_PTR + 2] = SCROLL_PTR_NEW
-        print("  scroll routine: $C0:B454 (vortex) -> $C0:B42F "
-              "(SMS's own Silver Millennium: BG1 sky+ground fixed, BG2 palace camera/4)")
+        print(f"  scroll routine: $C0:B454 (vortex) -> $C0:{_SCROLL_TARGET:04X}"
+              f"   [{SUPERS_STAGES.get(SUPERS_SCENE, ('?',))[0]}]")
 
     fix_checksum(data)
     open(out_path, "wb").write(data)

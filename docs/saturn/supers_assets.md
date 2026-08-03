@@ -655,3 +655,54 @@ repeating floor pattern — so it is left alone. Making it 1:1 is a one-word cha
    plane that does not follow the camera. It had not: the ground is on BG1, the
    only plane that follows at all. The fault was the RATE, inherited from a
    routine borrowed off another stage.
+
+## Porting the other Super S stages (2026-08-03)
+
+`SUPERS_SCENE` is now an environment variable, so one build per stage:
+
+```bash
+SUPERS_SCENE=9 python3 tools/saturn/mkstage_port.py "$CLEAN" build/saturn/sms_stage_s9.sfc
+```
+
+Every Super S scene, identified by capture (`probe_supers_stagejump.lua` per
+scene, contact sheet), with the SMS scroll routine that matches what Super S
+itself does to the two planes — measured, not guessed:
+
+| scene | stage | Super S scroll | SMS routine |
+|---|---|---|---|
+| 0 | **Dead Moon Circus, day** | BG1 camera/4, BG2 fixed | `$C0:B40A` |
+| 1 | **Silver Millennium** (ported) | BG1 fixed, BG2 camera/4 | `$C0:B42F` |
+| 2 | space-time door | — | (SMS has its own) |
+| 3 | harbour at sunset | | |
+| 4 | fountain / park | | |
+| 5 | game centre | | |
+| 6 | shrine | | |
+| 7 | ice crystals | | |
+| 8 | **Silent Throne of the Messiah** | BG1 fixed, BG2 h drifts +1/frame | keep SMS's **vortex** `$C0:B454` — the only stock routine that drifts a plane |
+| 9 | **Dead Moon Circus, night** | BG1 camera/4, BG2 fixed | `$C0:B40A` |
+
+All three new stages carry `$8F = 0x18` in their own script tails, so the port's
+tail copy gives them OBJ priority 3 with no extra work, and their priority bits
+go in verbatim.
+
+**Only `$8F` may be carried across.** `$A2` was tested and it **hangs the round
+load** (the match never starts) exactly as the third list does — both are
+SMS-side ids, like the record and palette ids. So a ported stage inherits SMS
+stage 2's `$A2`/third-list configuration, whatever those select.
+
+Verified: all three load and render, and the day stage is **pixel-identical** to
+Super S's own frame (mean sky colour equal, and the full CGRAM differs only in
+the HUD and OBJ rows — i.e. the fighters, which differ by cast).
+
+### Still open on these
+
+* **Which SMS slots to sacrifice.** All three test ROMs replace stage 2 so they
+  can be looked at without deciding; shipping more than one needs a slot each.
+* **BGM.** Not yet answered. The obvious probe cannot answer it: forcing
+  `$7E:008E` at `$C0:8586` changes the stage *after* the music has been chosen,
+  so every forced-stage run plays the same track. Answering it means finding
+  where the scene id is chosen in the first place and whether the music id is
+  derived from the same place.
+* **Stage names.** Two Silver Millenniums now exist; the maintainer wants the
+  ported one marked (e.g. "light"). Where SMS displays a stage name at all is
+  not yet established.
