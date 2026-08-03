@@ -258,3 +258,24 @@ are inside the two stage-2 records.
 Next, for the real name: author 沈, 黙, 玉, 座 into four of the sheet's 20 free
 slots and extend `GLYPH`. That needs the ROM source of the menu font, still to
 be located.
+
+### CONFIRMED in the field (2026-08-03)
+
+v0.13.9's rename "reads correctly and cause no side effect I could trigger" —
+so the record layout above is right and the mechanism is proven end to end.
+
+### What is left for the kanji name
+
+Only the font. `沈黙のメシアの玉座` needs 沈, 黙, 玉, 座 authored into four of the
+sheet's 20 free 16x16 slots (four sit at `$368`-`$36E`, right after the existing
+kanji), then four entries added to `GLYPH` and the string changed.
+
+The font is **not** stored raw and **not** DMA'd from ROM: logging every VRAM DMA
+from boot shows the CHR arriving in 0x40-byte chunks from a **WRAM staging
+buffer at `$7E:3640`+**. So the chain is `ROM -> (decompress) -> $7E:3640 ->
+VRAM`, and the open question is the one link at the front: what fills `$7E:3640`.
+Next probe: catch the block move or decompressor call that writes it, the same
+way `$C3:7C00` was found for the tilemap.
+
+Tooling note: `probe_menu_survey.lua` takes `MINLEN` to filter the DMA log to
+large transfers.

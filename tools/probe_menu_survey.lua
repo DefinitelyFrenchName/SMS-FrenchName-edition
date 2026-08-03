@@ -27,6 +27,8 @@ local LOG = assert(io.open(DIR .. TAG .. ".txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram = PL.ram
 local MEMT = emu.memType.snesMemory
+-- MINLEN filters the DMA log to big transfers (0 = log everything)
+local MINLEN = tonumber(os.getenv("MINLEN") or "0")
 
 -- scripted presses: "start:200 down:260" = tap start at frame 200, down at 260
 local KEYS = {}
@@ -103,12 +105,17 @@ end
 -- DMA'd in. Log every VRAM DMA with its SOURCE and the VRAM address it targets.
 local vw = 0
 emu.addMemoryCallback(function(_ad, value)
-  if frames < 1140 or frames > 1280 or vw > 30 then return end
+  -- widen for the FONT upload: it is a big transfer, and it happens when the
+  -- screen loads rather than while it is up
+  if frames > 1300 or vw > 60 then return end
   for ch = 0, 7 do
     if ((value or 0) >> ch) & 1 == 1 then
       local b = emu.read(0x804301 + ch * 16, MEMT) or 0
       if b == 0x18 or b == 0x19 then
+        local ln = ((emu.read(0x804306 + ch * 16, MEMT) or 0) << 8)
+                 | (emu.read(0x804305 + ch * 16, MEMT) or 0)
         vw = vw + 1
+        if MINLEN == 0 or ln >= MINLEN then
         local ok, st = pcall(emu.getState)
         local sb = emu.read(0x804304 + ch * 16, MEMT) or 0
         local sa = ((emu.read(0x804303 + ch * 16, MEMT) or 0) << 8)
@@ -122,6 +129,7 @@ emu.addMemoryCallback(function(_ad, value)
           ((emu.read(0x804306 + ch * 16, MEMT) or 0) << 8) | (emu.read(0x804305 + ch * 16, MEMT) or 0),
           vaddr, (vaddr % 0x400) // 32, (vaddr % 0x400) % 32,
           ok and (st["cpu.k"] or 0) or 0, ok and (st["cpu.pc"] or 0) or 0))
+        end
       end
     end
   end
