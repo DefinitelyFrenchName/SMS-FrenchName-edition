@@ -173,3 +173,44 @@ the name is there in 2P VS.
 So the remaining link is the ROM source that fills `$7E:1900+`. Next probe:
 watch for the block move itself (execution around `$80:8C96`'s caller, or an MVN
 whose destination is `$7E:19xx`) rather than per-byte writes.
+
+## FOUND: the stage-name table
+
+The maintainer confirmed the screen appears in 2P VS, 1P-vs-COM **and** training,
+and that the stage there is *selectable* — which is what cracked it, because a
+selectable stage means a selection variable. The chain:
+
+* `$7E:1838` holds the **selected stage**. Three sites copy it into the scene id
+  (`$C3:BB84`, `$C3:BB9A`, `$C3:BBC3` — `lda $1838 / sta $8E`).
+* Two sites index tables with it: `ldx $1838 / lda $B5C1,X` and
+  `ldx $1838 / lda $B5AD,X`, both loading bank `$C4` as the data bank. So:
+
+      $C3:B5AD   10 words -> per-stage name record, palette 3
+      $C3:B5C1   10 words -> the same names, palette 4
+
+* The records live in bank `$C4`, **0xCC bytes apart**, each a 6-byte header
+  (`e4 02 30 00 02 00`), padding, then the name as **tilemap words, two per
+  glyph (T, T+1)**, terminated by `0000`.
+
+Stage 2's record at `$C4:5C30` reads
+
+    48 0F 49 0F  4A 0F 4B 0F  02 0D 03 0D  4C 0F 4D 0F  00 00
+    時 (348)     空 (34A)     の (102)     扉 (34C)
+
+— **時空の扉**, exactly the maintainer's capture. All ten decode sanely (stages 0
+and 7 are 25 glyphs, the two Dead-Moon-style long names; most are 4-6).
+
+### Renaming is now a data edit
+
+Write new glyph words into the stage's record in **both** tables (palette 3 at
+`$C4:5C30`, palette 4 at `$C4:5C96` for stage 2). Each record has 0xCC bytes and
+a 4-glyph name uses ~38, so length is not a constraint.
+
+For **沈黙のメシアの玉座** four glyphs are missing from the font — 沈, 黙, 玉,
+座 (の, メ, シ, ア all exist) — and the sheet has **20 free 16x16 slots**, four of
+them (`$368`-`$36E`) immediately after the existing kanji block. So the
+maintainer's first choice, kanji, is also affordable: author four tiles, write
+two records.
+
+Still to locate for that: the ROM source of the menu font sheet, so the four new
+glyphs can be added to it.
