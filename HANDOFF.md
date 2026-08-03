@@ -27,12 +27,22 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 
 **Saturn is playable in SMS**, summoned by holding **L+R** on a **Uranus,
 Neptune or Pluto** slot at select (she wears that character as a "shell").
-Field-tested repeatedly by the maintainer. Current build is **v0.14.7**, on
+Field-tested repeatedly by the maintainer. Current build is **v0.14.8**, on
 **REF v.2**. **All three bugs from the 2026-08-03 field round are fixed**: #2
 (2P VS did not transform) and #3 (Saturn reachable in story) shared one root
 cause — the game-mode byte — and #1 (throw corruption) was a third nine-wide
-table. Details in `docs/NEXT_SESSION.md`; one field check remains, Saturn thrown
-by a COMMAND throw.
+table. Details in `docs/NEXT_SESSION.md`. No known open bugs.
+
+**Guard the thing that ARMS, not the thing that acts (v0.14.8).** The shell
+restriction started life in the helper, at the transform — but the select
+voice, the in-match sound remap and the effect-tile/palette override all key off
+the **flag**, which the char-select confirm stub sets much earlier. A disallowed
+shell therefore armed everything except the one thing that was guarded: no
+Saturn, but her confirm sfx, her palette and her sfx (field report). The rule now
+lives at the confirm (cursor charID `$0000,y`), the confirmed id is recorded in
+`$7F:F10A/F10B` so the round-load arming route can apply the same test, and the
+helper guard is the last line. A feature with several consumers keyed off one
+flag is only as gated as that flag.
 
 **The throw corruption was a per-VICTIM table with nine entries (v0.14.7).**
 When a character is thrown, the THROWER's script drives the VICTIM's pose:

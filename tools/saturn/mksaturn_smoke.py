@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.7"
+SATURN_VERSION = "0.14.8"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -433,6 +433,17 @@ SATURN_LATCH = 0xF102     # P1 armed-this-round latch
 SATURN_MARK = 0xF105   # "her card tiles are uploaded" marker
 SATURN_INIDISP = 0xF106  # INIDISP saved across the blit's forced blank
 SATURN_LATCH2 = 0xF103    # P2 armed-this-round latch
+# v0.14.8 — the confirmed charID per player, written by the char-select confirm
+# stub on EVERY confirm (code held or not). The shell restriction has to be
+# applied where the flag is ARMED, not only where the transform happens: the
+# select voice, the in-match sound remap and the effect-tile/palette override all
+# key off the FLAG, so gating only the helper left an illegal shell with Saturn's
+# confirm sfx, Saturn's palette and Saturn's sfx while still playing as itself
+# (field report, v0.14.7). This byte also lets the DMA stub apply the same rule to
+# the OTHER arming route — L+R held as the round loads — where no cursor exists
+# any more and the player struct is not populated yet.
+SATURN_SHELL = 0xF10A     # P1 confirmed charID
+SATURN_SHELL2 = 0xF10B    # P2 confirmed charID
 SATURN_BANK = 0x7F        # bank byte for all four (long addressing)
 # v0.11.7: NO WRAM address is provably safe — $C0:9251 is a generic
 # pointer-driven copy loop (`lda ($06),Y / sta ($03),Y`) whose destination is
@@ -793,7 +804,7 @@ def main():
     e8 += bytes(E8_DMASTUB - len(e8))
     # DMA-kick stub: P1 ($6A00) and P2 ($7300) effects transfers; per-player
     # flags from the respective autopoll pads; staging override when flagged
-    def _flagblock(pad_lo, pad_hi, flag, latch):
+    def _flagblock(pad_lo, pad_hi, flag, latch, shell):
         """Per-player: L+R sets flag=MAGIC, SELECT clears it, then latch mirrors
         it for this round. Returns (bytes, [(pos, kind)]) where each entry is a
         jump-to-`orig` needing fixup — kind 'brl' = 3-byte relative-long (the
@@ -825,6 +836,19 @@ def main():
             b += bytes((0xA5, 0x8D, 0xC9, 0x00, 0xD0, 0x09))     # lda $8D/cmp #0/bne
             b += bytes((0xA9, 0x00, 0x8F, latch & 0xFF, latch >> 8, SATURN_BANK))
             b += bytes((0x82, 0x00, 0x00)); fix.append(len(b) - 2)
+        if SHELL_GUARD:
+            # The OTHER arming route: L+R held as the round loads, which never
+            # goes through the confirm stub. The player struct is not populated
+            # at the effects transfer and the cursor is long gone, so the test
+            # uses the charID the confirm stub recorded for this player. A stale
+            # or never-written value fails closed, which is the right default.
+            b += bytes((0xAF, shell & 0xFF, shell >> 8, SATURN_BANK))
+            b += bytes((0xC9, 0x06, 0x90, 0x04))             # < 6 -> reject
+            b += bytes((0xC9, 0x09, 0x90, 0x0D))             # < 9 -> ok
+            b += bytes((0xA9, 0x00))                         # reject: clear BOTH
+            b += bytes((0x8F, flag & 0xFF, flag >> 8, SATURN_BANK))
+            b += bytes((0x8F, latch & 0xFF, latch >> 8, SATURN_BANK))
+            b += bytes((0x82, 0x00, 0x00)); fix.append(len(b) - 2)
         b += bytes((0xA5, 0x36, 0xC9, 0x7F, 0xF0, 0x03))     # ==7F: skip the brl
         b += bytes((0x82, 0x00, 0x00)); fix.append(len(b) - 2)   # operand idx
         # LONG reads (v0.11.7): these were DB-relative `lda $4218` — the stub is
@@ -855,12 +879,12 @@ def main():
     d += bytes((0x82, 0x00, 0x00))                           # brl orig
     forig = [len(d) - 2]
     p1eff = len(d)
-    b1, f1 = _flagblock(0x4218, 0x4219, SATURN_FLAG, SATURN_LATCH)
+    b1, f1 = _flagblock(0x4218, 0x4219, SATURN_FLAG, SATURN_LATCH, SATURN_SHELL)
     d += b1
     d += bytes((0x82, 0x00, 0x00))                           # brl copy
     fcopy = len(d) - 2
     p2eff = len(d)
-    b2, f2 = _flagblock(0x421A, 0x421B, SATURN_FLAG2, SATURN_LATCH2)
+    b2, f2 = _flagblock(0x421A, 0x421B, SATURN_FLAG2, SATURN_LATCH2, SATURN_SHELL2)
     d += b2
     copy = len(d)
     d += bytes((0xC2, 0x30))                             # rep #$30
@@ -1100,14 +1124,31 @@ def main():
         c += bytes((0xAF, 0x1A, 0x42, 0x00))                     # JOY2L
         lbl("got")
         c += bytes((0x29, 0x30, 0xC9, 0x30)); br(0xD0, "noflag") # L+R held?
+        if SHELL_GUARD:
+            # v0.14.8: the code only counts on a shell she is allowed to wear.
+            # Applied HERE, at the confirm, rather than only in the helper —
+            # everything downstream (select voice, in-match sound remap, the
+            # effect-tile/palette override) keys off the FLAG, so an illegal
+            # shell used to keep Saturn's confirm sfx, palette and sfx while
+            # playing as itself. The cursor's charID is `$0000,y`, exactly where
+            # the visible variant reads it.
+            c += bytes((0xB9, 0x00, 0x00, 0xC9, 0x06)); br(0x90, "noflag")
+            c += bytes((0xC9, 0x09)); br(0xB0, "noflag")
         c += bytes((0xA9, SATURN_MAGIC)); br(0x80, "store")
         lbl("noflag")
         c += bytes((0xA9, 0x00))
         lbl("store")
         c += bytes((0xC0, 0x40, 0x1B)); br(0xD0, "p2f")
-        c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK)); br(0x80, "finish")
+        c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK))
+        # remember WHICH character this player confirmed, for the round-load
+        # arming route (L+R held as the round loads), where the cursor is gone
+        c += bytes((0xB9, 0x00, 0x00,
+                    0x8F, SATURN_SHELL & 0xFF, SATURN_SHELL >> 8, SATURN_BANK))
+        br(0x80, "finish")
         lbl("p2f")
         c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK))
+        c += bytes((0xB9, 0x00, 0x00,
+                    0x8F, SATURN_SHELL2 & 0xFF, SATURN_SHELL2 >> 8, SATURN_BANK))
         lbl("finish")
         c += confirm_tail + bytes((0x6B,))   # original head or chained JSL / rtl
         fix()

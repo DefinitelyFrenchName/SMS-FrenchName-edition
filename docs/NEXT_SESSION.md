@@ -10,21 +10,33 @@ history.)
 
 The base patch project is done and green. Current work is **SMS + Saturn**:
 Saturn is playable in SMS, selected by holding **L+R** on a **Uranus, Neptune or
-Pluto** slot (that restriction is the story lock). Current build is **v0.14.7**
-(`SailorMoonS_REFsaturn_v0.14.7-hidden-stage.sfc`, `c4f51fe7…`, regression
-57/57) on **REF v.2**. Everything the project set out to build exists (voice,
-select line, movelist, the ported stage and its kanji name, and she arrives
-before the round starts). **All three bugs from the 2026-08-03 field round are
-now fixed** — #2 and #3 shared one root cause (the game-mode byte), #1 was a
-third nine-wide table. What is left is the extended scope, plus one gap in the
-throw fix that only the field can close (see below).
+Pluto** slot (that restriction is the story lock). Current build is **v0.14.8**
+(`SailorMoonS_REFsaturn_v0.14.8-hidden-stage.sfc`, `3ea03a21…`, regression
+57/57) on **REF v.2**. Everything the project set out to build exists, **all
+three field bugs from 2026-08-03 are fixed**, and the follow-up side effect the
+maintainer found on v0.14.7 (L+R on a disallowed shell still armed her sfx and
+palette) is fixed too. No known open bugs; what remains is the extended scope.
 
-**Field-check list for v0.14.7**, in priority order:
-1. **Saturn thrown by a COMMAND throw** (Jupiter SPD+P). The normal throw is
-   fixed and A/B-proven headless; the command-throw hook site is patched
-   identically but could not be exercised in the harness.
-2. 2P VS with L+R on either pad, and a Saturn mirror with L+R on both.
-3. Story still refuses her on every selectable character.
+**Where the shell restriction lives now, and why it moved.** v0.14.5 put it in
+the helper — at the transform. But the **flag** is set earlier, by the
+char-select confirm stub, and the select voice, the in-match sound remap and the
+effect-tile/palette override in the DMA stub all key off the **flag**, not the
+transform. So a disallowed shell armed everything except the one thing that was
+guarded: no Saturn, but her confirm sfx, her palette on most tiles and her sfx.
+v0.14.8 applies the rule **where the flag is armed**:
+
+* the confirm stub reads the cursor's charID (`$0000,y`) and only sets the flag
+  for 6/7/8;
+* it records the confirmed charID per player in `$7F:F10A/F10B`, so the other
+  arming route — L+R held as the round loads, where the cursor is gone and the
+  player struct is not yet populated — applies the same test in the DMA stub,
+  failing closed on a stale value;
+* the helper guard stays as the last line.
+
+The generalisable bit: **guard the thing that arms, not the thing that acts.**
+A feature with several consumers keyed off one flag is only as gated as that
+flag. `probe_sms_shellguard.lua` now reports flag/latch alongside the transform,
+so "not Saturn but armed" can no longer read as a pass.
 
 ## The mode byte was wrong, and it caused two of the three bugs
 
@@ -80,12 +92,19 @@ Those are list indices 12/13/14/8/9 — exactly the indices vanilla uses into it
 own list. Stage-tile VRAM 0% changed; regression 57/57 including the two SPD
 command-throw tests.
 
-⚠️ **Still unexercised: Saturn as the victim of a COMMAND throw** (site 2 with id
-`0x1C`). The harness cannot land Jupiter's SPD — he reaches act `$4D` on
-schedule, but the motion's up-steps make him jump and it whiffs; parking the
-victim and poking the act both failed. The patch there is byte-identical and its
-context was verified identical by disassembly, so this is a field check, not a
-known gap in the reasoning.
+**The command throw is verified too (v0.14.8).** The harness could not land
+Jupiter's SPD until the maintainer gave the minimum input: **6 2 4 8 + P**, with
+the 8 and the P allowed on the same frame, at **contact** range (the regression
+suite's longer `6321478` does come out, but its up-steps make him jump and it
+always whiffed). That confirms `$C1:0C5C` is the command/carry site
+(`site1=0 site2=136`) and reproduces the worse field symptom:
+
+| build | Saturn's poses (SPD) | max sprites | stage-tile VRAM |
+|---|---|---|---|
+| v0.14.6 | `20 / E2 / 17 / C2` | **127 — flood** | **92% changed** |
+| v0.14.8 | `02 / 01 / 07 / 76` | 51 (vanilla 55) | 0% |
+
+Uranus's SPD is the same motion with K.
 
 *Two bugs paid for on the way, both caught by the A/B rather than by reasoning:*
 a `plb` inside a JSL'd stub pops the **return address**, not the saved DB (it

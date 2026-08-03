@@ -225,9 +225,20 @@ emu.addEventCallback(function()
     local who = {}
     if ram(0x1000) == 0x1C then who[#who + 1] = "P1" end
     if ram(0x1080) == 0x1C then who[#who + 1] = "P2" end
-    log(string.format("FINAL: $8D=%02X p1=%02X p2=%02X  SATURN=%s  gate_hits=%d xforms=%d",
+    -- flag/latch matter as much as the transform: the select voice, the in-match
+    -- sound remap and the effect-tile/palette override all key off the FLAG, so
+    -- "not Saturn but flag armed" is the v0.14.7 field bug, not a pass.
+    log(string.format("FINAL: $8D=%02X p1=%02X p2=%02X  SATURN=%s  flag=%02X/%02X " ..
+      "latch=%02X/%02X shell=%02X/%02X  gate_hits=%d xforms=%d",
       ram(0x8D), ram(0x1000), ram(0x1080),
-      #who > 0 and table.concat(who, "+") or "none", hits, xforms))
+      #who > 0 and table.concat(who, "+") or "none",
+      emu.read(0x7FF100, emu.memType.snesMemory) or 0,
+      emu.read(0x7FF101, emu.memType.snesMemory) or 0,
+      emu.read(0x7FF102, emu.memType.snesMemory) or 0,
+      emu.read(0x7FF103, emu.memType.snesMemory) or 0,
+      emu.read(0x7FF10A, emu.memType.snesMemory) or 0,
+      emu.read(0x7FF10B, emu.memType.snesMemory) or 0,
+      hits, xforms))
     emu.stop(0)
   end
   if frames > 6000 then

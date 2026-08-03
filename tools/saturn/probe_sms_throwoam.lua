@@ -26,7 +26,7 @@ local MEMT = emu.memType.snesMemory
 local function num(n, d) return tonumber(os.getenv(n) or "") or d end
 local SATURN = os.getenv("SATURN") ~= "0"
 local CMD = os.getenv("CMD") == "1"      -- drive a COMMAND grab (360+P) instead
-local FORCE = os.getenv("FORCE") == "1"  -- ...by poking the SPD act rather than the motion
+local CONTACT = num("CONTACT", 18)       -- px the victim is parked at for the SPD
 local P1CHAR = num("P1CHAR", 4)      -- Jupiter: has a command throw too
 local DUMMY = num("DUMMY", 6)        -- Uranus shell (6/7/8 only, since v0.14.5)
 
@@ -178,35 +178,20 @@ local STEPS = {
         sf, CMD and "command" or "normal", va))
       return true
     end
-    if CMD and FORCE then
-      -- FORCE=1: the SPD motion will not connect under this harness (P1 reaches
-      -- act $4D on schedule but the "7"/"8" steps make him jump and it whiffs),
-      -- so drive the command grab the way probe_ko_forceact.lua drives acts:
-      -- park the victim at 20 px and poke the SPD act straight into P1.
+    if CMD then
+      -- Jupiter's SPD, minimum input per the maintainer: **6 2 4 8 + P**, with
+      -- the 8 and the P allowed on the same frame, and you must be at CONTACT
+      -- range for it to land. (The regression suite's longer "6321478" motion
+      -- does come out here, but its up-steps make him jump and it always
+      -- whiffed.) Uranus's SPD is the same motion with K.
       local ax = ram(0x1021) + 256 * ram(0x1022)
-      local dx = (ax + 20) % 65536
+      local dx = (ax + CONTACT) % 65536
       wr(0x10A1, dx % 256); wr(0x10A2, math.floor(dx / 256))
-      if sf % 90 == 30 then wr(0x1001, 0x4D); wr(0x1002, 0x00) end
-      pulse[0] = {}
-    elseif CMD then
-      -- park the victim 20 px away every frame, the way test_regression.lua does
-      -- for its SPD cases: the "7"/"8" steps of the motion make Jupiter jump, so
-      -- without parking the grab always whiffs (measured: P1 reaches the SPD act
-      -- $4D on schedule and the victim never leaves act 00)
-      local ax = ram(0x1021) + 256 * ram(0x1022)
-      local dx = (ax + 20) % 65536
-      wr(0x10A1, dx % 256); wr(0x10A2, math.floor(dx / 256))
-      -- Jupiter's SPD, using the motion the regression suite already proves works:
-      -- "6321478" + button, ~10 frames per step (tools/test_regression.lua
-      -- base-spd-jupiter-carry30). The second thrown-pose read site ($C1:0C51) is
-      -- the command-throw one, and the field reports the corruption spreading
-      -- into STAGE tiles there, so it needs its own run.
-      local ring = { { right = true }, { right = true, down = true }, { down = true },
-                     { down = true, left = true }, { left = true },
-                     { left = true, up = true }, { up = true } }
-      local m = sf % 100
-      if m < 70 then pulse[0] = ring[math.floor(m / 10) + 1]
-      elseif m < 74 then pulse[0] = { x = true }
+      local m = sf % 40
+      if m < 6 then pulse[0] = { right = true }
+      elseif m < 12 then pulse[0] = { down = true }
+      elseif m < 18 then pulse[0] = { left = true }
+      elseif m < 24 then pulse[0] = { up = true, x = true }
       else pulse[0] = {} end
     else
       pulse[0] = (sf % 24 < 18) and { right = true }
