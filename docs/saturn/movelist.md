@@ -82,14 +82,64 @@ until now and quietly shaped the plan for this task.
 Path 1 should be tried first and is likely cheap; path 2 is the guaranteed
 fallback.
 
-## Open question for the maintainer
+## Her content — SUPPLIED by the maintainer [P 08-03]
 
-Since the data cannot be copied, her list's **content** has to be authored: which
-moves are listed, and in what notation. The glyphs all exist in SMS's font
-(arrows, ⓅⓀ button icons, katakana), so this is a design question, not a
-technical one. The faithful option is to read her list off Super S's own movelist
-screen and transcribe it into SMS's layout — "lifted from Super S" in spirit,
-since it cannot be in bytes.
+From the Super S capture (`traces/saturn/supers_movelist_saturn.png`) plus his
+transcription. Layout matches SMS's exactly: a title line, then three moves, each
+a katakana name with its input notation on the line below.
+
+Title line — `SAILOR SATURN` in roman caps, left; `右向きの時` ("when facing
+right") in kanji, right. **That right-hand line is identical in all nine vanilla
+lists**, so it is lifted from any of them rather than authored.
+
+| # | Name (katakana) | Input | Engine act (measured, v0.13.0) |
+|---|---|---|---|
+| 1 | サイレンス バスター (SAIRENSU BASUTAA) | 236 + P | `$6E` -> `$70`, CMD arg `0x23` |
+| 2 | プレス クラッシャー (PURESU KURASSHAA) | JUMP中 632 + K | air special |
+| 3 | デス リボン レボリューション (DESU RIBON REBORYUUSHON) | 214 + P | `$6A` -> `$6C`, CMD arg `0x24` |
+
+Notation should follow the vanilla convention: motion numbers as arrow glyphs,
+and P/K as the large and small Ⓟ/Ⓚ icons.
+
+> **One point to confirm.** The transcription gives move 3 as "214 + HP or LK".
+> Everything else says P: her 214 special is the one whose CMD arg maps to the
+> sample the maintainer identified as "214P", and the engine acts for it sit in
+> the same P-starter group as the 236. Almost certainly "HP or LP"; worth one
+> look at the capture before it is set in tiles.
+
+**Feasibility of the content is settled**: every glyph class she needs is already
+drawn by the vanilla lists — roman caps and the `右向きの時` line in all nine,
+katakana throughout, arrows and Ⓟ/Ⓚ icons throughout, and **`JUMP中` in Moon's**
+(which also proves the roman `JUMP` and the kanji `中` are both in the font).
+Three entries is also within the vanilla range: Moon already has three.
+
+## The tilemap format (decoded)
+
+Authoring her list means emitting this, so it is worth having exactly:
+
+* the map is the standard 32-entry-wide SNES BG tilemap at VRAM byte `$2000`
+  (word `$1000`), 0x800 bytes, DMA'd whole;
+* each entry is a normal tilemap word — bits 0-9 tile, 10-12 palette, 13
+  priority, 14-15 flips — stored little-endian;
+* text is **8x16**: every line occupies two tile rows, and the lower row's tile
+  is always the upper row's **+ 0x10**;
+* the title name uses **palette 5** with priority set (attribute byte `$34`),
+  the move text and the input icons use **palette 3** (attribute byte `$0D`);
+* input-notation glyphs are two tiles wide each (e.g. Uranus's first input row
+  runs `$1A8 $1A9 $1A6 $1A7 $1A4 $1A5 …`).
+
+Worked example, Uranus's title row at map offset `$140`:
+
+    b0 34  90 34  98 34  9a 34  9d 34  9f 34  b2 34  9f 34  90 34  9c 34  b2 34  b0 34
+    S      A      I      L      O      R      U      R      A      N      U      S
+
+**Still missing: the code -> glyph table.** The font's CHR window has not been
+pinned down — inferring it from the tile codes and the VRAM dump gave
+inconsistent answers (the letters resolve cleanly at one base, the `$1xx`
+katakana codes do not, which means the base assumption is wrong rather than the
+codes). The reliable way is to read the BG3 CHR base out of the emulator's PPU
+state while the list is on screen, then render the sheet from there and read the
+glyphs off it. `tools/saturn/render_chr.py` does the rendering already.
 
 ## Probes
 
