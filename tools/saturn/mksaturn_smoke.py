@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.0"
+SATURN_VERSION = "0.14.1"
 
 # Build variant. CONSENSUS (maintainer, 2026-07-31): the HIDDEN code is the
 # canonical character-select — it is now the DEFAULT build.
@@ -388,6 +388,14 @@ CARDLOAD_OLD = bytes.fromhex("22EC8D80")
 # latches flag -> per-round ARM ($1F62/63) at that proven-safe moment, and the
 # helper transforms on the latch. Pre-set flags thereby behave exactly like
 # held-L+R: they take effect at the shell char's effects DMA, never earlier.
+# v0.14.1 (maintainer): the shell must not be visible while the fighters walk
+# in. Measured on v0.14.0: the latch arms at f=1809 (the effects DMA), the round
+# goes live at f=1855 with the ENTRANCE act $22 running to f=2040, and the old
+# gates only let the transform through at f=2099 — so the shell played the whole
+# entrance and Saturn popped in as control was handed over. EARLY_TRANSFORM drops
+# the $1E04 (intro-sequencer) gate and accepts act $22, keeping the latch and the
+# live-round gate, which are what actually prove this is a real fight load.
+EARLY_TRANSFORM = __import__("os").environ.get("EARLY_TRANSFORM", "1") == "1"
 SATURN_LATCH = 0xF102     # P1 armed-this-round latch
 SATURN_MARK = 0xF105   # "her card tiles are uploaded" marker
 SATURN_INIDISP = 0xF106  # INIDISP saved across the blit's forced blank
@@ -1339,13 +1347,29 @@ def main():
     h += bytes((0xA9, 0x00))                     # palette row 0x00 -> $0600
     _lbl("gates")
     h += bytes((0x85, 0x0E))                     # sta $0E (palette-dest low byte)
-    h += bytes((0xAD, 0x04, 0x1E)); _br(0xD0, "popn")        # intro
+    if not EARLY_TRANSFORM:
+        h += bytes((0xAD, 0x04, 0x1E)); _br(0xD0, "popn")    # intro sequencer busy
     h += bytes((0xAD, 0xFA, 0x01, 0xC9, 0x80)); _br(0xD0, "popn")  # not-live
     h += bytes((0xC2, 0x10, 0xA6, 0x88))         # rep #$10 / ldx $88
-    h += bytes((0xB5, 0x01, 0xC9, 0x03)); _br(0xB0, "pop8")  # act>=3
+    h += bytes((0xB5, 0x01, 0xC9, 0x03))         # act
+    if EARLY_TRANSFORM:
+        # act < 3 is the old "standing at neutral" case. ALSO accept the
+        # ENTRANCE act ($22): that is what the shell is doing for the ~185
+        # frames before the player gets control, and transforming there is the
+        # whole point — she walks in as herself instead of popping in at GO.
+        _br(0x90, "doit")                        # bcc doit  (act < 3)
+        h += bytes((0xC9, 0x22)); _br(0xD0, "pop8")          # only the entrance
+        _lbl("doit")
+        h += bytes((0x48,))                      # pha — keep the act
+    else:
+        _br(0xB0, "pop8")                        # bcs pop8  (act >= 3)
     h += bytes((0xA9, 0x1C, 0x95, 0x00))
     for o in (0x01, 0x02, 0x04, 0x05, 0x06, 0x07):
         h += bytes((0x74, o))
+    if EARLY_TRANSFORM:
+        # put the act back, so HER script for it runs from step 0 rather than
+        # the shell's entrance being cut short
+        h += bytes((0x68, 0x95, 0x01))           # pla / sta $01,x
     # palette copy moved to $EE (EE_PALCOPY) — the helper slot is 0x90 bytes
     h += bytes((0x22, EE_PALCOPY & 0xFF, EE_PALCOPY >> 8, B_MISC))
     h += bytes((0x68, 0xA9, 0x1C, 0xE2, 0x10)); _br(0x80, "sat")
