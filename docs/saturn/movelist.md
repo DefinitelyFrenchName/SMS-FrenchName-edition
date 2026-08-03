@@ -66,21 +66,54 @@ asset where the two games genuinely diverge, and it is worth noting because the
 project's working assumption — "graphics structures match every time" — has held
 until now and quietly shaped the plan for this task.
 
-## Two ways forward
+## The codec — SOLVED [P 08-03]
 
-1. **Decode `$C0:916B` enough to EMIT a stream.** The blobs are visibly
-   part-literal (the tilemap words are readable in the clear: Uranus's begins
-   `… b0 34 90 34 98 34 9a 34 9d …` = "SAILOR…"), so this is an LZ-family codec
-   with a literal path. If it has a raw/all-literal mode, authoring her list
-   needs no compressor at all — just the tilemap and the 8-byte pointer hook.
-   This is the clean outcome: her list becomes real data like everyone else's.
-2. **Blit over VRAM after the vanilla expand** — the fallback the card portrait
-   took when her art could not be re-encoded. No codec work; costs a hook that
-   runs when the list is staged (and possibly re-runs, since Start restages the
-   layer) plus up to 0x800 bytes of tilemap.
+`tools/saturn/sms_lz.py` decodes and encodes it. **All nine vanilla movelists
+decode to exactly 0x800 bytes, and both encoders round-trip**, so path 1 is open:
+her list can be real data like everyone else's, and the VRAM-blit fallback is not
+needed.
 
-Path 1 should be tried first and is likely cheap; path 2 is the guaranteed
-fallback.
+Format, hand-decoded from `$C0:919F` and confirmed byte-exact against a live
+staging dump:
+
+* a **16-bit control word, LSB first**, refilled as consumed;
+* **bit 1 = LITERAL** — copy one byte from the stream;
+* **bit 0 = BACK-REFERENCE**, whose form the next control bit picks:
+  * **0 = short**: two more control bits give L, count = L + 2; then one stream
+    byte D gives distance = D - 256 (-256..-1);
+  * **1 = long**: a 16-bit word `w`; count = `(hi & 7) + 2`, distance =
+    `(0xE0 | (hi >> 3)) << 8 | lo` as signed 16-bit (-8192..-1). When
+    `hi & 7 == 0` an extra byte `n` follows: **0 ends the stream**, 1 is a no-op,
+    otherwise count = n + 1;
+* copies are byte-at-a-time and overlap-safe, so a distance of -2 is the RLE that
+  fills a mostly-blank tilemap.
+
+**The one trap, and it cost the most time here.** The refill happens *inside* the
+bit fetch: the ROM does `lsr / dey / bne`, so when the 16th bit is extracted the
+next control word is read **before that bit is acted on**. The two refill bytes
+therefore land in the stream AHEAD of the payload the 16th bit selects. A decoder
+that refills lazily on the next fetch reads the control word as a literal and
+desynchronises — which is exactly what happened, and it decoded 0x14F bytes
+perfectly first, which made it look like a data problem rather than an ordering
+one. The encoder has to simulate the same timing, so `_emit` walks the ops and
+splices each control word in at the moment a word empties.
+
+Two encoders are provided:
+
+| | Moon | Uranus | vs vanilla |
+|---|---|---|---|
+| `encode_literal` (every byte a literal) | 2309 | 2309 | ~7x |
+| `encode` (literals + distance -2 RLE) | 581 | 404 | vanilla 400/336 |
+
+Even the naive one is fine — appended banks are free and the DMA length comes
+from how much was written, not from the stream size — but the RLE version lands
+close enough to vanilla to be tidy.
+
+## What is left
+
+1. the **code -> glyph table** (below), to turn her text into tile codes;
+2. build her 0x800 tilemap, `encode` it into an appended bank;
+3. the pointer hook: 4 bytes at `$C0:8B59` and `$C0:8B81` (see above).
 
 ## Her content — SUPPLIED by the maintainer [P 08-03]
 
@@ -96,16 +129,15 @@ lists**, so it is lifted from any of them rather than authored.
 |---|---|---|---|
 | 1 | サイレンス バスター (SAIRENSU BASUTAA) | 236 + P | `$6E` -> `$70`, CMD arg `0x23` |
 | 2 | プレス クラッシャー (PURESU KURASSHAA) | JUMP中 632 + K | air special |
-| 3 | デス リボン レボリューション (DESU RIBON REBORYUUSHON) | 214 + P | `$6A` -> `$6C`, CMD arg `0x24` |
+| 3 | デス リボン レボリューション (DESU RIBON REBORYUUSHON) | 214 + HP or LP | `$6A` -> `$6C`, CMD arg `0x24` |
 
 Notation should follow the vanilla convention: motion numbers as arrow glyphs,
 and P/K as the large and small Ⓟ/Ⓚ icons.
 
-> **One point to confirm.** The transcription gives move 3 as "214 + HP or LK".
-> Everything else says P: her 214 special is the one whose CMD arg maps to the
-> sample the maintainer identified as "214P", and the engine acts for it sit in
-> the same P-starter group as the 236. Almost certainly "HP or LP"; worth one
-> look at the capture before it is set in tiles.
+> Move 3's input was first transcribed as "HP or LK"; the maintainer confirmed
+> (2026-08-03) it is **HP or LP**, which matches the engine — its CMD arg maps to
+> the sample identified as "214P" and its acts sit in the same P-starter group as
+> the 236.
 
 **Feasibility of the content is settled**: every glyph class she needs is already
 drawn by the vanilla lists — roman caps and the `右向きの時` line in all nine,
