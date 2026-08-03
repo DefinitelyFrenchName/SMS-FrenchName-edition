@@ -1,4 +1,4 @@
-# Next-session handoff — 2026-08-03 (late)
+# Next-session handoff — 2026-08-03 (end)
 
 Fast orientation. **Full operational map: `HANDOFF.md`; Saturn brief:
 `docs/saturn/PROJECT.md`; test-ROM registry: `docs/saturn/BUILDS.md`; patch
@@ -10,45 +10,34 @@ history.)
 
 The base patch project is done and green. Current work is **SMS + Saturn**:
 Saturn is playable in SMS, selected by holding **L+R** on any character slot,
-field-tested repeatedly. Current build is **v0.13.9**
-(`SailorMoonS_REFsaturn_v0.13.9-hidden-stage.sfc`, `a63f7a06…`, regression
-57/57) on **REF v.2**. Everything on the bug list is closed and
-field-confirmed: her voice, her character-select line, her movelist, the ported
-stage (#43), and the stage's name. What remains is **one small task** (four font
-glyphs) plus the maintainer's **extended scope**.
+field-tested repeatedly. Current build is **v0.14.0**
+(`SailorMoonS_REFsaturn_v0.14.0-hidden-stage.sfc`, `7b8ff54f…`, regression
+57/57) on **REF v.2**. **Everything set out for the Saturn project is done**:
+her voice, her character-select line, her movelist, the ported stage (#43) and
+its name — **沈黙のメシアの玉座**, with the four missing kanji authored into the
+menu font. What remains is only the maintainer's **extended scope** below.
 
-## THE ONE OPEN TASK: four kanji
+## The font is now writable — which unblocks the translation patch
 
-The ported stage is currently named **サイレントメシア** — a proof-of-concept
-written with glyphs the font already has, confirmed on the pad ("reads correctly
-and cause no side effect I could trigger"). The intended name is
-**沈黙のメシアの玉座**, which needs four characters the font lacks: **沈, 黙, 玉,
-座** (の, メ, シ, ア exist).
+Done in v0.14.0, and the reusable part: the menu font is **two compressed
+blocks** (same codec as the movelists) — `$C3:48D0` (kana, general) and
+`$C7:07F0` (**kanji**, tiles based at 0x300). The job table at `$C3:BEE0`+ holds
+`[src24][dest24][…][flag]` records; the kanji block's source is the only
+`F0 07 C7` in the ROM, at `$C3:BEF2`.
 
-Everything except the glyphs is done and proven:
+Two things to know before touching it:
 
-* `mkstage_port.py` writes stage names — `STAGE_NAME` (env-overridable) plus a
-  `GLYPH` table of tile codes. It refuses a character the font lacks rather than
-  drawing a wrong one, so it will error on those four until they exist.
-* The name field holds **12 glyphs**; 沈黙のメシアの玉座 is 9.
-* The font sheet has **20 free 16×16 slots**, four of them (`$368`-`$36E`) right
-  after the existing kanji.
+* **Relocate, never patch in place.** Our encoder is weaker than the original's:
+  even the *untouched* kanji block re-encodes to 0x13AD against the original
+  0xD5B. `mkkanji.py` decompresses, inserts glyphs, re-encodes, appends to the
+  port's bank and rewrites the three pointer bytes.
+* **The decompressor's documented entry `$C0:916B` is not the one this path
+  uses** — a hook there never fires. Hook the loop setup at **`$C0:91A0`**, where
+  the source pointer is still at the start.
 
-**The missing link:** where the menu font comes from. It is not raw in ROM and
-not DMA'd from ROM — logging every VRAM DMA from boot shows the CHR arriving in
-0x40-byte chunks from a **WRAM staging buffer at `$7E:3640`+**. So the chain is
-`ROM → (decompress) → $7E:3640 → VRAM`, and the open question is what fills that
-buffer. Catch the block move or decompressor call that writes it — the same hunt
-that found `$C3:7C00` for the screen's tilemap. `probe_menu_survey.lua` takes
-`MINLEN` to filter the DMA log to large transfers.
-
-Two things to check first, both cheap:
-
-1. The **tournament edition**'s 7.3 KB diff is in bank `$C4` — the same bank as
-   the name records. If it renamed stages, it is a worked example of this exact
-   edit, and possibly of extending the font.
-2. Extending the font is **shared work with the translation patch** (planned
-   patch 16), which needs F, J, Q, S, Z for English. Solve it once.
+`mkkanji.py` renders glyphs from Hiragino at 16x16 and styles them like the
+game's own kanji (colour-1 outline, interior vertical ramp). 16 blank slots
+remain. **Patch 16 (menu translation) needs exactly this** to add F, J, Q, S, Z.
 
 ## Where the stage work landed
 
