@@ -26,6 +26,7 @@ local DIR = ENV.TRACE .. "menu/"   -- create it from the shell; os.execute is no
 local LOG = assert(io.open(DIR .. TAG .. ".txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram = PL.ram
+local MEMT = emu.memType.snesMemory
 
 -- scripted presses: "start:200 down:260" = tap start at frame 200, down at 260
 local KEYS = {}
@@ -85,6 +86,32 @@ end
 -- text. On entry DP $00-$02 hold the 24-bit source and $03/$04 the VRAM
 -- destination. This turns "this screen shows Japanese text" into "that text is
 -- at this ROM address", which is the whole point of the survey.
+-- Who WRITES the menu text? The strings are not in ROM in any obvious encoding
+-- (searched the config screen's own glyph codes as words, low bytes, tile>>1,
+-- tile-0x100), so find the code that puts them in VRAM and work back from it.
+-- ...and it is not CPU writes to $2118 either (none fire), so the screen is
+-- DMA'd in. Log every VRAM DMA with its SOURCE and the VRAM address it targets.
+local vw = 0
+emu.addMemoryCallback(function(_ad, value)
+  if frames < 1140 or frames > 1280 or vw > 30 then return end
+  for ch = 0, 7 do
+    if ((value or 0) >> ch) & 1 == 1 then
+      local b = emu.read(0x804301 + ch * 16, MEMT) or 0
+      if b == 0x18 or b == 0x19 then
+        vw = vw + 1
+        local ok, st = pcall(emu.getState)
+        log(string.format("  VRAMDMA f=%d ch%d src=%02X:%02X%02X len=%02X%02X vram=%02X%02X @%02X:%04X",
+          frames, ch,
+          emu.read(0x804304 + ch * 16, MEMT) or 0, emu.read(0x804303 + ch * 16, MEMT) or 0,
+          emu.read(0x804302 + ch * 16, MEMT) or 0,
+          emu.read(0x804306 + ch * 16, MEMT) or 0, emu.read(0x804305 + ch * 16, MEMT) or 0,
+          emu.read(0x802117, MEMT) or 0, emu.read(0x802116, MEMT) or 0,
+          ok and (st["cpu.k"] or 0) or 0, ok and (st["cpu.pc"] or 0) or 0))
+      end
+    end
+  end
+end, emu.callbackType.write, 0x80420B, 0x80420B, emu.cpuType.snes, emu.memType.snesMemory)
+
 local loads = {}
 emu.addMemoryCallback(function()
   local src = ram(0x00) + 256 * ram(0x01) + 65536 * ram(0x02)

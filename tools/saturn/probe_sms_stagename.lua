@@ -28,6 +28,7 @@
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "8")
+local ROW = tonumber(os.getenv("ROW") or "1")  -- player-select row: which one is 2P VS?
 local CHAR2 = tonumber(os.getenv("CHAR2") or "4")
 local STAGE = tonumber(os.getenv("STAGE") or "") -- nil = whatever the game picks
 local WALK = os.getenv("WALK") == "1"
@@ -115,7 +116,7 @@ end
 
 local STEPS = {
   function() return frames >= 900 end,
-  function() pulse[0] = beat({ down = true }); return ram(0x1B10) == 1 end,
+  function() pulse[0] = beat({ down = true }); return ram(0x1B10) == ROW end,
   function() pulse[0] = beat({ start = true }); return sf > 40 end,
   function() return sf > 240 end,
   function()
@@ -126,24 +127,19 @@ local STEPS = {
   function() pulse[0] = beat({ a = true }); return ram(0x1B42) == 1 or sf > 90 end,
   function() pulse[0] = {}; return sf > 30 end,
   function() pulse[1] = beat({ a = true }); return sf > 60 end,
-  -- the config screen appears during this wait and auto-advances on a timer,
-  -- so the captures have to happen HERE, not after it
-  function()
-    if sf % 20 == 0 and sf <= 220 then
-      local f = io.open(ENV.TRACE .. "saturn/stagename_" .. TAG .. "_cfg" .. sf .. ".png", "wb")
-      f:write(emu.takeScreenshot()); f:close()
-    end
-    return sf > 240
-  end,
+  function() return sf > 240 end,
   function()
     pulse[0] = beat({ start = true }); pulse[1] = beat({ start = true })
     return ram(0x1000) == CHAR or sf > 600
   end,
-  -- SIT on the button-config screen: the maintainer reports the STAGE NAME is
-  -- printed at its bottom, which is the only place the game names a stage — and
-  -- therefore where a ported stage has to be renamed ("Silver Millennium light").
+  -- SIT on the button-mapping screen without pressing anything. The maintainer's
+  -- captures show the stage name as its last line (ステージ / 時空の扉) — and it
+  -- is there only in 2P VS: the 1P-vs-COM version of the same screen prints
+  -- nothing below the button rows. Every earlier attempt mashed Start and blew
+  -- straight past it.
   function()
-    if sf % 3 == 0 and sf <= 60 then
+    pulse[0] = {}; pulse[1] = {}
+    if sf % 15 == 0 and sf <= 600 then
       local f = io.open(ENV.TRACE .. "saturn/stagename_" .. TAG .. "_" .. sf .. ".png", "wb")
       f:write(emu.takeScreenshot()); f:close()
       local vb = {}
@@ -151,7 +147,7 @@ local STEPS = {
       local vf = io.open(ENV.TRACE .. "saturn/stagename_" .. TAG .. "_vram" .. sf .. ".bin", "wb")
       vf:write(table.concat(vb)); vf:close()
     end
-    return sf > 210
+    return sf > 620
   end,
 }
 

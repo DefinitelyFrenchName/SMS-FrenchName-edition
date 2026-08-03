@@ -119,3 +119,36 @@ Gotcha paid for here: a **flat `tools/` script bootstraps `sms_env.lua` with
 `/sms_env.lua`** — only `tools/saturn/` ones use `/../`. Getting it wrong makes
 the script fail to load with no error and no output at all, which reads exactly
 like the emulator ignoring it.
+
+## The button-mapping screen is a COMPRESSED tilemap — and we own the codec
+
+Found while chasing the stage name (2026-08-03), and it changes the shape of the
+translation patch too.
+
+* The screen is **not** drawn by CPU writes to `$2118` (none fire) and its text
+  is **not** in ROM in any plain encoding — searched the captured glyph codes as
+  words, low bytes, `tile>>1` and `tile-0x100`, all zero hits.
+* It is **DMA'd in**, and the block is **compressed**: `$C3:7C00` decodes to
+  exactly **0x800** bytes with `tools/saturn/sms_lz.py` — the same `$C0:916B`
+  codec as the movelists, which that tool already **encodes** as well as decodes.
+  (The apparent plain hit at `$C3:7CAB` was literal bytes showing through inside
+  the compressed stream.)
+* The decoded map is the screen: `PRESS "SELECT" TO ACS` at rows 1-2, the `1P` /
+  `2P` headers, the six button rows, **`ステージ` at row 21** and a stage name at
+  row 23.
+* Only **six** blocks in bank `$C3` decode to 0x800, and just one is this screen
+  — so there is a single template, and the per-stage name is written over row 23
+  at runtime. That matches the DMA log: once the screen is up, the code issues a
+  long run of **4-byte** transfers (two tilemap words = one glyph's top row,
+  then its bottom row), sourced from bank `$83`.
+
+So renaming a stage is the same class of job as Saturn's movelist, with the same
+tooling. What is still missing is the **source of the per-stage name string** —
+the bank-`$83` run the drawing code walks. That is the one thing to find next;
+everything around it is now known.
+
+Note the harness cannot reach this screen: it appears in **2P VS**, and the
+probes' VS flow fades from character select straight into the match, while the
+flow that does land on the screen is 1P-vs-COM, where the name is absent (its
+row 21/23 are simply not drawn). The maintainer's captures are the evidence that
+the name is there in 2P VS.
