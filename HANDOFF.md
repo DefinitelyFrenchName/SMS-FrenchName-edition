@@ -62,6 +62,13 @@ push-collision fix, corrected sfx mapping, a Super S stage ported onto Pluto's
 slot, and her voice — extracted, approved, and now injected and playing. Open:
 movelist (#41) and a stage vertical-scroll artefact (#43).
 
+**Why she wears a shell rather than being a tenth character** — and why more
+ROM would not change that: `docs/saturn/memory_and_shell.md` (the four memories
+with measured budgets, the nine-wide-table census, and what a true tenth entry
+would actually cost). Short version: ROM is not scarce (384 KB spare), ARAM is
+the only hard wall, and the real constraint is per-character tables sized to nine
+and immediately followed by live data.
+
 **Four traps this project paid for — they generalise:**
 
 1. **Per-character fixes must be tested with at least TWO shells.** Saturn can

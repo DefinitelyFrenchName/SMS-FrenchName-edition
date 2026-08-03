@@ -59,6 +59,17 @@ Build `SATURN_HIDDEN=1 bash tools/saturn/build_refsaturn.sh`, summon her with
 L+R, and check the win laugh and the three specials. `SATURN_VOICE=0` builds
 without it if a comparison helps.
 
+## Background: memory, and the shell design
+
+`docs/saturn/memory_and_shell.md` answers "couldn't we just get more memory?" —
+written 2026-08-03 at the maintainer's request. ROM is not our constraint (clean
+2.50 MB, current build 3.62 MB, 384 KB spare); ARAM is the only hard wall (64 KB,
+full — it forced the by-ear voice trim); and the real constraint is that
+per-character tables are nine wide and immediately followed by live data, so a
+tenth row means relocating a table and repointing every reader. Removing story
+mode or moving to a 6 MB ExHiROM cartridge would buy ROM, which we already have,
+and would break `file offset = SNES address & 0x3FFFFF` in the second case.
+
 ## The other two open items
 
 **#41 movelist.** Shows mostly Uranus's list and is incomplete — two specials,
