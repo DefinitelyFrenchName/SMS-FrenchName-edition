@@ -990,3 +990,35 @@ Hook the DMA trigger (`$420B`, all mirrors) and read **direct page `$00`-`$07`**
 at that instant rather than the DMA registers. That yields the true VRAM address,
 length and source of every transfer, including the font's. Then trace what sets
 the length for the font block — that is the value patch 16 has to change.
+
+### Why the extra tiles never arrive — ANSWERED
+
+With the probe filtered to the real uploader (`$C0:92D2`), the menu screen is
+built by **50 transfers**, and the font's VRAM region is covered by exactly one:
+
+    vram word $4000   len $3480 bytes   src $7E:C000
+
+`$3480` bytes = `$1A40` words, so that transfer fills VRAM words `$4000-$5A40`,
+i.e. tiles `$400-$5A4`. **No transfer in the whole screen build touches word
+`$5C00` or above.**
+
+That is the answer. Patch 16 extends the *compressed block*, which does make the
+decompressed sheet bigger — but nothing then carries the extra bytes to VRAM,
+because the transfer that covers this region has a fixed length that stops short
+of the new tiles. It also independently confirms the earlier observation that
+VRAM simply ends at tile `$5B5` on the patched ROM.
+
+**So the patch needs two changes, not one:**
+
+1. the block extension (done), and
+2. the **transfer length** for the region — the value staged in direct page `$02`
+   for the `$7E:C000 -> $4000` upload — has to grow to cover the new tiles, with
+   the decompressed font laid out contiguously in WRAM so the longer transfer
+   picks it up.
+
+That length is written from the routine that stages the transfer, so the next
+step is to find what feeds DP `$02` there — a constant in the caller, or a field
+in whatever table drives these 50 uploads. Once that value is patchable, the
+glyphs reach VRAM and the tilemap edits can begin.
+
+Not a dead end: a bounded, located problem with the instrument now trustworthy.
