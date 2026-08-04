@@ -341,6 +341,27 @@ mine: assuming one native rate for everything she has, and then treating a
 measurement of one set as confirmation for the other. Maintainer on 6539 for the
 select line: "definitely flat, which I didn't expect".
 
+**SETTLED (2026-08-04, maintainer, spectral analysis): the select line is
+`$03E4` = 7781 Hz** — "basically a perfect match barring the tiny changes due to
+processing". It is ON the driver's grid, exactly +3 semitones above the in-fight
+target, so both targets are reachable as notes and no off-grid value is needed.
+
+    in-fight voices  ->  $0345   (currently $03E4/$041F/$03AC, i.e. +3/+4/+2 st)
+    select line      ->  $03E4   (currently $04E7 Uranus / $0582 Pluto, +4/+6 st)
+
+**Where pitch comes from — measured, not assumed.** The 65816 only sends a sound
+id; everything about pitch happens in the SPC driver. Watching the SPC's own PC
+at every VxPITCH write shows **one routine emits every pitch in the game**:
+`$131D` writes the low byte, `$1327` the high byte, for music and voices alike.
+So a fix cannot simply hook "the place that sets her pitch" — that place is
+shared with the entire soundtrack.
+
+What remains before implementing: disassemble the driver around `$131D` to find
+where the VALUE arrives from — most likely a per-sound table — and locate that
+table in ROM (the driver is uploaded to ARAM at boot). Only then is it a data
+patch on her ids. Probe: `probe_sms_voicepitch.lua`, which also asserts the
+targets headlessly once they are in.
+
 ⚠ **`$0400` (exactly 8000 Hz) is NOT on the driver's semitone grid** — it is
 +3.49 st above `$0345`, not a whole step. The grid brackets 8000 with `$03E4`
 (7781 Hz, −0.48 st) and `$041F` (8242 Hz, +0.52 st). So whether the select line

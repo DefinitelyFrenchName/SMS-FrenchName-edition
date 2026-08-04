@@ -77,6 +77,26 @@ local shadow = {}
 emu.addMemoryCallback(function(_, v) dspaddr = v or 0 end,
   emu.callbackType.write, 0xF2, 0xF2, emu.cpuType.spc, emu.memType.spcMemory)
 
+-- WHERE DOES THE PITCH COME FROM? The 65816 only sends a sound id (WRAM slots
+-- $78/$1078/$10F8); everything about pitch happens inside the SPC driver. So
+-- capture the SPC's own PC when it writes a VxPITCH register ($x2/$x3) and the
+-- value written. That distinguishes a per-sound TABLE we could patch in ROM from
+-- something computed — which decides the whole shape of a fix.
+local pw, pwseen = 0, {}
+emu.addMemoryCallback(function(_, value)
+  local lo = dspaddr & 0x0F
+  if lo ~= 0x02 and lo ~= 0x03 then return end
+  local ok, st = pcall(emu.getState)
+  local spcpc = ok and (st["spc.pc"] or -1) or -1
+  if (value or 0) == 0 then return end     -- skip the init sweep
+  local key = string.format("%04X/%02X/%02X", spcpc, dspaddr, value or 0)
+  if pwseen[key] then return end
+  pwseen[key] = true; pw = pw + 1
+  if pw <= 24 then
+    log(string.format("  PITCHW dsp$%02X <= $%02X  by SPC pc=$%04X", dspaddr, value or 0, spcpc))
+  end
+end, emu.callbackType.write, 0xF3, 0xF3, emu.cpuType.spc, emu.memType.spcMemory)
+
 emu.addMemoryCallback(function(_, value)
   shadow[dspaddr] = value or 0
   if dspaddr ~= 0x4C then return end          -- KON: one bit per voice
