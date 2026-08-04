@@ -859,3 +859,52 @@ No licence surface at all — it is the game's own art, the same basis on which
 this project already reuses BZ palettes and Super S assets. Natively in style, so
 no reconciling a foreign face against the kana. And the authored remainder is
 small enough to be a quick win rather than a project.
+
+### A complete half-width A-Z now exists — `tools/mkhalfwidth.py`
+
+Built from the three sources the condensing test implied:
+
+| source | count | which |
+|---|---|---|
+| **condensed** from the game's own capitals (AND of column pairs) | 17 | B C D E G H I K L N O P R T U V Y |
+| **repaired** — diagonals thinned to 1 px under AND | 4 | A M W X |
+| **authored** to match the condensed siblings | 5 | F J Q S Z |
+
+`sheet` renders the alphabet, `text "MANUAL"` renders a string at true size,
+`export` writes `docs/halfwidth_caps.json`. Nothing is committed that isn't ours:
+the condensed glyphs are a mechanical reduction of the game's own art, the same
+basis as every other asset reuse in this project.
+
+### The budget answer — which was the point of the whole exercise
+
+| string | half-width cells | equals full-width cells | vanilla had |
+|---|---|---|---|
+| `MODE` | 4 | 2 | 3 (`モード`) |
+| `STAGE` | 5 | 2.5 | — |
+| `MANUAL` | 6 | **3** | 5 (`マニュアル`) |
+| `TOURNAMENT` | 10 | 5 | — |
+
+**Every validated string fits inside its existing cell budget with room to
+spare** — `MANUAL`, the widest value on the VS screen, needs 3 of the 5 cells the
+Japanese occupies. That is the case for half-width in one line: it is not a
+marginal gain, it removes the budget problem entirely.
+
+### Honest weak spots
+
+* **M is the weakest glyph.** The source face has a 2 px left stem and 1 px right
+  (an emboss, shared with TE), and at half width that asymmetry reads as lopsided
+  in a word. Worth a second pass by eye.
+* **N**'s diagonal is slightly noisy, and **U**'s right stem is thin for the same
+  emboss reason.
+* The five authored glyphs are first drafts matched to the condensed band, not
+  final art. `S` and `Q` in particular deserve a look at true size on screen.
+
+None of these block anything — they are polish on a set that already renders
+readable words.
+
+### Still the gate, unchanged
+
+`$5C0-$5FF` (64 tiles, enough for 32 half-width glyphs) is free in all 192 clean
+VRAM captures, but that is **evidence, not proof**. Write-watch that range over a
+full boot -> title -> select -> match -> KO -> win session before authoring into
+it, the same way `probe_sms_freetable.lua` cleared the audio table's spares.
