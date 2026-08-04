@@ -58,8 +58,17 @@ emu.addMemoryCallback(function(_, value)
   for v = 0, 7 do
     if ((value >> v) & 1) == 1 then
       local b = v * 16
-      local key = string.format("act %02X -> srcn=%03d pitch=$%04X",
-        curact, reg(b + 4), reg(b + 2) | (reg(b + 3) << 8))
+      -- Identify what a source ACTUALLY is, instead of inferring it from a
+      -- steady pitch: SRCN indexes the BRR directory at DIR($5D)*0x100 in ARAM,
+      -- whose first word is the sample's start address. A voice and a music
+      -- instrument are then distinguishable by where their sample lives.
+      local srcn = reg(b + 4)
+      local dir = reg(0x5D) * 0x100
+      local e = dir + srcn * 4
+      local start = (emu.read(e, emu.memType.spcRam) or 0)
+                  | ((emu.read(e + 1, emu.memType.spcRam) or 0) << 8)
+      local key = string.format("act %02X -> srcn=%03d pitch=$%04X sample=$%04X",
+        curact, srcn, reg(b + 2) | (reg(b + 3) << 8), start)
       if not hits[key] then hits[key] = 0; order[#order + 1] = key end
       hits[key] = hits[key] + 1
     end

@@ -47,6 +47,14 @@ roms/
 *.gif
 *.bmp
 
+# GAME AUDIO — same category as the imagery above. Decoded voice/sfx samples and
+# ARAM dumps are game data; they are session evidence, sent to the maintainer for
+# listening tests and kept local. Never tracked.
+*.wav
+*.brr
+*.spc
+*aram*.bin
+
 # build/ holds only patch files: ignore everything, allow-list .bps/.ips back in
 build/*
 !build/*.bps

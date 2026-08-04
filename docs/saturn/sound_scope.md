@@ -270,6 +270,39 @@ the budget is respected:
     entry 32 214P       ARAM $C6A5 +0xd1d
     entry 33 j632K      ARAM $D3C2 +0x72c
 
+### REOPENED 2026-08-04 — the field says her voices are sharp
+
+The maintainer field-tested the pitch work and reported: the character-select
+"Yoroshiku" IS shell-dependent (matching the measurement), the in-fight voices
+are NOT (also matching) — **but "all are way sharp"**, in-fight included. That
+last part contradicts the 8 kHz conclusion below and needs settling rather than
+choosing a side.
+
+What is now solid, because the sources were identified by SAMPLE ADDRESS instead
+of inferred from a steady pitch:
+
+* Her three in-match voices are srcn 49/50/51, samples ARAM `$BC46`, `$C6A5`,
+  `$D3C2` — inside her P1 voice bank, and `$C6A5`/`$D3C2` are exactly the 214P
+  and j632K entries recorded above. So the measurement really is of her voice.
+* They play at `$03E4`/`$041F`/`$03AC` = 7781/8242/7344 Hz, i.e. **~8 kHz** —
+  the rate this section concluded was correct.
+* The character-select line plays at `$04E7` (Uranus) / `$0582` (Pluto) =
+  9805/11016 Hz, **+3.5 / +5.5 semitones** above 8 kHz, and identical to what the
+  vanilla shell character plays at. That one is unambiguously sharp.
+
+⚠️ **The `$03FE` Super S reference quoted below is NOT sound.** It came from a
+single source (srcn 28) captured in a forced-act run, identified as "her voice"
+because its pitch was steady. Applying the address check to that run shows the
+sources present are instruments and sfx; forcing acts does not make her voices
+play in Super S. Treat `$03FE` as unverified.
+
+**Open, and the way to settle it:** a listening A/B, the same method that
+produced the 8 kHz answer in the first place. `probe_aramdump.lua` (new) dumps
+ARAM with her samples loaded and prints the BRR directory, so `brr.py` can render
+any of her samples at any rate. Her 214P voice was sent to the maintainer at
+5000/6000/7000/8242 Hz (8242 = what the port plays today). Whichever he picks
+gives the target pitch directly: `pitch = 0x1000 * rate / 32000`.
+
 ### Playback rate: RESOLVED at ~8 kHz [P 08-02]
 
 Worth recording because it looked like an open risk and was actually an

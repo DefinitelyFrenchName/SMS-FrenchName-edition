@@ -98,9 +98,21 @@ emu.addMemoryCallback(function(_, value)
         -- different path from the in-match voices (bank-id table $C0:AE75,
         -- sound id = 21 + charID — i.e. the id itself is per-CHARACTER), so it
         -- is the better suspect for anything that varies with the shell
+        -- WHAT is this source, really? SRCN indexes the BRR directory at
+        -- DIR($5D)*0x100 in ARAM; its first word is the sample's start address.
+        -- Her voice bank is ARAM $B700 (P1) / $DB00 (P2), so the address says
+        -- whether a source is her VOICE or just an sfx that happens to sit in
+        -- the same srcn range. Not checking this is exactly how the Super S
+        -- reference pitch turned out to be unfounded.
+        local dirp = (emu.read(0x5D, emu.memType.spcDspRegisters) or 0) * 0x100
+        local e = dirp + srcn * 4
+        local sstart = (emu.read(e, emu.memType.spcRam) or 0)
+                     | ((emu.read(e + 1, emu.memType.spcRam) or 0) << 8)
         local key = FORCEACTS
-          and string.format("act %02X -> srcn=%02d pitch=$%04X", curact, srcn, pitch)
-          or string.format("step%-2d srcn=%02d pitch=$%04X", step, srcn, pitch)
+          and string.format("act %02X -> srcn=%02d pitch=$%04X sample=$%04X",
+                            curact, srcn, pitch, sstart)
+          or string.format("step%-2d srcn=%02d pitch=$%04X sample=$%04X",
+                           step, srcn, pitch, sstart)
         if not seen[key] then
           seen[key] = 0; order[#order + 1] = key
         end
