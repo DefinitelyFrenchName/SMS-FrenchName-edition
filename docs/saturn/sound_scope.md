@@ -853,3 +853,80 @@ way. Also worth re-checking when someone returns to this: the `$0582` quoted for
 the Pluto select line is the pitch of **srcn 128, sample `$9C00`** in the in-match
 traces — an sfx, not a voice bank — so the provenance of the original select
 measurement deserves a second look before anything is built on it.
+
+## The regression surface: a DSP differential harness [P 08-04]
+
+Feature tests answer "does the thing work". They do not answer "did this disturb
+something nobody thought to check", and more feature tests never will. For an
+audio change the second question **is** answerable, because the emulator is
+deterministic and the audio state is small enough to record completely.
+
+**`tools/saturn/trace_dsp.lua`** records every SNES-DSP register write of a
+scripted session — captured by shadowing the SPC's `$00F2`/`$00F3` port traffic,
+since a callback on `spcDspRegisters` never fires. **`tools/saturn/dspdiff.py`**
+compares two captures: per-frame FNV digests (total coverage, catches any
+difference in any register including all music) plus the detail streams, which
+name the differing registers and attribute per-voice writes to the source that
+was keyed on. `--expect-empty` / `--expect-pitch-only` / `--expect-srcn` /
+`--require-reg` turn it into a gate; it exits 1 on violation.
+
+Alignment matters: frames are counted from a **sync point** (the frame the match
+goes live), never from power-on, and post-sync input is a fixed schedule keyed on
+the frame counter rather than on game state — so a build that behaves differently
+shows up as divergence instead of silently re-syncing the harness.
+
+**`tools/saturn/verify_dspdiff.sh` self-checks the harness before anything is
+believed** — 4 checks, all green on v0.14.9:
+
+| | check | result |
+|---|---|---|
+| 1 | determinism: same ROM twice | 47879 writes, **0/900 frames differ** |
+| 2 | inertness: poke the VANILLA transposes back | **0/900** — the poke mechanism is not the effect |
+| 3 | sensitivity: `V4.PITCHL` must differ under the retune | PASS |
+| 4 | negative control: demand "identical" of a known-different pair | correctly FAILS |
+
+Check 4 exists because the first version of this script printed ALL PASS through
+three Python tracebacks — it read `tail`'s exit status instead of the differ's. A
+gate that cannot fail is not a gate, and that applies to the gate's own harness.
+
+### What it found on the first real use — an open finding
+
+Diffing vanilla against the proposed retune (all four transposes -> `$FB`):
+
+* **Structural containment holds absolutely.** The register write **order and
+  count are identical in all 900 frames**. `SRCN`, `KON`, `KOF`, both volumes,
+  `ADSR1/2`, `GAIN` and every global register (`MVOL`, `EVOL`, `FLG`, `PMON`,
+  `NON`, `EON`, `DIR`, `ESA`, `EDL`, FIR) are byte-identical. Nothing is added,
+  removed, retimed, re-sourced or re-enveloped. **Only pitch values change.**
+* **But the change is not confined to her voice.** Of ~1070 differing writes,
+  **90 land on DSP voices 1, 2 and 6** — which hold *music* sources (srcn 23/24,
+  samples `$7025`/`$7307`) at those moments. The shift is exact: voices 1 and 2
+  move by precisely −2.00 semitones and voice 6 by −3.00, matching the intervals
+  applied to her sounds.
+* **Attributed to a single sound.** Poking one id at a time, id 52 (j632K) alone
+  reproduces all three. Poking only id 49 changes nothing — the win laugh never
+  plays in this window, which is also a reminder that the window bounds the
+  claim.
+
+⚠ **Not root-caused, and it must be before this ships.** Two readings fit the
+evidence and they have opposite consequences: either (a) her sfx is **layered
+across several DSP voices** using shared percussion samples, in which case
+shifting all layers together is correct and the "side effect" is the fix working
+properly; or (b) an sfx channel's pitch shadow is being flushed onto a DSP voice
+a music channel is using, in which case the retune audibly detunes ~40 frames of
+music per voice. The logical-channel map (`$1346`: channels 0-7 and 8-15 both map
+onto DSP voices 0-7) makes (b) mechanically possible; the fact that voices 1, 2
+and 4 are keyed on in the *same* `KON` write at f223 points at (a). Deciding it
+needs the channel allocator around `$0AF7`/`$0B1E` read properly, or simply
+listening to the two builds at f225-231.
+
+Either way this is the point of the harness: an 84-frame, 0.19%-of-writes
+divergence on voices nobody would have thought to check is not something playing
+the game finds, and it was surfaced before a single byte was patched.
+
+**Limits, stated plainly.** This is total for the audio subsystem and blind to
+everything else — a hook that corrupted something non-audio needs the same
+treatment with a different state vector. It also only covers what the scripted
+window exercises: 900 frames of practice-mode 236P/214P on one shell. It bounds
+what it observes, which is far more than a feature test does, and less than
+"nothing else changed".
