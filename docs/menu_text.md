@@ -99,6 +99,16 @@ codes seen on screen differ:
 | kana / general | `$C3:48D0` (608 tiles) | `+$0A0` | Latin `A` = block `$16A` -> `$20A`, the code the survey saw |
 | kanji | `$C7:07F0` (182 tiles) | `+$300` | blank run at block `$068` -> `$368`, the blanks the survey saw |
 
+**The full-width alphabet is 22 of 26. Missing: `J`, `Q`, `S`, `Z` — and that is
+the complete list**, verified by rendering every glyph in both blocks.
+
+**Half-width Latin also exists**, but only as the pre-composed
+`PRESS "SELECT" TO ACS` strip (kanji block `$080+`). Rendering it a tile at a
+time shows the letters ARE individually addressable — 1 tile wide, 2 tall — so
+**P R E S L C T O A** are available at 8x16. Two consequences: half-width text
+would DOUBLE a label's character budget if the layout tolerates it, and the
+half-width `S` is a faithful model for drawing the full-width one.
+
 **CORRECTION — `F` is NOT missing.** It exists at kana block `$228` (VRAM `$2C8`)
 in the DIGIT style, alongside `6 7 8 9`. The "Missing: F, J, Q, S, Z" below came
 from a survey that never rendered the digit run. **Four letters have to be

@@ -83,12 +83,23 @@ KANJI = {
     0x060: "数", 0x062: "残", 0x064: "ッ", 0x066: "パ",
 }
 
-# Latin capitals the font does NOT have, in the alphabet style.
-# CORRECTION (2026-08-04): F is NOT missing — it exists at kana block $228
-# (VRAM $2C8) in the DIGIT style. docs/menu_text.md listed it as missing; that
-# was read from a VRAM survey that never rendered the digit run. Four letters
-# have to be authored, not five.
+# Latin capitals the font does NOT have at FULL width (16x16) — the size menu
+# labels are set in. Verified by rendering every glyph in both blocks.
+# F is NOT missing: it sits at kana block $228 (VRAM $2C8), after the second
+# digit run, and a side-by-side render against B/E/H shows the same stroke
+# weight and cap height — it sets as part of the alphabet. docs/menu_text.md had
+# listed it missing, from a survey that never rendered the digit run.
+# So the full-width alphabet has 22 of 26; four must be authored.
 MISSING = ("J", "Q", "S", "Z")
+
+# HALF-WIDTH (8x16) Latin exists too, but ONLY as the pre-composed
+# 'PRESS "SELECT" TO ACS' strip in the kanji block ($080+). Rendering it a tile
+# at a time shows the letters ARE individually addressable — 1 tile wide, 2 tall
+# — so these nine are available at half width even though the strip reads as one
+# phrase. Useful two ways: half-width text would double a label's character
+# budget, and the half-width S is a faithful model for drawing the full-width S.
+HALFWIDTH_STRIP = 0x080          # kanji-block code of the first tile
+HALFWIDTH_LETTERS = ("P", "R", "E", "S", "L", "C", "T", "O", "A")
 
 # Blank 16x16 slots inside the two blocks, measured by `menufont.py blanks`.
 # These are usable WITHOUT relocating anything, which is enough for MISSING.
