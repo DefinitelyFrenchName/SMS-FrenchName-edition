@@ -1513,3 +1513,103 @@ a normal match. Other rows are untouched code.
 anywhere (`tools/mkpatch15.py`, `--stacked` supported). NOT yet part of the
 REF v.1 bundle: adding it changes that bundle's identity/SHA, which is the
 maintainer's call.
+
+---
+
+# Patch 101 — Saturn voice pitch (`SATURN_PITCH=1`)
+
+**Status: BUILT, NOT SHIPPED.** Measured correct and gate-clean; held on one
+unresolved behavioural finding (below). Off by default.
+
+## What
+
+Saturn's voices play about three semitones sharp. Her samples are natively
+~6539 Hz but are requested through **char 1's sound ids (49-52)**, which carry
+Sailor Moon's note values. Patch 101 corrects the four notes.
+
+## Mechanism
+
+Pitch in this SPC driver is per-sound NOTE data, not a per-sample rate. Each
+sound id's sequence header carries a **TRANSPOSE byte** at `seq+3`, worth exactly
+one semitone per unit (full decode: `docs/saturn/sound_scope.md`). Her four:
+
+| id | move | ARAM | vanilla | patched | measured pitch |
+|---|---|---|---|---|---|
+| 49 | win laugh | `$1C91` | `$FE` | `$FB` | (never fires in the test window) |
+| 50 | 236P | `$1CAB` | `$FE` | `$FB` | `$03E4` → `$0346` |
+| 51 | 214P | `$1CB6` | `$FF` | `$FB` | `$041F` → `$0346` |
+| 52 | j.632K | `$1CC1` | `$FD` | `$FB` | `$03AC` → `$0346` |
+
+All four converge on `$FB` because her four samples share one native rate. The
+result is `$0346` against the maintainer-settled target `$0345` — one LSB, 0.5
+cents, because the driver interpolates between semitone-table entries and rounds.
+
+**Delivery.** The four bytes live in the SPC driver, which is uploaded to ARAM,
+so they are written as **four 1-byte IPL blocks appended to streams patch 100
+already sends**: her directory streams on a Saturn load, char 1's restore streams
+on a non-Saturn load. The apply/restore gating is therefore 100's existing
+DIRTY-flag machinery, unchanged — 101 adds no hook, no flag and no table record.
+
+⚠️ **Two traps paid for here.**
+1. **A stream of its own costs an audio phase shift.** The first implementation
+   used two extra table records, two extra IPL streams and a ~111-byte sync stub.
+   It worked, but the extra upload at character load shifted the whole audio
+   timeline ~3 frames relative to match start — inaudible in itself, but it
+   desynchronises every future `trace_dsp` comparison of a Saturn session. Riding
+   the existing streams adds 20 bytes to an upload that already happens.
+2. **P2's streams are relocated by dp `$10` = `$0010`,** so the blocks in them are
+   written 16 bytes LOW to land on the right addresses.
+
+Stream slots are respaced (`0x2600/2640/2680/26C0` instead of `.../2620/2640/2660`)
+**only when 101 is built in**, so a 100-without-101 build stays byte-identical to
+the shipped v0.14.9.
+
+## Why a build flag, not an independent BPS
+
+Patch 14 is *inert* without 13. **101 without 100 would be actively wrong**: the
+same four bytes retune sound ids 49-52, which belong to char 1 — with no Saturn
+samples behind them, that is Sailor Moon's voice, three semitones flat, in a ROM
+where Saturn does not exist. A flag makes the dependency unbuildable-around
+rather than a warning someone can ignore. The standalone BPS
+(`build/saturn/sms_saturn_pitch.bps`, 170 B) is diffed **100 → 100+101** for
+distribution and A/B, exactly as patch 10b is diffed within its own slot.
+
+## Verification
+
+Base `03b73cdd…` (patch 100) → `30a130e893d2…` (100+101); 150 bytes differ. BPS
+round-trips to the same hash.
+
+| check | result |
+|---|---|
+| patch 100 rebuilt with 101's code present but OFF | **byte-identical**, `03b73cdd…` |
+| REF v.1 / v.2 rebuilt | **byte-identical**, `2873f214…` / `6d79fb5f…` |
+| Saturn session, semantic DSP diff (shell 6) | key-on sequence identical, **0 structural**; only srcn 49/50/51 change, all to `$0346` |
+| same, shell 8 (the two-shells rule) | identical result |
+| **vanilla** session, DSP frame-aligned diff | **byte-identical** (47378 writes) |
+| **vanilla** session, WRAM diff | **byte-identical**, all 128 KB × 10 checkpoints |
+| **Saturn** session, WRAM diff | **byte-identical** — the transposes live in ARAM, so WRAM must not move |
+| `test_regression.lua` | **ALL PASS (57)** |
+| `verify_saturn.sh` | **ALL PASS (45 checks)** |
+
+Note the oracle: across builds whose LOAD duration differs, a frame-aligned DSP
+diff desynchronises (see trap 1) — use `dspdiff.py --semantic`, which compares the
+ordered key-on sequence and is shift-immune.
+
+## Open finding — the reason this is not shipped
+
+Retuning her voices also moves the pitch of **DSP voices 1, 2 and 6** at ~84
+frames of a 900-frame session, by exactly the intervals applied to her sounds,
+while those voices hold *music* sources (srcn 23/24). Two readings fit and they
+have opposite consequences: her sfx is **layered across several DSP voices**
+(shifting all layers is then correct), or an sfx channel's pitch shadow is being
+flushed onto a voice music is using (the retune then audibly detunes those
+frames). Deciding it needs the channel allocator at `$0AF7`/`$0B1E` read, or a
+listen. Detail: `docs/saturn/sound_scope.md`.
+
+## Known limitation, independent of the above
+
+The transpose lives in a **shared** sfx sequence, so **P1 Saturn + P2 Sailor Moon
+cannot both be right**: whichever transposes are loaded apply to both. With 101
+on, a Moon facing a Saturn hears his own voice three semitones flat. Niche — Moon
+is not a shell and this is a hidden character — but it is a real regression in
+that one matchup and the maintainer should decide it explicitly.

@@ -44,6 +44,28 @@ redefinition of the old one.
 
 | 16 | Menu translation | **PLANNED** (maintainer, 2026-08-03) — translate the menu text; explicitly a standalone patch, NOT a Saturn feature, and must work with or without her. Menu text is 16×16 glyphs (2×2 tiles) in ordinary tilemaps, so a string edit is a tilemap edit — but the font's Latin capitals are a REDUCED set (**no F, J, Q, S, Z**), so the patch must also author glyphs. Translations come from the maintainer, with shorthand where a string has a fixed cell count. The Big Zam Tournament Edition does NOT translate menus (checked — there is nothing to lift). Groundwork, per-string budgets and the open questions: `docs/menu_text.md`; survey tool `tools/probe_menu_survey.lua` | PLANNED | — |
 
+### 100-series — the SMS + Saturn body of work
+
+The gap in numbering is deliberate: 100+ is a different CATEGORY of work (a
+character ported from Sailor Moon **Super S**), not another balance or UI tweak,
+and it is built and gated by a different toolchain — `tools/saturn/`,
+`tools/saturn/build_refsaturn.sh` + `build_saturn_stage.sh`, and
+`tools/saturn/verify_saturn.sh` (45 checks) rather than `mkpatchN.py` and the
+fingerprint-detected regression rows. `test_regression.lua` still runs on these
+builds (57/57) — it just does not *detect* them; the Saturn gate is the Saturn
+script, deliberately.
+
+**BPS files for 100/101 are NOT tracked**, unlike every patch above. `build/saturn/`
+is gitignored deliberately: a patch-100 BPS embeds her ported Super S cels, palettes
+and BRR samples, which is game content, and the asset policy (2026-08-04) keeps that
+out of the repo entirely. Rebuild from source — the recipes below are committed, and
+the hashes here are the check.
+
+| # | Name | One-liner | Status | Build (`build/saturn/`, untracked) |
+|---|---|---|---|---|
+| **100** | SMS + Saturn | Sailor Saturn playable in SMS, summoned by holding **L+R** while confirming a Uranus/Neptune/Pluto slot (she wears that character as a "shell"). A COMPOSITE, like the REF bundles: her four animation layers + per-char proc block, card portrait, push-collision fix, sfx remap, projectile palette split, her own voice (in-match + character-select line), her own movelist, and a Super S stage ported onto Pluto's slot. Build flags: `SATURN_HIDDEN=1` (the only shipped variant), `SATURN_VOICE=0`, `SATURN_PITCH` (= patch 101) | **CURRENT** — v0.14.9 on REF v.2, `03b73cdd…`, feature-complete, no open bugs | built by `tools/saturn/build_refsaturn.sh` |
+| 101 | Saturn voice pitch | Her voices play ~3 semitones sharp because her samples are natively ~6539 Hz and are played at char 1's notes. Corrects the driver's per-sound TRANSPOSE byte for her four sound ids ($FE/$FE/$FF/$FD → $FB), applied and restored on the same DIRTY-flag machinery as her BRR directory. **Flag on 100's builder** (`SATURN_PITCH=1`), not an independent BPS: the transposes ride streams that 100 owns, and applied WITHOUT 100 the same bytes would flatten Sailor Moon by three semitones | **BUILT, NOT SHIPPED** — measured correct (all four voices land on `$0346` vs the settled `$0345`); held on one unresolved finding, see patch_notes `sms_saturn_pitch.bps`, 170 B, diffed 100 → 100+101; ROM `30a130e8…` |
+
 ## Lifecycle notes
 
 - **Canonical set** = 1+2+3+4+5 (the original balance+cosmetic core, ROM v0.7 lineage).
@@ -51,7 +73,11 @@ redefinition of the old one.
 - **Mutually exclusive**: 1 vs 1b (same bytes, different gate value). 10 vs 10b (same
   builder, flag chooses).
 - **Dependencies**: 14 reads 13's state (read-only ABI) — stack in any order, but 14
-  without 13 is a no-op. 13 is playable without 12 only via real ACS-misfire whiffs;
+  without 13 is a no-op. **101 is stronger than a no-op without 100: it would be
+  actively wrong.** Its four bytes retune sound ids 49-52, which belong to char 1;
+  without Saturn's samples loaded behind them that is Sailor Moon's voice, three
+  semitones flat. This is why 101 is a build flag rather than a free-standing BPS —
+  the dependency is enforced by construction, not by a warning in a table. 13 is playable without 12 only via real ACS-misfire whiffs;
   with 12 the taunt is the intended trigger.
 - **Deprecation candidates**: 6 (experimental buff that pulls against patch 2; keep
   only if the maintainer decides dash-invuln is wanted after all). 1b retires whenever

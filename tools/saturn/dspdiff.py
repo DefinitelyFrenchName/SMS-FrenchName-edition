@@ -117,6 +117,13 @@ def main():
                     help="only VxPITCHL/H writes may differ")
     ap.add_argument("--expect-srcn", default=None,
                     help="comma list; differing per-voice writes must belong to these sources")
+    ap.add_argument("--semantic", action="store_true",
+                    help="compare the ORDERED key-on sequence instead of "
+                         "frame-aligned writes. Use this across builds whose LOAD "
+                         "duration differs: extra work at character load shifts the "
+                         "whole audio timeline a few frames relative to match start, "
+                         "which desynchronises a positional diff while changing "
+                         "nothing audible. The key-on order is what the player hears.")
     ap.add_argument("--require-reg", default=None,
                     help="comma list of register names that MUST differ — the "
                          "sensitivity assertion: a differ that cannot see a known "
@@ -207,8 +214,61 @@ def main():
     elif difframes:
         print("\n(no .log detail captured — rerun with DETAIL=1 to explain the diff)")
 
+    sem_fail, sem_pitch = [], defaultdict(int)
+    if a.semantic:
+        if ka is None or kb is None:
+            sem_fail.append("--semantic needs DETAIL=1 captures")
+        else:
+            seqa = [(v, s_, p, smp) for _, v, s_, p, smp in ka]
+            seqb = [(v, s_, p, smp) for _, v, s_, p, smp in kb]
+            print("\nSEMANTIC: ordered key-on sequence  A=%d  B=%d" % (len(seqa), len(seqb)))
+            if len(seqa) != len(seqb):
+                sem_fail.append("key-on COUNT differs (%d vs %d) — a sound was added, "
+                                "dropped or reordered" % (len(seqa), len(seqb)))
+            n = min(len(seqa), len(seqb))
+            structural = 0
+            for i in range(n):
+                x, y = seqa[i], seqb[i]
+                if x == y:
+                    continue
+                if (x[0], x[1], x[3]) != (y[0], y[1], y[3]):
+                    structural += 1
+                    if structural <= 5:
+                        print("   STRUCTURAL at %d: A=v%d srcn%d $%04X samp$%04X"
+                              "  B=v%d srcn%d $%04X samp$%04X"
+                              % (i, x[0], x[1], x[2], x[3], y[0], y[1], y[2], y[3]))
+                else:
+                    sem_pitch[(x[1], x[2], y[2])] += 1
+            if structural:
+                sem_fail.append("%d key-ons differ in VOICE or SOURCE, not just pitch"
+                                % structural)
+            print("   structural differences: %d" % structural)
+            if sem_pitch:
+                print("   pitch-only changes:")
+                for (srcn, pa_, pb_), n_ in sorted(sem_pitch.items(), key=lambda kv: -kv[1]):
+                    print("      srcn %-3d $%04X -> $%04X   x%d" % (srcn, pa_, pb_, n_))
+            if a.expect_srcn:
+                want = {int(t) for t in a.expect_srcn.split(",")}
+                got = {k[0] for k in sem_pitch}
+                if got - want:
+                    sem_fail.append("sources outside the expected set changed pitch: %s"
+                                    % sorted(got - want))
+                if want - got:
+                    sem_fail.append("expected sources never changed: %s — the patch may "
+                                    "not have applied" % sorted(want - got))
+
     # ---- judge -------------------------------------------------------------
     print()
+    if a.semantic:
+        if sem_fail:
+            print("VERDICT: FAIL")
+            for f in sem_fail:
+                print("   %s" % f)
+            return 1
+        print("VERDICT: PASS — the audible key-on sequence is identical except the "
+              "declared pitch changes")
+        return 0
+
     if a.require_reg:
         seen_names = {reg_name(r) for r in regs_changed}
         missing = [n for n in a.require_reg.split(",") if n not in seen_names]

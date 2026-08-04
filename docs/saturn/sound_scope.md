@@ -1004,3 +1004,22 @@ assertions to make are:
 what a load-time hook can damage, but they are not "everything": VRAM, OAM
 proper, CGRAM and the APU's internal state stay outside, and every claim is
 bounded by the scripted window (900 frames, practice mode, one shell).
+
+## SHIPPED AS PATCH 101 (built, held) [P 08-04]
+
+Implemented as `SATURN_PITCH=1` on patch 100's builder — full notes, verification
+table and the two traps in `docs/patch_notes.md` "Patch 101". Two things learned
+here that generalise beyond this patch:
+
+* **An extra IPL upload at character load phase-shifts the audio timeline.** The
+  first implementation gave the transposes their own streams and a sync stub; it
+  worked, but the extra upload moved the whole soundtrack ~3 frames relative to
+  match start. Inaudible on its own — and fatal to frame-aligned trace comparison
+  of any Saturn session. Folding the four 1-byte blocks into streams that already
+  fire costs 20 bytes on an existing upload and no shift. Adding load-time work is
+  never free even when the work itself is correct.
+* **Hence `dspdiff.py --semantic`.** Across builds whose load duration differs,
+  compare the ORDERED KEY-ON SEQUENCE rather than frame-aligned writes: it is what
+  the player actually hears, and it is shift-immune. On patch 101 it gives the
+  clean verdict a positional diff could not — 405 key-ons, identical order, zero
+  structural differences, and exactly 20 pitch changes, all hers.

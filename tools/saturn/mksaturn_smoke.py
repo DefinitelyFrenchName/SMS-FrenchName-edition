@@ -196,6 +196,11 @@ CMD_SND_MAP = {0x15: 0x05, 0x14: 0x06, 0x0E: 0x06, 0x20: 0x06,
 # v0.13.0 — HER REAL VOICE (task #44). Set SATURN_VOICE=0 to build without it
 # (CMD args 0x22-0x25 then fall back to the v0.12.7 whoosh/silence above).
 SATURN_VOICE = _osv.environ.get("SATURN_VOICE") != "0"
+# PATCH 101 — the voice pitch correction. OFF by default: it is a separate patch
+# entry with its own registry row and its own standalone BPS (diffed 100 against
+# 100+101), and it has an unresolved behavioural finding recorded against it.
+# Requires SATURN_VOICE — there is nothing to retune without her samples loaded.
+SATURN_PITCH = _osv.environ.get("SATURN_PITCH", "0") != "0"
 #
 # How SMS voices a fighter (all measured — probe_sms_voiceload / voiceid /
 # voicetrace; full write-up in docs/saturn/sound_scope.md):
@@ -285,11 +290,44 @@ SELWHO_OLD = {0: bytes.fromhex("AD401B29FF008D1E1B"),
 SEL_ARAM = 0xB700             # where a select line is uploaded
 SEL_DIRW = 0x3500             # the 4-byte directory write the vanilla banks make
 # in-bank layout of the appended voice bank
-V_SAMP, V_DIRP1, V_DIRP2 = 0x0000, 0x2600, 0x2620
-V_RESP1, V_RESP2 = 0x2640, 0x2660
+V_SAMP = 0x0000
+if SATURN_PITCH:
+    # patch 101 adds 20 B of transpose blocks to each of these four streams,
+    # which no longer fit 0x20 spacing. The offsets are respaced ONLY when 101 is
+    # built in, so a 100-without-101 build stays byte-identical to the shipped
+    # v0.14.9 — the table records point at these slots, so moving them
+    # unconditionally would change the ROM for a feature that is switched off.
+    V_DIRP1, V_DIRP2, V_RESP1, V_RESP2 = 0x2600, 0x2640, 0x2680, 0x26C0
+else:
+    V_DIRP1, V_DIRP2, V_RESP1, V_RESP2 = 0x2600, 0x2620, 0x2640, 0x2660
 V_HOOK1, V_HOOK2 = 0x2700, 0x2780
 V_SEL = 0x2800                # her select-line stream (2610 B + headers)
 V_SELHOOK, V_WHO1, V_WHO2 = 0x3300, 0x3360, 0x3380
+# --- PATCH 101: voice PITCH correction (SATURN_PITCH=1) ----------------------
+# Her samples are natively ~6539 Hz and play at Moon's notes, so she is sharp.
+# Pitch in this driver is per-sound NOTE data: each sound id's sequence carries a
+# TRANSPOSE byte, one semitone per unit (full decode in docs/saturn/sound_scope.md
+# "SOLVED (mechanism + measured fix)"). Her four ids all want $FB, measured: the
+# retune lands every voice on $0346 against the settled $0345 target.
+#
+# The ids are CHAR 1's, so the bytes cannot simply be patched in ROM — that would
+# flatten Moon by three semitones. They ride the same apply/restore machinery as
+# her directory record, as two more IPL streams.
+SPC_ROM_BASE = 0x23F804       # driver image: file offset = ARAM + this
+PITCH_ADDRS = (0x1C91, 0x1CAB, 0x1CB6, 0x1CC1)   # ARAM: sequence base + 3
+PITCH_VANILLA = (0xFE, 0xFE, 0xFF, 0xFD)         # laugh, 236P, 214P, j632K
+PITCH_TARGET = 0xFB
+# The transpose blocks ride the streams that ALREADY fire — her directory on a
+# Saturn load, char 1's on the restore — rather than a stream of their own.
+# A separate stream cost an extra IPL upload per load, and that measurably
+# phase-shifted the whole audio timeline by ~3 frames (inaudible in itself, but
+# it desynchronises every future trace_dsp comparison of a Saturn session, which
+# is too much to pay for four bytes). Folding them in adds 20 bytes to an upload
+# that was happening anyway: no extra call, no extra driver restart, no shift.
+#
+# P2's streams are relocated by dp $10 = $0010, so their destinations are written
+# 0x10 LOW to land correctly. That bias is the one trap here.
+PITCH_DP_BIAS_P2 = 0x0010
 # v0.13.2 — HER MOVELIST (task #41). SMS picks a character's list from a table
 # of nine 3-byte pointers at $E0:021A + charID*3, expands it into the staging
 # buffer and DMAs it to BG3 (P1 -> VRAM word $1000, P2 -> $1400). The two reads
@@ -1708,6 +1746,27 @@ def main():
             V_RESP2: ipl((VOICE_DIR_ARAM, van[16:32])),
             V_SEL:   ipl((SEL_DIRW, seldir), (SEL_ARAM, vsel)),
         }
+        if SATURN_PITCH:
+            # PRECONDITION: the driver image must be where the disassembly says
+            # and still carry the vanilla transposes.
+            for a, v in zip(PITCH_ADDRS, PITCH_VANILLA):
+                expect(SPC_ROM_BASE + a, bytes((v,)),
+                       f"SPC driver transpose at ARAM ${a:04X}")
+
+            def _trblocks(vals, bias):
+                """four 1-byte blocks, so nothing between the transposes is
+                rewritten; `bias` cancels the P2 stream's dp $10 relocation"""
+                return tuple((a - bias, bytes((v,))) for a, v in zip(PITCH_ADDRS, vals))
+
+            tgt = (PITCH_TARGET,) * 4
+            streams[V_DIRP1] = ipl((VOICE_DIR_ARAM, _vx.dir_blob(ventries, 0xB700)),
+                                   *_trblocks(tgt, 0))
+            streams[V_DIRP2] = ipl((VOICE_DIR_ARAM, _vx.dir_blob(ventries, 0xDB00)),
+                                   *_trblocks(tgt, PITCH_DP_BIAS_P2))
+            streams[V_RESP1] = ipl((VOICE_DIR_ARAM, van[0:16]),
+                                   *_trblocks(PITCH_VANILLA, 0))
+            streams[V_RESP2] = ipl((VOICE_DIR_ARAM, van[16:32]),
+                                   *_trblocks(PITCH_VANILLA, PITCH_DP_BIAS_P2))
         # the P2 directory streams say $34C0 and are steered to $34D0 by dp $10
         f1 = bytearray(0x10000)
         for off, blob in streams.items():

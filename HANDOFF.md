@@ -19,7 +19,23 @@ Playable roster (charID): 1 Moon, 2 Mercury, 3 Mars, 4 Jupiter, 5 Venus, 6 Uranu
 
 ---
 
-## 0. Current state (2026-08-03) — SMS + Saturn
+## 0. Current state (2026-08-04) — SMS + Saturn = PATCH 100
+
+**Numbering (2026-08-04, maintainer):** the whole Super S body of work is
+**patch 100**, and the voice-pitch correction is **patch 101**. The gap from 16
+is deliberate — 100+ is a different CATEGORY of work, built and gated by
+`tools/saturn/` rather than by `mkpatchN.py` and the fingerprint-detected
+regression rows. Registry rows: `docs/patch_index.md`. Renumbering is
+documentation only: REF v.1 (`2873f214…`), REF v.2 (`6d79fb5f…`) and patch 100
+(`03b73cdd…`) were all rebuilt and are **byte-identical**.
+
+**Patch 101 is BUILT but NOT SHIPPED** (`SATURN_PITCH=1`, off by default;
+`build/saturn/sms_saturn_pitch.bps`, ROM `30a130e8…`). It is measured correct —
+all her voices land on `$0346` against the settled `$0345` — and every gate is
+green, but it is held on one unresolved finding: retuning her voices also moves
+DSP voices 1/2/6, which hold music sources, by the same intervals. Layered sfx
+(benign) or an sfx shadow landing on a music voice (not benign) both fit.
+Detail: `docs/patch_notes.md` "Patch 101", `docs/saturn/sound_scope.md`.
 
 The base patch project below is complete and green; active work is the **SMS +
 Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:

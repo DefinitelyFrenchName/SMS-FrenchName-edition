@@ -19,7 +19,31 @@ Maintainer's verdict on the current build: "perfectly acceptable for playing".
 
 ## The two open work items — both DEFERRED by the maintainer, neither blocking
 
-### 1. Voice pitch — MECHANISM SOLVED 2026-08-04; in-match fix measured, not built
+### 1. Voice pitch — BUILT as PATCH 101, not shipped; one finding to settle
+
+**Done since:** the Super S work is now **patch 100** and the pitch fix **patch
+101** (`SATURN_PITCH=1`, off by default). 101 is implemented, measured and
+gate-clean — see `docs/patch_notes.md` "Patch 101" for the full verification
+table. Byte-neutrality of 100, REF v.1 and REF v.2 was re-proven by rebuild.
+
+**The one thing blocking it:** retuning her voices also moves DSP voices 1/2/6 —
+which hold *music* sources — by exactly the intervals applied to her sounds, at
+~84 frames of 900. Either her sfx is layered across several DSP voices (correct
+behaviour) or an sfx pitch shadow is being flushed onto a music voice (audible
+detune). Settle it by reading the channel allocator at `$0AF7`/`$0B1E`, or by
+listening to `sms_saturn_pitch.bps` applied and not.
+
+**Second decision for the maintainer:** the transpose is shared, so P1 Saturn +
+P2 Sailor Moon cannot both be right — with 101 on, that Moon is 3 semitones flat.
+
+**Harness note:** across builds whose LOAD duration differs, use
+`dspdiff.py --semantic` (ordered key-on sequence, shift-immune). A frame-aligned
+diff desynchronises by ~3 frames because extra load-time work moves the audio
+phase relative to match start.
+
+Original notes below.
+
+### 1b. Voice pitch — MECHANISM SOLVED 2026-08-04; in-match fix measured
 
 **The blocker below was a misreading and is gone.** `$131D`/`$1327` are not a
 pitch routine — they are the `INC Y` inside an unrolled DSP shadow flush
