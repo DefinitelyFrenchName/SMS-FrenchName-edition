@@ -19,7 +19,32 @@ Maintainer's verdict on the current build: "perfectly acceptable for playing".
 
 ## The two open work items — both DEFERRED by the maintainer, neither blocking
 
-### 1. Voice pitch — targets settled, mechanism half-traced, cost unknown
+### 1. Voice pitch — MECHANISM SOLVED 2026-08-04; in-match fix measured, not built
+
+**The blocker below was a misreading and is gone.** `$131D`/`$1327` are not a
+pitch routine — they are the `INC Y` inside an unrolled DSP shadow flush
+(`$12F4`). Pitch is **per-sound NOTE data**: one **transpose byte** per sound id,
+one semitone per unit. Full decode, addresses and the ROM home of the driver
+(file offset = ARAM + `0x23F804`) are in `docs/saturn/sound_scope.md` § "SOLVED
+(mechanism + measured fix)". New tool: `tools/saturn/spc700dis.py`.
+
+* **In-match voices: fix measured.** Her four ids (49-52, char 1's) all want
+  transpose **`$FB`**. Poking them lands every voice on `$0346` — 0.5 cents from
+  the settled `$0345` target (`tools/saturn/probe_sms_voicetranspose.lua`, PASS).
+  The driver is not re-uploaded mid-match, so a ROM change is stable.
+* **What is left is the gating, not the retune.** Those ids are Moon's, so the
+  bytes must swap in and out exactly as her directory record already does
+  (DIRTY flag `$7F:F107`/`F108`). Estimated: two spare audio-table records
+  (52/53 free) + two `ipl()` streams + two `_load` calls. ⚠ Not on the P2
+  directory stream — that path is relocated by dp `$10`.
+* **Select line: derived, NOT measured.** All nine select sequences are identical
+  apart from transpose, so she can just *request Mars's id 58* (already `$FE`,
+  the exact target) — zero data change. But the confirm voice would not fire in
+  any harness config tried, so this is unverified; and the `$0582` figure the
+  original select measurement rests on looks like an sfx (srcn 128, sample
+  `$9C00`), which deserves a second look first.
+
+Original notes below, kept because the targets still stand:
 
 Her voices play **sharp**. Both targets are measured and confirmed (the select
 line by the maintainer's own spectral analysis):

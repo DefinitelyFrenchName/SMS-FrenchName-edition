@@ -723,3 +723,133 @@ Two ways to fix it, with different costs:
 So (1) is the promising direction and the first step is finding where the pitch
 for a voice id comes from. Neither is urgent: the maintainer's call is that the
 current state is good.
+
+## SOLVED (mechanism + measured fix): the SPC driver decoded [P 08-04]
+
+The blocker recorded above — "pitch is emitted from ONE routine shared with all
+music (`$131D`/`$1327`), so a fix cannot target her" — was **a
+misreading of what those two PCs are**. They are not a pitch routine. Disassembly
+settles it, and the answer is much cheaper than feared: pitch is per-sound NOTE
+data, and **one byte per sound** shifts it in whole semitones.
+
+New tool: **`tools/saturn/spc700dis.py`** — an SPC700 disassembler (full 256-entry
+table; nothing else in the tree can read SPC code, Dispel is 65816 only). It takes
+a 64 KB ARAM dump and offers `--at/--len`, `--trace` (follow flow) and `--refs`
+(who touches an address). Validated against a hand-decode of the block below
+before any conclusion was drawn from it.
+
+**The driver's ROM home: file offset = ARAM + `0x23F804`** (SNES `$E3:F804`),
+verified by finding four widely separated ARAM slices in the ROM at one constant
+delta. So every table below has a ROM address and is patchable.
+
+⚠ **Use an SMS ARAM dump.** `traces/saturn/aram_versus_*.bin` and
+`aram_select_char*.bin` are **Super S** dumps — they hash identically to
+`supers_aram_*.bin` and differ from SMS everywhere. `aram_6.bin` (and the other
+nine in its cluster) are the SMS ones.
+
+### What `$131D` and `$1327` actually are
+
+```
+12F4:  F5 46 13   MOV A,$1346+X     ; DSP voice base for logical channel X
+12F7:  FD         MOV Y,A
+12F8:  F5 60 02   MOV A,$0260+X     ; +$0430+X  -> VOL L
+...
+1314:  F5 B0 02   MOV A,$02B0+X
+1317:  CC F2 00   MOV DSPADDR,Y
+131A:  C5 F3 00   MOV DSPDATA,A     ; <- VxPITCH LO
+131D:  FC         INC Y             ; <- the "$131D" of the field note
+131E:  F5 C0 02   MOV A,$02C0+X
+1321:  CC F2 00   MOV DSPADDR,Y
+1324:  C5 F3 00   MOV DSPDATA,A     ; <- VxPITCH HI
+1327:  FC         INC Y             ; <- the "$1327"
+```
+
+`$12F4` is an **unrolled DSP shadow flush** that pushes seven registers per voice
+(VOL L/R, PITCH lo/hi, SRCN, ADSR1/2). `$131D`/`$1327` are the `INC Y` *after*
+each `MOV DSPDATA,A` — i.e. the PC a probe samples one instruction late. The
+routine is shared with the music only in the sense that *every* DSP write is; it
+computes nothing. The pitch values arrive in the shadow arrays
+**`$02B0+X` (lo) / `$02C0+X` (hi)**, X = logical channel (0-7 music, 8-15 sfx).
+
+### The real pitch pipeline
+
+    sound id -> sfx table $13D6 + (id-1)*4 = [seq_lo, seq_hi, prio, chan]
+                (128 entries; ids 1..94 real, then sequence data — no room to extend)
+    sequence -> [$01, ptr_lo, ptr_hi, TRANSPOSE, instrument, volL, volR, ...]
+    $0B1E    copies TRANSPOSE -> $0240+X, instrument -> $0250+X
+    $10A0    note = <sequence byte> - $74 + $0240+X          <- the transpose lands here
+    $0D6D    note/12 -> octave, note%12 -> semitone table at $0DF5
+             (13 words, ratio 1.05946 = 2^(1/12), verified)
+             pitch = interp(table) >> (6-octave), then * tuning ($0410/$0420+X)
+    $0C35    instrument < $30 -> 6-byte record at ARAM $3700 + inst*6
+                                 [srcn, ADSR1, ADSR2, GAIN, tune_lo, tune_hi]
+             instrument >= $30 -> srcn = the instrument number itself,
+                                 fixed ADSR $FF/$E0 and **fixed tuning $1702**
+
+That last split is the important structural fact: **directory entries >= 48 are
+exactly the per-player VOICE banks**, so every voice in the game shares one
+hardcoded tuning and the only per-sound pitch control is the transpose byte.
+
+### The in-match fix — MEASURED, four bytes
+
+Her four ids are char 1's, and their vanilla transposes predict the recorded
+pitches exactly (each +1 of transpose = +1 semitone):
+
+| id | move | transpose | measured | wanted |
+|---|---|---|---|---|
+| 49 | win laugh | `$FE` (−2) | (not measured) | `$FB` |
+| 50 | 236P | `$FE` (−2) | `$03E4` | `$FB` |
+| 51 | 214P | `$FF` (−1) | `$041F` | `$FB` |
+| 52 | j632K | `$FD` (−3) | `$03AC` | `$FB` |
+
+All four converge on **`$FB`** — consistent with the settled finding that her
+in-fight samples share one native rate, and that the vanilla values were tuned
+for *Moon's* samples.
+
+**Verified in-emulator** (`tools/saturn/probe_sms_voicetranspose.lua`, v0.14.9,
+shell 6): poking the four ARAM bytes to `$FB` collapses all three measurable
+voices from `$03E4`/`$041F`/`$03AC` onto **`$0346`** — 1 LSB (0.5 cents, 2 Hz)
+from the settled target `$0345`, because the driver interpolates between semitone
+entries and rounds. Control run reproduces the vanilla pitches. The probe asserts
+the vanilla bytes *before* poking, and confirms the driver image is **not
+re-uploaded mid-match** (0 reverts), so a ROM-side change is stable.
+
+### The catch, and the shape of a real patch
+
+Ids 49-52 are **Moon's**. Changing them in ROM flattens his voice by 3 semitones.
+But this is the same problem the directory already solves: her build overwrites
+char 1's directory half on Saturn load and restores it on any non-Saturn load,
+DIRTY-flag gated (`$7F:F107`/`F108`). The transpose bytes ride along the same way.
+
+Estimated cost, all inside proven machinery: **two spare audio-table records**
+(47-51 used, 52/53 free in the `$C0:EE00` zero run) carrying an apply stream
+(4 bytes `$FB`) and a restore stream (`$FE $FE $FF $FD`), plus two `_load` calls
+in the existing voice hooks. `ipl()` in `mksaturn_smoke.py` is already
+multi-block. ⚠ Do **not** simply append the block to the existing P2 directory
+stream: that path is relocated by dp `$10`, so a block written there lands 16
+bytes high. Separate un-relocated records avoid the trap entirely.
+
+### The select line — derived, NOT yet measured
+
+The select ids are `48 + (charID-1)*5`, one per character, all with instrument
+`$30` (directory entry 48 — which is where her sample is loaded). The nine
+sequences are **byte-identical apart from the transpose**:
+
+    Moon +3   Mercury +1   Mars −2   Jupiter +1   Venus +0
+    Uranus +2   Neptune +1   Pluto +4   ChibiMoon +2
+
+This retrodicts the recorded field numbers exactly: Uranus (+2) `$04E7` and Pluto
+(+4) `$0582` are precisely 2 semitones apart. Reaching the settled target `$03E4`
+needs **−2 from every shell** — and **Mars's id 58 already carries `$FE`**. So the
+select fix costs *no data change at all*: have the existing v0.13.1 confirm hook
+request **sound id 58** instead of the shell's 73/78/83. Mars is never a shell, so
+nothing collides.
+
+⚠ **UNVERIFIED.** Four probe runs (both shells, control and poked) produced **zero
+voice key-ons at char-select** — the confirm voice would not fire under any
+autopilot config tried (rows 1/2/4, `probe_sms_voicepitch` and the new probe
+alike). Per this project's own rule that is a broken harness, not evidence either
+way. Also worth re-checking when someone returns to this: the `$0582` quoted for
+the Pluto select line is the pitch of **srcn 128, sample `$9C00`** in the in-match
+traces — an sfx, not a voice bank — so the provenance of the original select
+measurement deserves a second look before anything is built on it.
