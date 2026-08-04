@@ -282,3 +282,52 @@ empty HUD cells contain.
 unblocks the field report — and treat the real name as a later improvement rather
 than a prerequisite. That also lets the redirect hook be proven on its own before
 any font work is layered on top of it.
+
+### The draw routine, and the blank fix VERIFIED (2026-08-05)
+
+Found statically, then confirmed on screen.
+
+    $C0:D71E  sep #$30
+    $C0:D720  lda $1000        ; P1 charID, straight from the player struct
+              asl/asl/sta $00/asl/clc/adc $00   ; x12
+              tax
+              ldy #$0C                          ; 12 cells
+              lda #$A2/sta $2116, lda #$10/sta $2117   ; VRAM $10A2 = P1 plate
+    $C0:D738  lda $D8AE,X      ; 1-INDEXED: id 0 -> $D8AE = 12 ZERO bytes
+              sta $2118, lda #$2C/sta $2119, dey, bne
+    $C0:D747  lda $1080        ; then P2, VRAM $10B2
+
+Two consequences:
+
+* **It reads `$1000`/`$1080` — the player struct's charID — at a moment when
+  that still holds the SHELL.** So the plate is not an out-of-range read (id
+  `0x1C` would land at `$D9FE`, far past the table, and show garbage); it is a
+  correct lookup of the wrong character. A redirect fixes it.
+* **The plate is drawn by CPU port writes, not DMA.** Worth noting because an
+  earlier probe watching exactly this VRAM window reported zero writes while
+  capturing 1.29M overall — so that probe was wrong about something, and the
+  disassembly is the authority here, not the probe.
+
+**Blank costs nothing to store.** Index 0 already points at `$D8AE`, twelve zero
+bytes the game never uses. Forcing the index to 0 therefore blanks the plate with
+no new record anywhere.
+
+**VERIFIED, not assumed** (the question flagged earlier — does tile `$00` render
+blank?): a throwaway ROM with `lda $1000` replaced by `lda #$00 / nop` was
+captured in 1P-vs-COM. P1's plate is **empty**, the opponent's is untouched, and
+nothing else in the frame changes. Tile `$00` at attribute `$2C` draws nothing.
+
+⚠ Capture note for anyone repeating this: **practice mode draws no nameplates at
+all.** Three earlier captures had no HUD in frame and could answer nothing. Use
+row 2 (1P-vs-COM) or 2P VS.
+
+**Implementation, now fully specified:** hook the two `lda` sites and substitute
+index 0 when that player is Saturn.
+
+    site A  $C0:D720  `AD 00 10` (lda $1000)  — P1, flag $7F:F100 / latch $7F:F102
+    site B  $C0:D747  `AD 00 10`? -> `AD 80 10` (lda $1080) — P2, flag $F101 / latch $F103
+
+Each site is followed by `asl A / asl A`, so a 5-byte window (`lda abs` + two
+`asl`) is available for a `jsl` + `nop`, with the stub returning A = index*4 and
+the existing `sta $00` continuing unchanged. M and X are 8-bit on entry
+(`sep #$30` at `$C0:D71E`). Vanilla is untouched whenever the flag is clear.

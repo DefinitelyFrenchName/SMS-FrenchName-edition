@@ -82,8 +82,10 @@ end, emu.eventType.inputPolled)
 
 local STEPS = {
   function() return frames >= 900 end,
-  function() pulse[0] = beat({ down = true }); return ram(0x1B10) == 1 end,
-  function() pulse[0] = beat({ right = true }); return ram(0x1B10) == 4 end,
+  -- ROW 2 = 1P-vs-COM. Practice (row 4) draws NO nameplates at all, so the
+  -- earlier captures had no HUD in frame and could not answer anything.
+  function() pulse[0] = beat({ down = true }); return ram(0x1B10) == num("ROW", 2) end,
+  function() return true end,
   function() pulse[0] = beat({ start = true }); return sf > 40 end,
   function() pulse[0] = {}; return sf > 240 end,
   function() setchars(); hold = true; return sf > 20 end,
@@ -98,7 +100,16 @@ local STEPS = {
     if sf > 1500 then log("MATCH-LOAD-FAIL"); emu.stop(1) end
     return false
   end,
-  function() pulse[0] = {}; return sf > 400 end,
+  function()
+    pulse[0] = {}
+    -- screenshot LATE: the earlier probes captured during the round intro, when
+    -- the HUD is not drawn yet, so the nameplate was not in frame at all
+    if sf == 380 then
+      local f = io.open(ENV.TRACE .. "saturn/" .. TAG .. ".png", "wb")
+      if f then f:write(emu.takeScreenshot()); f:close() end
+    end
+    return sf > 400
+  end,
 }
 
 emu.addEventCallback(function()
