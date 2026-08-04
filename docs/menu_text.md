@@ -611,3 +611,57 @@ room exists. But it is **authoring 26 glyphs, not harvesting 9**, so the cost is
 squarely in drawing legible 8×16 capitals in this game's style, not in finding
 space. The full-width route (`S` and `.` to author, no relocation) remains much
 cheaper and is still the fastest path to a first shipping screen.
+
+### The Big Zam edition as a SOURCE OF LETTERFORMS (maintainer lead, 2026-08-04)
+
+The maintainer pointed out that BZ's title screen renders its menu items
+(TRAINING / OPTIONS / TOURNAMENT) in **narrow English letters** rather than
+full-width kana. Worth chasing, because it is a different question from the one
+this file already closed ("BZ does not TRANSLATE the menus" — true, and
+irrelevant to whether its own tiles carry usable letterforms).
+
+**What is established:**
+
+* **BZ changes nothing in the normal asset path.** Both font blocks
+  (`$C3:48D0` kana, `$C7:07F0` kanji) are **byte-identical** to clean, and so are
+  **all 59 records** of the compressed-asset job table at `$C3:BE02` — same
+  sources, same destinations, same decompressed payloads. So BZ's Latin is not
+  a font it swapped in; it is injected into VRAM at runtime, which matches
+  `mkpatch4.py`'s note that the credit tiles exist "only in a packed/injected
+  form, hence the VRAM extraction".
+* **BZ's title screen does carry Latin**, at VRAM `$2C2-$2FC` (the
+  "©MOONLIGHT FIGHT SOCIETY" credit line patch 4 already lifts) and in at least
+  two further text rows at `$300+`. ⚠ Note the numbering: `mkpatch4.py` counts
+  tiles from the title screen's char base `$200`, so its "tile `0x0C2`" is VRAM
+  tile **`$2C2`**. Rendering at `$0C2` shows blank and looks like a dead end.
+* **These are proportional artwork too.** Objectively: the credit line has 19 ink
+  runs of which **15 span tile boundaries**; the narrow row has 19 runs, **15
+  spanning**, with run widths of 5-12 px. So BZ's letters are no more
+  individually addressable than SMS's `PRESS "SELECT"` banner.
+
+**Why the lead is still valuable.** Not as a font to reference, but as a
+**source of shapes**. The letterforms are extractable pixel-wise from a VRAM
+capture and can be re-cut onto a tile grid — which turns "design 26 half-width
+capitals from nothing" into "trace and re-cut existing ones that already look
+right in this game". It also settles the aesthetic question the maintainer would
+otherwise have to judge blind: narrow Latin at this size demonstrably reads on
+this hardware, because a shipped hack does it.
+
+**NOT yet done — the strings the maintainer named are still unseen.** Every BZ
+capture in `traces/` is from the attract/logo phase (`mode $00`, bgmode 0/1,
+intro scroll DMAs); two scripted walks with Start presses never reached the
+mode-select menu. So TRAINING / OPTIONS / TOURNAMENT have not actually been
+captured, and the letter inventory below is what the CREDIT LINE alone offers:
+
+    from "MOONLIGHT FIGHT SOCIETY":  C E F G H I L M N O S T Y   (13 of 26)
+
+Reaching the menu would add at least **A P R U** (TRAINING, OPTIONS,
+TOURNAMENT), taking it to ~17. The remaining nine (B D J K Q V W X Z) would have
+to be drawn to match — which is the same job as before, but with a style
+reference and two thirds of the alphabet already solved.
+
+**Next step:** a working navigation script to BZ's mode-select menu, then the
+same tile-alignment + letter-segmentation pass run here. `probe_menu_survey.lua`
+takes `KEYS="start:900 …"`; the two attempts recorded above did not advance the
+screen, so the walk needs checking against what BZ actually wants (it may need
+the attract loop to finish, or a different button).
