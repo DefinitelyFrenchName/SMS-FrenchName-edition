@@ -20,6 +20,10 @@ local PL = ENV.dofile("probelib.lua")
 local ram, wr = PL.ram, PL.wr
 local function num(n, d) return tonumber(os.getenv(n) or "") or d end
 local SHELL = num("SHELL_ID", 6)
+-- SATURN=0 plays the plain shell character: the CONTROL. A vanilla projectile
+-- referencing blank VRAM would mean "blank tiles" is normal here and proves
+-- nothing; if only hers does, the defect is hers.
+local SATURN = os.getenv("SATURN") ~= "0"
 local TAG = os.getenv("TAG") or "projtiles"
 local LOG = assert(io.open(ENV.TRACE .. "saturn/projtiles_" .. TAG .. ".txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
@@ -36,13 +40,20 @@ local function setchars() wr(0x1B40, SHELL); wr(0x1B80, 4) end
 emu.addEventCallback(function()
   for p = 0, 1 do
     local b = pulse[p] and PL.pad(pulse[p]) or PL.pad()
-    if hold and p == 0 then b.l = true; b.r = true end
+    if hold and SATURN and p == 0 then b.l = true; b.r = true end
     emu.setInput(b, 0, p)
   end
 end, emu.eventType.inputPolled)
 
 local function capture(why)
   captured = true
+  -- The rendered frame is the only metric that is guaranteed to separate a
+  -- known-good build from a known-bad one, which is exactly the control the
+  -- earlier OAM metric lacked. v0.14.1 is intact per the maintainer; v0.14.6
+  -- shows the fragmented projectile. Any measurement that cannot tell those two
+  -- apart is measuring the wrong thing.
+  local sf_ = io.open(ENV.TRACE .. "saturn/proj_" .. TAG .. ".png", "wb")
+  if sf_ then sf_:write(emu.takeScreenshot()); sf_:close() end
   log("=== " .. why .. " (frame " .. frames .. ") ===")
   log(string.format("proj slots: $1100 id=%02X  $1180 id=%02X", ram(0x1100), ram(0x1180)))
   -- OAM: 128 entries of 4 bytes, then 32 bytes of high table (x9 + size)
@@ -68,11 +79,19 @@ local function capture(why)
   log(string.format("projectile object: x=%d y=%d", px % 512, py))
   -- both axes: an x-only window caught the FIGHTER (y=97 while the projectile
   -- sits at y=168) and buried the signal in unrelated sprites
+  -- Position alone is NOT enough: a 32 px window around the projectile also
+  -- contains the fighter, and a vanilla-Neptune control showed the same tiles
+  -- and the same "blank" count as Saturn — i.e. the earlier metric was measuring
+  -- the character, not the projectile, and the v0.14.8 "bisection" built on it
+  -- was unsound. A projectile is drawn on ITS SLOT'S palette row (2 for $1100,
+  -- 3 for $1180; her own row is 7 from v0.14.9), so require the palette too.
   local mine = {}
   for _, e in ipairs(used) do
     local dx = math.min(math.abs(e.x - (px % 256)), 256 - math.abs(e.x - (px % 256)))
     local dy = math.abs(e.y - py)
-    if dx <= 32 and dy <= 32 then mine[#mine + 1] = e end
+    if (e.pal == 2 or e.pal == 3 or e.pal == 7) and dx <= 64 and dy <= 64 then
+      mine[#mine + 1] = e
+    end
   end
   log(string.format("entries near the projectile: %d (of %d live)", #mine, #used))
   for _, e in ipairs(mine) do

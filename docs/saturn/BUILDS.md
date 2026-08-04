@@ -228,8 +228,35 @@ window returns ZERO sprites, which means the coordinates read from the slot
 ($1121/$1122 x, $1125 y) are probably not its screen position — those offsets
 were taken from the Deep Submerge notes and may not apply to her object.
 
-**Next, in order:** (1) establish which struct offsets hold the projectile's
-screen x/y, by dumping the slot and correlating with a sprite cluster that moves
-with it; (2) only then compare her projectile's sprite list against a vanilla
-one. Do not repeat the mistake above — any metric here must be run against a
-vanilla-projectile CONTROL before it is believed.
+### The window is now BOUNDED, and a known-good build exists (maintainer, 2026-08-05)
+
+The bug cannot have started before **v0.14.2** and is present by **v0.14.6**:
+
+* **v0.14.1 — projectile INTACT**, and Saturn was usable, so this is a genuine
+  known-good reference.
+* **v0.14.2-v0.14.5** — the shell was not replaced in the modes the maintainer
+  plays, so the projectile could not be seen at all. Silent, not proven good.
+* **v0.14.6** — 2P VS transforms again, and the projectile is visibly broken.
+
+That pair (0.14.1 good / 0.14.6 bad) is the **control any future metric must
+pass**: a measurement that cannot separate those two builds is measuring the
+wrong thing, which is exactly how the retracted OAM metric went wrong.
+
+### Attempt 2 also failed — recorded so it is not repeated
+
+The right metric is the RENDERED FRAME (`emu.takeScreenshot()` at the moment the
+projectile is live), since that is literally what the maintainer sees. Captured
+on 0.14.1 and 0.14.6 at the same scripted instant — and **neither frame contains
+the projectile at all**. So the trigger is wrong: it fires when slot `$1100`
+becomes non-zero with `id=$22`, but that object is not her fireball, or it is
+gone by the +20f capture point.
+
+Incidentally confirmed in those captures, and NOT a bug: on 0.14.1 the dummy
+transforms too (a Saturn mirror), on 0.14.6 it does not — that is the shell guard
+working as designed.
+
+**What would unblock this fastest:** the exact input and range that reliably
+produces her 214P projectile, or a savestate with it on screen. The same thing
+unblocked the throw corruption in 0.14.8, where the maintainer's minimum SPD
+input (6 2 4 8 + P at contact) succeeded after the suite's own longer motion kept
+whiffing. Guessing the trigger from here has now cost two attempts.
