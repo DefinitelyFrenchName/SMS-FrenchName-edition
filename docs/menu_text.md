@@ -908,3 +908,39 @@ readable words.
 VRAM captures, but that is **evidence, not proof**. Write-watch that range over a
 full boot -> title -> select -> match -> KO -> win session before authoring into
 it, the same way `probe_sms_freetable.lua` cleared the audio table's spares.
+
+## VRAM space: GATE PASSED, with a caveat that matters — 2026-08-04
+
+`tools/probe_vram_free.lua` turns "free in 192 captures" into a real answer by
+running a **full session** — boot, intro, mode select, character select, a match
+with damage on, a KO and the win screen — and testing the range two ways at once.
+
+**Result for `$5C0-$5FF`:**
+
+| phase | state |
+|---|---|
+| boot / intro | zero |
+| mode select | zero |
+| character select | zero |
+| **match load** | **1416 of 2048 bytes go non-zero** |
+
+**Verdict: free on every MENU screen; first used at match load.** For a menu font
+that is a **pass** — the match replaces VRAM wholesale and the glyphs are
+re-uploaded whenever a menu is drawn again. It would NOT be safe for anything
+that has to persist into gameplay, and the probe says so rather than printing a
+bare "free".
+
+### The part worth remembering
+
+**The write watch saw ZERO writes. The snapshots caught all 1416 bytes.**
+
+VRAM is filled by DMA, and DMA does not surface as a CPU write callback. A probe
+built only on a write watch would have reported this range pristine through a
+full match and been completely wrong. That is the same class of error as the
+earlier "a probe that reports nothing is usually broken" cases, and it is why
+this probe carries both mechanisms and cross-checks them: if the watch is silent
+while a snapshot goes dirty, the watch is what is broken.
+
+The first attempt also timed out at the title because the navigation was
+hand-rolled; the autopilot is now lifted verbatim from the probes known to reach
+a match. Reuse the working flow rather than writing a new one.
