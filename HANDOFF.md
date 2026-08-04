@@ -618,6 +618,15 @@ Submerge fireball demos.
 
 - **Mesen `setInput` port is the 3rd arg**, not the 2nd (a Mesen bug discards param 2):
   `emu.setInput(buttons, 0, port)` — port 0 = P1, 1 = P2. Writing `(tbl, 1)` silently drives P1.
+- **Asset policy (maintainer ruling, 2026-08-04), spelled out in `.gitignore`:**
+  **screenshots and any game imagery are NEVER tracked** — an emulator capture is
+  game art just as much as a ROM is, and `git add -f` is not an escape hatch (nine
+  PNGs reached the public repo that way before the rule was made repo-wide).
+  Nothing depends on them: all 107 `.png` opens in `tools/` are write-only.
+  **Savestates (.mss) ARE kept**, deliberately: they embed WRAM/VRAM but are not
+  directly accessible content the way a picture is, and 152 files call
+  `loadSavestate`. If imagery ever has to be kept, the plan is two repos — a clean
+  public one and a private one for savestates and other assets.
 - **NEVER build a bundle by chaining standalone BPS files** (an old patch_index note
   wrongly blessed this): every bank-appending standalone (4, 10/10b, 11, 12, 13, 14) is
   diffed against CLEAN and targets the SAME first-free bank $E8 — chained application
