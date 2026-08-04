@@ -324,6 +324,21 @@ which means shifts of -2/-3/-4 respectively. Which of those is right is a
 listening question, and the four samples were rendered at 6539 Hz and sent for
 exactly that check.
 
+**In-match voices: SETTLED at `$0345` / 6539 Hz** (maintainer, 2026-08-04):
+"by far the closest we've ever gotten to the right pitch ... beyond
+satisfactory", noting they may differ slightly from Super S or from each other.
+So all four in-match samples take the one note, i.e. shifts of -2/-3/-4 from
+their current values. Good enough is the standard here, not perfection.
+
+**The select line had to be sourced differently.** Entry 48 is NOT the
+"Yoroshiku" — the four bank entries in an in-match ARAM dump are all in-fight
+voices, because the select sample only occupies `$B700` during CHARACTER SELECT.
+Rather than dump ARAM at the right moment, it is simpler to decode it from the
+source: Super S ROM `$EC:C12F`, 2610 bytes = 290 BRR blocks, which `brr.py`
+decodes directly (BRR is position-independent). 4640 samples, end flag present.
+Rendered at 6539 Hz for judgement, against 8000 (the old assumption) and against
+9805/11016 Hz — what the port actually plays it at on a Uranus and a Pluto shell.
+
 **Method note, for reuse:** a listening A/B, the same method that
 produced the 8 kHz answer in the first place. `probe_aramdump.lua` (new) dumps
 ARAM with her samples loaded and prints the BRR directory, so `brr.py` can render
