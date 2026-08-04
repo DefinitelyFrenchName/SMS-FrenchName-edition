@@ -247,3 +247,38 @@ record would therefore render correctly in some matchups and show gaps in others
 CPU port writes to the nameplate cells are ZERO, 1.29M port writes captured and
 none in the window, so the write watch is alive and the transfer is simply DMA),
 then hook it per player against the Saturn flag and upload the missing glyphs.
+
+### Fallback (maintainer, 2026-08-05): BLANK the nameplate rather than show the shell's
+
+If drawing "SATURN" proves awkward, the accepted fallback is to draw **nothing**
+when she is selected.
+
+This is worth more than its "fallback" billing, because it deletes the expensive
+half of the job. The two halves are independent:
+
+| | needs a per-player flag check + record redirect | needs glyph uploads |
+|---|---|---|
+| show `SATURN` | yes | **yes** — and the missing letters vary by matchup |
+| show nothing | yes | **no** |
+
+The redirect is the same hook either way; only the payload differs — a blank
+record instead of her name. So the blank version is the *same* change minus the
+matchup-dependent font work, which is the part that would otherwise have to
+handle URANUS missing only `T` while PLUTO misses `S A R N`.
+
+It is also strictly better than the current behaviour on correctness grounds: a
+blank plate is merely absent, whereas the shell's name is actively wrong — it
+tells the player they are fighting Uranus when they are not.
+
+⚠ **One thing to verify, not assume:** the records are zero-PADDED, so `$00` is
+the pad byte — but that does not prove `$00` renders as blank. The drawing
+routine may copy a fixed 12 cells, in which case an all-zero record would draw
+twelve copies of tile `$00`, whatever that glyph is. Check what tile `$00` is in
+the nameplate CHR before shipping a zero record; if it is not blank, use the
+tilemap's own blank (`$2000` per annotations.md) or whatever the surrounding
+empty HUD cells contain.
+
+**Suggested staging:** land the blank version first — it is small, correct, and
+unblocks the field report — and treat the real name as a later improvement rather
+than a prerequisite. That also lets the redirect hook be proven on its own before
+any font work is layered on top of it.
