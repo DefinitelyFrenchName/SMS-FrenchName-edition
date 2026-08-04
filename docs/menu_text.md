@@ -944,3 +944,49 @@ while a snapshot goes dirty, the watch is what is broken.
 The first attempt also timed out at the title because the navigation was
 hand-rolled; the autopilot is now lifted verbatim from the probes known to reach
 a match. Reuse the working flow rather than writing a new one.
+
+## The font upload path — FOUND 2026-08-04
+
+Patch 16's font install builds correctly but its extra tiles never reach VRAM.
+The upload route is now identified, after several wrong turns worth recording.
+
+**It is DMA, set up from direct page.** Two near-identical routines stage a
+transfer and fire it:
+
+    $C0:9287   ldy #$18 / sty $4301        ; dest = $2118 (VRAM data)
+               lda $30 / sta $2116         ; VRAM address
+               lda $32 / sta $4305         ; LENGTH
+               lda $34 / sta $4302         ; source address
+               ldy $36 / sty $4304         ; source bank
+               ldy #$01 / sty $4300 / sty $420B
+    $C0:92AD   the same, reading direct page $00/$02/$04/$06 instead of $30+
+
+So **the transfer length lives in direct page `$02` (or `$32`)** at the moment of
+the trigger — not in the asset job table, which is why bumping that record's
+`u16b` changed nothing.
+
+Related: `$C0:92F7` drives uploads from a **6-byte record table at `$E0:00B4`**
+(index = id*6), composing a VRAM word address as `record[+0] * 2 + $0500`.
+
+### Why three probes in a row found nothing
+
+1. **`$2116`/`$2117` hooked without a bank.** Mesen's `snesMemory` is the full
+   24-bit bus; the game writes `$80:2116`. Bank-0 hooks catch nothing.
+2. **The window was watched, but not the total.** Two runs printed a confident
+   zero while the hook was dead. The probe now prints the unconditional count
+   first — a dead hook must never again look like "the game does not do this".
+3. **The DMA logger filtered on `emu.read($4301)`.** Those registers are
+   WRITE-ONLY, so reading back the destination returns nothing useful and the
+   font transfer was discarded by the filter. Only 39 transfers survived it, all
+   small ones that happened to read as `$18`.
+
+The lesson common to all three: **verify the instrument against a known-present
+signal before believing an absence.** A 16544-write signal was there the whole
+time.
+
+### Next step, concrete
+
+Hook the DMA trigger (`$420B`, all mirrors) and read **direct page `$00`-`$07`**
+at that instant rather than the DMA registers. That yields the true VRAM address,
+length and source of every transfer, including the font's. Then trace what sets
+the length for the font block — that is the value patch 16 has to change.
