@@ -199,3 +199,51 @@ Drive Break input (412364+HP → 632146+HK), sped Silence Buster, added a counte
 - [ ] Desperation: trigger conditions, damage, chip.
 - [ ] Sprite/anim payload: manifest at `$E0:ABC4 + 10*2`, LZSS payload address/size
       (for Route A porting budget).
+
+## In-match NAMEPLATE — the table is located (2026-08-05)
+
+Field report: the name under the health bar is always the SHELL character's, not
+Saturn's.
+
+**Found statically, no emulator involved.** Nameplate letters are tile ids with
+A = `$70` (docs/annotations.md), so each name is a searchable byte string. All
+nine appear at a fixed stride:
+
+    TABLE at file $D8BA = SNES $C0:D8BA — 9 records of 12 bytes, zero-padded,
+    indexed by charID (1..9), with 12 bytes of zeros before and after it.
+
+    id 1 MOON      id 4 JUPITER   id 7 NEPTUNE
+    id 2 MERCURY   id 5 VENUS     id 8 PLUTO
+    id 3 MARS      id 6 URANUS    id 9 CHIBIMOON
+
+"SATURN" is `82 70 83 84 81 7D` — six tiles, comfortably inside a 12-byte record.
+It appears nowhere in the ROM, as expected.
+
+This is the same nine-wide-table shape that has already bitten this project three
+times (throw poses `$C1:0881`, win nameplates `$82:E008`, movelists) — but note
+the symptom differs: Saturn's id `0x1C` would index far PAST this table and give
+garbage, whereas the field sees a correct SHELL name. So the lookup is being made
+with the shell's charID, not with `0x1C` — the HUD is set up from the selected
+character, independently of the transform. That means the fix is a redirect, not
+an out-of-range repair.
+
+⚠ **The hard part is not the table, it is the GLYPHS.** The nameplate font is
+**matchup-loaded, not a resident A-Z set** (annotations.md: "G is in no
+character's name" — which is why patch 10's status labels upload their own font).
+Only the letters the two on-screen names need are present, so what "SATURN"
+requires depends on the matchup:
+
+| shell | letters its own name supplies | missing for SATURN |
+|---|---|---|
+| URANUS | U R A N S | **T** |
+| NEPTUNE | N E P T U | **S A R** |
+| PLUTO | P L U T O | **S A R N** |
+
+and the opponent's name may or may not cover the rest. A fix that only swaps the
+record would therefore render correctly in some matchups and show gaps in others
+— so it must upload its own glyphs, exactly as patch 10 did.
+
+**Next:** find the read site that indexes `$C0:D8BA` (a DMA carries the tilemap —
+CPU port writes to the nameplate cells are ZERO, 1.29M port writes captured and
+none in the window, so the write watch is alive and the transfer is simply DMA),
+then hook it per player against the Saturn flag and upload the missing glyphs.
