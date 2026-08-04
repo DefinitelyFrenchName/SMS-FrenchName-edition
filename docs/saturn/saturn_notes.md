@@ -331,3 +331,35 @@ Each site is followed by `asl A / asl A`, so a 5-byte window (`lda abs` + two
 `asl`) is available for a `jsl` + `nop`, with the stub returning A = index*4 and
 the existing `sta $00` continuing unchanged. M and X are 8-bit on entry
 (`sep #$30` at `$C0:D71E`). Vanilla is untouched whenever the flag is clear.
+
+### SHIPPED: the blank nameplate (v0.14.10)
+
+Two stubs in the `$EE` bank, hooked at the two charID reads:
+
+    $C0:D720  lda $1000 / asl / asl   ->  jsl EE_NPHOOK1 / nop   (P1)
+    $C0:D747  lda $1080 / asl / asl   ->  jsl EE_NPHOOK2 / nop   (P2)
+
+Each stub returns `A = index * 4`: index 0 when that player's Saturn flag or
+latch is set, otherwise the struct charID exactly as the vanilla code read it.
+The two `asl` the hook swallows are reproduced at the end of the stub, so the
+caller's `sta $00` sees precisely what it saw before. M and X are 8-bit on entry
+(`sep #$30` at `$C0:D71E`), so no width juggling is needed.
+
+No new data is stored anywhere: index 0 lands on `$D8AE`, the twelve zero bytes
+already sitting in front of the table.
+
+**Verified on screen, 1P-vs-COM, Saturn on a Neptune shell:**
+
+| | her plate | opponent's plate |
+|---|---|---|
+| Saturn armed | **blank** | JUPITER, intact |
+| nobody armed (control) | NEPTUNE, normal | JUPITER, intact |
+
+Gates: `test_regression.lua` **ALL PASS (57)**, `verify_saturn.sh QUICK`
+**ALL PASS (16)**. Hashes: hidden `a687499e…`, hidden+stage `48c6326d…`.
+
+**Next, if the extra mile is wanted:** the redirect is now proven, so showing
+`SATURN` is purely additive — point the index at a new record instead of 0 and
+upload the missing glyphs. The glyph half remains the real work, because the
+nameplate font is matchup-loaded (URANUS supplies all but `T`; PLUTO lacks
+`S A R N`).

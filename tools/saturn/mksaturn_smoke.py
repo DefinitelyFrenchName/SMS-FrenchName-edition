@@ -556,6 +556,24 @@ THROWPOSE_OLD = bytes.fromhex("B10CABE220")
 SUP_THROWTBL = 0x10883        # Super S twin table (11 entries, 1-indexed)
 THROWLIST_LEN = 0x15          # 21 bytes per character
 EE_THROWSTUB = 0xCC00         # the per-victim substitution stub
+
+# --- in-match NAMEPLATE: the name under the health bar (field report 2026-08-04)
+# $C0:D71E draws both plates: the player struct's charID x12 indexes a 1-INDEXED
+# 12-byte table at $D8AE, copied to VRAM $10A2 (P1) / $10B2 (P2) by CPU port
+# writes. $1000/$1080 still hold the SHELL at draw time, so the plate shows the
+# shell's name — a correct lookup of the WRONG character, not an out-of-range
+# read (id 0x1C would land at $D9FE and show garbage).
+# Index 0 points at $D8AE, twelve zero bytes the game never uses, and tile $00 at
+# attribute $2C renders as NOTHING — verified on screen, not assumed. So forcing
+# the index to 0 blanks her plate and stores no new data anywhere.
+# Blank is the agreed first step; showing SATURN is additive later and needs
+# glyph uploads, because the nameplate font is matchup-loaded.
+SITE_NP_P1 = 0x00D720
+SITE_NP_P2 = 0x00D747
+NP_P1_OLD = bytes.fromhex("AD00100A0A")      # lda $1000 / asl A / asl A
+NP_P2_OLD = bytes.fromhex("AD80100A0A")      # lda $1080 / asl A / asl A
+EE_NPHOOK1 = 0xCD00
+EE_NPHOOK2 = 0xCD40
 EE_THROWLIST = 0xCC40         # her 21 bytes, read by `lda EE_THROWLIST,Y` long
 # (0xC700 was tried first and is NOT free: it is zero when this code runs and is
 #  overwritten later in the bank build, so the "slot busy" assert passed and the
@@ -1197,6 +1215,31 @@ def main():
     assert ee[EE_THROWSTUB:EE_THROWSTUB + len(ts)] == bytes(len(ts)), "throw stub slot busy"
     assert EE_THROWSTUB + len(ts) <= EE_THROWLIST, "throw stub overruns her list"
     ee[EE_THROWSTUB:EE_THROWSTUB + len(ts)] = ts
+
+    # nameplate: return A = index*4, blanking the plate when this player is
+    # Saturn. M and X are 8-bit here (sep #$30 at $C0:D71E), and the two `asl`
+    # the hook swallows are reproduced at the end so the caller's `sta $00`
+    # continues to see exactly what it did before.
+    def _np_stub(player):
+        flag = SATURN_FLAG if player == 0 else SATURN_FLAG2
+        latch = SATURN_LATCH if player == 0 else SATURN_LATCH2
+        src = 0x1000 if player == 0 else 0x1080
+        b = bytearray()
+        b += bytes((0xAF, flag & 0xFF, flag >> 8, SATURN_BANK))
+        b += bytes((0xC9, SATURN_MAGIC, 0xF0, 0x0D))      # beq blank
+        b += bytes((0xAF, latch & 0xFF, latch >> 8, SATURN_BANK))
+        b += bytes((0xC9, SATURN_MAGIC, 0xF0, 0x05))      # beq blank
+        b += bytes((0xAD, src & 0xFF, src >> 8))          # lda $1000/$1080
+        b += bytes((0x80, 0x02))                          # bra done
+        b += bytes((0xA9, 0x00))                          # blank: lda #$00
+        b += bytes((0x0A, 0x0A, 0x6B))                    # done: asl/asl/rtl
+        return bytes(b)
+
+    for _off, _pl in ((EE_NPHOOK1, 0), (EE_NPHOOK2, 1)):
+        _st = _np_stub(_pl)
+        assert ee[_off:_off + len(_st)] == bytes(len(_st)), \
+            f"nameplate stub slot {_off:#06x} is not free"
+        ee[_off:_off + len(_st)] = _st
     assert ee[EE_THROWLIST:EE_THROWLIST + THROWLIST_LEN] == bytes(THROWLIST_LEN), \
         "throw list slot busy"
     ee[EE_THROWLIST:EE_THROWLIST + THROWLIST_LEN] = sat_list
@@ -1999,6 +2042,11 @@ def main():
         expect(_site, THROWPOSE_OLD, f"thrown-pose list read {_i + 1}")
         data[_site:_site + 5] = \
             bytes((0x22, EE_THROWSTUB & 0xFF, EE_THROWSTUB >> 8, B_MISC, 0xAB))
+    for _site, _old, _tgt in ((SITE_NP_P1, NP_P1_OLD, EE_NPHOOK1),
+                              (SITE_NP_P2, NP_P2_OLD, EE_NPHOOK2)):
+        expect(_site, _old, f"nameplate charID read {_site:#x}")
+        data[_site:_site + 5] = bytes((0x22, _tgt & 0xFF, _tgt >> 8, B_MISC, 0xEA))
+
     expect(SITE_PROC_HOOK, PROC_HOOK_OLD, "main proc-dispatch head")
     data[SITE_PROC_HOOK:SITE_PROC_HOOK + 7] = \
         bytes((0x22, EF_HELPER & 0xFF, EF_HELPER >> 8, B_C1)) + b"\xEA" * 3
