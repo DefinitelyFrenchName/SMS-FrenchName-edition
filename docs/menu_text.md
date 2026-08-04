@@ -193,6 +193,54 @@ those four is therefore a prerequisite, not a nicety. There is room: 10 free
 glyph slots, four needed.
 
 
+## The maintainer's first translation set — checked (2026-08-04)
+
+| target | fits? | needs authoring |
+|---|---|---|
+| `LP` `HP` `LK` `HK` | yes (9 cells each) | — |
+| `L.SP` `H.SP` | yes (9 cells) | **`S` and `.`** |
+| `1P` / `2P` | unchanged, no work | — |
+| `MODE` (4, max 5) | yes | — |
+| `MANUAL` (6, max 6) | yes, EXACTLY — no slack | — |
+| `STAGE` (5, max 16) | yes | **`S`** |
+
+**There is no period glyph in the font.** The only symbols are `◆ ▶ ー メ 夕`.
+So `L.SP`/`H.SP` need TWO new glyphs, not one — `S` and `.`. Still comfortable:
+10 free slots, and this set needs 2 (or 5 if J/Q/Z are authored at the same time).
+
+⚠ **`MANUAL` may not stay put.** It is a *value*, not a label — vanilla toggles it
+with `オート`, which patch 15 removes. The tilemap holds the INITIAL state only;
+if the mode-row handler redraws the value at runtime it will overwrite a
+tilemap-only edit. The handler is known (`$C3:A863/A87A/A880`, patch 15's edit
+site) so this is checkable, but it must be checked before promising the string.
+
+### The ten stage names
+
+Decoded from the name table (`$C3:B5AD` -> records in bank `$C4`). Each record is
+24 words = **12 glyphs max**, the name centred by zero padding — so an English
+name has **12 full-width cells**, one letter each.
+
+| # | Japanese | note |
+|---|---|---|
+| 0 | クリスタルトーキョー◆夕 | Crystal Tokyo, evening |
+| 1 | シルバーミレニアム | Silver Millennium |
+| 2 | 時空の扉 | the space-time door (the slot the Saturn stage port takes) |
+| 3 | 海王州公園 | |
+| 4 | 噴水公園◆昼 | fountain park, day |
+| 5 | 十番商店街 | |
+| 6 | 火川神社 | |
+| 7 | クリスタルトーキョー◆夜 | Crystal Tokyo, night |
+| 8 | 噴水公園◆夜 | fountain park, night |
+| 9 | なかよし編集部 | |
+
+Reading note: the day/evening/night marker after `◆` is `昼`/`夕`/`夜`. The
+evening one renders almost identically to katakana `タ`, and the table maps that
+code to `タ`; `夕` is the reading that makes sense against the `昼`/`夜` pair.
+
+⚠ 12 cells is tight for these: "CRYSTAL TOKYO" is 13 with the space. Abbreviation
+or a dropped space will be needed, and almost every candidate needs `S`.
+
+
 ## Open (items 1 and 3 CLOSED — see above)
 
 1. **Where the text lives in ROM.** Neither the CHR nor the tilemap is stored
