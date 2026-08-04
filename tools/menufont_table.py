@@ -65,7 +65,11 @@ KANA = {
     0x204: "0", 0x206: "1", 0x208: "2", 0x20A: "3",
     0x20C: "4", 0x20E: "5", 0x220: "6", 0x222: "7",
     0x224: "8", 0x226: "9", 0x228: "F",
-    0x22A: "◆", 0x22C: "メ", 0x22E: "タ",
+    # $22E is the EVENING marker 夕, not katakana タ — the two letterforms are
+    # near-identical, but katakana タ has its own slot at $102, and this one sits
+    # in the marker group beside ◆ and pairs with 昼/夜 on the stage names
+    # (stage 0 = Crystal Tokyo evening, stage 7 = the same stage at night).
+    0x22A: "◆", 0x22C: "メ", 0x22E: "夕",
     0x240: "夜", 0x242: "昼", 0x244: "強", 0x246: "弱",
     0x248: "勝", 0x24A: "あ", 0x24C: "▶", 0x24E: "ー",
 }

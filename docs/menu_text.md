@@ -261,6 +261,47 @@ code to `タ`; `夕` is the reading that makes sense against the `昼`/`夜` pai
 or a dropped space will be needed, and almost every candidate needs `S`.
 
 
+## Stage names — the maintainer's translations, validated (2026-08-04)
+
+All eleven check out at **12 full-width cells**, needing only two glyphs drawn.
+Machine-checked with `tools/menutext_check.py stages` (budget, glyph
+availability, and the centred tile encoding a patch would write).
+
+| # | Japanese | English | cells |
+|---|---|---|---|
+| 0 | クリスタルトーキョー◆夕 | `CR. TOKYO ◆夕` | 12 |
+| 1 | シルバーミレニアム | `S. MILLENIUM` | 12 |
+| 2 | 時空の扉 | `TIME DOOR` | 9 |
+| 3 | 海王州公園 | `KAIOSHU PARK` | 12 |
+| 4 | 噴水公園◆昼 | `FOUNTAIN ◆昼` | 11 |
+| 5 | 十番商店街 | `SHOP. STREET` | 12 |
+| 6 | 火川神社 | `SHRINE` | 6 |
+| 7 | クリスタルトーキョー◆夜 | `CR. TOKYO ◆夜` | 12 |
+| 8 | 噴水公園◆夜 | `FOUNTAIN ◆夜` | 11 |
+| 9 | なかよし編集部 | `EDITOR. DEPT` | 12 |
+| — | (Saturn build, over stage 2) | `SLNT. THRONE` | 12 |
+
+**To author: `S` and `.` only** — 4 of the 10 free half-slots, no relocation, and
+no half-width glyphs needed. The day/evening/night markers are kept as-is, so
+`◆`, `昼`, `夕`, `夜` are all existing glyphs.
+
+Two notes for the maintainer, neither blocking:
+
+* **`MILLENIUM` is missing an N** — the English is MILLENNIUM. The correct
+  spelling makes the string 13 cells (`S. MILLENNIUM`), one over budget, so this
+  looks like a deliberate trade rather than a slip; recorded so it is a choice
+  and not a surprise later. `SILVER MLLNM` and `S. MILLENN.` also fit if either
+  reads better.
+* **`SHRINE`** drops 火川 (Hikawa). `HIKAWA SHRINE` is 13 and does not fit;
+  `HIKAWA SH.` (10) would if the shrine's name matters more than the word.
+
+**Table correction found while validating:** `$22E` is the EVENING marker `夕`,
+not katakana `タ`. The letterforms are near-identical, but katakana `タ` has its
+own slot at `$102`, and `$22E` sits in the marker group beside `◆`, pairing with
+`昼`/`夜` on the other stages. The first pass mislabelled it, which made stage 0
+fail its own check.
+
+
 ## Open (items 1 and 3 CLOSED — see above)
 
 1. **Where the text lives in ROM.** Neither the CHR nor the tilemap is stored
