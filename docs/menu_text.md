@@ -140,6 +140,59 @@ therefore scans columns singly and closes a run on a blank cell.
 else for a first screen is now mechanical — the budgets above are the constraint
 to write to, and the codec (`sms_lz.py`) already encodes as well as decodes.
 
+## The asset table, and how many text screens there actually are (2026-08-04)
+
+The compressed-asset job table is at **`$C3:BE02`** — 10-byte records,
+`[src24][dest24][u16][u16]`, **59 of them**, listing every compressed asset with
+its destination. (The earlier note said `$C3:BEE0`; that address lands mid-record.
+The kana/kanji/tilemap sources all fall on the `$BE02` stride, which is what pins
+it.) Walking the table beats brute-forcing a bank: it found **21 blocks that
+decode to exactly 0x800** — a 32x32 tilemap, i.e. a screen — where a single-bank
+scan had found six.
+
+**But only ONE of the 21 is a text screen:** `$C3:7C00`, the VS button-config.
+The other twenty are GRAPHICS tilemaps — their tile codes fall in the same range,
+so decoding them through the font table yields plausible-looking kana that is
+simply noise. Two exceptions are useful rather than noise: **`$C6:05C0` and
+`$C6:7A40` are the font sheet laid out as a grid**, and `$C6:7A40` reproduces the
+alphabet order exactly as transcribed (`ABC / DEGHIKLM / NOPRTUVW / XY...`) —
+an independent confirmation of the table.
+
+So `プレイヤーセレクト` and the title text are **not** in these compressed maps and
+still need locating. That is the next piece of work on this patch.
+
+## Translation budget — VS button-config screen (`$C3:7C00`)
+
+`free L` = blank cells contiguous to the left; `free R` is 0 for every row
+because UI border art sits immediately right of each label. `max` = what the
+string can grow to without moving anything else.
+
+| string | row | col | cells | free L | max |
+|---|---|---|---|---|---|
+| `1P` / `2P` | 3 | 4 / 24 | 2 | 4 / 16 | 6 / 18 |
+| `マニュアル` (x2) | 5 | 1 / 21 | 5 | 1 / 2 | 6 / 7 |
+| `モード` | 5 | 13 | 3 | 2 | 5 |
+| `弱パンチ` | 7 | 12 | 4 | 5 | 9 |
+| `強パンチ` | 9 | 12 | 4 | 5 | 9 |
+| `弱キック` | 11 | 12 | 4 | 5 | 9 |
+| `強キック` | 13 | 12 | 4 | 5 | 9 |
+| `弱必殺モード` | 15 | 10 | 6 | 3 | 9 |
+| `強必殺モード` | 17 | 10 | 6 | 3 | 9 |
+| `ステージ` | 21 | 12 | 4 | 12 | 16 |
+| stage name | 23 | 4 | 12 | 4 | 16 |
+
+**One cell = one full-width 16x16 glyph = ONE Latin capital.** There is no
+recombinable half-width Latin: the only half-width text in the font is the
+pre-composed `PRESS "SELECT" TO ACS` strip, which cannot be taken apart. So an
+English label is limited to its `max` in letters — e.g. MODE (4) fits 5,
+MANUAL (6) fits 6, and the four button labels have 9 each.
+
+⚠ **`S` is one of the four letters that must be authored** (with J, Q, Z), and
+almost every English candidate here needs it — STAGE, PRESS, SPECIAL. Authoring
+those four is therefore a prerequisite, not a nicety. There is room: 10 free
+glyph slots, four needed.
+
+
 ## Open (items 1 and 3 CLOSED — see above)
 
 1. **Where the text lives in ROM.** Neither the CHR nor the tilemap is stored
