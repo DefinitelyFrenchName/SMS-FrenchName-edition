@@ -37,6 +37,8 @@ local ROW = num("ROW", 4)
 -- shell's pitch" (maintainer) is most likely to live in one of them.
 local VICTIM = os.getenv("VICTIM") == "1"
 local WINLAUGH = os.getenv("WINLAUGH") == "1"
+local FORCEACTS = os.getenv("FORCEACTS") == "1"
+local curact = 0
 local ATTACKER = num("ATTACKER", 4)
 local TAG = os.getenv("TAG") or ("voicepitch_" .. (SATURN and "sat" or "van") .. SHELL)
 local LOG = assert(io.open(ENV.TRACE .. "saturn/" .. TAG .. ".txt", "w"))
@@ -96,7 +98,9 @@ emu.addMemoryCallback(function(_, value)
         -- different path from the in-match voices (bank-id table $C0:AE75,
         -- sound id = 21 + charID — i.e. the id itself is per-CHARACTER), so it
         -- is the better suspect for anything that varies with the shell
-        local key = string.format("step%-2d srcn=%02d pitch=$%04X", step, srcn, pitch)
+        local key = FORCEACTS
+          and string.format("act %02X -> srcn=%02d pitch=$%04X", curact, srcn, pitch)
+          or string.format("step%-2d srcn=%02d pitch=$%04X", step, srcn, pitch)
         if not seen[key] then
           seen[key] = 0; order[#order + 1] = key
         end
@@ -156,6 +160,24 @@ local STEPS = {
       pulse[0] = (m < 4) and { x = true } or ((m >= 12 and m < 16) and { a = true } or {})
       acts[ram(0x1081)] = (acts[ram(0x1081)] or 0) + 1
       return sf > 900
+    end
+    if FORCEACTS then
+      -- Pair clip-to-clip with Super S: force the same voiced acts the
+      -- supers probe forces. This has to run HERE, after a real L+R
+      -- char-select, because her voice BANK is only uploaded at that load —
+      -- forcing id 0x1C into an unrelated savestate (as the supers-side probe
+      -- does for the port) leaves her samples absent and no voice can play.
+      local ACTS = { 0x6A, 0x6C, 0x6E, 0x70, 0x74, 0x76, 0x78, 0x79, 0x24 }
+      local SP = 140
+      local i = math.floor(sf / SP) + 1
+      if i <= #ACTS then
+        if sf % SP == 1 then
+          curact = ACTS[i]
+          wr(0x1001, curact); wr(0x1002, 0); wr(0x1006, 0); wr(0x1007, 0)
+        end
+        return false
+      end
+      return true
     end
     if WINLAUGH then
       -- Her WIN LAUGH is the remaining voiced move, and round-end is a
