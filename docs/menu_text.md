@@ -536,3 +536,78 @@ way `$C3:7C00` was found for the tilemap.
 
 Tooling note: `probe_menu_survey.lua` takes `MINLEN` to filter the DMA log to
 large transfers.
+
+## HALF-WIDTH: the reuse premise is FALSE — measured 2026-08-04
+
+The plan recorded above ("Half-width Latin already EXISTS — the
+`PRESS "SELECT" TO ACS` strip is individually addressable, 1 tile wide and 2
+tall, giving **P R E S L C T O A**") does not survive contact with the pixels.
+**There are no reusable half-width letters in this game.**
+
+Measured straight from ROM — no emulator needed, the block is
+`$C7:07F0` and `tools/saturn/sms_lz.py` round-trips it:
+
+* The strip's 22 slots hold **22 distinct glyphs — zero duplicates**, even though
+  the string repeats S four times and E, T, C and `"` twice each. A per-letter
+  font could not do that.
+* Rendering the strip as one continuous 176 px banner shows why: the ink forms
+  **five word-shaped runs** (widths 40, 25, 29, 16, 24 px), **every one of which
+  spans tile boundaries**. Blank columns fall at all eight positions within a
+  tile, not at position 0 or 7.
+
+So the banner is **proportionally-spaced artwork that happens to be stored as
+tiles**, not a font. No tile contains exactly one letter, so nothing can be
+lifted from it. A half-width alphabet has to be **authored from scratch, all 26
+letters** — the same job as the movelist font, at a different size.
+
+### The good news: there is room, and more than expected
+
+The font block does **not** load at tile `$300`. That is `mkkanji.py`'s
+block-relative numbering; in VRAM it lands at **tile `$500`**, verified by an
+exact byte match of all 182 tiles (`$500-$5B5`).
+
+A census over **all 192 VRAM captures** in `traces/menu/` (every screen the
+survey visited) gives the tiles free in *every* one:
+
+| region | tiles | note |
+|---|---|---|
+| `$5C0-$5FF` | **64** | immediately above the font block — the natural extension |
+| `$738-$7BF` | **136** | a second, larger run further up |
+| four small runs below `$101` | 30 | fragmented, not useful for a font |
+
+**This confirms the survey's `$3C0-$3EE` suspicion** — that was block-relative
+for VRAM `$5C0-$5EE` — and on a much bigger sample than the original reading.
+
+### The budget, and it fits
+
+A half-width glyph is 1 tile wide × 2 tall = **2 tiles**.
+
+    26 uppercase letters          52 tiles
+    digits 0-9                    20 tiles
+    a working punctuation set     ~14 tiles
+    ------------------------------------------
+    full set                      ~86 tiles
+
+`$5C0-$5FF` alone (64 tiles) holds **32 half-width glyphs — the 26 letters with 6
+to spare**. Digits and punctuation would take the second run at `$738`, or the
+existing full-width digits can be reused since numbers rarely need narrowing.
+Extending the block is already a solved mechanism: `mkkanji.py` decompresses,
+inserts, re-encodes and relocates it, which is how v0.14.0 added the stage kanji.
+
+### What is NOT yet proven
+
+"Free in 192 captures" is stronger evidence than the original reading, but it is
+still **evidence, not proof** — the captures only cover the screens the survey
+visited. Before authoring into `$5C0-$5FF`, watch VRAM writes in that range over
+a full boot → title → select → match → KO → win session, the same way
+`probe_sms_freetable.lua` cleared the audio table's spare records. This project
+has already been burned once by a region that passed "nothing points at it" and
+was still live.
+
+### What this does to the decision
+
+Half-width is still worth having — it doubles the characters per cell, and the
+room exists. But it is **authoring 26 glyphs, not harvesting 9**, so the cost is
+squarely in drawing legible 8×16 capitals in this game's style, not in finding
+space. The full-width route (`S` and `.` to author, no relocation) remains much
+cheaper and is still the fastest path to a first shipping screen.
