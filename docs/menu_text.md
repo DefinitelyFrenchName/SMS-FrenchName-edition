@@ -114,6 +114,16 @@ in the DIGIT style, alongside `6 7 8 9`. The "Missing: F, J, Q, S, Z" below came
 from a survey that never rendered the digit run. **Four letters have to be
 authored, not five: J, Q, S, Z.**
 
+**Glyph-slot budget, counted as the sheet is arranged (2026-08-04).** A glyph is
+2x2 tiles at `(t, t+1, t+16, t+17)`, so a HALF-width glyph needs `(t, t+16)` and a
+FULL-width one needs two adjacent half-slots. In place, without relocating:
+`kana $0A0-$0A1` (2 half-slots) + `kanji $368-$36F` (8) = **10 half-slots = 5
+full-width glyphs**. Enough for `S` + `.` full-width and `Y` + `K` half-width
+(6 of 10) with four to spare — but NOT enough to also finish J/Q/Z at full width.
+Beyond that the kanji block must be extended, which `mkkanji.py` already does
+(it added the stage kanji in v0.14.0); the survey read VRAM `$3C0-$3EE` as blank,
+~57 tiles of apparent headroom, which is evidence rather than proof.
+
 **CORRECTION — free glyph slots.** Measured with `menufont.py blanks`: **1** in
 the kana block (`$000`) and **9** in the kanji block (`$068-$06E`, `$0A6-$0AE`) =
 **10 usable without relocating anything** — comfortably more than the four

@@ -101,14 +101,25 @@ MISSING = ("J", "Q", "S", "Z")
 HALFWIDTH_STRIP = 0x080          # kanji-block code of the first tile
 HALFWIDTH_LETTERS = ("P", "R", "E", "S", "L", "C", "T", "O", "A")
 
-# Blank 16x16 slots inside the two blocks, measured by `menufont.py blanks`.
-# These are usable WITHOUT relocating anything, which is enough for MISSING.
-# (The survey's "sixteen at $3C0-$3EE" are past the end of the kanji block —
-# unwritten VRAM, not slots the blocks can fill; using them needs the block
-# extended and relocated, which mkkanji.py already knows how to do.)
-FREE_SLOTS = {"kana": (0x000,),
-              "kanji": (0x068, 0x06A, 0x06C, 0x06E,
-                        0x0A6, 0x0A8, 0x0AA, 0x0AC, 0x0AE)}
+# Blank slots usable WITHOUT relocating anything. Counted the way the sheet is
+# actually arranged: a glyph is 2x2 tiles at (t, t+1, t+SHEET_W, t+SHEET_W+1), so
+# a HALF-width glyph needs (t, t+SHEET_W) blank and a FULL-width one needs two
+# adjacent half-slots.
+#   kana  $0A0-$0A1   2 half-slots  = 1 full-width glyph
+#   kanji $368-$36F   8 half-slots  = 4 full-width glyphs
+#   TOTAL            10 half-slots  = 5 full-width glyphs
+# CORRECTION: an earlier count said 10 FULL-width slots by also counting
+# $3A6-$3AF. Those tiles are blank but their BOTTOM halves fall past the end of
+# the 182-tile kanji block, so they are not usable until the block is extended.
+# Extending is a solved operation — mkkanji.py already decompresses, inserts,
+# re-encodes and relocates this exact block (that is how v0.14.0 added the stage
+# kanji) — and the menu survey read VRAM $3C0-$3EE as blank, i.e. roughly 57
+# tiles of apparent headroom beyond the block to grow into. "Read as blank" is
+# evidence, not proof, so anything relying on it needs checking first.
+FREE_HALF_SLOTS = {"kana": (0x0A0, 0x0A1),
+                   "kanji": tuple(range(0x368, 0x370))}
+FREE_FULL_SLOTS = {"kana": (0x0A0,),
+                   "kanji": (0x368, 0x36A, 0x36C, 0x36E)}
 
 
 def vram(code, block="kana"):
