@@ -804,3 +804,58 @@ half-width set" hypothesis *more* likely, not less: the face came from somewhere
 and if that somewhere is a common font, the complete alphabet is findable. The
 metrics table above plus the 12 confirmed glyphs in `docs/te_halfwidth.json` are
 what a candidate should be tested against — using IoU with controls, not eyeball.
+
+## CONDENSING SMS's OWN CAPITALS: viable — measured 2026-08-04
+
+The licence-free option: SMS already contains **21 Latin capitals** (A B C D E G
+H I K L M N O P R T U V W X Y — missing F J Q S Z). Condensing those 16x16 glyphs
+to half width would give a native, in-style, licence-clean alphabet. Tested.
+
+### First, the addressing — this cost several wrong turns
+
+`docs/menu_text.md` records the capitals at "**$20A** onward". That is a **VRAM
+address on a screen that displays them**, not a block offset, and the kana block
+does not load at a fixed base:
+
+| | |
+|---|---|
+| Latin `A` in the kana block (`$C3:48D0`) | block tile **`$16A`** |
+| screens showing Latin load that block at base | **`$0A0`** (hence VRAM `$20A`) |
+| the button-config screen loads it at base | **`$2A0`** — so `$20A` there is unrelated artwork |
+
+Chasing `$20A` across captures therefore finds gradients, borders and katakana in
+turn, all of which happened. `tools/menufont_table.py` had the answer the whole
+time and states it explicitly ("Latin 'A' is block $16A and the screens use
+$20A"). **Read the derived table before re-deriving from captures.**
+
+Two supporting corrections: the kanji block loads at VRAM **`$500`**, and asset
+**#22** (`$C3:6D30`) supplies VRAM `$200`+ on the config screen — both located by
+searching captures for decompressed block bytes, which is the reliable way to pin
+a base and needs no DMA log.
+
+### The result: AND-of-column-pairs is the method
+
+Three 16→8 reductions tried on all 21 capitals:
+
+| method | verdict |
+|---|---|
+| **AND of each column pair** | **best** — 2 px stems, 3-4 px counters, letters stay open |
+| OR of each column pair | too heavy; stems go 3 px and counters close up (M, W, X turn to mush) |
+| drop odd columns | workable but noisier than AND |
+
+**AND lands on 2 px stems inside ~6-7 px of ink — the same weight as TE's
+half-width font, which is already proven legible on this hardware.** That is the
+key number: the condensed capitals are not merely readable, they match the weight
+of a face shipped in a real hack.
+
+**Quality, honestly:** of the 21, roughly 17 come out clean. **M, W and X** need
+hand touch-up — their middle diagonals thin to 1 px and read raggedly — and `A`'s
+apex is slightly off. So the job is ~4 glyphs to repair plus **5 to author**
+(F J Q S Z), against 26 from scratch or a licence question.
+
+### Why this is now the leading option
+
+No licence surface at all — it is the game's own art, the same basis on which
+this project already reuses BZ palettes and Super S assets. Natively in style, so
+no reconciling a foreign face against the kana. And the authored remainder is
+small enough to be a quick win rather than a project.
