@@ -728,3 +728,44 @@ the same lift patch 4 already does for the credit line, and patch 3 for palettes
 4. The VRAM space question is unchanged and still open: `$5C0-$5FF` is free in
    all 192 clean captures, but that is evidence, not proof — write-watch it before
    authoring into it.
+
+### The TE half-width font, labelled — and its metrics for matching
+
+Two of the title's font rows decode cleanly:
+
+    row $340   ! T O U R N A M E N T   M O D E
+    row $380   O P T I O N S
+
+which labels 15 of the 16 extracted glyphs (`docs/te_halfwidth.json`). A third
+row, `$360`, is visibly the same face (`P R A C/G T I/J ? E`) but the classifier
+still calls it art because two of its runs merge — worth a second pass, it should
+add **C** and probably **G**.
+
+**Confirmed letters: A D E I M N O P R S T U — 12 of 26.**
+**Missing: B C F G H J K L Q V W X Y Z.**
+
+So the TE alone does not give a full alphabet, as expected from three menu words.
+
+**Metrics, for identifying it against a stock font** (the maintainer's hypothesis
+is that this may be a common SNES half-width Latin set, in which case a complete
+alphabet can be sourced elsewhere and matched):
+
+| property | value |
+|---|---|
+| cell | **8 × 16 px** — 1 tile wide, 2 tall |
+| ink extent | x = 0..6 (**7 px** wide), y = 2..13 |
+| cap height | **12 px** |
+| left bearing | 0 px on row `$380`, **1 px** on rows `$340`/`$360` — the rows sit on different sub-grids |
+| stems | **2 px left, 1 px right** — asymmetric |
+| colours | **3 indices (3, 4, 5)** over fill colour 1 |
+
+⚠ Two of those matter for any matching attempt. The face is **not 1-bit**: it uses
+three shades, and the asymmetric stems are a deliberate emboss/shadow, not a
+rendering artefact. A stock 1-bit RPG font would match the *shapes* but not the
+shading, so a lift from elsewhere would need re-shading to sit next to these — or
+the TE glyphs re-flattened to match the donor. Worth deciding which direction
+before drawing anything.
+
+The other consequence: because the shading is baked per glyph, these cells are
+**palette-dependent**. Whatever CGRAM row the menu screen uses has to carry
+compatible shades, which is a separate check from the VRAM space question.
