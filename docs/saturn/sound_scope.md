@@ -296,7 +296,35 @@ because its pitch was steady. Applying the address check to that run shows the
 sources present are instruments and sfx; forcing acts does not make her voices
 play in Super S. Treat `$03FE` as unverified.
 
-**Open, and the way to settle it:** a listening A/B, the same method that
+**CALIBRATED (2026-08-04, maintainer, A/B against Super S itself): ~6500 Hz**,
+with 6000 the closest of the four offered. So the earlier "8 kHz" was wrong and
+the field report is right — her voices are sharp, by about four semitones.
+
+The number lands on a grid. Taking `$0345` (6539 Hz), the pitch nearest that
+estimate, EVERY measured value is a WHOLE number of semitones above it:
+
+| voice | current | sharp by |
+|---|---|---|
+| srcn 51 (j.632K) | `$03AC` | +2 st |
+| srcn 49 | `$03E4` | +3 st |
+| srcn 50 (214P) | `$041F` | +4 st |
+| select line, Uranus shell | `$04E7` | +7 st |
+| select line, Pluto shell | `$0582` | +9 st |
+
+And the three in-match voices sit **exactly one semitone apart from each other**
+(`$03AC` -> `$03E4` -> `$041F`, +1.002 and +0.996 st). That is the important
+structural finding: the driver plays her samples as NOTES ON A SCALE, not at a
+single native rate. So "her voice is sharp" is not one wrong constant — the
+sound ids carry note values, and hers are landing several steps too high.
+
+Consequence for a fix: it is not a single global pitch override. Either each of
+her voice sound ids needs its note corrected, or — if all four samples are meant
+to play at one rate — they should all be pinned to the same note (`$0345`),
+which means shifts of -2/-3/-4 respectively. Which of those is right is a
+listening question, and the four samples were rendered at 6539 Hz and sent for
+exactly that check.
+
+**Method note, for reuse:** a listening A/B, the same method that
 produced the 8 kHz answer in the first place. `probe_aramdump.lua` (new) dumps
 ARAM with her samples loaded and prints the BRR directory, so `brr.py` can render
 any of her samples at any rate. Her 214P voice was sent to the maintainer at
