@@ -178,7 +178,7 @@ round load reverts; this is also the ONLY way in story/1P mode.
 `tools/saturn/saturn_test.lua` remains available (auto-transform + P2 mirror
 matches + the on-screen version label).
 
-## FIELD BUG (2026-08-04): 214P projectile sprite — BISECTED TO v0.14.8, NOT v0.14.6
+## FIELD BUG: 214P projectile sprite — BISECTION RETRACTED (2026-08-05)
 
 Reported as "corrupted since v0.14.6 — some tiles missing, some in the wrong
 place". Measured with `tools/saturn/probe_saturn_projtiles.lua`, which fires 214P
@@ -194,10 +194,17 @@ references is blank:
 | **0.14.8** | **8** | **6** | **2** |
 | 0.14.9 | 8 | 6 | 2 |
 
-**The change is at v0.14.8, and 0.14.5/6/7 are byte-for-byte identical in this
-measurement.** More OAM entries pointing at BLANK VRAM is exactly "tiles
-missing", and the tile indices move too ($05D/$066/$069/$06A/$06C/$06E before,
-$05B/$05E/$05F/$06E/$06F/$070 after) — "tiles in the wrong place".
+⛔ **RETRACTED — the table above measures the FIGHTER, not the projectile.**
+A control run with **plain Neptune and no Saturn at all** produces the same tile
+indices ($05D/$066/$069/$06A/$06E/$070), the same `pal=1`, and the same blank
+count. "OAM entries referencing blank VRAM" is therefore NORMAL here and says
+nothing about the bug; the 32 px window around the projectile also contains the
+character, and that is what the numbers moved with. The v0.14.8 boundary is an
+animation-phase difference, not a regression.
+
+The maintainer also reproduced the bug on **v0.14.6**, and this measurement calls
+0.14.5 and 0.14.6 identical — so whatever is wrong predates the boundary the
+table claimed, which was the first sign the metric was invalid.
 
 ⚠ Two caveats on the attribution. The report says 0.14.6; the measurement says
 0.14.8. v0.14.6 is the build that made **2P VS transform at all**, so if the
@@ -206,12 +213,23 @@ there — first VISIBLE, not first broken. And this probe samples one instant in
 practice mode on shell 6, so it bounds when the OAM/VRAM state changed, not
 necessarily when the visible artefact started.
 
-**Prime suspect.** v0.14.8 moved the shell restriction to where the FLAG is
-armed, and BUILDS.md's own v0.14.8 row notes that "the effect-tile/palette
-override in the DMA stub" keys off that flag. Changing when the flag arms can
-therefore change whether — or when — her effect TILES are uploaded, which is
-precisely a projectile drawing from VRAM that was never filled.
+**What the field capture does establish** (maintainer, 2026-08-05): the 214P
+projectile renders as **two disconnected blue pieces instead of one shape**, on a
+Neptune shell. So the defect is real and visual, and it is about sprite
+composition — pieces present but not forming the whole — rather than obviously
+about colour.
 
-**Next:** A/B the effect-tile upload between 0.14.7 and 0.14.8 (does the DMA stub
-still run, and at the same point?), then check whether her projectile's sprite
-list is indexing tiles the upload no longer covers.
+**What is NOT established:** when it started. v0.14.6 is the earliest build the
+maintainer TRIED, not a proven boundary.
+
+**Blocker for the next attempt: the probe cannot yet identify her projectile's
+own OAM entries.** Filtering by projectile-slot palette (2/3/7) plus a 64 px
+window returns ZERO sprites, which means the coordinates read from the slot
+($1121/$1122 x, $1125 y) are probably not its screen position — those offsets
+were taken from the Deep Submerge notes and may not apply to her object.
+
+**Next, in order:** (1) establish which struct offsets hold the projectile's
+screen x/y, by dumping the slot and correlating with a sprite cluster that moves
+with it; (2) only then compare her projectile's sprite list against a vanilla
+one. Do not repeat the mistake above — any metric here must be run against a
+vanilla-projectile CONTROL before it is believed.
