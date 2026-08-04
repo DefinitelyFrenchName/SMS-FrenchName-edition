@@ -368,10 +368,15 @@ after projectile-special damage (framedata move machine stuck; see §4 and
 `docs/NEXT_SESSION.md`).
 
 **2026-07-24/25 housekeeping:**
-- **Git history was REWRITTEN** (`git filter-repo`, force-pushed): `mockups/` (title-screen
-  PNGs containing copyrighted art) was purged from every commit and is now gitignored —
-  **every commit hash changed**, so hashes quoted in docs/notes from before 2026-07-24
-  refer to the pre-rewrite history and won't resolve. Any stale clone must re-clone or
+- **Git history was REWRITTEN TWICE** (`git filter-repo`, force-pushed).
+  **2026-07-24:** `mockups/` (title-screen PNGs containing copyrighted art) purged.
+  **2026-08-04:** ALL remaining image blobs purged — ten paths, including three at
+  pre-reorg locations (`traces/saturn_smoke_*.png`) that a HEAD-only cleanup would
+  have missed; removal was done by extension GLOB across all history, not by path
+  list, so nothing could be overlooked. Verified: HEAD tree byte-identical before
+  and after (`bf0ddc2f…`), zero image paths in all history, 293 commits in and 293
+  out. **Every commit hash changed at BOTH rewrites**, so any hash quoted in
+  docs/notes from before 2026-08-04 refers to superseded history and won't resolve. Any stale clone must re-clone or
   hard-reset to the new remote, never push its old history back.
 - `patch11-training-rom` was **merged into `main` and deleted** — `main` is the only
   branch and carries everything (all 14 patches, tooling, docs).
