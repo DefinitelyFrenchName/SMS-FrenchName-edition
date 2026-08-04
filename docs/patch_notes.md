@@ -1595,16 +1595,44 @@ Note the oracle: across builds whose LOAD duration differs, a frame-aligned DSP
 diff desynchronises (see trap 1) — use `dspdiff.py --semantic`, which compares the
 ordered key-on sequence and is shift-immune.
 
-## Open finding — the reason this is not shipped
+## The "voices 1/2/6" finding — narrowed 2026-08-04, still the reason this is held
 
-Retuning her voices also moves the pitch of **DSP voices 1, 2 and 6** at ~84
-frames of a 900-frame session, by exactly the intervals applied to her sounds,
-while those voices hold *music* sources (srcn 23/24). Two readings fit and they
-have opposite consequences: her sfx is **layered across several DSP voices**
-(shifting all layers is then correct), or an sfx channel's pitch shadow is being
-flushed onto a voice music is using (the retune then audibly detunes those
-frames). Deciding it needs the channel allocator at `$0AF7`/`$0B1E` read, or a
-listen. Detail: `docs/saturn/sound_scope.md`.
+Measured with `tools/saturn/probe_sms_voicechan.lua`, which watches the driver's
+PER-CHANNEL state (`$0240+X` transpose, `$02B0+X` pitch shadow) instead of the DSP
+output. Three things are now settled and one is not.
+
+**1. It is NOT layered sfx.** Her transposes (`$FD`/`$FE`/`$FF`, and `$FB` when
+patched) appear on **logical channel 12 only** — the channel her sfx table entry
+selects, mapping to DSP voice 4. Channels 10/11/13 carry other sfx's transposes
+(`$04`/`$0A`/`$00`), never hers. The benign reading is dead.
+
+**2. It is far smaller than first reported.** The original "~84 frames" counted DSP
+register writes, but the flush at `$12F4` re-pushes the same shadow every tick, so
+one wrong value is smeared over many frames. At the shadow level — where the pitch
+is actually computed — the music channels differ at **exactly one write each**:
+ch 1 and ch 2 at one position of 205, ch 6 at one of 86. Write counts are identical.
+So the artefact is *three perturbed music notes in a 900-frame session*, not a
+sustained detune.
+
+**3. Patch 101 does not create it; it changes it.** The perturbed music value is a
+FUNCTION of her transpose (it differs between `$FD` and `$FB`), so it is already
+displaced in vanilla — by her vanilla transpose. An idle run in which she never
+voices produces different music-channel streams again. The cross-talk is the
+driver's, and it is pre-existing; 101 alters what the wrong note is, not whether
+there is one.
+
+**Not settled: the path.** The note converter `$0D6D` is clean per channel — both
+its callers (`$10AD`, `$1215`) set `$38` first, X is pushed/popped, and the stale
+high byte of `$E7`/`$E8` cannot reach the result (the `ADDW` carry propagates
+upward only). So the contamination enters through `$0300+X` / `$0400+X` or through
+the music sequence's own timing, and finding it needs the sequence interpreter
+read rather than the converter.
+
+**What would close this without more RE:** a listening A/B of
+`sms_saturn_pitch.bps` applied and not. The question is whether three
+single-note perturbations per ~15 seconds are audible at all — and since the
+vanilla build already perturbs those same notes by a different amount, the honest
+comparison is "does it sound worse", not "does it sound wrong".
 
 ## Known limitation, independent of the above
 
