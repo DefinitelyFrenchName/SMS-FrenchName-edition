@@ -167,6 +167,29 @@ are not rediscovered later as bugs.
     UI blip, not the voice. Shell 7 showed only `$04A0` — either Neptune's voice
     pitch collides with it or that key-on was missed; unresolved, and it does not
     change the finding.)
+  * **Also measured, all identical across shells 6 and 8:** every in-match key-on
+    (voice *and* sfx, source and pitch) while she ATTACKS, and every one while
+    she is STRUCK — the latter as P2, in hitstun for 626 frames, i.e. the other
+    ARAM voice bank. Notable side finding: **no voice-bank sample plays when she
+    is hit at all — she has no hurt voice** (none was ported), so whatever is
+    audible on hit is a hit sfx, not a voice.
+  * **NOT reached, and the maintainer is 90% sure the in-fight case IS
+    shell-dependent — so treat this as open, not settled:** her WIN LAUGH (a KO
+    could not be driven in the time available) and her j.632K voice. The win
+    laugh is the strongest remaining candidate, because round-end is a
+    per-winner-id path (v0.11.3 hooks per-winner tables there) — the same shape
+    as the select voice, which does vary. Also unmeasured: whether the driver
+    modulates pitch AFTER key-on.
+  * **Cheapest next input is the maintainer's ear**, on two specific A/Bs: pick
+    her on Uranus then on Pluto and compare the "Yoroshiku" (my measurement says
+    ~2 semitones apart — audible back to back); and do the same special on two
+    shells (my measurement says identical). Either result is informative: a
+    confirmed in-fight difference means one of the two unmeasured voiced paths.
+  * **For her ORIGINAL pitch:** run this same probe against the SUPER S ROM with
+    Saturn and read the pitch her own game uses. That is the principled answer,
+    ~20 minutes, and it is what makes a fix non-arbitrary. The maintainer also
+    reports the extracted samples sounded at or near original pitch, which is a
+    second, independent calibration.
   * **Cost of fixing, if ever wanted:** pin the select path to one sound id for
     Saturn at the hook that already runs there. One value, blast radius limited
     to her confirm voice, and **headlessly gateable** — this probe asserts the

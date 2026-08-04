@@ -30,6 +30,14 @@ local SHELL = num("SHELL_ID", 6)
 local SATURN = os.getenv("SATURN") ~= "0"
 local DUMMY = num("DUMMY", 4)
 local ROW = num("ROW", 4)
+-- VICTIM=1 flips the test: SHELL_ID is the DUMMY (so Saturn is P2, the other
+-- ARAM voice bank $DB00 / directory 56-63), P1 is a plain attacker, and P1 beats
+-- on her — so this measures her HURT/KO voices, which the attacking-only test
+-- never triggered. Both were gaps in the first pass: "in fight she inherits the
+-- shell's pitch" (maintainer) is most likely to live in one of them.
+local VICTIM = os.getenv("VICTIM") == "1"
+local WINLAUGH = os.getenv("WINLAUGH") == "1"
+local ATTACKER = num("ATTACKER", 4)
 local TAG = os.getenv("TAG") or ("voicepitch_" .. (SATURN and "sat" or "van") .. SHELL)
 local LOG = assert(io.open(ENV.TRACE .. "saturn/" .. TAG .. ".txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
@@ -44,11 +52,15 @@ local allkeyons, allsrcn = 0, {}
 local VOICE_LO = num("VOICE_LO", 48)
 local acts = {}
 local function beat(on) return (frames % 7) < 3 and on or {} end
+local function setchars()
+  if VICTIM then wr(0x1B40, ATTACKER); wr(0x1B80, SHELL)
+  else wr(0x1B40, SHELL); wr(0x1B80, DUMMY) end
+end
 
 emu.addEventCallback(function()
   for p = 0, 1 do
     local b = pulse[p] and PL.pad(pulse[p]) or PL.pad()
-    if p == 0 and hold and SATURN then b.l = true; b.r = true end
+    if hold and SATURN and p == (VICTIM and 1 or 0) then b.l = true; b.r = true end
     emu.setInput(b, 0, p)
   end
 end, emu.eventType.inputPolled)
@@ -110,12 +122,12 @@ local STEPS = {
   end,
   function() pulse[0] = beat({ start = true }); return sf > 40 end,
   function() pulse[0] = {}; return sf > 240 end,
-  function() wr(0x1B40, SHELL); wr(0x1B80, DUMMY); hold = true; return sf > 20 end,
-  function() wr(0x1B40, SHELL); wr(0x1B80, DUMMY)
+  function() setchars(); hold = true; return sf > 20 end,
+  function() setchars()
              pulse[0] = beat({ a = true }); return ram(0x1B42) == 1 or sf > 90 end,
   function() pulse[0] = {}; return sf > 30 end,
   function()
-    wr(0x1B40, SHELL); wr(0x1B80, DUMMY)
+    setchars()
     pulse[0] = (frames % 14 < 3) and { a = true }
       or ((frames % 14 >= 7 and frames % 14 < 10) and { start = true } or {})
     if ram(0x70) == 4 and ram(0x1000) ~= 0 then return true end
@@ -133,6 +145,35 @@ local STEPS = {
     if sf == 1 then
       log(string.format("IN MATCH: p1=%02X (shell %d, %s) dummy=%02X",
         ram(0x1000), SHELL, SATURN and "SATURN" or "vanilla", ram(0x1080)))
+    end
+    if VICTIM then
+      -- park at STRIKE range and poke: walking in and mashing gave throws
+      -- (victim acts 1C/1D/1E/20), which is not what "she gets hit" means
+      local ax = ram(0x1021) + 256 * ram(0x1022)
+      local dx = (ax + num("RANGE", 42)) % 65536
+      wr(0x10A1, dx % 256); wr(0x10A2, math.floor(dx / 256))
+      local m = sf % 24
+      pulse[0] = (m < 4) and { x = true } or ((m >= 12 and m < 16) and { a = true } or {})
+      acts[ram(0x1081)] = (acts[ram(0x1081)] or 0) + 1
+      return sf > 900
+    end
+    if WINLAUGH then
+      -- Her WIN LAUGH is the remaining voiced move, and round-end is a
+      -- per-winner-id path (v0.11.3 hooks per-winner tables there), so it is the
+      -- best remaining candidate for a shell dependency. Practice mode does not
+      -- subtract HP; poke $8D 4->5 to enable damage (documented in
+      -- annotations.md), park at strike range, and beat the dummy down.
+      if sf == 2 then wr(0x8D, 0x05) end
+      local ax = ram(0x1021) + 256 * ram(0x1022)
+      local dx = (ax + num("RANGE", 42)) % 65536
+      wr(0x10A1, dx % 256); wr(0x10A2, math.floor(dx / 256))
+      local m = sf % 24
+      pulse[0] = (m < 4) and { x = true } or ((m >= 12 and m < 16) and { a = true } or {})
+      acts[ram(0x1001)] = (acts[ram(0x1001)] or 0) + 1
+      if sf % 120 == 0 then
+        log(string.format("  sf=%d p1act=%02X dummyHP=%02X", sf, ram(0x1001), ram(0x10C9)))
+      end
+      return sf > 1400
     end
     -- 236+LP and 214+LP: two of her voiced specials (v0.13.0)
     local m = sf % 60
