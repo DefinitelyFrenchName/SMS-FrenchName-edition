@@ -769,3 +769,38 @@ before drawing anything.
 The other consequence: because the shading is baked per glyph, these cells are
 **palette-dependent**. Whatever CGRAM row the menu screen uses has to carry
 compatible shades, which is a separate check from the VRAM space question.
+
+### Does the TE font match vanilla SMS's banner letters? NO — measured
+
+Worth asking, because if TE's font were SMS's own half-width face merely
+re-gridded, it would be stylistically native and the aesthetic question would
+answer itself. It is not.
+
+Method: translation-aligned **intersection-over-union on ink pixels**, calibrated
+against controls before being believed.
+
+| comparison | IoU |
+|---|---|
+| **control** — same TE letter, different tile/sub-grid (`O` `$343` vs `$384`, `N` `$346` vs `$385`) | **100%** |
+| **control** — different TE letters | mean 64%, max 89% (`U` vs `O`, genuinely similar shapes) |
+| **TE glyphs vs the vanilla `PRESS "SELECT"` banner** | **47-72%** |
+
+Every TE glyph scores in the range that *different letters* occupy, nowhere near
+the 100% that the same letter reaches. Corroborating: the vanilla banner uses all
+**16 colour indices** (a gradient ramp) against TE's **3**. Cap height is the same
+11 px in both, which is why they look related at a glance — but the letterforms
+are not the same design.
+
+⚠ **Metric trap, paid for here.** The first attempt scored raw pixel agreement
+over the glyph box and produced *inverted* results — same letter 43-48%,
+different letters up to 95%. Background pixels dominate that measure, and a 1 px
+sub-grid shift destroys it. Any shape comparison here needs ink-only IoU with a
+translation search, and needs the same-letter/different-letter controls run
+first or the numbers mean nothing.
+
+**Consequence.** TE's half-width font is **foreign to SMS** — it was not derived
+from anything in the base game. That makes the maintainer's "standard SNES
+half-width set" hypothesis *more* likely, not less: the face came from somewhere,
+and if that somewhere is a common font, the complete alphabet is findable. The
+metrics table above plus the 12 confirmed glyphs in `docs/te_halfwidth.json` are
+what a candidate should be tested against — using IoU with controls, not eyeball.
