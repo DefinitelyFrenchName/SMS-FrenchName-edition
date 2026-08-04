@@ -78,7 +78,69 @@ hard ceiling — the ceiling needs the screen's layout checked case by case.
 Other screens seen but not yet inventoried: title, the intro cutscene, and
 **`プレイヤーセレクト`** (player select, 9 cells).
 
-## Open
+
+## SOLVED (2026-08-04): the code -> glyph table, and screens are readable as text
+
+`docs/saturn/movelist.md` recorded "Still missing: the code -> glyph table". It
+exists now — `tools/menufont_table.py`, with `tools/menufont.py` to build and
+check it. This closes Open items 1 and 3 below and corrects two facts.
+
+**Glyph layout.** A menu glyph is 16x16 = 2x2 tiles in a **16-tile-wide sheet**:
+top row `code, code+1`, bottom row `code+16, code+17`. Codes step by 2 along a
+row; rows of glyphs are 0x20 apart. (The obvious guess — four consecutive tiles —
+renders every cell as the TOP halves of two adjacent glyphs stacked, which is
+exactly what the first contact sheet showed.)
+
+**The two blocks land at different VRAM bases**, which is why block codes and the
+codes seen on screen differ:
+
+| block | ROM | VRAM base | check |
+|---|---|---|---|
+| kana / general | `$C3:48D0` (608 tiles) | `+$0A0` | Latin `A` = block `$16A` -> `$20A`, the code the survey saw |
+| kanji | `$C7:07F0` (182 tiles) | `+$300` | blank run at block `$068` -> `$368`, the blanks the survey saw |
+
+**CORRECTION — `F` is NOT missing.** It exists at kana block `$228` (VRAM `$2C8`)
+in the DIGIT style, alongside `6 7 8 9`. The "Missing: F, J, Q, S, Z" below came
+from a survey that never rendered the digit run. **Four letters have to be
+authored, not five: J, Q, S, Z.**
+
+**CORRECTION — free glyph slots.** Measured with `menufont.py blanks`: **1** in
+the kana block (`$000`) and **9** in the kanji block (`$068-$06E`, `$0A6-$0AE`) =
+**10 usable without relocating anything** — comfortably more than the four
+letters needed. The survey's "sixteen at `$3C0-$3EE`" are *past the end* of the
+kanji block: unwritten VRAM, not slots either block can fill. Using those needs
+the block extended and relocated, which `mkkanji.py` already does.
+
+**Screens decode to text.** `menufont.py decode-map` decompresses a screen
+tilemap and prints every string with its row, column and **cell budget**:
+
+```
+$ python3 tools/menufont.py decode-map          # VS button-config, $C3:7C00
+row  col  cells  text
+  3    4      2  1P                 3   24      2  2P
+  5    1      5  マニュアル          5   13      3  モード
+  7   12      4  弱パンチ            9   12      4  強パンチ
+ 11   12      4  弱キック           13   12      4  強キック
+ 15   10      6  弱必殺モード       17   10      6  強必殺モード
+ 21   12      4  ステージ
+ 23    4     12  クリスタルトーキョー◆タ
+```
+
+That output IS the validation: those are the strings the game shows, so the table
+is confirmed against reality rather than eyeballed. The `[A] [B] [X] [Y]` cells
+are the button-label style, not letters.
+
+**Two alignment facts, both paid for:** glyph rows start at map **row 1**, not 0
+(row 0 holds bottom halves); and a screen **mixes alignments** — full-width text
+sits on the even column grid while the button labels sit one tile left, so a
+fixed even-column read shows their right halves as unmapped codes. The decoder
+therefore scans columns singly and closes a run on a blank cell.
+
+**Still needed from the maintainer:** the translations themselves. Everything
+else for a first screen is now mechanical — the budgets above are the constraint
+to write to, and the codec (`sms_lz.py`) already encodes as well as decodes.
+
+## Open (items 1 and 3 CLOSED — see above)
 
 1. **Where the text lives in ROM.** Neither the CHR nor the tilemap is stored
    raw (searched the clean ROM for both), and the front-end does **not** reach
