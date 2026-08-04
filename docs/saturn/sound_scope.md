@@ -930,3 +930,77 @@ treatment with a different state vector. It also only covers what the scripted
 window exercises: 900 frames of practice-mode 236P/214P on one shell. It bounds
 what it observes, which is far more than a feature test does, and less than
 "nothing else changed".
+
+## And the other half: a WRAM differential for the HOOK [P 08-04]
+
+The DSP differential bounds what the DATA does. It is structurally blind to the
+65816 hook that would apply that data — and the hook's realistic failure modes
+are not audio at all:
+
+| failure | scope |
+|---|---|
+| stray `sta long` to `$7F:F1xx` | WRAM — global |
+| direct page `$10`/`$11` left clobbered | WRAM `$0010/$0011` — global |
+| stack imbalance, wrong M/X width on return | caller misparses itself — global |
+| APU handshake never acked | **hard lockup** — global |
+
+Note the asymmetry: the failure that *sounds* most audio-ish — a wrong ARAM
+destination — is the one that goes global, because the upload is a lockstep
+handshake on `$2140-$2143`, not fire-and-forget DMA. Corrupt the driver entry
+point or a stream terminator and the SPC stops acking while the 65816 spins
+forever. That is a freeze at character load, not a wrong noise.
+
+The loud failures are the well-covered ones (they detonate in the load path, which
+`verify_saturn.sh` and every autopilot's MATCH-LOAD-FAIL already net). The **quiet**
+one — a stray write or state residue read much later — had no coverage at all.
+
+**`tools/saturn/trace_wram.lua`** snapshots all 128 KB at checkpoints and logs
+every write to a declared watch set with its writer PC.
+**`tools/saturn/wramdiff.py`** compares checkpoints byte for byte, reports
+differing ranges as SNES addresses, and diffs the watch logs.
+**`tools/saturn/verify_wramdiff.sh`** self-checks first — all green on v0.14.9:
+
+| | check | result |
+|---|---|---|
+| 1 | determinism: vanilla session, same ROM twice | **0 of 131072 bytes differ**, at all 10 checkpoints |
+| 2 | sensitivity: inject one byte at `$7F:F1FF` | found, and `--expect-only` confirms *nothing else* |
+| 3 | negative control: demand identical of that pair | correctly FAILS |
+
+Two design corrections worth keeping, both of the "a probe that reports nothing
+is broken" family:
+
+* **The watch was initially gated on `synced`** — i.e. it only listened after the
+  match went live. But the hook it exists to watch runs during CHARACTER LOAD,
+  *before* that. It dutifully reported zero writes. The watch is now always on,
+  with absolute frame numbers. With it fixed, a Saturn run shows the mechanism
+  plainly: `$7F:F100=$A5`/`$F10A=06` at the confirm stub (PC `$F6:C26A`), the
+  round-load arming at `$F0:2A58`, and `$7F:F107=$A5` — the voice DIRTY flag —
+  at PC `$F9:2773`.
+* **The low direct page was in the watch set and had to come out**: `$0000-$001F`
+  takes 460k writes in 900 frames (9 MB of log and a `getState()` each). The
+  `$10`/`$11` question is about *residue at one moment*, which the snapshots
+  already catch. Watch hot addresses only when chasing a named writer, via `WATCH`.
+
+### What it can and cannot say today
+
+Ran as a real comparison: the Saturn build vs **REF v.2**, both playing an
+identical **vanilla** (non-Saturn) session. Result: ~270 bytes differ, and they
+are **all in `$7E:02xx` — the OAM shadow** (annotations.md: "direct `$0200`
+shadow pokes"). That is sprite data, and it is fully expected between two builds
+that differ by a ported stage and palette work. **It is not evidence of the voice
+hook leaking**, and reading it that way would be a mistake.
+
+Which is the honest limitation: a cross-BUILD comparison conflates every feature
+those builds differ by. The clean isolation is the **same build with and without
+the patch**, which cannot be run until the patch exists. When it does, the two
+assertions to make are:
+
+    # vanilla session, patched vs unpatched build — the restore path
+    wramdiff.py van_patched van_clean --expect-empty
+    # Saturn session — only the flag bytes the design declares may differ
+    wramdiff.py sat_patched sat_clean --expect-only 7FF107-7FF108
+
+**Coverage, stated plainly.** WRAM + DSP together cover the great majority of
+what a load-time hook can damage, but they are not "everything": VRAM, OAM
+proper, CGRAM and the APU's internal state stay outside, and every claim is
+bounded by the scripted window (900 frames, practice mode, one shell).
