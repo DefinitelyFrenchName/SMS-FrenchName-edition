@@ -3,10 +3,11 @@
 
 Pulls every DATA component the SMS port needs (docs/saturn/supers_map.md has the
 decoded systems; docs/saturn/saturn_notes.md the dossier) into build/saturn/unit/
-as raw .bin blobs + manifest.json (addresses, sizes, sha1s, rebase rules, TODOs).
+as raw .bin blobs + manifest.json (addresses, sizes, sha1s, rebase rules).
 ROM-derived output stays in build/ (gitignored) — never commit the bundle.
 
-Components (all verified 2026-07-30 unless flagged TODO in the manifest):
+Components (all verified 2026-07-30; the two open questions this header used to
+flag were closed by the shipped port — see the notes inline):
   anim_scripts    $C0:2105..$C0:252B  act-ptr table + [dur,pose] step scripts
   pose_records    $84:9209..$84:9401  126 x [class,hit,hurt,coll] (+guard-fix info)
   pose_to_cels    $CB:4892..$CB:499A  132 x (celA,celB)
@@ -15,9 +16,12 @@ Components (all verified 2026-07-30 unless flagged TODO in the manifest):
   boxes hit/hurt/coll  $AF:EC3A/ED2A/F2FA (30x8 / 93x16 / 6x8)
   recognizers     $C1:1452..$C1:161A  ptr list + 5 motion specs (format partial)
   button_map      $C1:174E            7-byte button->request-nibble record
-  special_actlists $C1:0940..$C1:0968 normal/special act lists (indexing TODO)
+  special_actlists $C1:0940..$C1:0968 normal/special act lists (indexing never
+                  pinned down here — moot: the shipped port drives her moves via
+                  the recognizer + act scripts, all verified downstream)
   manifest_record $E0:AC6A            16-byte char manifest (d48=1 + pal ptrs)
-  palettes        pal1/pal2/icon/obj  0x20 each (size ASSUMED — see TODO)
+  palettes        pal1/pal2/icon/obj  0x20 each (size was ASSUMED at extraction;
+                  0x20 confirmed correct in use since v0.5.0)
 
 Rebase rules (manifest carries them machine-readable):
   * anim_scripts: internal act pointers are bank-$C0-absolute; add (new_base - 0x2105).

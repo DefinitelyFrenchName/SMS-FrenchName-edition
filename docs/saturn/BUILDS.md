@@ -145,7 +145,8 @@ Maintainer testing, recorded because several of these close long-running items:
 - Char-select slot 10 is a PLACEHOLDER (0.10.0): the marker is a parked cursor
   glyph, not a portrait; hovering it shows no name text and the post-confirm
   portrait/VS/HUD screens show the shell character (Uranus). Real portrait art
-  + name pending. Story/1P select intentionally excludes the slot (vanilla
+  + name MOOT since 2026-08-04 (the visible variant is retired and deleted;
+  hidden is the only char-select). Story/1P select intentionally excluded the slot (vanilla
   restricts the story roster the same way) — use L+R there.
 - ~~REF-patch reconciliation~~ DONE in 0.11.5 (build_refsaturn.sh).
 

@@ -102,11 +102,14 @@ SITE_PROC_HOOK = 0x1007C      # $C1:007C: sep #$30 / asl / tax / jsr ($00A6,X)
 PROC_HOOK_OLD = bytes.fromhex("E2300AAAFCA600")
 STUB2 = 0x0B01                # $C1:0B01 (last 4 FF of the 0AFD run)
 EF_HELPER = 0xDB70            # in-bank, clear of tramp(DB20)/tramp3(DB30)/snd(DB50)
-# Her specials spawn projectile OBJECTS with Super S ids (0x20 qcf LP/HP, 0x22,
-# possibly more) — all in SMS's free id range 0x1D-0x2F. Until the projectile
-# objects are ported (7-table units each), EVERY free-id proc entry points at the
-# engine's despawn tail (stz $00,X / rts @ $C1:0E23) so spawns self-clear and her
-# "wait for projectile" act handlers complete. TODO: full projectile port.
+# Her specials spawn projectile OBJECTS with Super S ids — all in SMS's free id
+# range 0x1D-0x2F. The three she actually uses are PORTED (0x20 qcf LP/HP,
+# 0x21 j.632K, 0x22 qcb), dispatched through tramp3. Every OTHER free-id proc
+# entry still points at the engine's despawn tail (stz $00,X / rts @ $C1:0E23),
+# which is now a safety net rather than a stub: if some path ever spawns an
+# unported id, it self-clears instead of running a wrong proc, and her "wait for
+# projectile" act handlers still complete. No unported spawn has been observed in
+# the randomised stress matches.
 # v0.11.8 — CROSS-GAME OBJECT-ID SHIFT (the "crashed while fighting" bug).
 # The two games' ENGINE object-id tables ($C1:00A6) differ by one entry in the
 # effect range: Super S id N is SMS id N-1 for N >= 0x31 (verified by proc
@@ -154,8 +157,10 @@ EF_TRAMP3 = 0xDA60      # v0.11.8: the id-routing trampoline outgrew its old
 # player voice. Super S instead calls a command handler ($80:FBB0->FBB4, no SMS
 # twin); her blocks' JSLs (mapped to a bare RTL by the port) are re-pointed to a
 # translator at $EF:DB50 that plays an SMS sfx for known command ids and stays
-# silent otherwise. Normals' whooshes were script CMD steps (stripped) — their
-# restoration needs an interpreter CMD back-port: TODO, see BUILDS.md gaps.
+# silent otherwise. Normals' whooshes were script CMD steps: the interpreter CMD
+# back-port that restores them landed in v0.7.0 (audit immediately below), so
+# scripts are CMD-intact. What remains is only that the id->sfx MAPPING is
+# approximate — parked, not open: docs/saturn/PROJECT.md "Parked".
 SND_MAP = {0x0E: 0x06, 0x20: 0x06}   # her special-move command ids -> SMS heavy whoosh
 EF_SND = 0xDB50
 # Interpreter CMD back-port: the SMS interpreter lacks Super S's 0xC0 command

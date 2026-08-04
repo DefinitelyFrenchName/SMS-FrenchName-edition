@@ -82,8 +82,11 @@ def resolve_jsl_map(sup, sms):
       192 SMS call sites in the char-proc regions; 96-byte compare differs only
       in operands incl. the box bank lda #$AF -> #$8A).
     $80:FBB0 -> $80:9FB7 (bare RTL) — FBB0 springboards to $FBB4, the Super S
-      sound/command handler with NO SMS twin (the CMD extension). Stubbed
-      silent; TODO map SMS's real sfx API and restore her sounds."""
+      sound/command handler with NO SMS twin (the CMD extension). Stubbed to a
+      bare RTL here; SMS's real sfx API was mapped in v0.7.0 and her commands are
+      re-pointed to the $EF:DB50 translator (see SND_MAP in mksaturn_smoke.py),
+      with her own voice added in v0.13.0. The remaining id->sfx mapping is
+      approximate — parked, not open: docs/saturn/PROJECT.md "Parked"."""
     assert sup[0xC115:0xC115 + 11] == sms[0xBFBB:0xBFBB + 11], "C115/BFBB drift"
     assert sup[0xC494:0xC494 + 11] == sms[0xC352:0xC352 + 11], "C494/C352 drift"
     assert sms[0x9FB7] == 0x6B, "$80:9FB7 is not RTL"
