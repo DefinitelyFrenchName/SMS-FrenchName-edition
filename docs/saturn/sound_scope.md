@@ -1023,3 +1023,15 @@ here that generalise beyond this patch:
   the player actually hears, and it is shift-immune. On patch 101 it gives the
   clean verdict a positional diff could not — 405 key-ons, identical order, zero
   structural differences, and exactly 20 pitch changes, all hers.
+
+## PATCH 101 IS ON BY DEFAULT (2026-08-04, maintainer field test)
+
+Field verdict after building 100+101: her pitch is correct; a Moon facing her is
+flat (the shared-transpose limitation, **accepted**); other characters show no
+downpitch or only mild. So `SATURN_PITCH` now defaults to **1**.
+
+    default build            -> 30a130e893d2…   (100 + 101)
+    SATURN_PITCH=0           -> 03b73cdd2831…   (100 alone, byte-identical to before)
+
+Both directions verified by rebuild. 101 keeps its own registry row and its own
+standalone BPS; only the default changed.

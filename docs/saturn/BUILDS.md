@@ -177,3 +177,41 @@ as a round loads (either pad) — that player becomes Saturn; SELECT-hold at a
 round load reverts; this is also the ONLY way in story/1P mode.
 `tools/saturn/saturn_test.lua` remains available (auto-transform + P2 mirror
 matches + the on-screen version label).
+
+## FIELD BUG (2026-08-04): 214P projectile sprite — BISECTED TO v0.14.8, NOT v0.14.6
+
+Reported as "corrupted since v0.14.6 — some tiles missing, some in the wrong
+place". Measured with `tools/saturn/probe_saturn_projtiles.lua`, which fires 214P
+and, 20 frames after the projectile slot populates, records every OAM entry
+within 32 px of the projectile object plus whether the VRAM tile each one
+references is blank:
+
+| build | sprites near the projectile | blank VRAM | with data |
+|---|---|---|---|
+| 0.14.5 | 7 | 2 | 5 |
+| 0.14.6 | 7 | 2 | 5 |
+| 0.14.7 | 7 | 2 | 5 |
+| **0.14.8** | **8** | **6** | **2** |
+| 0.14.9 | 8 | 6 | 2 |
+
+**The change is at v0.14.8, and 0.14.5/6/7 are byte-for-byte identical in this
+measurement.** More OAM entries pointing at BLANK VRAM is exactly "tiles
+missing", and the tile indices move too ($05D/$066/$069/$06A/$06C/$06E before,
+$05B/$05E/$05F/$06E/$06F/$070 after) — "tiles in the wrong place".
+
+⚠ Two caveats on the attribution. The report says 0.14.6; the measurement says
+0.14.8. v0.14.6 is the build that made **2P VS transform at all**, so if the
+maintainer plays 2P VS, 0.14.6 is simply the first build where Saturn appears
+there — first VISIBLE, not first broken. And this probe samples one instant in
+practice mode on shell 6, so it bounds when the OAM/VRAM state changed, not
+necessarily when the visible artefact started.
+
+**Prime suspect.** v0.14.8 moved the shell restriction to where the FLAG is
+armed, and BUILDS.md's own v0.14.8 row notes that "the effect-tile/palette
+override in the DMA stub" keys off that flag. Changing when the flag arms can
+therefore change whether — or when — her effect TILES are uploaded, which is
+precisely a projectile drawing from VRAM that was never filled.
+
+**Next:** A/B the effect-tile upload between 0.14.7 and 0.14.8 (does the DMA stub
+still run, and at the same point?), then check whether her projectile's sprite
+list is indexing tiles the upload no longer covers.

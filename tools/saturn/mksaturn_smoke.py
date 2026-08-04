@@ -196,11 +196,12 @@ CMD_SND_MAP = {0x15: 0x05, 0x14: 0x06, 0x0E: 0x06, 0x20: 0x06,
 # v0.13.0 — HER REAL VOICE (task #44). Set SATURN_VOICE=0 to build without it
 # (CMD args 0x22-0x25 then fall back to the v0.12.7 whoosh/silence above).
 SATURN_VOICE = _osv.environ.get("SATURN_VOICE") != "0"
-# PATCH 101 — the voice pitch correction. OFF by default: it is a separate patch
-# entry with its own registry row and its own standalone BPS (diffed 100 against
-# 100+101), and it has an unresolved behavioural finding recorded against it.
-# Requires SATURN_VOICE — there is nothing to retune without her samples loaded.
-SATURN_PITCH = _osv.environ.get("SATURN_PITCH", "0") != "0"
+# PATCH 101 — the voice pitch correction. ON by default since 2026-08-04:
+# field-tested by the maintainer, who confirmed her pitch is correct, that a Moon
+# facing her is flat (the shared-transpose limitation, accepted), and that other
+# characters show no or only mild downpitch. Build with SATURN_PITCH=0 to get
+# patch 100 alone; it keeps its own registry row and its own standalone BPS.
+SATURN_PITCH = _osv.environ.get("SATURN_PITCH", "1") != "0"
 #
 # How SMS voices a fighter (all measured — probe_sms_voiceload / voiceid /
 # voicetrace; full write-up in docs/saturn/sound_scope.md):
