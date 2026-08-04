@@ -148,9 +148,31 @@ are not rediscovered later as bugs.
 
 * **Sound mapping is approximate.** SMS whoosh/starter sfx stand in for her Super
   S command sounds. Good enough for now; refine per-move if it ever grates.
-* **Her voice pitch varies with the shell character.** Known and accepted — she
-  borrows char 1's sound ids on whichever side she plays and the shell's own
-  pitch rides along. Same verdict.
+* **Her voice pitch varies with the shell character — MEASURED 2026-08-04, and
+  it is narrower than it looked.** `tools/saturn/probe_sms_voicepitch.lua`
+  shadows the DSP register file from the SPC's own port writes ($00F2 index /
+  $00F3 data — a write callback on `memType.spcDspRegisters` never fires) and
+  reads each voice's SRCN + `VxPITCH` at every key-on.
+  * **IN MATCH: not shell-dependent at all.** Her voiced specials key on sources
+    49/50/51 at `$03E4`/`$041F`/`$03AC` — byte-identical on shells 6, 7 and 8.
+    A full diff of every in-match key-on (voice *and* sfx, source and pitch) for
+    the same scripted inputs is identical between shells.
+  * **CHARACTER-SELECT CONFIRM: shell-dependent, and inherited from vanilla.**
+    The confirm voice (srcn 48) plays at `$04E7` on Uranus and `$0582` on Pluto —
+    ~2 semitones apart — and **the vanilla character's confirm voice plays at
+    exactly the same pitch on the same shell**. So she is not being mispitched;
+    she inherits the shell's pitch wholesale, because that path's sound id is
+    per-CHARACTER (`21 + charID`, table `$C0:AE75`) and v0.13.1 swaps only the
+    BANK id, not the sound id. (`$04A0` appears on every shell and is a shared
+    UI blip, not the voice. Shell 7 showed only `$04A0` — either Neptune's voice
+    pitch collides with it or that key-on was missed; unresolved, and it does not
+    change the finding.)
+  * **Cost of fixing, if ever wanted:** pin the select path to one sound id for
+    Saturn at the hook that already runs there. One value, blast radius limited
+    to her confirm voice, and **headlessly gateable** — this probe asserts the
+    pitch, so "identical on 6/7/8" can be a check. Worth doing only together with
+    measuring what Super S plays her select line at, otherwise it swaps one
+    arbitrary pitch for another.
 * **Balance.** No balance pass has been done; she is a hidden character of
   admittedly rough balance, which is part of why she is shippable. Her data is
   documented Uranus-grade precisely so a pass is possible later.
