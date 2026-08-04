@@ -25,109 +25,41 @@ The base patch project below is complete and green; active work is the **SMS +
 Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 `docs/saturn/BUILDS.md`, next steps: `docs/NEXT_SESSION.md`).
 
-**Saturn is playable in SMS**, summoned by holding **L+R** on a **Uranus,
-Neptune or Pluto** slot at select (she wears that character as a "shell").
-The **hidden code is the only character-select variant** — the v0.10.0 visible
-slot-10 build was retired 2026-08-04 and its code deleted (a placeholder that
-added the one char-select surface the story lock exists to avoid; removal proven
-inert by a byte-identical rebuild). **No open bugs; the parked topics — sfx
-mapping, shell-dependent voice pitch, balance, the OBJ pal 5/6 curiosity — are
-listed in `docs/saturn/PROJECT.md` "Parked".**
-Field-tested repeatedly by the maintainer. Current build is **v0.14.9**, on
-**REF v.2**. **All three bugs from the 2026-08-03 field round are fixed**: #2
-(2P VS did not transform) and #3 (Saturn reachable in story) shared one root
-cause — the game-mode byte — and #1 (throw corruption) was a third nine-wide
-table. Details in `docs/NEXT_SESSION.md`. No known open bugs.
+**Saturn is playable in SMS**, summoned by holding **L+R** while confirming a
+**Uranus, Neptune or Pluto** slot (she wears that character as a "shell"). The
+hidden code is the **only** char-select variant — the v0.10.0 visible slot-10
+build was retired 2026-08-04 and its code deleted (a placeholder that added the
+one char-select surface the story lock exists to avoid; removal proven inert by a
+byte-identical rebuild). Current build **v0.14.9** on **REF v.2**,
+`03b73cdd…`. **Feature-complete, no open bugs** — the three 2026-08-03 field bugs
+and the two follow-ups are all fixed. Maintainer's verdict: "perfectly acceptable
+for playing".
 
-**Verifying the port: `tools/saturn/verify_saturn.sh`** — the full headless
-regression path, and a real gate (exits 1 on failure; every check asserts a
-measured string, not just a clean exit). Covers the base regression suite, L+R
-arming across modes x shells including flag/latch and the story lock, 2P VS on
-both pads, throws with Saturn as the victim (normal + command, OAM flood and
-stage-tile VRAM), the projectile palette split, the independent L+R harness and
-the randomised stress match. `QUICK=1` for a ~4-minute subset. Sanity-checked
-against v0.14.6, where the quick matrix fails 7 of 16.
+**Gate before shipping anything: `tools/saturn/verify_saturn.sh`** — 45 checks
+(regression suite, L+R arming across modes x shells incl. flag/latch, story lock,
+2P VS on both pads, throws normal + command with OAM-flood and stage-VRAM
+assertions, the projectile palette split, the lrmodes harness, a randomised
+stress match, and an OBJ-palette census over a full match). Exits 1 on failure;
+`QUICK=1` for a ~4-minute subset. Sanity-checked against a known-bad build: on
+v0.14.6 the quick matrix fails 7 of 16 — a gate that cannot fail is not a gate.
 
-**A palette census taken in PRACTICE mode does not see a real match.** Practice
-never lands a KO and produced no hit sparks, so a first census said OBJ pals
-5/6/7 were all unused. Over three full randomised matches (`probe_sms_stress.lua
-PALHIST=1`, which reaches KO and round end) **pal 6 turns out to be the HIT
-SPARK** — 4 sprites, tiles `$1C2..$1C4`, during hitstun. Had Saturn's projectiles
-been moved onto row 6 instead of 7, hit sparks would have broken. The same run
-proves **pal 7 is genuinely free** (0 uses in vanilla, 1537-1939 in Saturn runs)
-and that **Saturn draws on pal 2 exactly 0 times** where vanilla uses it
-718-1605. Both are permanent checks in `verify_saturn.sh` now.
-Related: rows 5/6 are **dynamic** — reloaded per effect, alternating states
-several times inside a single match — so the old "they differ between Saturn and
-vanilla" was comparing two snapshots at unrelated instants. Closed, not a bug.
-
-**Projectile palettes are per-SLOT, and row 7 is free (v0.14.9).** Both games
-pick a projectile's palette from its slot — 2 for `$1100`, 3 for `$1180` —
-written into the object's `+0x08`, whose value becomes the OAM attr byte via
-`<<1` (so palette = `+0x08 & 7`). Saturn's ported effects palette used to be
-injected over row 2, which recoloured the OPPONENT's projectiles (field report).
-Measured over a full match, only OBJ pals 0/1/2/4 are used by any sprite and row
-7 is never loaded, so hers now live there. Rows 5/6 hold authored ramps nothing
-drew — do not assume they are free.
+**Two deferred work items, neither blocking — full detail in
+`docs/NEXT_SESSION.md`:** (1) her voices play SHARP, with both targets measured
+and confirmed (`$0345` in-fight, `$03E4` select line) but the fix blocked behind
+the SPC driver, since all pitch is emitted from one routine shared with the music
+(`$131D`/`$1327`); (2) patch 16 menu translation, whose groundwork is done and
+whose first screen is ready at full width, but which the maintainer wants to
+explore at HALF width first — that needs room made, not just glyphs drawn.
 
 **Guard the thing that ARMS, not the thing that acts (v0.14.8).** The shell
-restriction started life in the helper, at the transform — but the select
-voice, the in-match sound remap and the effect-tile/palette override all key off
-the **flag**, which the char-select confirm stub sets much earlier. A disallowed
-shell therefore armed everything except the one thing that was guarded: no
-Saturn, but her confirm sfx, her palette and her sfx (field report). The rule now
-lives at the confirm (cursor charID `$0000,y`), the confirmed id is recorded in
-`$7F:F10A/F10B` so the round-load arming route can apply the same test, and the
-helper guard is the last line. A feature with several consumers keyed off one
+restriction started life in the helper, at the transform — but the select voice,
+the in-match sound remap and the effect-tile/palette override all key off the
+**flag**, which the char-select confirm stub sets much earlier. A disallowed
+shell therefore armed everything except the one thing that was guarded. The rule
+now lives at the confirm (cursor charID `$0000,y`), the confirmed id is recorded
+in `$7F:F10A/F10B` so the round-load arming route can apply the same test, and
+the helper guard is the last line. A feature with several consumers keyed off one
 flag is only as gated as that flag.
-
-**The throw corruption was a per-VICTIM table with nine entries (v0.14.7).**
-When a character is thrown, the THROWER's script drives the VICTIM's pose:
-`jsr $C1:03DC` returns the *other* object's base, so `$0E` is the victim's
-charID, and `$0E*2` indexes a ten-entry, 1-indexed pointer table at `$C1:0881`
-(idx 1-9 = the nine characters' 21-byte pose lists). Saturn is id `0x1C`, so the
-read lands 0x38 bytes past the table, inside another character's pose data.
-The chain from there is worth knowing because it is not obvious from the
-symptom: a garbage pose (`$F6`, against her last real pose `$83`) indexes past
-her pose→spritelist table in the OAM layer, **whose first byte is a sprite
-COUNT** — so the emitter writes 102 identical sprites and floods OAM (127
-visible against ~50). "Random tiles" was a runaway sprite emitter, not bad tile
-data. Fixed by hooking the list read at both sites (`$C1:0740` normal,
-`$C1:0C5C` command/carry) and giving victim id `0x1C` her own 21-byte list,
-**lifted** from Super S (its twin table at `$C1:0883` has eleven entries, idx 10
-is hers, and the nine shared lists are byte-identical across the games).
-**This is the THIRD nine-wide table to bite this port** — see
-`docs/saturn/memory_and_shell.md`. When something misbehaves only for Saturn,
-look for a table sized to the roster before anything else.
-
-**THE MODE BYTE WAS WRONG, and that one constant caused both bugs.** `$7E:008D`
-is **0 = story, 1 = 2P VS, 2 = 1P-vs-COM, 4/5 = training** — measured from the
-game (`probe_sms_menurows.lua`) by two discriminators per menu row: how many
-cursors move, and which charIDs each can reach (story = one cursor, roster 1-5;
-VS = two independent cursors, full 1-8; vs-COM = one cursor + fixed opponent).
-`docs/annotations.md` carried both "0=VS, 1=Story" (from the training Lua —
-wrong) and "VS 1P-vs-2P = 01" (right), and the Saturn story guard was written
-against the wrong one. So `$8D == 1` **blocked 2P VS** while leaving story open.
-Both doc entries are corrected. If you write a mode gate, gate on the corrected
-map and confirm it in the mode you mean.
-
-**The story lock is the SHELL, not the mode byte (v0.14.5).** Restricting her to
-charID 6/7/8 locks story structurally: those three are the game's own story
-bosses and its story nav table cannot reach them, so there is no shell in story
-for her to arm on and no mode check to get wrong. Proven by building with
-`STORY_GUARD=0`: the story latch still arms and the helper still runs every
-frame, and the guard refuses all of it. `STORY_GUARD` is kept as a second layer
-and, since v0.14.6, finally tests the right mode — which is what closes the one
-residual the shell test cannot see (a story fight whose P1 has been *forced* to
-charID 6, a `$1B40` poke the UI cannot produce). Measured on v0.14.6: VS,
-vs-COM and practice transform on shells 6/7/8 and refuse 1/4; story refuses
-everything, forced charID 6 included. Two-pad VS coverage: L+R on P1 → P1 only,
-on P2 → P2 only, on both → a Saturn mirror.
-⚠️ The earlier "SHELL_GUARD blocks EVERY shell, including 6/7/8" reading was a
-**harness artifact**, not a code fault: that flow pokes `$1B40` once and then
-mashes A/Start through a second selection screen that reuses it, so the fight
-loaded charID **1** while the probe believed it had selected 6. Poke the cursor
-for the whole load, or read `$1000` and believe it over the cursor.
 
 **She has her own voice as of v0.13.0** (task #44 closed): her win laugh, 236P,
 214P and j.632K, injected as a fifth data layer. SMS voices a fighter from a
