@@ -665,3 +665,66 @@ same tile-alignment + letter-segmentation pass run here. `probe_menu_survey.lua`
 takes `KEYS="start:900 …"`; the two attempts recorded above did not advance the
 screen, so the walk needs checking against what BZ actually wants (it may need
 the attract loop to finish, or a different button).
+
+## CORRECTION + FOUND: the TOURNAMENT EDITION has a real half-width font
+
+Everything in the section above was measured against **`sailor moon s big zam
+edition (hack).sfc`** — which is *not* the Tournament Edition. The maintainer
+caught it. The TE is a separate ROM, **`SMS_BZE_TE.sfc`**
+(sha1 `3cc5c0dfe54b6ec16d06923e8e9d3eff2a434e82`, 3 MB), and `smspaths.py` has no
+accessor for it, which is how the mistake happened.
+
+The BZ findings still stand *for BZ* (its font blocks and all 59 asset records are
+identical to clean; its title Latin is proportional artwork). But the TE is
+different in the way that matters.
+
+### TE has a tile-aligned half-width Latin font, on screen, today
+
+Captured with `ROM=<TE> OUT=te tools/run.sh tools/probe_title_vram.lua 120`
+(frame 700 is the one with the menu). Two things had to be got right to see it:
+
+1. **Polarity.** These cells are drawn as a FILLED cell (colour 1) with the
+   letter in the other indices. Rendering "any non-zero" shows solid blocks and
+   hides the glyphs completely. Ink = non-zero **and != 1**.
+2. **The alignment rule.** A font row is one whose ink runs sit on a *consistent*
+   8 px grid — not one whose runs start at multiples of 8. TE's glyphs carry a
+   1 px left bearing, so every run starts at offset **1**: `starts_mod8=[1]`, a
+   single value, which is a perfect grid. The stricter rule rejected the real
+   font on the first pass.
+
+With both right, `tools/te_halfwidth.py rows` classifies the title screen:
+
+| tile row | verdict | starts mod 8 | glyph widths |
+|---|---|---|---|
+| `$300`, `$320`, `$3A0` | art | 5-7 distinct offsets | 10-12 px |
+| **`$340`/`$350`** | **FONT** | **[1]** | 5-6 px |
+| **`$380`/`$390`** | **FONT** | [0, 1] | 4-6 px |
+
+and **row `$340` decodes letter by letter as**
+
+    T O U R N A M E N T   M O D E
+
+`tools/te_halfwidth.py extract` pulls **16 distinct 8×16 glyphs** to
+`docs/te_halfwidth.json` (bitmaps + tile ids, labels left null for a human pass).
+
+### What this changes
+
+The premise is alive again, in a better form than the original: half-width Latin
+does not have to be authored from nothing, and does not have to be traced out of
+proportional artwork either. A **shipped, tile-aligned, correctly-styled font
+exists in a ROM this project already has on disk**, and it is directly liftable —
+the same lift patch 4 already does for the credit line, and patch 3 for palettes.
+
+### Next steps
+
+1. **Label the 16 glyphs** against the on-screen strings — that turns
+   `te_halfwidth.json` into a code→glyph table, the half-width twin of
+   `menufont_table.py`.
+2. **Find the rest of the alphabet.** TOURNAMENT MODE + row `$380` gives a subset;
+   TE's other screens (options, the tournament brackets) very likely carry more.
+   Capture them the same way rather than assuming — the rows above are one screen.
+3. **Add a `te_rom()` accessor to `smspaths.py`** so this ROM is addressable by
+   name and nobody repeats the BZ/TE mix-up.
+4. The VRAM space question is unchanged and still open: `$5C0-$5FF` is free in
+   all 192 clean captures, but that is evidence, not proof — write-watch it before
+   authoring into it.
