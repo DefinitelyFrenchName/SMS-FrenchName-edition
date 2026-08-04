@@ -324,6 +324,30 @@ which means shifts of -2/-3/-4 respectively. Which of those is right is a
 listening question, and the four samples were rendered at 6539 Hz and sent for
 exactly that check.
 
+## RESOLVED: her samples have TWO native rates, not one
+
+The apparent contradiction between the 2026-08-02 "8 kHz" A/B and the 2026-08-04
+"way sharp" field report was never a contradiction — **both were right, about
+different samples**:
+
+| sample set | native rate | target pitch |
+|---|---|---|
+| in-fight voices (bank entries 48-51) | **~6539 Hz** | **`$0345`** |
+| character-select "Yoroshiku" (`$EC:C12F`) | **~8000 Hz** | `$0400` exact, or `$03E4` = 7781 Hz on the driver's grid |
+
+The 8 kHz A/B was run while identifying the SELECT line, so it calibrated that
+sample; the in-fight voices are a different, lower-pitched set. The mistake was
+mine: assuming one native rate for everything she has, and then treating a
+measurement of one set as confirmation for the other. Maintainer on 6539 for the
+select line: "definitely flat, which I didn't expect".
+
+⚠ **`$0400` (exactly 8000 Hz) is NOT on the driver's semitone grid** — it is
++3.49 st above `$0345`, not a whole step. The grid brackets 8000 with `$03E4`
+(7781 Hz, −0.48 st) and `$041F` (8242 Hz, +0.52 st). So whether the select line
+can be set to exactly 8000 depends on whether the fix overrides the PITCH
+REGISTER directly or changes a NOTE id — which has to be measured before
+implementing, not assumed.
+
 **In-match voices: SETTLED at `$0345` / 6539 Hz** (maintainer, 2026-08-04):
 "by far the closest we've ever gotten to the right pitch ... beyond
 satisfactory", noting they may differ slightly from Super S or from each other.
