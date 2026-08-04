@@ -143,7 +143,8 @@ cel tables into $EA + cels $EB-$ED, OAM layout into $EE via the $AE mirror), as
 engine accommodations (recognizer-guard stub; main-proc entry borrowing Uranus's
 proc for universal acts). `tools/saturn/probe_sms_saturn_smoke.lua`: **SMOKE PASS —
 228/228 frames**, idle poses cycle per her script, walk works, and she RENDERS
-(traces/saturn/saturn_smoke_idle.png — Silence Glaive and all; Uranus palette, palettes
+(regenerate locally: probe_sms_saturn_smoke.lua writes traces/saturn/saturn_smoke_idle.png
+— screenshots are no longer committed, see .gitignore — Silence Glaive and all; Uranus palette, palettes
 not yet ported). Hard-won engine rules now documented in supers_map: the object-id
 namespace is shared across SEVEN id-indexed tables (scripts/poses/cels/OAM/procs/
 recognizers/buttons — miss one and the machine walks into data), and DB-swap

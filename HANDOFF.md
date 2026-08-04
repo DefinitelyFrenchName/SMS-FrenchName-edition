@@ -331,8 +331,9 @@ offsets, TODOs); tripwire-asserted against the measured ground truth.
 **2026-07-30 (same day, smoke milestone) — SATURN ANIMATES + RENDERS IN SMS:**
 `tools/saturn/mksaturn_smoke.py` (from-clean scaffold builder, NOT a patch) injects her
 four data layers as free object id 0x1C; `probe_sms_saturn_smoke.lua` = 228/228
-ALL PASS, idle/walk animate, sprites fully coherent (traces/saturn/saturn_smoke_*.png,
-committed; Uranus palette — palettes unported). En route: a 4TH animation layer
+ALL PASS, idle/walk animate, sprites fully coherent (traces/saturn/saturn_smoke_*.png
+— regenerate locally; screenshots are game art and are NOT committed, see
+.gitignore; Uranus palette — palettes unported). En route: a 4TH animation layer
 (OAM sprite layout, $84:8000 table system) discovered + decoded + extracted, and
 a CORRECTION: per-char proc blocks DO exist (~4.3 KB each; Saturn $C1:C6F7; the
 07-30 'no handler block' claim was a baseline-contaminated measurement). Full

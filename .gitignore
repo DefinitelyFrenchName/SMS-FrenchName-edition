@@ -21,6 +21,19 @@ roms/
 *.smc
 *.fig
 
+# SCREENSHOTS AND ANY OTHER GAME IMAGERY — copyrighted, never track (2026-08-04).
+# Emulator screenshots are game art just as much as a ROM is. They are evidence
+# for a session, not repo content: probes write them under traces/ and they stay
+# local. `git add -f` is NOT the escape hatch — nine had been force-added past
+# the traces/ rule and were pushed before this. Precedent: mockups/ was purged
+# from history in 2026-07-24 for exactly this reason.
+# A genuinely ORIGINAL diagram (ours, no game art) may be force-added deliberately.
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+
 # build/ holds only patch files: ignore everything, allow-list .bps/.ips back in
 build/*
 !build/*.bps
