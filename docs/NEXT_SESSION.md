@@ -1,6 +1,6 @@
 # Next-session handoff — 2026-08-05
 
-## Start here: TWO open items — patch 16 (step 2) and patch 17. Saturn is done.
+## Start here: ONE open item — patch 16, step 2. Patch 17 and Saturn are done.
 
 **1. Saturn's 214P projectile — FIXED (v0.14.11, 2026-08-05).** It was a
 **per-shell truncation of her effect sheet**, not a bad sprite list. Her
@@ -78,21 +78,26 @@ her proc ran out of that copy's unhooked read. Repro: Saturn vs Saturn, 6P.
 The gate now covers Saturn-as-thrower and the builder asserts no unhooked read
 survives anywhere in the image.
 
-**5. Patch 17 (all stages selectable) — MECHANISM DECODED, not confirmed.**
-The hidden stage (Nakayoshi editorial department) is gated by `$1F59`, which has
-exactly ONE reader (`$C3:AA28`) and one writer (`$C3:BADE`). The reader picks a
-list bound: flag set -> `$1C1C` = 16, flag clear -> 18 — word indices, i.e.
-**0-8 vs 0-9**. So "a 0-8 range" and "a flag" are the same thing. One byte does
-it: `$C3:BADE` `8D` -> `9C` (`sta` -> `stz`), already in
-`sms_patcher.py PATCH_NAKAYOSHI`.
-* ⚠ **No in-game A/B yet.** The first attempt was VOID (a probe edit silently
-  failed to apply, so the old sweep ran under a new printout and reported address
-  keys as stage indices). The live stage index is **pointer-addressed** —
-  `ldx $1B00`, then `$0038,X` — which is why a flat WRAM sweep found nothing.
-* ⚠ **The one byte covers the MENU only.** `$1C1C` is a generic menu-list length
-  (5 writers in `$C3`, 2 readers at `$C3:8002`/`$801A`); the RANDOM stage picker
-  is not among its readers, so it bounds itself separately and must be located
-  before the stage can join the pool — which the maintainer also wants.
+**5. Patch 17 (all stages selectable) — DONE and confirmed (2026-08-05).**
+`tools/mkpatch17.py`; standalone `build/sms_allstages.bps` (`e5dd325b…`),
+playable bundle `build/sms_ref_v2_allstages.bps` = REF v.2 + 17 (`e8fc6045…`).
+Two edits, both verified in-emulator:
+* **menu bound** — `$C3:BADE` `8D` -> `9C` (`sta $1F59` -> `stz`). The reader
+  `$C3:AA28` sets `$1C1C` to 16 or 18, which the shared navigator treats as the
+  INCLUSIVE max word index: 0-8 vs 0-9. 9 stages reachable on clean, 10 patched;
+  index 18 loads the stage and the menu draws なかよし編集部.
+* **random pool** — the picker was patch 3's own rider (`$E8:00CD`,
+  `lda $B1 / A %= 9 / asl / sta $8E`), not retail code; retail has no random
+  stage picker at all. Both `#$0009` operands -> `#$000A`, found BY SIGNATURE in
+  the image being built. RNG forced to 9: stage 0 before, stage 9 after; RNG 8
+  identical on both (the control that proves the poke reached the picker).
+* The **independent control** is the game's own cheat: hold **X+L+R** over the
+  title (`$C3:B8B4`, latch ~f622) and a CLEAN ROM already shows ten stages.
+* ⚠ A menu screenshot taken on the frame the index lands shows the PREVIOUS
+  stage's name (the name is queued to VRAM) — that artifact read exactly like
+  "the tenth entry is mislabelled". Settle ~40 frames.
+* Not folded into REF v.2 or the Saturn line — maintainer's call, since that
+  renames a published artifact.
 
 **6. Her four palettes — DONE** (v0.14.12, retuned v0.14.15, maintainer request). Her transform
 copied palette 0 unconditionally and threw away the slot the character select

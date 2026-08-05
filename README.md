@@ -59,6 +59,8 @@ no ROM can end up in a commit.
 | 12. Taunts                      | Taunt on L: each character's native misfire ("ochame") pratfall, fully vulnerable | `tools/mkpatch12.py`                 | `build/sms_taunt.bps`                                  | `614f318e…`   |
 | 13. Guts (Q-style taunts)          | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py`                 | `build/sms_tauntbuff.bps`                              | `bafb87d4…`   |
 | 14. Guts Grip **(companion to 13)** | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py`                 | `build/sms_gutsgrip.bps`                               | `5fadcaca…`   |
+| 15. No AUTO                      | Removes the AUTO option from the VS button-config screen (Auto binds specials to L/R, colliding with patch 12's taunt) | `tools/mkpatch15.py`                 | `build/sms_noauto.bps`                                 | `31832e6e…`   |
+| 17. All stages                   | Unlocks the hidden tenth stage (なかよし編集部) in the stage select, and — where patch 3 is present — in its random default pool | `tools/mkpatch17.py`                 | `build/sms_allstages.bps`                              | `e5dd325b…`   |
 
 Combined builds (each applies to the clean ROM): `build/sms_allpatches_v0.22.bps` — all 14
 patches (10 as 10b), ROM SHA-1 `3bb9c829…`, title tell "v.0.22"; `build/sms_reference_v1.bps`
@@ -66,3 +68,5 @@ patches (10 as 10b), ROM SHA-1 `3bb9c829…`, title tell "v.0.22"; `build/sms_re
 counter/training patches), ROM SHA-1 `2873f214…`, title tell "FrenchName REF v.1".
 Both rebuilt 2026-07-30 with the patch-4 "©MOONLIGHT FIGHT SOCIETY" credit line (the
 visible tell vs the pre-credit builds `52bc7e38…` / `bd1104ee…`).
+`build/sms_reference_v2.bps` = REF v.1 + patch 15, ROM SHA-1 `6d79fb5f…`;
+`build/sms_ref_v2_allstages.bps` = REF v.2 + patch 17, ROM SHA-1 `e8fc6045…`.

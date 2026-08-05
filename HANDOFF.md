@@ -123,9 +123,25 @@ Sanity-checked against known-bad builds: on v0.14.6 the quick matrix fails 7 of
 not a gate. That check was added *because* the 45-check gate passed on the build
 carrying the projectile bug for two weeks.
 
-**Open work — TWO items, full detail in `docs/NEXT_SESSION.md`:**
+**Patch 17 (all stages selectable) is DONE and confirmed (2026-08-05).** The
+tenth stage — なかよし編集部, the Nakayoshi editorial department — is selectable
+like any other and joins the random pool. Two edits: one byte turns the menu
+bound's `sta $1F59` into `stz` (`$C3:BADE`), and patch 3's random-stage rider,
+which bounds itself with `A %= 9`, gets both operands raised to 10 — located by
+signature in the image being built, since retail has **no** random stage picker
+at all. Measured: 9 stages clean vs 10 patched, the stage loads, the menu draws
+its name; RNG forced to 9 gives stage 0 without the pool edit and stage 9 with
+it. The independent control is the game's own cheat: holding **X+L+R** over the
+title (`$C3:B8B4`) gives the same ten stages on a CLEAN ROM, so the patch
+removes a condition rather than inventing content. `build/sms_allstages.bps`
+(`e5dd325b…`), playable bundle `build/sms_ref_v2_allstages.bps` = REF v.2 + 17
+(`e8fc6045…`); regression 42/42 clean+17 and 57/57 REF v.2+17. **Not folded into
+REF v.2 or the Saturn line** — that renames a published artifact, maintainer's
+call. Detail: `docs/patch_notes.md` § Patch 17.
 
-**(1) Patch 16 — menu translation. Step 1 DONE, step 2 blocked on one screen.**
+**Open work — ONE item, full detail in `docs/NEXT_SESSION.md`:**
+
+**Patch 16 — menu translation. Step 1 DONE, step 2 blocked on one screen.**
 The half-width A-Z now *reaches VRAM* (tiles `$5C0-$5FF`, read back out of VRAM,
 52/64 non-blank vs 0 on clean). Two things had been wrong and both are fixed:
 the asset-record layout is `[vram16][len16][src24][dest24]` — the upload LENGTH
@@ -142,16 +158,6 @@ runtime as the player cycles a setting.
 Screens: Options + Tournament share the extended sheet (no second install);
 **win and ACS are not yet probed**. Priority: Options, Win, ACS, Tournament;
 story out of scope.
-
-**(2) Patch 17 — all stages selectable.** Mechanism decoded, not yet confirmed
-in-game. `$1F59` has exactly one reader (`$C3:AA28`) and one writer
-(`$C3:BADE`); the reader sets the menu list bound `$1C1C` to 16 or 18 — word
-indices, **0-8 vs 0-9**. One byte does it (`$C3:BADE` `8D`->`9C`), as in
-`sms_patcher.py PATCH_NAKAYOSHI`.
-⚠ **Covers the MENU only.** `$1C1C` is a generic menu-list length; the RANDOM
-stage picker is not among its readers, so the pool needs that picker located.
-⚠ The live stage index is **pointer-addressed** (`ldx $1B00`, then `$0038,X`) —
-a flat WRAM sweep will not find it, and the first A/B attempt was void.
 
 *(The voice-pitch item that stood here is DONE — patch 101, shipped and on by
 default. The "one routine shared with the music" that blocked it was a misread
@@ -467,6 +473,8 @@ after projectile-special damage (framedata move machine stuck; see §4 and
 | 12 | **Taunts on L** (native per-char misfire animations; OPTIONAL) | `mkpatch12.py` | `build/sms_taunt.bps` |
 | 13 | **"Guts" v3** — taunt completion nerfs the opponent's SPECIALS/desperations (20/40/60%, per-round, stack 3; OPTIONAL) | `mkpatch13.py --l1/--l2/--l3` | `build/sms_tauntbuff.bps` |
 | 14 | **"Guts Grip"** — Guts levels also nerf COMMAND GRABS (companion to 13, inert without it; `--all-grabs` extends to all throws; OPTIONAL) | `mkpatch14.py --l1/--l2/--l3 [--all-grabs]` | `build/sms_gutsgrip.bps` |
+| 15 | Remove the AUTO option from the VS button-config screen (OPTIONAL; in REF v.2) | `mkpatch15.py` | `build/sms_noauto.bps` |
+| 17 | **All stages selectable** — the hidden なかよし編集部 stage, in the menu and in the random pool (OPTIONAL; `--no-pool`, `--bgm N`) | `mkpatch17.py` | `build/sms_allstages.bps` |
 
 ### Playable ROMs (all in `build/`; `.sfc` are gitignored, rebuild from BPS)
 > **2026-07-19 prune:** historical bundles and superseded all-patches BPS/ROMs were deleted (see docs/patch_index.md); rows below describing them are historical record. Kept: per-patch standalone BPS, current all-patches BPS/ROM, and `…v0.7_all5.sfc` (NI-test baseline).
@@ -755,6 +763,11 @@ ROM="build/sms_trainingplus.sfc" tools/run.sh tools/perf_patch11.lua 200     # -
 ROM="build/sms_tauntbuff.sfc" tools/run.sh tools/test_p13_guts.lua 400
 # patch 12 (taunts) suites:
 ROM="build/sms_taunt.sfc" tools/run.sh tools/test_p12_taunt.lua 200          # MODE="solo" in cfg
+# patch 17 (all stages): 9 reachable on clean, 10 patched; COMBO=1 reproduces the
+# retail X+L+R unlock on the CLEAN ROM (the independent control):
+ROM="build/sms_allstages.sfc" TAG=p17 tools/run.sh tools/probe_p17_stagelist.lua 240
+ROM="build/SailorMoonS_FrenchName_REF_v2_allstages.sfc" TAG=pool RNG=9 \
+  tools/run.sh tools/probe_p17_randompool.lua 400   # -> $8E=18 (stage 9)
 # rebuild any BPS and confirm round-trip (current bundles):
 ./tools/Flips/flips --apply build/sms_allpatches_v0.22.bps "$CLEAN" /tmp/rt.sfc  # sha == 3bb9c829…
 ./tools/Flips/flips --apply build/sms_reference_v1.bps     "$CLEAN" /tmp/rt.sfc  # sha == 2873f214…

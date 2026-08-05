@@ -250,7 +250,7 @@ Patch 2 = build/sms_dashfix.bps (stacks with patch 1 via .ips or sms_both.bps); 
 | $C1:BE85 | dashinvuln stub | patch 6: hook 0x9CCD → jsl; for Uranus(+0=6) fwd-dash(+1=0x60) with +0x5D in window, stz +0x41 (empty hurtbox = strike i-frames). Off by default. |
 Patch 6 = build/sms_dashinvuln.bps (strike-only mid-dash i-frames, ~frames 5-10, tunable --lo/--hi); see patch_notes.md "Patch 6".
 
-## Hidden stage (patch 17 groundwork) — 2026-08-05
+## Hidden stage (patch 17 — DONE and confirmed, 2026-08-05)
 
 The hidden stage (Nakayoshi editorial department) is gated by a FLAG with exactly
 **one reader and one writer** in the whole ROM:
@@ -270,10 +270,21 @@ The reader decides a list bound:
 
 `16` vs `18` are word indices — **8 vs 9**, i.e. the stage list is bounded to
 0-8 normally and 0-9 with the flag clear. So "it is a 0-8 range" and "it is a
-flag" are both true: the range is what the flag selects.
+flag" are both true: the range is what the flag selects. ⚠ `$1C1C` is the
+navigator's **INCLUSIVE MAX**, not a count (`$C3:8002` wraps up to 0 on equal,
+`$C3:801A` wraps down to it) — read as a length it inverts the mechanism.
 
 `sms_patcher.py PATCH_NAKAYOSHI` already exploits this with one byte at
 `$C3:BADE`, `8D` -> `9C` (`sta` -> `stz`, same length, no relocation).
+
+**Where the flag comes from — the retail unlock.** `$C3:BADA` latches
+`$1C5A >> 1`, and `$1C5A` is a two-state screen variable that a button check
+leaves at **0 only while a combo is held**: `$C3:B8B4` tests `$5C & $0070` =
+**X + L + R** (`$C0:AE00` tests L+R for an unrelated cheat that ticks `$1E44`).
+So holding X+L+R over the title sequence — the latch lands ~frame 622 from
+power-on — gives ten stages on an **unmodified** ROM. That is both the answer to
+"how was it meant to be reached" and patch 17's independent control: measured,
+clean ROM, `probe_p17_stagelist.lua COMBO=1`.
 
 Also learned here: the config screen's live stage index is **pointer-addressed** —
 `ldx $1B00` then `$0038,X`, per the same routine. A flat WRAM sweep of
@@ -287,14 +298,28 @@ own bound and the flag edit touches only the stage list. *(Search note: a raw
 byte-pair scan is useless here — `trb abs` is opcode `$1C`, so `1C 1C` matches
 art data across banks `$C7-$E4`. Filter to the code banks.)*
 
-**Consequence for patch 17's two tiers:**
-* *minimum — selectable in the config screen*: the one-byte edit is the whole
-  mechanism, proven in code. ⚠ Still not confirmed in-game: no A/B has yet shown
-  a 10th entry, and the first attempt at one was void (see BUILDS/commit log).
-* *ideal — in the RANDOM pool too*: **the one byte will not do it.** The random
-  stage picker is not among `$1C1C`'s two readers, so it bounds itself
-  separately. That picker still has to be located — separate work, not a
-  follow-on of this edit.
+**Patch 17's two tiers — both DONE (`tools/mkpatch17.py`):**
+* *selectable in the config screen*: the one-byte edit, now **confirmed** —
+  9 reachable indices on clean vs 10 patched, index 18 loads the stage, and the
+  menu draws its name なかよし編集部. (The earlier void A/B swept WRAM for the
+  live index; the probes now assert an exec hook on `$C3:AA38` first.)
+* *in the RANDOM pool*: found, and it is **patch 3's rider**, not retail code.
+  Retail has no random stage picker at all — `$8E` comes from the menu, a story
+  table (`$C0:E9D9`/`$C0:E9F9`) or `$C2:C009`. The rider reduces the RNG byte
+  `$B1` **modulo 9** and doubles it into `$8E` (`$E8:00CD` in a REF build);
+  patch 17 raises both `#$0009` operands, locating them by signature in the
+  image being built rather than at a fixed offset.
+
+Two more facts recorded here rather than re-derived:
+* **The stage NAME is queued to VRAM, not drawn on the spot.** A menu capture
+  taken on the frame the index lands shows the PREVIOUS stage's name; ~40 frames
+  of settle are needed. This looked exactly like "the tenth entry is
+  mislabelled".
+* The name records live in bank `$C4` behind two 10-word tables (`$C3:B5AD`
+  palette 3, `$C3:B5C1` palette 4) and the scene records behind ten pointers at
+  `$E0:018C`; both tables already have a full tenth entry, which is why nothing
+  but the bound had to change. Each scene record ends in its BGM track id: the
+  nine normal stages use `$0A`-`$12`, the hidden one `$06` (it does play).
 
 ## Palettes + title (patch 3) — Big Zam extraction
 | Address (file) | Label | Comment |

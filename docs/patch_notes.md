@@ -1516,6 +1516,128 @@ maintainer's call.
 
 ---
 
+# Patch 17 — every stage selectable (hidden stage unlocked)
+
+**Why.** The tenth stage — **なかよし編集部**, the Nakayoshi editorial
+department — is finished retail content that the game hides behind a button
+code. The maintainer wants it selectable like any other stage, **and** in the
+random pool.
+
+## 1. The menu bound — 1 byte, always applied
+
+The stage row of the VS config screen is dispatch entry 7 of the table at
+`$C3:A839`; its handler is `$C3:AA1A`:
+
+```
+$C3:AA1C  ldx $1B00 / lda $0038,x     ; the live index — pointer-addressed,
+                                      ; which is why a flat WRAM sweep for it failed
+$C3:AA28  lda $1F59 / and #$00FF / beq +5
+          lda #$0010        ; flag SET   -> nine stages
+          bra +3
+          lda #$0012        ; flag CLEAR -> ten stages
+$C3:AA38  sta $1C1C
+$C3:AA3B  jsr $B131         ; the shared list navigator
+```
+
+`$1C1C` is the navigator's **inclusive max index in WORD units** — `$C3:8002`
+wraps up to 0 when the value equals it, `$C3:801A` wraps down to it — so 16 =
+stages 0-8 and 18 = stages 0-9. It is a *generic* menu-list bound (five writers
+in `$C3`, two readers), so each menu sets its own and this edit touches only the
+stage list.
+
+The flag has exactly one writer:
+
+| Offset | Vanilla | Patched | Effect |
+|---|---|---|---|
+| `0x03BADE` | `8D` `sta $1F59` | `9C` `stz $1F59` | flag always clear = ten stages |
+
+Same byte as `vendor/sms-training-mode/sms_patcher.py PATCH_NAKAYOSHI`. Same
+length, no relocation, no bank use.
+
+**Where the flag comes from — the retail unlock.** `$C3:BADA` latches
+`$1C5A >> 1`, and `$1C5A` is a small screen-state variable that a button check
+leaves at **0 only while a combo is held**: `$C3:B8B4` tests `$5C & $0070` =
+**X+L+R** (`$C0:AE00` tests L+R for a different cheat). Hold X+L+R over the
+title sequence on an unmodified ROM and the tenth stage is already there. That
+is the patch's independent control (below) — the edit does not invent a stage,
+it removes the condition.
+
+## 2. The random pool — 2 bytes, applied when patch 3 is present
+
+Patch 3 carries a rider that defaults the stage to a random one when P2
+confirms, and that picker **bounds itself** — it never reads `$1C1C`, which is
+why the menu byte alone cannot put the stage in the pool:
+
+```
+$E8:00CD  lda $B1 / and #$00FF
+          cmp #$0009 / bcc + / sec / sbc #$0009 / bra -    ; A %= 9
+          asl / sta $8E                                    ; scene id
+```
+
+Both `#$0009` operands become `#$000A`. The rider lives inside patch 3's
+injected bank-`$E8` blob, so `mkpatch17.py` locates it **by signature in the
+image being built**, not at a fixed offset, and reports it as skipped when
+absent. On a clean ROM it *is* absent: retail has no random stage picker at all
+(`$8E` is written from the menu selection, from a story table at
+`$C0:E9D9`/`$C0:E9F9`, or from `$C2:C009`).
+
+## Verification (headless Mesen, `tools/probe_p17_stagelist.lua` + `probe_p17_randompool.lua`)
+
+The first attempt at this measurement was void — it swept WRAM for "a byte that
+cycles" and never proved it had reached the stage row. Both probes now assert
+their precondition with an exec hook before reporting anything.
+
+| Run | ROM | Result |
+|---|---|---|
+| menu, control | clean | **9** stages reachable, `$1F59`=1 |
+| menu, **retail unlock** (`COMBO=1`, X+L+R held to the latch at ~f622) | **clean** | **10** stages, `$1F59`=0 |
+| menu | clean + p17 | **10** stages, `$1F59`=0 |
+| menu | REF v.2 | 9 stages |
+| menu | REF v.2 + p17 | **10** stages |
+| match on index 18 | clean + p17 / REF v.2 + p17 | loads: `$8E`=18, HP 96/96, the editorial-department stage on screen |
+| menu name at index 18 | REF v.2 + p17 | draws **なかよし編集部** |
+| pool, control `RNG=8` | REF v.2 ± pool edit | `$8E`=16 on **both** — proves the poke reaches the picker |
+| pool, `RNG=9` | REF v.2, pool edit off | `$8E`=0 (stage 0) — 9 is unreachable |
+| pool, `RNG=9` | REF v.2 + p17 | **`$8E`=18** (stage 9), adopted by the config screen |
+
+Rather than sample the random default over many runs to argue "9 never comes
+up", the probe forces the RNG byte the picker is about to read (exec hook on the
+`lda $B1`), which makes each build one deterministic run.
+
+Regression: **42/42** on clean + p17 (identical to clean), **57/57** on
+REF v.2 + p17 (identical to REF v.2).
+
+⚠ **Two traps this patch paid for.**
+1. **The stage name is queued to VRAM, not drawn on the spot.** A screenshot
+   taken on the frame the index lands shows the *previous* stage's name — the
+   first capture at index 18 showed index 8's 噴水公園◇夜 and reads exactly like
+   "the tenth entry is mislabelled". Let the transfer settle (~40 frames) before
+   believing a menu capture.
+2. **`$1C1C` is an inclusive max, not a count.** Reading it as a length inverts
+   the whole mechanism (and makes the retail cheat look like it *removes* a
+   stage). The two navigator readers settle it.
+
+## BGM (optional knob, default off)
+
+The scene records at `$E0:018E`+ (ten pointers at `$E0:018C`) end in a track id.
+The nine normal stages use `$0A`-`$12`; the hidden one uses **`$06`** — a
+different range. It is not broken: measured 36 DSP key-ons over 480 frames with
+all eight voices in use, same order as a normal stage's 50. `--bgm N` overrides
+it (one byte at `0x200219`) purely as a taste knob; the vendor patcher exposes
+the same one.
+
+## Scope
+
+Two byte writes (one on a clean ROM), no bank use, no WRAM, no hooks — stacks
+anywhere (`tools/mkpatch17.py`, `--stacked` supported). Knobs: `--no-pool`
+(leave the random default bounded to nine), `--bgm N`. Standalone
+`build/sms_allstages.bps` → `e5dd325b…`; playable test bundle
+`build/sms_ref_v2_allstages.bps` = REF v.2 + patch 17 → `e8fc6045…`. **Not**
+folded into REF v.2 or the Saturn line: that changes a published artifact's
+identity, which is the maintainer's call.
+
+---
+
 # Patch 101 — Saturn voice pitch (`SATURN_PITCH=1`)
 
 **Status: BUILT, NOT SHIPPED.** Measured correct and gate-clean; held on one
