@@ -17,6 +17,7 @@ local PL = ENV.dofile("probelib.lua")
 local ram, wr = PL.ram, PL.wr
 local function num(n, d) return tonumber(os.getenv(n) or "") or d end
 local SHELL = num("SHELL_ID", 6)
+local SATURN = os.getenv("SATURN") ~= "0"
 local P1CHAR = num("P1CHAR", 4)
 local TAG = os.getenv("TAG") or "throwdiff"
 local LOG = assert(io.open(ENV.TRACE .. "saturn/throwdiff_" .. TAG .. ".txt", "w"))
@@ -31,7 +32,7 @@ local function beat(on) return (frames % 7) < 3 and on or {} end
 emu.addEventCallback(function()
   for p = 0, 1 do
     local b = pulse[p] and PL.pad(pulse[p]) or PL.pad()
-    if hold and p == 1 then b.l = true; b.r = true end
+    if hold and SATURN and p == 1 then b.l = true; b.r = true end
     emu.setInput(b, 0, p)
   end
 end, emu.eventType.inputPolled)
@@ -54,9 +55,12 @@ local function snap()
       tiles[#tiles + 1] = string.format("%03X", t | ((a & 1) << 8))
     end
   end
-  log(string.format("F %d act=%02X pose=%02X n=%d oam=%08X cg=%08X tiles=%s",
-    frames, ram(0x1081), ram(0x1082), #tiles, h32(OAM, 0, 0x220), h32(CG, 0, 0x200),
-    table.concat(tiles, ",")))
+  -- +0x05 is the field the THROWER writes the victim's pose into (`sta $0005,y`);
+  -- +0x02 is the victim's own animation step and is NOT what drives a thrown
+  -- sprite, so logging it was measuring the wrong byte.
+  log(string.format("F %d act=%02X pose2=%02X pose5=%02X n=%d oam=%08X cg=%08X tiles=%s",
+    frames, ram(0x1081), ram(0x1082), ram(0x1085), #tiles,
+    h32(OAM, 0, 0x220), h32(CG, 0, 0x200), table.concat(tiles, ",")))
 end
 
 -- Mode navigation lifted from probe_sms_shellguard.lua rather than re-rolled:

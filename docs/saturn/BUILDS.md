@@ -454,8 +454,33 @@ this is not the projectile's "pointing at VRAM that was never filled". The
 components are present and mis-positioned: her x-span is 181-250 against
 vanilla's 183-223, with a detached cluster.
 
-**Next:** her throw poses come from `EE_THROWLIST` (Super S table idx 10), and
-the tiles are valid, so the suspicion is the pose -> spritelist layer or a
-cel/pose mismatch — the streamed cel not matching the sprite list the same pose
-selects. Compare her thrown pose's sprite list against Super S's for the same
-pose, and check what the cel streamer uploads for it.
+### Every layer checks out — the port renders her Super S data faithfully
+
+Chased through the whole pipeline for the toss frame (act `$1D`, pose `$70`):
+
+| layer | result |
+|---|---|
+| pose→spritelist | **byte-identical to Super S** for every thrown pose (`$6E-$7C`) |
+| cel in VRAM | the **correct** cel (cel 4) — 100% byte match against the ROM record |
+| cel records | all rebased into the appended banks, sane sizes, none left on a Super S bank |
+| sprite records → OAM | maps **1:1**: record tile `$00` → OAM tile `$050`, spans 69x60 in both |
+| tiles referenced | every one holds data (resolved through the OBJ name base) |
+| cel streaming | updates on the same frames as vanilla, not stale |
+| pose SEQUENCE | **structurally identical to vanilla**: same step counts (17,7,17,7,11,33,1,3,12,1,9,23,11) and the same act transitions, only the pose values differ as they must between characters |
+
+So the throw list maps steps correctly, the right cel is streamed, and the right
+sprite list is drawn at the right offsets. **No defect was found in the port's
+graphics path.** The engine is drawing her Super S pose `$70` exactly as her data
+specifies it.
+
+⚠ **The `+0x05` trap:** the victim's thrown pose is the byte the THROWER writes
+(`sta $0005,y`). An earlier pass logged `+0x02` — her own animation step — and
+saw "pose=01" throughout, which is the wrong byte and says nothing about the
+thrown sprite.
+
+**Next, and it is the only ground truth left:** her list and cels are
+byte-identical to Super S's, so our render should equal Super S's. Capture the
+SAME throw in Super S and compare the composed victim. If Super S looks right and
+ours does not, the difference is in how the ENGINE uses the data — the cel window
+base, the unused second cel (`celB` is 0 for all her thrown poses), or sprite
+priority — not in the data itself.
