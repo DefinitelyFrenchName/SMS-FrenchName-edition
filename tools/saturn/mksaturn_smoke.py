@@ -39,12 +39,26 @@ from smspaths import clean_rom, supers_rom, require_source, SUPERS_SHA1, \
     fix_checksum, next_bank, write_bank  # noqa: E402
 import hashlib  # noqa: E402
 import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser)
+import mkpatch17  # noqa: E402  (patch 17, folded in — see SATURN_ALLSTAGES)
 
 # Build version (semver). Bump MINOR per feature batch, PATCH per fix; registry
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.15"
+SATURN_VERSION = "0.15.0"
+
+# PATCH 17 folded in (maintainer request, 2026-08-05): the hidden tenth stage
+# (なかよし編集部) is selectable and joins patch 3's random-default pool. This is
+# a standalone SMS patch, not a Saturn feature — it is applied here only so the
+# line the maintainer actually plays carries it, and it is applied by calling
+# `mkpatch17.apply_to()` rather than by re-implementing the bytes, so there is
+# one copy of that knowledge and one set of assertions. SATURN_ALLSTAGES=0
+# builds the 0.14.15 feature set (which then differs from v0.14.15 only by the
+# embedded version string). SATURN_STAGE_BGM=<byte> overrides that stage's
+# music; vanilla is $06, its own track.
+import os as _osv0  # noqa: E402
+SATURN_ALLSTAGES = _osv0.environ.get("SATURN_ALLSTAGES", "1") != "0"
+SATURN_STAGE_BGM = _osv0.environ.get("SATURN_STAGE_BGM")
 
 # Character select. The HIDDEN code is now the ONLY variant (maintainer,
 # 2026-08-04): "let's keep only the hidden variant — it solves our story mode
@@ -2329,6 +2343,15 @@ def main():
         site = 0x048000 + 3 * pid
         expect(site, b"\x00\x00\x00", f"OAM entry {pid:#04x} (must be free)")
         data[site:site + 3] = bytes((0xA6, 0xB4, B_BOX - 0x40))
+
+    # Patch 17, applied LAST so the Saturn work is unaffected by it and the two
+    # are separable in a diff. It is pure byte edits (no bank use), and its own
+    # assertions run against THIS image — including the random-pool rider, which
+    # is found by signature because it lives in patch 3's appended bank.
+    if SATURN_ALLSTAGES:
+        bgm = int(SATURN_STAGE_BGM, 0) if SATURN_STAGE_BGM else None
+        for note in mkpatch17.apply_to(data, bgm=bgm):
+            print("patch 17:", note)
 
     fix_checksum(data)
     open(out_path, "wb").write(data)

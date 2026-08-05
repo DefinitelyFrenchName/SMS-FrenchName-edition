@@ -96,8 +96,12 @@ Two edits, both verified in-emulator:
 * ⚠ A menu screenshot taken on the frame the index lands shows the PREVIOUS
   stage's name (the name is queued to VRAM) — that artifact read exactly like
   "the tenth entry is mislabelled". Settle ~40 frames.
-* Not folded into REF v.2 or the Saturn line — maintainer's call, since that
-  renames a published artifact.
+* **In the Saturn line as of v0.15.0** (maintainer request): the Saturn builder
+  calls `mkpatch17.apply_to()` on the finished image — one copy of the bytes,
+  one set of assertions — and the diff against v0.14.15 is exactly ten bytes
+  (patch 17's three, the version string, the checksum). `SATURN_ALLSTAGES=0`
+  opts out; `SATURN_STAGE_BGM=<byte>` swaps that stage's music. REF v.2 itself
+  is untouched — patch 17 rides on top as `sms_ref_v2_allstages.bps`.
 
 **6. Her four palettes — DONE** (v0.14.12, retuned v0.14.15, maintainer request). Her transform
 copied palette 0 unconditionally and threw away the slot the character select
@@ -150,10 +154,12 @@ history.)
 ## Status in one paragraph
 
 The base patch project is done and green. **SMS + Saturn is feature-complete with
-no open bugs.** Current build is **v0.14.15**
-(`SailorMoonS_REFsaturn_v0.14.15-hidden-stage.sfc`, `e1788e31…`, hidden
-`8c5db8e4…`) on **REF v.2** — patch 100 + 101 + the nameplate, the projectile
-fix and her four selectable palettes. She is summoned by holding **L+R** while confirming a **Uranus, Neptune or
+no open bugs.** Current build is **v0.15.0**
+(`SailorMoonS_REFsaturn_v0.15.0-hidden-stage.sfc`, `6c2b479a…`, hidden
+`7c6d4968…`) on **REF v.2** — patch 100 + 101 + the nameplate, the projectile
+fix, her four selectable palettes, and **patch 17** (all stages), folded in on
+maintainer request with no Saturn change: the diff against v0.14.15 is exactly
+ten bytes. `SATURN_ALLSTAGES=0` builds the 0.14.15 feature set. She is summoned by holding **L+R** while confirming a **Uranus, Neptune or
 Pluto** slot — the only char-select variant now; the visible slot-10 build was
 retired 2026-08-04 and deleted. Gates: `tools/saturn/verify_saturn.sh` (49
 checks, ALL PASS; `QUICK=1` for a ~4-min subset) and `tools/test_regression.lua`
@@ -320,7 +326,7 @@ is input-free work.
 ```bash
 tools/build_ref_v2.sh                                   # REF v.2 = v.1 + patch 15
 SATURN_HIDDEN=1 bash tools/saturn/build_refsaturn.sh    # Saturn on REF v.2
-bash tools/saturn/build_saturn_stage.sh --ref           # + the stage port <- v0.14.15
+bash tools/saturn/build_saturn_stage.sh --ref           # + the stage port <- v0.15.0
 tools/saturn/verify_saturn.sh                           # 49 checks, the gate
 QUICK=1 tools/saturn/verify_saturn.sh                   # ~4 min subset
 ROM=<rom> tools/run.sh tools/test_regression.lua 900    # 57/57

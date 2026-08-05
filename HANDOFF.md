@@ -53,10 +53,15 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 hidden code is the **only** char-select variant — the v0.10.0 visible slot-10
 build was retired 2026-08-04 and its code deleted (a placeholder that added the
 one char-select surface the story lock exists to avoid; removal proven inert by a
-byte-identical rebuild). Current build on **REF v.2** is **v0.14.15**: hidden
-`8c5db8e4…`, hidden+stage `e1788e31…` — patch 100 + 101 + the nameplate,
-the projectile fix and her selectable palettes, both below. The previous v0.14.9 pair `7db39c48…`/`3120d75a…` still
-rebuilds byte-for-byte from the prior builder revision.
+byte-identical rebuild). Current build on **REF v.2** is **v0.15.0**: hidden
+`7c6d4968…`, hidden+stage `6c2b479a…` — patch 100 + 101 + the nameplate,
+the projectile fix, her selectable palettes (all below) **and patch 17**, folded
+in on maintainer request. v0.15.0 carries **no Saturn change**: its diff against
+v0.14.15 (hidden `8c5db8e4…`, hidden+stage `e1788e31…`) is exactly ten bytes —
+patch 17's three, the version string and the checksum — and that was checked
+rather than assumed. `SATURN_ALLSTAGES=0` builds the 0.14.15 feature set. The
+previous v0.14.9 pair `7db39c48…`/`3120d75a…` still rebuilds byte-for-byte from
+the prior builder revision.
 
 **The 214P projectile bug is FIXED (v0.14.11, 2026-08-05).** It was a
 **per-shell truncation of her effect sheet**: the build stages her 0x1040-byte
@@ -137,10 +142,10 @@ removes a condition rather than inventing content. `build/sms_allstages.bps`
 (`e5dd325b…`), playable bundle `build/sms_ref_v2_allstages.bps` = REF v.2 + 17
 (`e8fc6045…`); regression 42/42 clean+17 and 57/57 REF v.2+17. **Not folded into
 REF v.2 or the Saturn line** — that renames a published artifact, maintainer's
-call — but it *stacks onto v0.14.15 cleanly and was measured there*
-(`python3 tools/mkpatch17.py --stacked <saturn rom> <out>`: ten stages reachable,
-regression 57/57), so folding it in is one command plus a gate run. Detail:
-`docs/patch_notes.md` § Patch 17.
+call. **It IS in the Saturn line as of v0.15.0** (maintainer request), applied by
+the Saturn builder through `mkpatch17.apply_to()` rather than a second copy of
+the bytes; `SATURN_ALLSTAGES=0` opts out. Detail: `docs/patch_notes.md` §
+Patch 17, `docs/saturn/BUILDS.md` 0.15.0.
 
 **Open work — ONE item, full detail in `docs/NEXT_SESSION.md`:**
 

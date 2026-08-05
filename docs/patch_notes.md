@@ -1664,9 +1664,18 @@ Two byte writes (one on a clean ROM), no bank use, no WRAM, no hooks — stacks
 anywhere (`tools/mkpatch17.py`, `--stacked` supported). Knobs: `--no-pool`
 (leave the random default bounded to nine), `--bgm N`. Standalone
 `build/sms_allstages.bps` → `e5dd325b…`; playable test bundle
-`build/sms_ref_v2_allstages.bps` = REF v.2 + patch 17 → `e8fc6045…`. **Not**
-folded into REF v.2 or the Saturn line: that changes a published artifact's
-identity, which is the maintainer's call.
+`build/sms_ref_v2_allstages.bps` = REF v.2 + patch 17 → `e8fc6045…`.
+
+**In the Saturn line since v0.15.0** (maintainer request). The Saturn builder
+calls `mkpatch17.apply_to()` on its finished image rather than carrying a second
+copy of the bytes, so the patch has one implementation and one set of
+assertions — and it runs last, after every Saturn edit, with the random-pool
+site found by signature because it lives in patch 3's appended bank.
+`SATURN_ALLSTAGES=0` opts out, `SATURN_STAGE_BGM=<byte>` is the `--bgm` knob.
+Two diffs prove the fold-in is inert for Saturn: v0.15.0 vs v0.14.15 is exactly
+**ten** bytes (patch 17's three, the version string, the checksum), and
+`SATURN_ALLSTAGES=0` vs v0.14.15 is **seven** — the version string and checksum
+alone. **REF v.2 itself stays untouched**; patch 17 rides on top of it.
 
 ---
 

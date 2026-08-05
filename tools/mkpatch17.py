@@ -87,8 +87,14 @@ BGM_OFF = 0x200219                  # last byte of scene record 9 ($E0:020D)
 BGM_VANILLA = 0x06
 
 
-def build(src_path, out_path, pool=True, bgm=None):
-    data = bytearray(open(src_path, "rb").read())
+def apply_to(data, pool=True, bgm=None):
+    """Apply patch 17 to an in-memory image; returns human-readable notes.
+
+    Shared with the Saturn builder (`tools/saturn/mksaturn_smoke.py`), which
+    folds this patch in rather than re-implementing it — one copy of the byte
+    knowledge, one set of assertions. Does NOT fix the checksum; the caller does
+    that once, after its own edits.
+    """
     notes = []
 
     got = bytes(data[FLAG_OFF:FLAG_OFF + len(FLAG_OLD)])
@@ -126,6 +132,12 @@ def build(src_path, out_path, pool=True, bgm=None):
         data[BGM_OFF] = bgm
         notes.append(f"hidden-stage BGM: ${BGM_VANILLA:02X} -> ${bgm:02X}")
 
+    return notes
+
+
+def build(src_path, out_path, pool=True, bgm=None):
+    data = bytearray(open(src_path, "rb").read())
+    notes = apply_to(data, pool=pool, bgm=bgm)
     fix_checksum(data)
     open(out_path, "wb").write(data)
     print(f"wrote {out_path} from {src_path}: " + "; ".join(notes)
