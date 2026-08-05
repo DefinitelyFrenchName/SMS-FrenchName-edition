@@ -45,19 +45,21 @@ import mkpatch17  # noqa: E402  (patch 17, folded in — see SATURN_ALLSTAGES)
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.15.0"
+SATURN_VERSION = "0.14.15"
 
-# PATCH 17 folded in (maintainer request, 2026-08-05): the hidden tenth stage
-# (なかよし編集部) is selectable and joins patch 3's random-default pool. This is
-# a standalone SMS patch, not a Saturn feature — it is applied here only so the
-# line the maintainer actually plays carries it, and it is applied by calling
-# `mkpatch17.apply_to()` rather than by re-implementing the bytes, so there is
-# one copy of that knowledge and one set of assertions. SATURN_ALLSTAGES=0
-# builds the 0.14.15 feature set (which then differs from v0.14.15 only by the
-# embedded version string). SATURN_STAGE_BGM=<byte> overrides that stage's
-# music; vanilla is $06, its own track.
+# PATCH 17 (the hidden tenth stage) is available here but **OFF** — the
+# maintainer tested v0.15.0 and ruled the stage "a bit distracting visually",
+# so it stays an optional standalone patch and is not part of the Saturn line
+# (nor of REF). The hook is kept because it costs one call and lets the line be
+# rebuilt with the stage without re-deriving anything: SATURN_ALLSTAGES=1 folds
+# it in, and the on-screen version then gains an **S** tag (v0.14.15HRS) so a
+# build carrying it can never be mistaken for the shipped one in a field report.
+# SATURN_STAGE_BGM=<byte> overrides that stage's music (its own track is $06).
+# The bytes come from `mkpatch17.apply_to()` — never a second copy of them.
+# Byte-checked both ways: default == v0.14.15 exactly; with the flag, the diff
+# is patch 17's three bytes + the version tag + the checksum.
 import os as _osv0  # noqa: E402
-SATURN_ALLSTAGES = _osv0.environ.get("SATURN_ALLSTAGES", "1") != "0"
+SATURN_ALLSTAGES = _osv0.environ.get("SATURN_ALLSTAGES") == "1"
 SATURN_STAGE_BGM = _osv0.environ.get("SATURN_STAGE_BGM")
 
 # Character select. The HIDDEN code is now the ONLY variant (maintainer,
@@ -90,7 +92,8 @@ SATURN_PORTRAIT = _osv.environ.get("SATURN_PORTRAIT") != "0"
 SATURN_PORTRAIT_FORCE = _osv.environ.get("SATURN_PORTRAIT_FORCE") == "1"
 SATURN_STACKED = bool(_osv.environ.get("SATURN_BASE"))
 VARIANT_FILE = f"{SATURN_VERSION}-hidden"
-VARIANT_STR = SATURN_VERSION + "H" + ("R" if SATURN_STACKED else "")
+VARIANT_STR = SATURN_VERSION + "H" + ("R" if SATURN_STACKED else "") \
+    + ("S" if SATURN_ALLSTAGES else "")
 ROM_STEM = "SailorMoonS_REFsaturn" if SATURN_STACKED else "SailorMoonS_saturn"
 
 SAT_ID = 0x1C

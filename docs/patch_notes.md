@@ -1666,16 +1666,18 @@ anywhere (`tools/mkpatch17.py`, `--stacked` supported). Knobs: `--no-pool`
 `build/sms_allstages.bps` → `e5dd325b…`; playable test bundle
 `build/sms_ref_v2_allstages.bps` = REF v.2 + patch 17 → `e8fc6045…`.
 
-**In the Saturn line since v0.15.0** (maintainer request). The Saturn builder
-calls `mkpatch17.apply_to()` on its finished image rather than carrying a second
-copy of the bytes, so the patch has one implementation and one set of
-assertions — and it runs last, after every Saturn edit, with the random-pool
-site found by signature because it lives in patch 3's appended bank.
-`SATURN_ALLSTAGES=0` opts out, `SATURN_STAGE_BGM=<byte>` is the `--bgm` knob.
-Two diffs prove the fold-in is inert for Saturn: v0.15.0 vs v0.14.15 is exactly
-**ten** bytes (patch 17's three, the version string, the checksum), and
-`SATURN_ALLSTAGES=0` vs v0.14.15 is **seven** — the version string and checksum
-alone. **REF v.2 itself stays untouched**; patch 17 rides on top of it.
+**Field verdict (2026-08-05): clean, and it stays OPTIONAL.** The Saturn line
+was rebuilt as v0.15.0 with patch 17 folded in, played, and retired the same
+day — the maintainer finds the tenth stage "a bit distracting visually", so it
+is in neither REF nor patch 100. The Saturn builder keeps the capability behind
+`SATURN_ALLSTAGES=1` (off by default), applied by calling `mkpatch17.apply_to()`
+rather than carrying a second copy of the bytes, with `SATURN_STAGE_BGM=<byte>`
+as the `--bgm` knob; an opted-in build tags its on-screen version **S**
+(`v0.14.15HRS`) so it cannot be mistaken for the shipped one in a field report.
+Both directions are byte-checked: default rebuilds v0.14.15 **exactly**
+(`8c5db8e4…`/`e1788e31…`), and the opted-in build differs from it by **six**
+bytes — patch 17's three, the version tag, the checksum. Play it instead via
+`sms_allstages.bps` or `sms_ref_v2_allstages.bps`.
 
 ---
 
