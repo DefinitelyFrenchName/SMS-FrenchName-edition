@@ -50,6 +50,8 @@ local pulse = {}
 local vlo, vhi = 0, 0
 local seen, hits = {}, 0
 local allwrites, addrhist = 0, {}   -- unconditional: does the hook fire AT ALL?
+local bankhist = {}
+local dmas = 0
 
 local function pc()
   local ok, st = pcall(emu.getState)
@@ -64,27 +66,34 @@ end
 -- catches nothing; the game writes $80:2116. probe_menu_survey does it right and
 -- this probe copied the address wrong on the first attempt, reporting a clean
 -- zero — the classic broken-probe-looks-like-a-finding failure.
-for _, a in ipairs({ 0x002116, 0x802116 }) do
+-- Registers mirror across banks $00-$3F and $80-$BF, so hook the port in EVERY
+-- mirror rather than guessing which one the font loader happens to use. 128
+-- callbacks is cheap; guessing one bank at a time already cost two runs.
+local BANKS = {}
+for b = 0x00, 0x3F do BANKS[#BANKS + 1] = b end
+for b = 0x80, 0xBF do BANKS[#BANKS + 1] = b end
+for _, b in ipairs(BANKS) do
+  local a16 = (b << 16) | 0x2116
   emu.addMemoryCallback(function(_, v) vlo = v or 0 end,
-    emu.callbackType.write, a, a, emu.cpuType.snes, MEM)
-end
-for _, a in ipairs({ 0x002117, 0x802117 }) do
-emu.addMemoryCallback(function(_, v)
-  vhi = v or 0
-  local addr = vlo | (vhi << 8)
-  allwrites = allwrites + 1
-  local bucket = (addr >> 12)
-  addrhist[bucket] = (addrhist[bucket] or 0) + 1
-  if addr < WLO or addr >= WHI then return end
-  local p = pc()
-  local key = string.format("%06X/%04X", p, addr)
-  if seen[key] then return end
-  seen[key] = true; hits = hits + 1
-  if hits <= 40 then
-    log(string.format("f=%-5d VRAM addr <= $%04X (tile $%03X) by PC $%06X",
-      frames, addr, addr // 32 * 2, p))
-  end
-end, emu.callbackType.write, a, a, emu.cpuType.snes, MEM)
+    emu.callbackType.write, a16, a16, emu.cpuType.snes, MEM)
+  local a17 = (b << 16) | 0x2117
+  emu.addMemoryCallback(function(_, v)
+    vhi = v or 0
+    local addr = vlo | (vhi << 8)
+    allwrites = allwrites + 1
+    local bucket = (addr >> 12)
+    addrhist[bucket] = (addrhist[bucket] or 0) + 1
+    bankhist[b] = (bankhist[b] or 0) + 1
+    if addr < WLO or addr >= WHI then return end
+    local p = pc()
+    local key = string.format("%06X/%04X", p, addr)
+    if seen[key] then return end
+    seen[key] = true; hits = hits + 1
+    if hits <= 40 then
+      log(string.format("f=%-5d VRAM addr <= $%04X (tile $%03X) via bank $%02X by PC $%06X",
+        frames, addr, addr // 16, b, p))
+    end
+  end, emu.callbackType.write, a17, a17, emu.cpuType.snes, MEM)
 end
 
 -- and the DMA trigger, so a transfer can be attributed to a channel + params
@@ -99,11 +108,18 @@ emu.addMemoryCallback(function(_, v)
         local src = (emu.read(b + 2, MEM) or 0) | ((emu.read(b + 3, MEM) or 0) << 8)
         local bank = emu.read(b + 4, MEM) or 0
         local len = (emu.read(b + 5, MEM) or 0) | ((emu.read(b + 6, MEM) or 0) << 8)
+        -- log EVERY VRAM DMA, not just ones whose start address is in the
+        -- window: a transfer that sets VMADD low and streams a large block
+        -- covers the font without ever naming its address, which is exactly
+        -- what the address-port hook could not see.
         local addr = vlo | (vhi << 8)
-        if addr >= WLO and addr < WHI then
-          log(string.format("f=%-5d DMA ch%d src=$%02X:%04X len=$%04X -> VRAM $%04X"
-            .. " (tile $%03X) by PC $%06X", frames, ch, bank, src, len, addr,
-            addr // 32 * 2, pc()))
+        local last = addr + (len == 0 and 0x10000 or len) // 2
+        local covers = (addr <= 0x5000 and last > 0x5000) and "  <== COVERS the font at word $5000" or ""
+        dmas = dmas + 1
+        if dmas <= 30 or covers ~= "" then
+          log(string.format("f=%-5d DMA ch%d src=$%02X:%04X len=$%04X -> VRAM $%04X..$%04X"
+            .. " (tiles $%03X..$%03X) PC $%06X%s", frames, ch, bank, src, len, addr, last,
+            addr // 16, last // 16, pc(), covers))
         end
       end
     end
@@ -130,13 +146,17 @@ emu.addEventCallback(function()
   if fn and fn() then step = step + 1; sf = 0; pulse = {} end
   if not STEPS[step] then
     log("")
-    log(string.format("TOTAL $2117 writes seen: %d", allwrites))
+    log(string.format("TOTAL $2117 writes seen: %d ; VRAM DMAs seen: %d", allwrites, dmas))
     local ks = {}
     for k in pairs(addrhist) do ks[#ks + 1] = k end
     table.sort(ks)
     for _, k in ipairs(ks) do
       log(string.format("   VRAM $%X000-$%XFFF : %d writes", k, k, addrhist[k]))
     end
+    local bs = {}
+    for k, v in pairs(bankhist) do bs[#bs + 1] = string.format("$%02X:%d", k, v) end
+    table.sort(bs)
+    log("   by writing bank: " .. table.concat(bs, " "))
     log(string.format("distinct (PC, address) pairs touching VRAM $%04X-$%04X: %d",
       WLO, WHI, hits))
     if hits == 0 then
