@@ -135,6 +135,33 @@ local STEPS = {
         local f = io.open(ENV.TRACE .. "saturn/" .. TAG .. ".png", "wb")
         if f then f:write(emu.takeScreenshot()); f:close() end
         log(string.format("projectile id=$%02X shot at sf=%d", id, sf))
+        -- Dump every sprite in the projectile's screen region. The visual cue is
+        -- that the BOTTOM ROW of the shape is mostly missing, with one stray tile
+        -- displaced to the lower left, so what matters is the y-distribution of
+        -- the entries and which tiles they point at.
+        local OAM = emu.memType.snesSpriteRam
+        local VRAM = emu.memType.snesVideoRam
+        local rows = {}
+        for i = 0, 127 do
+          local o = i * 4
+          local y = emu.read(o + 1, OAM) or 0
+          local x = emu.read(o, OAM) or 0
+          if y < 0xE0 and x >= 40 and x <= 150 and y >= 120 and y <= 200 then
+            local t = emu.read(o + 2, OAM) or 0
+            local a = emu.read(o + 3, OAM) or 0
+            local tile = t | ((a & 1) << 8)
+            local nz = 0
+            for k = 0, 31 do
+              if (emu.read(tile * 32 + k, VRAM) or 0) ~= 0 then nz = nz + 1 end
+            end
+            rows[#rows + 1] = string.format(
+              "oam%-3d x=%3d y=%3d tile=$%03X pal=%d pri=%d flip=%d%d nz=%2d",
+              i, x, y, tile, (a >> 1) & 7, (a >> 4) & 3, (a >> 6) & 1, (a >> 7) & 1, nz)
+          end
+        end
+        log(string.format("sprites in the projectile region: %d", #rows))
+        table.sort(rows)
+        for _, r in ipairs(rows) do log("  " .. r) end
       end
     elseif id == 0 then
       live = 0

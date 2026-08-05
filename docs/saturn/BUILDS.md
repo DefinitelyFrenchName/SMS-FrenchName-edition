@@ -294,3 +294,54 @@ exactly what the retracted OAM metric and this render comparison both did.
 only reliable route — they hold the exact mode, matchup and moment where the bug
 manifests. Fixing the savestate loader (copy `tools/ds_trace.lua` exactly) is now
 the highest-value next step, ahead of any further build bisection.
+
+### 214P projectile: ROOT SIGNATURE FOUND (2026-08-05)
+
+⛔ **Correction to the entry above:** the practice-mode A/B was pixel-identical
+because BOTH frames were broken, not because neither was. The maintainer spotted
+it in the captures — part of the shape is missing and one piece sits detached. So
+the bug is NOT confined to a mode, and v0.14.1 is **not** a known-good reference.
+It reproduces on the current build, in practice, with no savestate needed.
+
+That also means the earlier "pixel-identical, therefore mode-dependent"
+conclusion was wrong in the same way as the OAM bisection before it: comparing
+two broken things and reading the absence of a difference as information.
+
+**The measurement.** With her projectile live, every OAM entry on **OBJ palette
+7** — exclusively hers since v0.14.9, which is what makes this filter valid where
+the earlier palette-2 one was not — against whether the tile it points at holds
+any data:
+
+| y | x | tile | VRAM |
+|---|---|---|---|
+| 137 | 101 | `$0CE` | **blank** |
+| 145 | 117 | `$113` | **blank** |
+| 153 | 93 | `$0E2` | **blank** |
+| 153 | 109 | `$0E4` | **blank** |
+| 169 | 93 | `$114` | data |
+| 169 | 101 | `$115` | **blank** |
+| 169 | 109 | `$0E6` | **blank** |
+| 177 | 85 | `$0E0` | **blank** |
+| 177 | 101 | `$116` | data |
+| 185 | 101 | `$117` | data |
+| 185 | 109 | `$118` | data |
+| 185 | 117 | `$119` | data |
+
+**7 of 12 sprites reference tiles with no data.** Two ranges, behaving
+differently:
+
+* `$0CE`, `$0E0`, `$0E2`, `$0E4`, `$0E6` — **every one blank**, the range is
+  simply not there;
+* `$113`-`$119` — **partial**: `$114/$116/$117/$118/$119` have data,
+  `$113`/`$115` do not.
+
+So her sprite list is correct in structure — it emits sprites at sensible
+positions — but points into VRAM that was never filled. One range is missing
+wholesale and another is uploaded only in part, which is the shape of a transfer
+that is too short or based wrong, not of a bad sprite list.
+
+**Next:** find what uploads her projectile's effect tiles and compare the range
+it covers against `$0CE-$0E6` and `$113-$119`. The DP-based DMA probe from the
+patch-16 font hunt (`probe_fontdma2.lua`, read the parameters from direct page at
+the `$420B` trigger — the DMA registers are write-only) is the tool that already
+works for exactly this question.
