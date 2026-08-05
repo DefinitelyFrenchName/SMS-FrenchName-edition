@@ -24,7 +24,9 @@ Deliverable = a BPS/IPS patch against the clean ROM + a writeup of what bytes ch
 ## Ground truth (verified — do NOT re-derive; details in docs/sms_uranus_rom_map.md)
 - Clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`, HiROM+FastROM,
   headerless, file offset = SNES addr & 0x3FFFFF.
-- Characters: 1 Moon … **6 Uranus** … 9 Chibimoon. (10 "Saturn" = Super S carry-over, NOT in this game.)
+- Characters: 1 Moon … **6 Uranus** … 9 Chibimoon. (10 "Saturn" = Super S carry-over,
+  **not in the clean ROM** — no assets, which is why the extractors stop at 9. She IS
+  playable in the **Rev. SS** builds, ported from Super S: `docs/saturn/`.)
 - Player structs: P1 `$7E:1000`, P2 `$7E:1080` (0x80 bytes).
   +0x00 charID, +0x01 actionID, +0x02 step, +0x06/07 tick/frame,
   +0x40 hitbox idx, +0x41 hurtbox idx, +0x42 collision idx,

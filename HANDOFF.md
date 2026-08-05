@@ -15,7 +15,8 @@ Game: **Bishoujo Senshi Sailor Moon S: Jougai Rantou!?** (SFC, Japan).
 Clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c` (HiROM+FastROM, headerless).
 HiROM mapping: **file offset = SNES address & 0x3FFFFF**.
 Playable roster (charID): 1 Moon, 2 Mercury, 3 Mars, 4 Jupiter, 5 Venus, 6 Uranus,
-7 Neptune, 8 Pluto, 9 Chibi Moon. **Saturn (10) is NOT playable.**
+7 Neptune, 8 Pluto, 9 Chibi Moon. **Saturn (10) is not in the clean ROM** — she is
+ported from Super S and is playable in the **Rev. SS** builds only (§0).
 
 ---
 
@@ -810,11 +811,12 @@ Submerge fireball demos.
   script elsewhere must set `SMS_ROOT` or load a repo ROM. Python builders are anchored
   to the repo via `__file__` (`REPO`) and run from any cwd. `fixpaths.sh` (old zip fixer)
   is obsolete.
-- **The extractors cover charIDs 1-9 only** — id 10 "Saturn" is a Sailor Moon Super S
-  carry-over that is NOT in this game (no assets ever found despite decades of community
-  digging); pre-2026-07-30 extractor versions invented a bogus "Saturn" JSON entry from
-  projectile-table bytes (fixed, issue #38). Rule: no SMS-targeted code refers to
-  Saturn except explicit warnings like this one. **Scoped exception (2026-07-30): the
+- **The extractors cover charIDs 1-9 only** — id 10 "Saturn" has **no data in the clean
+  ROM** (none was ever found, despite decades of community digging), and that is still
+  true however many Rev. SS builds exist: the Saturn you can play is data this project
+  ADDS from Super S, not data found here. Pre-2026-07-30 extractor versions invented a
+  bogus "Saturn" JSON entry from projectile-table bytes (fixed, issue #38). Rule: no
+  SMS-targeted code reads a charID 10 out of the base game. **Scoped exception (2026-07-30): the
   "SMS + Saturn" project** — everything Saturn/Super-S lives in dedicated
   subfolders: `docs/saturn/`, `tools/saturn/`, `traces/saturn/`, `build/saturn/`
   (see `docs/saturn/PROJECT.md` §conventions). Saturn Lua tools bootstrap with
