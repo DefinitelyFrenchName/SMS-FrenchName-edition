@@ -8,6 +8,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 CLEAN="$(python3 -c 'import sys;sys.path.insert(0,"tools");from smspaths import clean_rom;print(clean_rom())')"
 python3 tools/mksigs.py --check   # builder fingerprints must match the suite (#33 follow-up)
+# Preflight (#60): fail in a second, not after a 13-step chain. flips is gitignored
+# (a local drop-in), so "missing" is the normal state of a fresh clone.
+[ -x tools/Flips/flips ] || { echo "error: tools/Flips/flips missing or not executable — see HANDOFF.md §2" >&2; exit 1; }
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 OUT="build/SailorMoonS_FrenchName_REF_v1.sfc"
 python3 tools/mkpatch.py   0x05 "$T/r1.sfc"

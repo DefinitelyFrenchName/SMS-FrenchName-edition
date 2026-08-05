@@ -62,6 +62,36 @@ def supers_rom():
     return str(rom_dir() / SUPERS_NAME)
 
 
+def supers_bytes():
+    """The Super S donor ROM, header-stripped and SHA-1 VERIFIED (issue #65).
+
+    Every Saturn tool reads this ROM, and three of them used to resolve it with a
+    private `glob("*.sfc") + "SuperS" in name` scan and parse whatever came back
+    UNVERIFIED — while SUPERS_SHA1 sat unused two directories away. Two of those
+    globs could even resolve to different files within one build. One verified
+    reader, memoised so a build performs exactly one donor read."""
+    global _SUPERS_CACHE
+    if _SUPERS_CACHE is None:
+        from hashlib import sha1
+        path = supers_rom()
+        try:
+            data = open(path, "rb").read()
+        except FileNotFoundError:
+            raise SystemExit(f"error: Super S donor ROM not found: {path}\n"
+                             f"  expected '{SUPERS_NAME}' in $SMS_ROM_DIR, roms/ or ../roms/")
+        if len(data) % 0x8000 == 0x200:      # copier header
+            data = data[0x200:]
+        got = sha1(data).hexdigest()
+        if got != SUPERS_SHA1:
+            raise SystemExit(f"error: Super S donor ROM sha1 mismatch — {path}\n"
+                             f"  got      {got}\n  expected {SUPERS_SHA1}")
+        _SUPERS_CACHE = data
+    return _SUPERS_CACHE
+
+
+_SUPERS_CACHE = None
+
+
 def require_source(src, stacked=False):
     """SHA gate (issue #12): the source is hashed UNCONDITIONALLY — path spelling is
     irrelevant. An exact clean-ROM match passes; anything else needs stacked=True
@@ -72,6 +102,22 @@ def require_source(src, stacked=False):
     if h == CLEAN_SHA1:
         return "clean"
     if stacked:
+        # --stacked means "not the clean ROM", not "anything at all" (#66). A
+        # mistyped path used to sail through and be patched at fixed offsets,
+        # producing a corrupt output with no complaint. Structural only — no
+        # hash allowlist, since the whole point is that the input is an
+        # intermediate nobody has recorded.
+        # The floor is deliberately generic (512 KB), NOT the clean ROM's 3 MB:
+        # `mkpatch.py` trims trailing zero banks and emits 0x280000, so a
+        # pipeline-shaped assumption here breaks the first link of every chain.
+        # Measured the hard way — a 3 MB floor failed build_rev.sh on step 1.
+        size = os.path.getsize(src)
+        body = size - 0x200 if size % 0x8000 == 0x200 else size
+        if body % 0x8000 or body < 0x80000:
+            raise SystemExit(
+                f"error: --stacked source does not look like an SNES image — {src}\n"
+                f"  size {size} bytes (body {body}); expected a multiple of 0x8000 "
+                f"and at least 0x80000")
         return "stacked"
     raise SystemExit(
         f"error: source ROM hash mismatch — {src}\n"

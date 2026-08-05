@@ -35,7 +35,7 @@ import sys
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, supers_rom, require_source, SUPERS_SHA1, \
+from smspaths import clean_rom, supers_bytes, require_source, \
     fix_checksum, next_bank, write_bank  # noqa: E402
 import hashlib  # noqa: E402
 import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser)
@@ -839,11 +839,7 @@ def main():
     B_C1 = nb + 7       # full C1 copy + graft ($EF)
     B_BOX = nb + 8      # bank-$8A copy ($F0)
     B_VOICE = nb + 9    # voice bank + IPL streams + the two load hooks ($F1)
-    sup = open(supers_rom(), "rb").read()
-    if len(sup) % 0x8000 == 0x200:
-        sup = sup[0x200:]
-    if hashlib.sha1(sup).hexdigest() != SUPERS_SHA1:
-        raise SystemExit("error: Super S ROM sha1 mismatch")
+    sup = supers_bytes()          # #65: one verified reader for the donor ROM
 
     def expect(off, want, what):
         got = bytes(data[off:off + len(want)])

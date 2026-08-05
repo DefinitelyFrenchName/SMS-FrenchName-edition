@@ -24,9 +24,22 @@
 --   EXPECT = "clean"|"all"  (assert detection result), ONLY = "pattern" (filter tests)
 -- Output: traces/regression.txt, final line "ALL PASS (n)" or "FAILURES (k/n)".
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
-pcall(dofile, ENV.TOOLS .. "test_regression_cfg.lua")
+-- Config load (#82): probe for the file, then dofile it UNPROTECTED. `pcall` here
+-- swallowed syntax errors, so a broken cfg silently produced a run with EXPECT and
+-- ONLY unset — i.e. the gate you asked for just did not happen, and the suite still
+-- printed ALL PASS. Absent is still silent; broken now aborts.
+local CFG = ENV.TOOLS .. "test_regression_cfg.lua"
+local cfgf = io.open(CFG, "r")
+if cfgf then cfgf:close(); dofile(CFG) end
+if EXPECT ~= nil and EXPECT ~= "clean" and EXPECT ~= "all" then
+  error(string.format("test_regression_cfg.lua: EXPECT must be \"clean\" or \"all\", got %q", tostring(EXPECT)))
+end
 local TRACE = ENV.TRACE
-local LOG = assert(io.open(TRACE .. "regression.txt", "a"))
+-- TRUNCATE, do not append (#81). The consumers of this file — verify_saturn.sh's
+-- `check()` and every human running `tail -1` — read the LAST matching line. In
+-- append mode a run that died before writing a verdict left the previous run's
+-- "ALL PASS" as that line, so the gate reported PASS for a run that never happened.
+local LOG = assert(io.open(TRACE .. "regression.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local PL = ENV.dofile("probelib.lua")   -- shared emulator-access helpers (#34)
 local WRAM, PRG = PL.WRAM, PL.PRG
@@ -54,6 +67,17 @@ local SIGS = {
   p18 = { { 0x03BB9E, 0xA5 }, { 0x03BBA0, 0x3A } },
 }
 -- SIGS-END
+-- Patch ids to report and gate on, DERIVED from SIGS (#83). These three loops used
+-- to be written `for i = 1, 14`, so every patch added after p14 was invisible to the
+-- detect line and to both EXPECT gates — by the time this was fixed the hole was
+-- three patches wide (15, 17, 18), exactly as the issue predicted. Adding a
+-- fingerprint is now the only step needed to bring a new patch under the gates.
+local PATCH_IDS = {}
+for pn in pairs(SIGS) do
+  local n = tonumber(pn:match("^p(%d+)$"))
+  if n then PATCH_IDS[#PATCH_IDS + 1] = { n = n, id = pn } end
+end
+table.sort(PATCH_IDS, function(x, y) return x.n < y.n end)
 -- projectile-desperation dispatcher records (file offsets, 7 bytes each)
 local DESP_RECORDS = {
   { 0x1375A, "0c000000c0ff00" },  -- Moon
@@ -1115,7 +1139,12 @@ emu.addEventCallback(function()
   t = t + 1
   if t == 0 then
     -- static layer
-    log("=== regression run ===")
+    -- Name the ROM in the header: this file is read by tools and by people, and
+    -- "which build produced this verdict" was previously answerable only from
+    -- memory. emu.getRomInfo() is not available in every headless build, so this
+    -- degrades to the plain header rather than failing the run.
+    local okri, ri = pcall(emu.getRomInfo)
+    log("=== regression run ===" .. ((okri and ri and ri.name) and ("  rom=" .. tostring(ri.name)) or ""))
     for pn, sig in pairs(SIGS) do
       local ok = true
       for _, s in ipairs(sig) do if rom(s[1]) ~= s[2] then ok = false break end end
@@ -1129,7 +1158,7 @@ emu.addEventCallback(function()
       has.p1gate = has.p1 and g or nil
     end
     local det = {}
-    for i = 1, 14 do det[#det + 1] = "p" .. i .. "=" .. (has["p" .. i] and "Y" or "-") end
+    for _, e in ipairs(PATCH_IDS) do det[#det + 1] = e.id .. "=" .. (has[e.id] and "Y" or "-") end
     if has.p1gate then det[1] = det[1] .. string.format("(gate %02X)", has.p1gate) end
     log("detect: " .. table.concat(det, " "))
     -- pre-flight (#4): every savestate the selected tests reference must exist,
@@ -1178,11 +1207,11 @@ emu.addEventCallback(function()
     log(string.format("%s static-charloader-acs", cfail == 0 and "PASS" or "FAIL"))
     if EXPECT == "clean" then
       local any = false
-      for i = 1, 14 do if has["p" .. i] then any = true end end
+      for _, e in ipairs(PATCH_IDS) do if has[e.id] then any = true end end
       results[#results + 1] = { name = "static-expect-clean", ok = not any, msg = "patches detected on clean ROM" }
     elseif EXPECT == "all" then
       local all = true
-      for i = 1, 14 do if not has["p" .. i] then all = false end end
+      for _, e in ipairs(PATCH_IDS) do if not has[e.id] then all = false end end
       results[#results + 1] = { name = "static-expect-all", ok = all, msg = "missing patches on all-patches ROM" }
     end
     phase = "next"

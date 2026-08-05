@@ -7,7 +7,7 @@
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 dofile(ENV.TOOLS .. "test_p13_guts_cfg.lua")
 local TRACE = ENV.TRACE
-local LOG = assert(io.open(TRACE .. "p13_guts.txt", "a"))
+local LOG = assert(io.open(TRACE .. "p13_guts.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local WRAM = emu.memType.snesWorkRam
 local function ram(a) return emu.read(a, WRAM) end

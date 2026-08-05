@@ -7,7 +7,10 @@
 --   POKES: optional { {t=, addr=, val=}, ... }
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE = ENV.TRACE
-dofile(ENV.TOOLS .. "trace_plan.lua")
+-- $TRACE_PLAN overrides the config path (#13). Generators used to write their plan
+-- INTO the tracked tools/trace_plan.lua, so running one silently rewrote a file
+-- under version control; they now write a temp file and point this at it.
+dofile(os.getenv("TRACE_PLAN") or (ENV.TOOLS .. "trace_plan.lua"))
 
 local log = io.open(TRACE .. (OUT or "trace.txt"), "w")
 local loaded = false

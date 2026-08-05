@@ -45,7 +45,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO / "tools"))
 sys.path.insert(0, str(REPO / "tools" / "saturn"))
-from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum
+from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, supers_bytes
 import supers_lz as LZ
 
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
@@ -306,17 +306,6 @@ STUB = 0x8000                 # in our appended bank
 BLOBS = 0x8100
 
 
-def supers_rom():
-    import glob, os
-    for d in (os.environ.get("SMS_ROM_DIR"), str(REPO / "roms"), str(REPO.parent / "roms")):
-        if not d:
-            continue
-        for f in sorted(glob.glob(os.path.join(d, "*.sfc")) + glob.glob(os.path.join(d, "*.smc"))):
-            if "SuperS" in f:
-                return f
-    raise SystemExit("error: Super S ROM not found (looked in $SMS_ROM_DIR, roms/, ../roms/)")
-
-
 def read_script(rom, base, idx, bank_file):
     """-> (record ids, palette ids) for one scene."""
     return parse_script(rom, base, idx, bank_file)[:2]
@@ -371,7 +360,7 @@ def palette_block(rom, table, pid, bank_file):
 
 def build(src_path, out_path):
     data = bytearray(open(src_path, "rb").read())
-    sup = open(supers_rom(), "rb").read()
+    sup = supers_bytes()          # #65: resolved once, header-stripped, SHA-verified
     E0 = 0x200000
 
     # --- pick the Super S stage: scene -> jobs + palettes ---

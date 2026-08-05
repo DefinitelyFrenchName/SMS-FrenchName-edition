@@ -28,6 +28,8 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(REPO / "tools"))
+from smspaths import supers_bytes  # noqa: E402  (#65: one verified donor reader)
 ARAM_TO_ROM = 0x2EE17F        # file offset = ARAM address + this
 DEST = 0xB700                 # ARAM destination of a fighter's voice bank
 BUDGET = 0xDB00 - 0xB700      # 9216 — the other player's bank caps it
@@ -49,17 +51,6 @@ SAMPLES = [
 ]
 
 
-def supers_rom():
-    import glob, os
-    for d in (os.environ.get("SMS_ROM_DIR"), str(REPO / "roms"), str(REPO.parent / "roms")):
-        if not d:
-            continue
-        for f in sorted(glob.glob(os.path.join(d, "*.sfc"))):
-            if "SuperS" in f:
-                return f
-    raise SystemExit("error: Super S ROM not found ($SMS_ROM_DIR, roms/, ../roms/)")
-
-
 def build_bank():
     """Return (bank_bytes, entries) where entries is [(num, name, aram_start, size)].
 
@@ -67,7 +58,7 @@ def build_bank():
     it to build/saturn/, and mksaturn_smoke.py imports it to embed the same bytes
     in the ROM. Keep it side-effect free so both callers agree byte-for-byte.
     """
-    rom = open(supers_rom(), "rb").read()
+    rom = supers_bytes()          # #65: verified donor, read once per process
     bank = bytearray()
     entries = []
     for num, name, aram, size, trim in SAMPLES:
@@ -114,7 +105,7 @@ def build_select():
     so hers needs no trimming and no directory of its own beyond the same 4-byte
     write the vanilla banks make. The budget is generous: Moon's is 9990 bytes.
     """
-    rom = open(supers_rom(), "rb").read()
+    rom = supers_bytes()          # #65: verified donor, read once per process
     hdr = rom[SELECT_ROM - 4:SELECT_ROM]
     size = hdr[0] | hdr[1] << 8
     if size != SELECT_SIZE:
