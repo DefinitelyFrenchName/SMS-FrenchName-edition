@@ -15,7 +15,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 
-ROM="${ROM:-build/saturn/SailorMoonS_REFsaturn_v0.14.11-hidden-stage.sfc}"
+ROM="${ROM:-build/saturn/SailorMoonS_REFsaturn_v0.14.12-hidden-stage.sfc}"
 [ -f "$ROM" ] || { echo "verify_saturn: ROM not found: $ROM" >&2; exit 1; }
 QUICK="${QUICK:-0}"
 T=traces/saturn
@@ -107,6 +107,31 @@ if [ "$fxuniq" = 1 ]; then
   ok "effect sheet identical across shells $fxshells ($(printf '%s' $fxsums | head -c 9))"
 else
   bad "effect sheet identical across shells $fxshells" "one checksum" "$fxsums"
+fi
+
+echo "== her four palettes follow the confirm button =="
+# v0.14.12. Her transform used to copy palette 0 unconditionally, throwing away
+# the slot the character select had loaded, so she looked identical on every
+# button. Note the slots are 4-7, not 0-3: summoning her needs L+R held, and L/R
+# are patch 3's palette modifiers — a build that only handled 0-3 would ship
+# with one palette again. Asserting the four CGRAM rows are DISTINCT (the
+# complement of the effect-sheet check just above, which asserts sameness).
+palbtns="a b y x"; [ "$QUICK" = 1 ] && palbtns="a y"
+palrows=""
+for b in $palbtns; do
+  PALBTN=$b SHELL_ID=6 ROM="$ROM" tools/run.sh tools/saturn/probe_saturn_palslot.lua 500 >/dev/null 2>&1
+  r="$(grep -E '^PALSLOT' "$T/palslot_$b.txt" 2>/dev/null | tail -1)"
+  case "$r" in
+    *cgram=*) palrows="$palrows${r##*cgram=} ";;
+    *)        bad "palette, button $b" "a PALSLOT line" "$r"; palrows="$palrows MISSING ";;
+  esac
+done
+paln="$(printf '%s\n' $palrows | wc -l | tr -d ' ')"
+paluniq="$(printf '%s\n' $palrows | sort -u | wc -l | tr -d ' ')"
+if [ "$paluniq" = "$paln" ]; then
+  ok "palettes distinct across buttons $palbtns ($paluniq of $paln)"
+else
+  bad "palettes distinct across buttons $palbtns" "$paln distinct rows" "$paluniq distinct"
 fi
 
 if [ "$QUICK" != 1 ]; then

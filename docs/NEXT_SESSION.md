@@ -10,7 +10,7 @@ follows was sized from the **shell's own** sheet: Uranus `$11C0`, Pluto `$10C0`,
 reached VRAM, and the travel pose draws 7 of its 12 sprites from that range.
 Hence *two disconnected pieces*, on Neptune, intact on Uranus. The armed path of
 the DMA stub now forces the length too (`sta $004305`). Verified byte-identical
-to the decoder output on shells 6/7/8; gate 45/45, regression 57/57. Detail:
+to the decoder output on shells 6/7/8; gate 47/47, regression 57/57. Detail:
 `docs/saturn/BUILDS.md` § "214P projectile: SOLVED".
 
 **2. Patch 16 (menu translation)** — now the only open item. A complete
@@ -26,6 +26,16 @@ which is exactly the map this needs; hook it at **`$80:92A4`**, not `$C0:92A4`.
 
 **3. Nameplate — DONE** (v0.14.10): her plate reads SATURN, vanilla untouched,
 regression 57/57. `SATURN_NAMEPLATE=0` reverts to blank.
+
+**4. Her four palettes — DONE** (v0.14.12, maintainer request). Her transform
+copied palette 0 unconditionally and threw away the slot the character select
+had loaded. Two things to know before touching this again: **Super S ships only
+TWO palettes per character** (the "four manifest palette pointers" are char pal
+0, char pal 1, the 8-byte icon palette and the effects palette), so slots 2/3
+are authored here by rotating only her costume ramp; and **a Saturn player can
+never reach slots 0-3**, because summoning her needs L+R and L/R are patch 3's
+palette modifiers — her slots are 4-7, so the copier MASKS rather than clamps.
+Clamping was the first cut and it reproduced the original bug exactly.
 
 ## The lesson this session paid for repeatedly
 
@@ -68,12 +78,12 @@ history.)
 ## Status in one paragraph
 
 The base patch project is done and green. **SMS + Saturn is feature-complete with
-no open bugs.** Current build is **v0.14.11**
-(`SailorMoonS_REFsaturn_v0.14.11-hidden-stage.sfc`, `b180790a…`, hidden
-`dacb1c65…`) on **REF v.2** — patch 100 + 101 + the nameplate + the projectile
-fix. She is summoned by holding **L+R** while confirming a **Uranus, Neptune or
+no open bugs.** Current build is **v0.14.12**
+(`SailorMoonS_REFsaturn_v0.14.12-hidden-stage.sfc`, `57332d87…`, hidden
+`a56a9a2e…`) on **REF v.2** — patch 100 + 101 + the nameplate, the projectile
+fix and her four selectable palettes. She is summoned by holding **L+R** while confirming a **Uranus, Neptune or
 Pluto** slot — the only char-select variant now; the visible slot-10 build was
-retired 2026-08-04 and deleted. Gates: `tools/saturn/verify_saturn.sh` (46
+retired 2026-08-04 and deleted. Gates: `tools/saturn/verify_saturn.sh` (47
 checks, ALL PASS; `QUICK=1` for a ~4-min subset) and `tools/test_regression.lua`
 (57/57). Maintainer's verdict on the current build: "perfectly acceptable for
 playing".
@@ -239,7 +249,7 @@ is input-free work.
 tools/build_ref_v2.sh                                   # REF v.2 = v.1 + patch 15
 SATURN_HIDDEN=1 bash tools/saturn/build_refsaturn.sh    # Saturn on REF v.2
 bash tools/saturn/build_saturn_stage.sh --ref           # + the stage port <- v0.14.9
-tools/saturn/verify_saturn.sh                           # 45 checks, the gate
+tools/saturn/verify_saturn.sh                           # 47 checks, the gate
 QUICK=1 tools/saturn/verify_saturn.sh                   # ~4 min subset
 ROM=<rom> tools/run.sh tools/test_regression.lua 900    # 57/57
 ```

@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.11"
+SATURN_VERSION = "0.14.12"
 
 # Character select. The HIDDEN code is now the ONLY variant (maintainer,
 # 2026-08-04): "let's keep only the hidden variant — it solves our story mode
@@ -374,6 +374,32 @@ E8_DMASTUB = 0x2A00   # v0.11.10: CMD stub grew past 0x2980
 SATURN_FLAG = 0xF100      # P1 select flag  ($7F bank — see above)
 SATURN_FLAG2 = 0xF101     # P2 select flag
 EE_TILES = 0xD000         # <- $7F:0000 staging reused); P2 pad = $421A/B.
+# --- her selectable fighter palettes (v0.14.12) -----------------------------
+# Four 32-byte palettes, contiguous, indexed by the palette slot the player
+# chose at the character select. Patch 3 (in REF) replaced the vanilla 2-palette
+# scheme with up to 32 slots per character, confirmed by button: A=0 B=1 Y=2 X=3,
+# then L/R/Start modifiers for 4..31. The slot for the round lands in $1D02 (P1)
+# / $1D05 (P2), which is what the vanilla palette loader reads.
+#
+# Only TWO of hers are real: Super S ships exactly two palettes per character
+# (both games' char-select dedup writes 0 or 1, and both loaders resolve the
+# pointer as selector*3 over the manifest — the other two manifest pointers are
+# the 8-byte icon palette and the effects palette, not character colours). Slots
+# 2/3 are authored here because Big Zam, the donor for every other character's
+# extras, is an SMS edition with a 1-9 roster and has no Saturn to lift from.
+EE_FIGHTPALS = 0xC080     # 4 x 0x20 B -> 0xC080-0xC100 (free: C000/C020 are the
+                          # probe-facing copies, C040 version, C060 effects,
+                          # C220 confirm stub, C300 palcopy)
+SAT_PAL_SLOTS = 4
+# The entries that differ between her two canon palettes, i.e. her costume ramp
+# (12 is its shadow, 1 a near-black that stays grey under any rotation). Skin,
+# hair, bow and outline are outside this list and never move.
+SAT_PAL_RAMP = (1, 8, 9, 10, 11, 12)
+# Authored slots 2/3, chosen with the maintainer against a render of her own
+# sprite: green and gold. Both canon slots are cool (violet, blue), so the two
+# authored ones go elsewhere in the wheel; crimson was rejected because her bow
+# and accents are already red ($942020/$CD2020) and the costume merged with them.
+SAT_PAL_AUTHORED = (0.34, 0.11)   # HLS hue, luminance + saturation preserved
 # Size of her effect sheet. It is BOTH the MVN count into the staging buffer and
 # the length the effects DMA is forced to (v0.14.11) — the two must agree, so
 # they read the same constant and the decompressed sheet is asserted against it.
@@ -1106,6 +1132,41 @@ def main():
     # projectiles while a Saturn was in play (field report 2026-08-04). See the
     # SAT_PROJ_PAL note and the PROJ-block patch for the other half of the fix.
     ee[0xC060:0xC080] = sup[0x20B208:0x20B208 + 32]
+    # ---- her four selectable fighter palettes (v0.14.12) ----
+    # Slots 0/1 are the two canon Super S palettes (same bytes as C000/C020,
+    # which stay put because probes and the tester read them by address); slots
+    # 2/3 are authored by rotating ONLY her costume ramp, so every other colour
+    # in the sprite is untouched and the recolours read as native.
+    import colorsys
+
+    def _hue_rotate(pal32, hue):
+        out = bytearray(pal32)
+        for i in SAT_PAL_RAMP:
+            v = out[i * 2] | out[i * 2 + 1] << 8
+            r, g, b = (v & 31) / 31, ((v >> 5) & 31) / 31, ((v >> 10) & 31) / 31
+            _h, l, s = colorsys.rgb_to_hls(r, g, b)
+            r, g, b = colorsys.hls_to_rgb(hue, l, s)
+            q = [max(0, min(31, round(c * 31))) for c in (r, g, b)]
+            w = q[0] | (q[1] << 5) | (q[2] << 10)
+            out[i * 2], out[i * 2 + 1] = w & 0xFF, w >> 8
+        return bytes(out)
+
+    pal_canon_a = sup[0x20B0C8:0x20B0C8 + 32]
+    pal_canon_b = sup[0x20B0A8:0x20B0A8 + 32]
+    assert pal_canon_a != pal_canon_b, "her two canon palettes are identical — wrong pointers"
+    sat_pals = [pal_canon_a, pal_canon_b] + \
+               [_hue_rotate(pal_canon_a, h) for h in SAT_PAL_AUTHORED]
+    assert len(sat_pals) == SAT_PAL_SLOTS
+    assert SAT_PAL_SLOTS and not (SAT_PAL_SLOTS & (SAT_PAL_SLOTS - 1)), \
+        "the stub masks the slot with SAT_PAL_SLOTS-1, so it must be a power of 2"
+    assert len({bytes(p) for p in sat_pals}) == SAT_PAL_SLOTS, \
+        "two of her palette slots are identical — a player could not tell them apart"
+    # the stub adds slot*0x20 to the LOW byte only, so the table must not straddle
+    # a page boundary
+    assert (EE_FIGHTPALS & 0xFF) + (SAT_PAL_SLOTS - 1) * 0x20 <= 0xFF, \
+        "fighter-palette table straddles a page: the stub's 8-bit index would wrap"
+    for _i, _p in enumerate(sat_pals):
+        ee[EE_FIGHTPALS + _i * 0x20:EE_FIGHTPALS + (_i + 1) * 0x20] = _p
     ver = ("SATURN v" + VARIANT_STR).encode()
     ee[0xC040:0xC040 + len(ver) + 1] = ver + b"\x00"
     # -- char-select 10th-slot stubs (consumed by the v0.10.0 hooks below) --
@@ -1187,18 +1248,52 @@ def main():
     assert len(c) <= 0x100, f"confirm stub too big: {len(c)}"
     ee[EE_CONFIRM:EE_CONFIRM + len(c)] = c
 
-    # transform palette copier (see EE_PALCOPY): fighter row + effects row
+    # transform palette copier (see EE_PALCOPY): fighter row + effects row.
+    # Entered with A 8-bit and X/Y 16-bit, $0E = the destination row low byte
+    # (0x00 for P1 -> $0600, 0x20 for P2 -> $0620), set by the $EF helper.
+    #
+    # v0.14.12 — HONOUR THE PLAYER'S PALETTE CHOICE. This used to copy her
+    # palette 0 unconditionally, which overwrote whatever slot the character
+    # select had loaded: she looked identical on every button, and her second
+    # canon Super S palette (already embedded at $EE:C020 since v0.5.0) had
+    # never once been on screen. The slot for the round is in $1D02 (P1) /
+    # $1D05 (P2) — the same variables the vanilla palette loader reads — so the
+    # copier now indexes her four-entry table with it.
+    #
+    # The slot is MASKED, not clamped, and that is load-bearing: summoning her
+    # REQUIRES holding L+R, and L/R are patch 3's palette modifiers (L+A/B/Y/X =
+    # slots 4-7). So a Saturn player can never reach slots 0-3 at all — measured
+    # a=4 b=5 y=6 x=7 with probe_saturn_palslot.lua. A build that clamped
+    # out-of-range slots to her default therefore showed ONE palette on all four
+    # buttons, which is the very bug this change exists to fix. Masking with
+    # SAT_PAL_SLOTS-1 maps every modifier combination onto her four, so under the
+    # mandatory L+R the face buttons give A=violet B=blue Y=green X=gold.
+    #
+    # Source pointer goes in $10-$12 and is SAVED AND RESTORED. The old code
+    # used `lda long,X` with a fixed base, which cannot be indexed by slot; the
+    # `[dp],Y` form can. $0C/$0D (the destination) was already clobbered here
+    # without saving, but that is the caller's own scratch — $10 is not.
     pc_ = bytearray()
-    pc_ += bytes((0x64, 0x0D, 0xA5, 0x0E, 0x18, 0x69, 0x00, 0x85, 0x0C,
-                  0xA9, 0x06, 0x85, 0x0D))       # $0C/0D = $06:row
-    pc_ += bytes((0xDA, 0xA0, 0x1F, 0x00))       # phx / ldy #$001F
-    pc_ += bytes((0xBB, 0xBF, 0x00, 0xC0, B_MISC, 0x91, 0x0C,
-                  0x88, 0x10, (0x100 - 10) & 0xFF))   # fighter row loop
-    pc_ += bytes((0xA9, SAT_PROJ_PAL * 0x20, 0x85, 0x0C))   # -> her projectile row
+    pc_ += bytes((0xA5, 0x10, 0x48, 0xA5, 0x11, 0x48, 0xA5, 0x12, 0x48))  # save
+    pc_ += bytes((0xA5, 0x0E, 0x85, 0x0C, 0xA9, 0x06, 0x85, 0x0D))  # $0C/0D = $06:row
+    # slot = (P1 ? $1D02 : $1D05), clamped
+    pc_ += bytes((0xA5, 0x0E, 0xD0, 0x05))               # lda $0E / bne p2
+    pc_ += bytes((0xAD, 0x02, 0x1D, 0x80, 0x03))         # lda $1D02 / bra got
+    pc_ += bytes((0xAD, 0x05, 0x1D))                     # p2: lda $1D05
+    pc_ += bytes((0x29, SAT_PAL_SLOTS - 1))              # and #(n-1): see above
+    pc_ += bytes((0x0A, 0x0A, 0x0A, 0x0A, 0x0A))         # *0x20
+    pc_ += bytes((0x18, 0x69, EE_FIGHTPALS & 0xFF, 0x85, 0x10))   # + table lo
+    pc_ += bytes((0xA9, EE_FIGHTPALS >> 8, 0x85, 0x11))
+    pc_ += bytes((0xA9, B_MISC, 0x85, 0x12))
+    pc_ += bytes((0xA0, 0x1F, 0x00))                     # ldy #$001F
+    pc_ += bytes((0xB7, 0x10, 0x91, 0x0C, 0x88, 0x10, 0xF9))      # fighter row
+    pc_ += bytes((0xA9, SAT_PROJ_PAL * 0x20, 0x85, 0x0C))         # -> her proj row
+    pc_ += bytes((0xA9, 0x60, 0x85, 0x10, 0xA9, 0xC0, 0x85, 0x11))  # src $EE:C060
     pc_ += bytes((0xA0, 0x1F, 0x00))
-    pc_ += bytes((0xBB, 0xBF, 0x60, 0xC0, B_MISC, 0x91, 0x0C,
-                  0x88, 0x10, (0x100 - 10) & 0xFF))   # effects row loop
-    pc_ += bytes((0xFA, 0x6B))                   # plx / rtl
+    pc_ += bytes((0xB7, 0x10, 0x91, 0x0C, 0x88, 0x10, 0xF9))      # effects row
+    pc_ += bytes((0x68, 0x85, 0x12, 0x68, 0x85, 0x11, 0x68, 0x85, 0x10))  # restore
+    pc_ += bytes((0x6B,))                                # rtl
+    assert len(pc_) <= EE_WINSTUB_NP - EE_PALCOPY, "palcopy overruns the next stub"
     ee[EE_PALCOPY:EE_PALCOPY + len(pc_)] = pc_
 
     # -- thrown-pose substitution (v0.14.7, see SITE_THROWPOSE) --

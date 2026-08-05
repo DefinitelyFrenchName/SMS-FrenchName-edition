@@ -53,9 +53,9 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 hidden code is the **only** char-select variant — the v0.10.0 visible slot-10
 build was retired 2026-08-04 and its code deleted (a placeholder that added the
 one char-select surface the story lock exists to avoid; removal proven inert by a
-byte-identical rebuild). Current build on **REF v.2** is **v0.14.11**: hidden
-`dacb1c65…`, hidden+stage `b180790a…` (patch 100 + 101 + the nameplate + the
-projectile fix below). The previous v0.14.9 pair `7db39c48…`/`3120d75a…` still
+byte-identical rebuild). Current build on **REF v.2** is **v0.14.12**: hidden
+`a56a9a2e…`, hidden+stage `57332d87…` — patch 100 + 101 + the nameplate,
+the projectile fix and her selectable palettes, both below. The previous v0.14.9 pair `7db39c48…`/`3120d75a…` still
 rebuilds byte-for-byte from the prior builder revision.
 
 **The 214P projectile bug is FIXED (v0.14.11, 2026-08-05).** It was a
@@ -75,16 +75,30 @@ P1 exactly — and since P2's own transfer is `$0FC0`, P2 was short on *every*
 shell. Detail, and the four instrumentation failures that made this take five
 attempts, in `docs/saturn/BUILDS.md` § "214P projectile: SOLVED".
 
+**Her palettes follow the confirm button as of v0.14.12** (maintainer request).
+Her transform copied palette 0 unconditionally, overwriting the slot the
+character select had loaded — she looked identical on every button and her
+second canon Super S palette, embedded since v0.5.0, had never been on screen.
+Two facts made this less obvious than it looks: **Super S ships only TWO
+palettes per character** (both games' char-select dedup writes 0 or 1; the
+"four manifest palette pointers" are char pal 0, char pal 1, the 8-byte icon
+palette and the effects palette), and **a Saturn player can never reach slots
+0-3** — summoning her needs L+R held, and L/R are patch 3's palette modifiers,
+so her reachable slots are 4-7. The copier now reads `$1D02`/`$1D05` and MASKS
+the slot, giving A=violet B=blue Y=green X=gold; slots 2/3 are authored by
+rotating only her costume ramp, since Big Zam has no Saturn to lift extras from.
+Verified per button and on both players. Detail: `docs/saturn/BUILDS.md` v0.14.12.
+
 ⚠ **The earlier "root signature" was measured through the wrong VRAM.** It
 resolved a sprite's tiles as `tile * 32`; the OBJ name base is word `$6000` with
 the second name table at `$7000`. Correctly resolved, all 12 sprites always
 pointed at valid tiles. It did name the right sprites, though — that part stands.
 
-**Gate before shipping anything: `tools/saturn/verify_saturn.sh`** — 46 checks
+**Gate before shipping anything: `tools/saturn/verify_saturn.sh`** — 47 checks
 (regression suite, L+R arming across modes x shells incl. flag/latch, story lock,
 2P VS on both pads, throws normal + command with OAM-flood and stage-VRAM
 assertions, the projectile palette split, **her effect sheet's cross-shell
-invariance**, the lrmodes harness, a randomised stress match, and an OBJ-palette
+invariance**, **her four selectable palettes**, the lrmodes harness, a randomised stress match, and an OBJ-palette
 census over a full match). Exits 1 on failure; `QUICK=1` for a ~4-minute subset.
 Sanity-checked against known-bad builds: on v0.14.6 the quick matrix fails 7 of
 16, and on v0.14.8 the new effect-sheet check fails — a gate that cannot fail is
