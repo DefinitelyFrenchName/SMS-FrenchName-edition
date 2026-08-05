@@ -756,6 +756,64 @@ add{ name = "p14-giantswing-lp-scaled", group = "p14", need = function() return 
     return ck(tot == 8 and grabwrites() == 4, string.format("Giant Swing LP at L3 expects 4x2=8, got %d (%d writes)", tot, grabwrites()))
   end }
 
+-- The two CONFIG-SCREEN patches. Both are menu behaviour, so they run from
+-- fixtures taken on that screen with P1's cursor on row 0 (モード):
+--   traces/config_vs_clean.mss   2P VS   ($8D=1)
+--   traces/config_com_clean.mss  vs COM  ($8D=2)
+-- Both were made on the CLEAN ROM by `tools/probe_acs_select.lua SAVE=<name>`
+-- and are force-added to git. Two facts the fixtures encode, each of which cost
+-- a wrong measurement first: every COLUMN has its own row cursor ($1800 for P1,
+-- $1880 for P2 — the mode-row handler firing proves nothing about P1), and the
+-- モード row has only TWO values, so an even number of RIGHT presses lands back
+-- on マニュアル and reads exactly like an inert row.
+local function cfgcell(a) return ram(a) | (ram(a + 1) << 8) end
+
+add{ name = "p15-mode-row-inert", group = "p15", need = function() return true end,  -- dual-mode
+  state = "config_vs_clean.mss", dur = 90,
+  frame = function(api)
+    if api.pt >= 20 and api.pt <= 23 then pulse[0] = { right = true }
+    elseif api.pt == 24 then pulse[0] = nil end
+  end,
+  verdict = function()
+    local mode = cfgcell(0x1806)     -- P1's COMMITTED mode: 0 マニュアル, 2 オート
+    if has.p15 then
+      return ck(mode == 0, "p15 present: one RIGHT on the mode row must not commit "
+        .. "a new mode, got $1806=" .. mode)
+    end
+    return ck(mode == 2, "p15 absent: one RIGHT on the mode row must select オート, "
+      .. "got $1806=" .. mode)
+  end }
+
+add{ name = "p18-no-acs-in-2p-vs", group = "p18", need = function() return true end,  -- dual-mode
+  state = "config_vs_clean.mss", dur = 200,
+  frame = function(api)
+    if api.pt >= 20 and api.pt <= 26 then pulse[0] = { select = true }
+    elseif api.pt == 27 then pulse[0] = nil end
+  end,
+  verdict = function()
+    local st = ram(0x8A)             -- menu state: $05 = ACS, $00 = start the match
+    if has.p18 then
+      return ck(st == 0x00, "p18 present: SELECT in 2P VS must start the match, "
+        .. string.format("got $8A=%02X", st))
+    end
+    return ck(st == 0x05, "p18 absent: SELECT in 2P VS must open ACS, "
+      .. string.format("got $8A=%02X", st))
+  end }
+
+-- The control that makes the one above mean something: patch 18 must remove a
+-- MODE\'s access, not break SELECT. vs-COM keeps ACS on every build.
+add{ name = "p18-acs-kept-in-vs-com", group = "p18", need = function() return true end,
+  state = "config_com_clean.mss", dur = 200,
+  frame = function(api)
+    if api.pt >= 20 and api.pt <= 26 then pulse[0] = { select = true }
+    elseif api.pt == 27 then pulse[0] = nil end
+  end,
+  verdict = function()
+    local st = ram(0x8A)
+    return ck(st == 0x05, "SELECT in 1P-vs-COM must open ACS on every build, "
+      .. string.format("got $8A=%02X", st))
+  end }
+
 local function fullmode() return FULL == true end
 
 add{ name = "full-desp-jupiter-crouch62", group = "full", need = fullmode, state = "jupiter_vs_venus_clean.mss", dur = 150,

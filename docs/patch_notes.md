@@ -1509,10 +1509,20 @@ gain `L` / `R` assignments. Patched: the row stays **マニュアル** and those
 stay `-` `-`, matching the untouched P2 column; the screen still advances into
 a normal match. Other rows are untouched code.
 
+**Regression test (added 2026-08-05).** `p15-mode-row-inert`, dual-mode, from
+the fixture `traces/config_vs_clean.mss`: press RIGHT **once** on the モード row
+and read P1's committed mode at `$1806` — vanilla commits `2` (オート), patched
+stays `0` (マニュアル). Two things had to be right for it to mean anything, and
+each cost a wrong reading first: **every column has its own row cursor**
+(`$1800` P1, `$1880` P2 — the mode-row handler firing proves nothing about P1,
+since it also fires for whichever column is on row 0), and the row has **two**
+values, so mashing RIGHT lands on either by parity and an even count is
+indistinguishable from an inert row. Negative-controlled: forcing detection to
+"p15 present" on a clean ROM makes it fail with `got $1806=2`.
+
 **Scope.** No bank use, no WRAM, byte-disjoint from patches 1-14 — stacks
-anywhere (`tools/mkpatch15.py`, `--stacked` supported). NOT yet part of the
-REF v.1 bundle: adding it changes that bundle's identity/SHA, which is the
-maintainer's call.
+anywhere (`tools/mkpatch15.py`, `--stacked` supported). **In both reference
+builds** (REF v.2 onward, and Rev. S/SS).
 
 ---
 
@@ -1750,6 +1760,14 @@ displays マニュアル. The option is inert, not erased.
 ⚠ Probe note: in **1P-vs-COM the second character is confirmed by P1's pad**, not
 P2's (P2 is inert there, exactly as in Practice). A harness that mashes P2 stalls
 on character select and reports "never reached the config screen".
+
+**Regression tests (added 2026-08-05).** Two, both dual-mode:
+`p18-no-acs-in-2p-vs` presses SELECT from `traces/config_vs_clean.mss` and reads
+the menu state — vanilla `$05` (ACS), patched `$00` (the match starts); and
+`p18-acs-kept-in-vs-com` does the same from `traces/config_com_clean.mss` and
+expects `$05` on **every** build. The second is what stops the first from being
+satisfiable by breaking SELECT outright. Negative-controlled: forcing detection
+to "p18 present" on a clean ROM fails with `got $8A=05`.
 
 **Scope.** 12 bytes, no bank use, no WRAM, byte-disjoint from every other patch —
 stacks anywhere (`tools/mkpatch18.py`, `--stacked` supported). Standalone

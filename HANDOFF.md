@@ -734,7 +734,9 @@ desperation types, dash distance) plus per-patch nominal+edge tests (incl. cross
 counter-hit×Guts, p8 tech-window dual-mode, p13 round-reset, the full 9-character
 desperation compendium + crouch edges). `ROM=<build> tools/run.sh
 tools/test_regression.lua 900`; optional cfg `EXPECT="clean"|"all"`, `ONLY="pattern"`.
-Green: v0.22 = 59 tests, REF v.1 = 55, clean = 41, clean+FULL ≈ 50 (dual-mode expectations flip
+Green (2026-08-05, after the two config-screen tests were added): clean = **45**,
+Rev. S-02 / Rev. SS-02 = **60**; historically v0.22 = 59, REF v.1 = 55, clean = 41.
+clean+FULL ≈ 50 (dual-mode expectations flip
 with detection; patch tests skip when absent). Engine-rule locks: death-underflow
 pair, GC-gate-immediate, backdash-GC, prejump throw-vulnerability, danger threshold,
 clock desperation trigger, first-hit-defense pair; statics for matrix, desperation
@@ -751,6 +753,15 @@ two-fireball clash demo — patch 9 workhorses; states `neptune_vs_{jupiter,chib
 `tools/Dispel/dispel` disassembler (**build once**: `cc -O2 -o dispel main.c 65816.c` in
 `tools/Dispel/`); `texttiles.py` + `mockup.lua` (title font); `mkpatch3` reuses
 `vendor/sms-training-mode/sms_patcher.py` for the palette port.
+
+**Config-screen fixtures** (force-added): `config_vs_clean.mss` (2P VS, `$8D=1`)
+and `config_com_clean.mss` (1P vs COM, `$8D=2`), both taken on the CLEAN ROM at
+the button-config screen with **P1's cursor on row 0** — the state patches 15 and
+18 are tested from. Regenerate with
+`ROM=<clean> MENU=1 SAVE=config_vs_clean.mss tools/run.sh tools/probe_acs_select.lua 250`
+(`MENU=2` for the vs-COM one). ⚠ `emu.createSavestate()` **throws in an endFrame
+callback** — it must be called from a CPU-exec context, which is why that probe
+writes the state from a hook on `$80:8353`, the same site the suite loads from.
 
 **Savestates** (`traces/`, gitignored except force-added ones): `*_v07.mss` are tagged to the
 canonical ROM (`uranus_vs_{jupiter,mars,neptune,chibi}_v07`, `pluto_vs_chibi_v07`,
