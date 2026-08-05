@@ -1085,3 +1085,51 @@ patched ROMs, because a later, smaller upload has already overwritten it.
 
 Next: the tilemap edits. The glyph → VRAM tile map is written to
 `docs/halfwidth_tiles.json` by the builder.
+
+## Options screen: budgets measured, translation BLOCKED on a screen-specific gap
+
+**Strings (maintainer, 2026-08-05)** and the measured fields. Labels start at map
+column 4, values occupy columns 22-27. A half-width glyph is **one map column**
+(a full-width one is two), so the budgets are **18 columns for a label, 6 for a
+value**. Every proposed string fits:
+
+| label | English | cols | | value | English | cols |
+|---|---|---|---|---|---|---|
+| COMレベル | COM LEVEL | 9/18 | | ふつう | NORMAL | 6/6 |
+| せいげんじかん | TIMER | 5/18 | | むずかしい | HARD | 4/6 |
+| BGM | BGM | 3/18 | | なかよし | FRIEND | 6/6 |
+| こうかおん | SFX | 3/18 | | やさしい | EASY | 4/6 |
+| おんせい | VOICES | 6/18 | | あり | YES | 3/6 |
+| おしまい | EXIT | 4/18 | | なし | NO | 2/6 |
+
+`NORMAL` and `FRIEND` are **exact fits**; `STD` and `PAL` are the maintainer's
+fallbacks if they turn out to need a trailing blank.
+
+**Where the screen lives.** Its tilemap is **asset record 19** (`src $C3:69F0` ->
+`$7E:2000` -> VRAM `$0000`), a 0x800-byte 32x32 map — identified by searching
+every asset block for the exact map words of the `COMレベル` row, not guessed.
+Entry = `attr | tile`, tile is 10 bits; **BG1 CHR base is word `$2000` = tile
+`$200`, so MAP tile = VRAM tile - `$200`** (half-width A-Z therefore land at map
+tiles `$3C0-$3E9`, inside the field); a glyph is two map rows with
+`bottom = top + $10`; labels carry attr `$0C00`, values `$1000`.
+
+**BLOCKED, and the builder keeps it OFF by default** (`SMS_P16_OPTIONS=1` to
+build it anyway). The label writes are correct, but **the glyphs do not reach
+VRAM on this screen**, so enabling it clears the Japanese and draws nothing.
+What is established:
+
+* the Options screen DOES run the extended transfer — `vram $4000 len $4000
+  src $7E:C000`, confirmed on the built ROM, so the length fix applies here;
+* record 27 is the **only** record staging into `$7E:C000`;
+* yet VRAM tiles `$5C0-$5FF` come back **blank** on Options while the
+  button-config screen has all 52 glyph tiles.
+
+So it is screen-specific. Most likely the upload runs **before** this screen's
+decompression of that block and carries a stale buffer. **NEXT: dump WRAM
+`$7E:C000+$3800` on the Options screen** — glyphs absent from the BUFFER
+confirms the ordering theory; present means the fault is after the transfer.
+
+**Values are a separate problem:** they change as the player cycles a setting, so
+they are written at runtime from a table the tilemap does not own. Baking English
+into the map would be overwritten on first input. That writer still has to be
+found.

@@ -71,6 +71,44 @@ NEW_LEN = NEW_TILES * 32          # = $4000 BYTES; also the ceiling, since
 GLYPH_ROWS = (0x5C0, 0x5E0)       # two rows of 16, in VRAM tile numbers
 INK = 7                           # flat ink colour; the kana use 1-8
 
+# ---- the OPTIONS screen (the first translated screen) ---------------------
+# Its tilemap is asset record 19: src $C3:69F0 -> $7E:2000 -> VRAM $0000, a
+# 0x800-byte 32x32 map. Located by searching every asset block for the exact map
+# words of the COMレベル row, so it is identified by content rather than guessed.
+#
+# Addressing, all measured off the live screen:
+#   entry  = attr | tile, tile is 10 bits
+#   BG1 CHR base is word $2000 = tile $200, so MAP tile = VRAM tile - $200
+#   a glyph is 2 map rows: bottom entry = top entry + $10
+#   a HALF-WIDTH glyph is ONE map column (a full-width one is two)
+#   labels start at column 4 with attr $0C00; values occupy columns 22-27
+#     right-aligned with attr $1000
+# Budgets that follow: 18 columns for a label, 6 for a value.
+# ⚠ DEFAULT OFF — the label writes are correct but the GLYPHS DO NOT REACH VRAM
+# ON THIS SCREEN, so enabling it clears the Japanese and draws nothing. Measured:
+# the Options screen DOES run the extended transfer (vram $4000 len $4000 src
+# $7E:C000 -- confirmed on the built ROM), record 27 is the ONLY record staging
+# into $7E:C000, and yet VRAM tiles $5C0-$5FF come back blank there while the
+# button-config screen has them. So it is screen-specific -- most likely the
+# upload runs before this screen's decompression of that block, carrying a stale
+# buffer. NEXT: dump WRAM $7E:C000+$3800 on the Options screen; if the glyphs are
+# absent from the BUFFER the ordering theory is right, if present the fault is
+# after the transfer.
+# Set SMS_P16_OPTIONS=1 to build it anyway for debugging.
+OPT_TRANSLATE = os.environ.get("SMS_P16_OPTIONS") == "1"
+OPT_SRC = 0xC369F0
+OPT_MAP_W = 32
+OPT_LABEL_COL = 4
+OPT_LABEL_COLS = 18
+CHR_BASE_TILE = 0x200
+# Row = the TOP half of the glyph pair. The maintainer's strings, 2026-08-05.
+OPT_LABELS = ((5, "COM LEVEL"), (8, "TIMER"), (11, "BGM"),
+              (14, "SFX"), (17, "VOICES"), (20, "EXIT"))
+# NOTE: the VALUES (ふつう/あり/...) are NOT translated here. They change while
+# the player cycles a setting, so they are written at runtime from a table the
+# tilemap does not own -- baking English into the map would be overwritten the
+# moment the setting is touched. Locating that writer is the next step.
+
 # Asset job table: 10-byte records of [vram16][len16][src24][dest24].
 REC0 = 0x00BE08                   # in bank $C3 — the first record's vram field
 RECSZ = 10
@@ -161,15 +199,76 @@ def build(src_path, out_path, stacked=False):
     packed = sms_lz.encode(bytes(sheet))
     assert sms_lz.decompress(packed, 0, len(sheet)) == bytes(sheet), "font round-trip failed"
 
+    # ---- the OPTIONS screen's tilemap (opt-in; see OPT_TRANSLATE) ----
+    on, orec, packed_map = None, None, None
+    if OPT_TRANSLATE:
+     on, orec = find_record(data, OPT_SRC)
+     if orec is None:
+         raise SystemExit("no asset record points at the options tilemap $%06X" % OPT_SRC)
+     omap = bytearray(sms_lz.decompress(bytes(data), OPT_SRC & 0x3FFFFF, 0x4000))
+     if len(omap) != 0x800:
+         raise SystemExit("options tilemap is %#x bytes, expected 0x800" % len(omap))
+
+     def _cell(r, c):
+         return (r * OPT_MAP_W + c) * 2
+
+     def _get(r, c):
+         o = _cell(r, c)
+         return omap[o] | (omap[o + 1] << 8)
+
+     def _put(r, c, w):
+         o = _cell(r, c)
+         omap[o], omap[o + 1] = w & 0xFF, (w >> 8) & 0xFF
+
+     blank = _get(0, 0)
+     if blank & 0x03FF:
+         raise SystemExit("map cell (0,0) is not blank — cannot use it as the clear value")
+     for row, text in OPT_LABELS:
+         attr = _get(row, OPT_LABEL_COL) & ~0x03FF & 0xFFFF
+         if len(text) > OPT_LABEL_COLS:
+             raise SystemExit("%r is %d columns, budget is %d"
+                              % (text, len(text), OPT_LABEL_COLS))
+         for c in range(OPT_LABEL_COL, OPT_LABEL_COL + OPT_LABEL_COLS):
+             _put(row, c, blank)
+             _put(row + 1, c, blank)
+         for i, ch in enumerate(text):
+             if ch == " ":
+                 continue
+             t = placed[ch] - CHR_BASE_TILE
+             if t > 0x03FF:
+                 raise SystemExit("glyph %r maps to tile $%03X, past the 10-bit field" % (ch, t))
+             _put(row, OPT_LABEL_COL + i, attr | t)
+             _put(row + 1, OPT_LABEL_COL + i, attr | (t + 0x10))
+     packed_map = sms_lz.encode(bytes(omap))
+     assert sms_lz.decompress(packed_map, 0, len(omap)) == bytes(omap), "options map round-trip failed"
+
     # Relocation is mandatory even for unchanged data: this project's encoder is
     # weaker than the original's, so the block cannot be written back in place.
+    # Both relocated blocks share one appended bank: the font at $0000 and the
+    # options map at $8000. Relocation is mandatory for either -- our encoder is
+    # weaker than the original's, so even unchanged data cannot be written back
+    # in place.
+    MAP_AT = 0x8000
+    if len(packed) > MAP_AT:
+        raise SystemExit("packed font (%#x) would overlap the map slot at %#x"
+                         % (len(packed), MAP_AT))
+    if packed_map and len(packed_map) > 0x10000 - MAP_AT:
+        raise SystemExit("packed options map (%#x) overruns the bank" % len(packed_map))
+    blob = bytearray(0x10000)
+    blob[0:len(packed)] = packed
+    if packed_map:
+        blob[MAP_AT:MAP_AT + len(packed_map)] = packed_map
     base, bank = next_bank(data)
-    write_bank(data, base, packed + bytes((0x10000 - len(packed)) % 0x10000))
+    write_bank(data, base, bytes(blob))
     data[rec + 4] = 0x00
     data[rec + 5] = 0x00
     data[rec + 6] = bank
     data[rec + 2] = NEW_LEN & 0xFF
     data[rec + 3] = NEW_LEN >> 8
+    if orec is not None:
+        data[orec + 4] = MAP_AT & 0xFF
+        data[orec + 5] = MAP_AT >> 8
+        data[orec + 6] = bank
 
     fix_checksum(data)
     open(out_path, "wb").write(bytes(data))
@@ -180,6 +279,12 @@ def build(src_path, out_path, stacked=False):
           % (old_len, NEW_LEN, rec - 0x030000 + 2))
     print("  %d glyphs at VRAM tiles $%03X-$%03X / $%03X-$%03X"
           % (len(placed), GLYPH_ROWS[0], GLYPH_ROWS[0] + 15, GLYPH_ROWS[1], GLYPH_ROWS[1] + 9))
+    if OPT_TRANSLATE:
+        print("  options screen: record #%d relocated, %d labels translated (%s)"
+              % (on, len(OPT_LABELS), ", ".join(t for _, t in OPT_LABELS)))
+    else:
+        print("  options screen: NOT translated (SMS_P16_OPTIONS=1 to enable —"
+              " glyphs do not reach VRAM on that screen yet)")
     print("  -> %s  sha1 %s" % (out_path, hashlib.sha1(bytes(data)).hexdigest()))
     json.dump({c: placed[c] for c in sorted(placed)},
               open(os.path.join(REPO, "docs", "halfwidth_tiles.json"), "w"), indent=1)

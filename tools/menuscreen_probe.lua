@@ -57,6 +57,18 @@ local STEPS = {
   function()
     local f = io.open(OUT .. "menuscreen_" .. SCREEN .. ".png", "wb")
     if f then f:write(emu.takeScreenshot()); f:close() end
+    -- VRAM too: the cell budget for a translation is a property of the TILEMAP,
+    -- and it has to be read rather than counted off a screenshot.
+    local vf = io.open(OUT .. "menuscreen_" .. SCREEN .. ".vram", "wb")
+    if vf then
+      local c = {}
+      for i = 0, 0xFFFF do
+        c[#c + 1] = string.char(emu.read(i, emu.memType.snesVideoRam) or 0)
+        if #c == 4096 then vf:write(table.concat(c)); c = {} end
+      end
+      if #c > 0 then vf:write(table.concat(c)) end
+      vf:close()
+    end
     log("SCREEN=" .. SCREEN .. " cursor=" .. ram(0x1B10))
     log("  sheet uploads (len > $400):")
     local k = {}; for s_ in pairs(seen) do k[#k+1] = s_ end; table.sort(k)
