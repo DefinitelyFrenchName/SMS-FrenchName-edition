@@ -15,7 +15,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 
-ROM="${ROM:-build/saturn/SailorMoonS_REFsaturn_v0.14.15-hidden-stage.sfc}"
+ROM="${ROM:-build/saturn/SailorMoonS_REFsaturn_v0.16.1-hidden-stage.sfc}"
 [ -f "$ROM" ] || { echo "verify_saturn: ROM not found: $ROM" >&2; exit 1; }
 QUICK="${QUICK:-0}"
 T=traces/saturn
@@ -147,6 +147,22 @@ if [ "$paluniq" = "$paln" ]; then
 else
   bad "palettes distinct across buttons $palbtns" "$paln distinct rows" "$paluniq distinct"
 fi
+
+echo "== her ground throws: right button, right direction =="
+# v0.16.0. Both faults were INHERITED FROM SUPER S, so nothing in the port would
+# have caught them: the two throws sat on each other's buttons, and the shoulder
+# throw's toss velocity was negative (6 sent the victim behind, 4 in front).
+# Assert the mapping AND the direction — a check on the act alone would pass on
+# a build that still threw backwards.
+thr="6hp:\$7B:right->right 6hk:\$68:right->right"
+[ "$QUICK" != 1 ] && thr="$thr 4hp:\$7B:right->left 4hk:\$68:right->left"
+for t in $thr; do
+  i="${t%%:*}"; rest="${t#*:}"; a="${rest%%:*}"; sd="${rest#*:}"
+  SATURN=1 SHELL_ID=6 INPUT=$i TAG=v_thr_$i ROM="$ROM" \
+    tools/run.sh tools/saturn/probe_throwmap.lua 120 >/dev/null 2>&1
+  check "throw $i -> act $a, victim $sd" "firstact=$a side=$sd" \
+    "$T/throwmap_v_thr_$i.txt" "THROWVERDICT"
+done
 
 if [ "$QUICK" != 1 ]; then
   echo "== L+R coverage (independent harness) =="

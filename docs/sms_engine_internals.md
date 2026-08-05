@@ -367,6 +367,34 @@ Throws are **mash-escaped, not one-press-teched.**
 Per-character throw scripts (call sites `ldy #imm / jsr $06E5` in bank $C1): Moon $2884/$28AC,
 Mercury $38EE/…, Mars $4925/…, Jupiter $5A07/…, Venus $6C53, Uranus $7B59/…, Neptune $8F19/….
 
+### Which throw comes out, and which way it goes (measured 2026-08-05)
+
+Both questions are answered by **data**, which is why a character can ship with them
+wrong (Saturn did — see `docs/saturn/BUILDS.md` 0.16.0).
+
+**Selection — `$C1:055A`.** A character's proc calls it with `Y` = the address of a
+**4 × 8-byte table, one record per attack button**. The routine derives a button index
+from the fresh-press bits in **+0x50** (`0x10`→0, `0x20`→1, `0x40`→2, `0x80`→3; those
+bits are assembled at `$C1:02CC` from `$6A`/`$6B`), reads the record at `Y + index*8`,
+and the record's **last byte is the thrower's act**. `$FF` in the first word = this
+button has no throw. Record word 0's low two bits gate on the opponent's state
+(`$0016,y & 0x80`): `%11` = no condition, `%01` = required set, `%00` = required clear.
+So **index 2 is HP and index 3 is HK** — swapping two records moves each throw, with
+its own range/gating fields, to the other button.
+
+**Direction — `$C1:07E5`.** The toss reads a 5-byte record from `Y`
+(`b1-b2` = X velocity, `b3-b4` = Y velocity, both 8.8), **negates X when the thrower
+faces left** (`lda $09,x` → `eor #$FFFF / inc a`), and stores it as the victim's
+velocity at `+0x30`; `$C1:01B0` then integrates `+0x30/+0x36/+0x38` into the position
+at `+0x20`. So the record always holds the **forward** velocity and the sign of that
+one word is the whole "forward throw vs back throw" question. Uranus's HP throw record
+(`$C1:7B81`) is `FF 80 01 80 FA 18` → X `+$0180`, Y `-$FA80`.
+
+Note the direction is chosen *before* this, at `$C1:061B`: `lda $50,x / and #$01 /
+eor #$01 / sta $09,x` — the thrower's facing is set from the direction held at contact,
+and everything downstream (including the negation above) follows facing. A throw whose
+record holds a negative X therefore comes out **backwards on 6 and forwards on 4**.
+
 ---
 
 ## 9. Projectile system

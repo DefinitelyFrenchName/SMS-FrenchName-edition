@@ -136,7 +136,32 @@ in-ROM select path).
 **Throws VERIFIED in the SMS port (v0.7.0)**: close 6HP → her throw acts
 **0x68/0x69** (P2 held 0x1C → damaged into hitstun; the acts-68/69 sound site id
 0x20 = the throw sfx). She takes throws normally (victim acts 1C/1D/1E).
-Other [W] flags to verify: "weird throws" semantics vs SMS conventions; S-tier above Uranus (Zam 2020 tier list);
+**"Weird throws" RESOLVED (2026-08-05) — the wiki's [W] flag was two real data
+faults, both inherited from Super S and both now fixed (v0.16.0).** Measured
+with `tools/saturn/probe_throwmap.lua` / `probe_throwsrc.lua`, mechanism in
+`sms_engine_internals.md` §8:
+
+1. **Her two ground throws were on each other's buttons.** The close-throw
+   table (Super S `$C1:C84A`, 4 × 8 bytes indexed by attack button) has the
+   close grab (act `$68`) in the HP slot and the shoulder throw (act `$7B`) in
+   the HK slot. The maintainer's field report — "HK triggers the punch grab" —
+   is exactly that. Fixed by swapping the two records, so each throw keeps its
+   own range/gating fields.
+2. **The shoulder throw read 6 and 4 the wrong way round.** Its toss record
+   (`$C1:C88A` = `FF 80 FA 00 FC 14`) holds X velocity `$FA80` = **-1408**,
+   where the engine expects the *forward* velocity and negates it itself for a
+   left-facing thrower — so 6 threw them behind and 4 in front. Fixed as an
+   **input swap**: 6 and 4 are read the other way round for that one throw and
+   everything else stays vanilla (a 19-byte stub at `$DA90` in her `$C1` copy
+   re-inverts the facing bit at `$C1:0619` when the act is `$7B`).
+   ⚠ The first attempt (v0.16.0) negated the record to `$0580` instead. Same
+   measured outcome, and wrong in play: she no longer turned around. **Matching
+   the measurement is not the same as matching the request.**
+
+Both were confirmed byte-identical in the Super S ROM before being touched, so
+this is a correction of the original game, not of the port.
+
+Other [W] flags to verify: S-tier above Uranus (Zam 2020 tier list);
 no documented Saturn infinite (the Uranus infinite carries over from SMS unchanged).
 
 ## 3b. Attack classes / damage (measured)

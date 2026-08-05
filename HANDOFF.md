@@ -53,15 +53,41 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 hidden code is the **only** char-select variant — the v0.10.0 visible slot-10
 build was retired 2026-08-04 and its code deleted (a placeholder that added the
 one char-select surface the story lock exists to avoid; removal proven inert by a
-byte-identical rebuild). Current build on **REF v.2** is **v0.14.15**: hidden
-`8c5db8e4…`, hidden+stage `e1788e31…` — patch 100 + 101 + the nameplate,
-the projectile fix and her selectable palettes, all below. **v0.15.0 (= this +
-patch 17) was built, played and RETIRED the same day** — the maintainer found
+byte-identical rebuild). Current build on **REF v.2** is **v0.16.1**: hidden
+`91639250…`, hidden+stage `c8f7dae8…` — patch 100 + 101 + the nameplate,
+the projectile fix, her selectable palettes (all below) and **her two ground
+throws fixed** (§ below). **v0.15.0 (= v0.14.15 + patch 17) was built, played
+and RETIRED the same day** — the maintainer found
 the tenth stage visually distracting, so patch 17 stays optional and standalone;
 the builder still reproduces v0.14.15 byte-for-byte with the hook in place but
 off (`SATURN_ALLSTAGES=1` opts in and tags the version **S**). The previous
 v0.14.9 pair `7db39c48…`/`3120d75a…` still rebuilds byte-for-byte from the prior
 builder revision.
+
+**HER GROUND THROWS ARE FIXED (v0.16.1, 2026-08-05) — both faults inherited
+from Super S.** Field report: the two throws are on each other's buttons, and
+the punch grab's 6/4 directions are reversed as well. Both reproduced before
+anything was touched. The first lead was **a red herring worth recording**: her
+button-map record (`$C1:174E`) differs from the common one by exactly one
+swapped pair, which looks like the answer — but the +0x51 move-request pipeline
+is never written during a throw at all, so it is unrelated. What decides is a
+**4 x 8-byte close-throw table indexed by attack button** (`$C1:C84A` via
+`$C1:055A`; index 2 = HP, 3 = HK, the record's last byte is the act), and hers
+has the two throws in each other's slots. The direction is a second, separate
+datum: `$C1:07E5` reads a 5-byte toss record and **negates X for a left-facing
+thrower**, so the record holds the FORWARD velocity — hers is `$FA80` = -1408,
+i.e. backwards, where every SMS record is positive. Fixed by swapping the two
+records, and the direction by **reading 6 and 4 the other way round for that one
+throw** — a 19-byte stub in her `$C1` copy re-inverts the facing bit at
+`$C1:0619` when the act is `$7B`, leaving the animation, the turn-around and the
+toss velocity vanilla. ⚠ **v0.16.0 got the direction wrong and is retired:** it
+negated her toss velocity instead, which produced the *same measured outcome*
+and still read wrong in play, because she no longer turned around. **Matching
+the measurement is not the same as matching the request** — the ask was "map 6HP
+to 4HP", not "make the victim land in front". Both byte patterns were confirmed
+byte-identical in the **Super S ROM** first, so this corrects the original game,
+not the port. Mechanism: `docs/sms_engine_internals.md` §8; detail:
+`docs/saturn/BUILDS.md` 0.16.1. `SATURN_THROWFIX=0` restores the old behaviour.
 
 **The 214P projectile bug is FIXED (v0.14.11, 2026-08-05).** It was a
 **per-shell truncation of her effect sheet**: the build stages her 0x1040-byte
@@ -117,7 +143,7 @@ resolved a sprite's tiles as `tile * 32`; the OBJ name base is word `$6000` with
 the second name table at `$7000`. Correctly resolved, all 12 sprites always
 pointed at valid tiles. It did name the right sprites, though — that part stands.
 
-**Gate before shipping anything: `tools/saturn/verify_saturn.sh`** — 49 checks
+**Gate before shipping anything: `tools/saturn/verify_saturn.sh`** — 53 checks
 (regression suite, L+R arming across modes x shells incl. flag/latch, story lock,
 2P VS on both pads, throws normal + command with OAM-flood and stage-VRAM
 assertions, the projectile palette split, **her effect sheet's cross-shell
@@ -255,7 +281,7 @@ would actually cost). Short version: ROM is not scarce (384 KB spare), ARAM is
 the only hard wall, and the real constraint is per-character tables sized to nine
 and immediately followed by live data.
 
-**Nine traps this project paid for — they generalise:**
+**Ten traps this project paid for — they generalise:**
 
 1. **Per-character fixes must be tested with at least TWO shells.** Saturn can
    be summoned over Uranus, Neptune or Pluto (over any of the nine before
@@ -307,6 +333,14 @@ and immediately followed by live data.
    never survived the load; one exec hook reading the byte the guard reads
    settled it. Assert the precondition (here: `$1000` == the shell you asked
    for) before trusting the verdict.
+10. **Matching the measurement is not the same as matching the request.** The
+   throw-direction fix (v0.16.0) made the victim land on the correct side and
+   passed every check written for it — and was wrong, because the maintainer had
+   asked to *swap which input triggers which throw*, not to change where the
+   victim goes. The two differ by one visible thing the metric never captured:
+   whether she turns around. When a request names a MECHANISM ("map 6HP to
+   4HP"), implement that mechanism; a different mechanism with the same
+   measurable outcome is a different feature.
 
 ---
 

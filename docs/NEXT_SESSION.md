@@ -114,6 +114,35 @@ never reach slots 0-3**, because summoning her needs L+R and L/R are patch 3's
 palette modifiers — her slots are 4-7, so the copier MASKS rather than clamps.
 Clamping was the first cut and it reproduced the original bug exactly.
 
+**7. Her ground throws — FIXED (v0.16.1, 2026-08-05), field-reported.**
+Two faults, both **inherited from Super S** (byte patterns confirmed identical
+in that ROM before anything was touched), both reproduced by probe before being
+diagnosed:
+* **wrong buttons** — the close-throw table is 4 x 8 bytes indexed by attack
+  button (`$C1:C84A`, consumed by `$C1:055A`; index 2 = HP, 3 = HK, the record's
+  last byte is the act) and hers had the close grab (`$68`) and the shoulder
+  throw (`$7B`) in each other's slots. Swapped wholesale, so each keeps its own
+  range/gating fields.
+* **wrong direction, fixed as an INPUT SWAP** — 6 and 4 are read the other way
+  round for that one throw; the animation, the turn-around and the toss velocity
+  stay vanilla. The direction is the thrower's FACING (`$C1:0619 lda $50,x /
+  and #$01 / eor #$01 / sta $09,x`), so a 19-byte stub at `$DA90` in her `$C1`
+  copy re-inverts that bit when DP `$07` (the act the record just supplied) is
+  `$7B`. Scoped by act, confined to her copy.
+* ⚠ **v0.16.0 got the direction wrong and was retired the same day.** It negated
+  her toss record's X velocity instead. The measured outcome was IDENTICAL — and
+  it read wrong in play, because she no longer turned around. **Matching the
+  measurement is not the same as matching the request:** the ask was "map 6HP to
+  4HP", not "make the victim land in front".
+* ⚠ **The obvious lead was wrong.** Her button-map record (`$C1:174E` =
+  `02 00 04 08 06 00 0a`) differs from the common record by exactly one swapped
+  pair, which reads like the answer — but the +0x51 move-request pipeline is
+  never written during a throw, so it is unrelated. Measuring the act-setter's
+  CALLER (stack return address) is what found the real table.
+* Knob `SATURN_THROWFIX=0`. Gate grew to 53 checks — the three new ones assert
+  the DIRECTION as well as the act, because an act-only check passes on a build
+  that still throws backwards.
+
 ## The lesson this session paid for repeatedly
 
 Probes and conclusions kept being wrong for one reason: **an instrument was
@@ -155,13 +184,16 @@ history.)
 ## Status in one paragraph
 
 The base patch project is done and green. **SMS + Saturn is feature-complete with
-no open bugs.** Current build is **v0.14.15**
-(`SailorMoonS_REFsaturn_v0.14.15-hidden-stage.sfc`, `e1788e31…`, hidden
-`8c5db8e4…`) on **REF v.2** — patch 100 + 101 + the nameplate, the projectile
-fix and her four selectable palettes. (v0.15.0 = this + patch 17 was built and
-retired the same day: the maintainer found the stage visually distracting.) She is summoned by holding **L+R** while confirming a **Uranus, Neptune or
+no open bugs.** Current build is **v0.16.1**
+(`SailorMoonS_REFsaturn_v0.16.1-hidden-stage.sfc`, `c8f7dae8…`, hidden
+`91639250…`) on **REF v.2** — patch 100 + 101 + the nameplate, the projectile
+fix, her four selectable palettes and **her two ground throws fixed** (both
+faults inherited from Super S: the throws were on each other's buttons and the
+shoulder throw's toss velocity was negative). (v0.15.0 = v0.14.15 + patch 17 was
+built and retired the same day: the maintainer found the stage visually
+distracting.) She is summoned by holding **L+R** while confirming a **Uranus, Neptune or
 Pluto** slot — the only char-select variant now; the visible slot-10 build was
-retired 2026-08-04 and deleted. Gates: `tools/saturn/verify_saturn.sh` (49
+retired 2026-08-04 and deleted. Gates: `tools/saturn/verify_saturn.sh` (53
 checks, ALL PASS; `QUICK=1` for a ~4-min subset) and `tools/test_regression.lua`
 (57/57). Maintainer's verdict on the current build: "perfectly acceptable for
 playing".
@@ -327,7 +359,7 @@ is input-free work.
 tools/build_ref_v2.sh                                   # REF v.2 = v.1 + patch 15
 SATURN_HIDDEN=1 bash tools/saturn/build_refsaturn.sh    # Saturn on REF v.2
 bash tools/saturn/build_saturn_stage.sh --ref           # + the stage port <- v0.14.15
-tools/saturn/verify_saturn.sh                           # 49 checks, the gate
+tools/saturn/verify_saturn.sh                           # 53 checks, the gate
 QUICK=1 tools/saturn/verify_saturn.sh                   # ~4 min subset
 ROM=<rom> tools/run.sh tools/test_regression.lua 900    # 57/57
 python3 tools/mkpatch16.py <out.sfc>                     # patch 16 (font install)

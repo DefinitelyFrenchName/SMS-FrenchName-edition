@@ -45,7 +45,7 @@ import mkpatch17  # noqa: E402  (patch 17, folded in — see SATURN_ALLSTAGES)
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.15"
+SATURN_VERSION = "0.16.1"
 
 # PATCH 17 (the hidden tenth stage) is available here but **OFF** — the
 # maintainer tested v0.15.0 and ruled the stage "a bit distracting visually",
@@ -140,6 +140,41 @@ EF_HELPER = 0xDB70            # in-bank, clear of tramp(DB20)/tramp3(DB30)/snd(D
 # Fix: shift the ids in her spawn records. (Her projectile ids 0x20-0x22 are
 # below the shift range and are objects we ported ourselves — untouched.)
 SPAWN_ID_FIX = {0xD9F3: (0x33, 0x32), 0xD9F9: (0x34, 0x33), 0xD9FF: (0x34, 0x33)}
+
+# v0.16.0 — HER TWO GROUND THROWS, both faults INHERITED FROM SUPER S (field
+# report 2026-08-05; the bytes below are byte-identical in the Super S ROM, so
+# the port carries them faithfully and this is a deliberate correction, same
+# ships-fixed policy as the guard-fix pose bytes).
+#
+# How a close throw is chosen (measured, not inferred — probe_throwsrc.lua):
+# her proc calls the shared selector `$C1:055A` with Y = $C84A, which derives a
+# BUTTON INDEX from the fresh-press bits in +0x50 (0x10->0, 0x20->1, 0x40->2,
+# 0x80->3) and reads the 8-byte record at Y + index*8; the record's last byte is
+# the thrower's act. Index 2 is HP and index 3 is HK (both confirmed in-game).
+#
+#  (1) THE TWO THROWS ARE ON THE WRONG BUTTONS. HP gives act $68 (the close
+#      grab) and HK gives act $7B (the over-the-shoulder throw). Swapping the
+#      two records puts each throw on its own button; each record keeps its own
+#      range/gating fields, so the throws move wholesale.
+THROW_TBL = 0xC84A                      # 4 x 8 bytes, one per attack button
+THROW_HP_OLD = bytes.fromhex("010028d828f80868")   # idx 2 = HP -> act $68
+THROW_HK_OLD = bytes.fromhex("030030d030d8287b")   # idx 3 = HK -> act $7B
+#  (2) THE SHOULDER THROW READS 6 AND 4 THE WRONG WAY ROUND. The throw's
+#      direction is the thrower's FACING, set at $C1:0619 from the direction
+#      held at contact ($C1:0619 `lda $50,x / and #$01 / eor #$01 / sta $09,x`); the toss
+#      at $C1:07E5 then negates the record's X velocity when facing is left. So
+#      the fix is to read that one input bit inverted **for this throw only** —
+#      6 does what 4 did and vice versa, animation, turn-around and toss
+#      untouched. (v0.16.0 instead flipped the toss velocity so the victim went
+#      forward without her turning: the outcome matched but it read wrong in
+#      play — maintainer, 2026-08-05. Her toss record at $C1:C88A stays vanilla.)
+#      Scoped by ACT, not by button, so it follows the throw after the swap
+#      above; and it lives in HER $C1 copy, so vanilla throws are untouched.
+THROW_ACT_SHOULDER = 0x7B
+SITE_THROWFACE = 0x0619                 # in the $C1 copy (her proc's own path)
+THROWFACE_OLD = bytes.fromhex("b5502901490195 09".replace(" ", ""))
+EF_THROWDIR = 0xDA90                    # zero run $DA90-$DAF3, asserted at build
+SATURN_THROWFIX = _osv0.environ.get("SATURN_THROWFIX") != "0"
 PROJ_IDS = [i for i in range(0x1D, 0x30)]
 PROJ_DESPAWN = 0x0E23
 # Button-map hook: same 11-byte head shape as the recognizer dispatch, at $C1:15C4.
@@ -1734,6 +1769,40 @@ def main():
         assert ef[addr] == old_id, \
             f"spawn record {addr:#x}: expected id {old_id:#04x}, found {ef[addr]:#04x}"
         ef[addr] = new_id
+    if SATURN_THROWFIX:
+        hp, hk = THROW_TBL + 2 * 8, THROW_TBL + 3 * 8
+        assert bytes(ef[hp:hp + 8]) == THROW_HP_OLD, \
+            f"throw record HP @ {hp:#x}: found {bytes(ef[hp:hp+8]).hex()}"
+        assert bytes(ef[hk:hk + 8]) == THROW_HK_OLD, \
+            f"throw record HK @ {hk:#x}: found {bytes(ef[hk:hk+8]).hex()}"
+        ef[hp:hp + 8], ef[hk:hk + 8] = THROW_HK_OLD, THROW_HP_OLD
+        # direction: read the input bit inverted for the shoulder throw only.
+        # A is 8-bit and X 16-bit here (the caller did sep #$20 at $0619), and
+        # DP $07 holds the act the throw record just supplied — it survives to
+        # $C1:0658, which is where the thrower's act is finally set from it.
+        stub = bytes.fromhex(
+            "a507"      # lda $07        ; this throw's act
+            "c97b"      # cmp #$7B       ; the shoulder throw?
+            "08"        # php            ; keep Z across the recompute
+            "b550"      # lda $50,x
+            "2901"      # and #$01       ; the direction bit held at contact
+            "4901"      # eor #$01       ; vanilla facing
+            "28"        # plp
+            "d002"      # bne +2
+            "4901"      # eor #$01       ; ...inverted again for this one throw
+            "9509"      # sta $09,x
+            "60")       # rts
+        assert bytes(ef[SITE_THROWFACE:SITE_THROWFACE + 8]) == THROWFACE_OLD, \
+            f"throw facing site @ {SITE_THROWFACE:#x}: found " \
+            f"{bytes(ef[SITE_THROWFACE:SITE_THROWFACE+8]).hex()}"
+        # "is this slot zero" is not "is this slot free" — but this run is the
+        # one v0.11.8 verified and tramp3 ends at $DA8E, so assert against the
+        # ASSEMBLED bank rather than trusting the note.
+        assert set(ef[EF_THROWDIR:EF_THROWDIR + len(stub)]) == {0}, \
+            f"throw-direction stub slot {EF_THROWDIR:#x} is not free"
+        ef[EF_THROWDIR:EF_THROWDIR + len(stub)] = stub
+        ef[SITE_THROWFACE:SITE_THROWFACE + 8] = \
+            bytes((0x20, EF_THROWDIR & 0xFF, EF_THROWDIR >> 8)) + b"\xEA" * 5
     # helper: sep #$30 / cmp #SAT_ID / beq sat / asl / tax / JSL $C1:stub2 / rtl
     #         sat: jsr $C6F7 / rtl          (entered with 8-bit A=id via the hook)
     # helper v3 (at EF_HELPER): id test + P1/P2 in-ROM transforms
