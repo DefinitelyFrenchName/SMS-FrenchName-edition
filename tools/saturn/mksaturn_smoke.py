@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.14"
+SATURN_VERSION = "0.14.15"
 
 # Character select. The HIDDEN code is now the ONLY variant (maintainer,
 # 2026-08-04): "let's keep only the hidden variant — it solves our story mode
@@ -395,11 +395,28 @@ SAT_PAL_SLOTS = 4
 # (12 is its shadow, 1 a near-black that stays grey under any rotation). Skin,
 # hair, bow and outline are outside this list and never move.
 SAT_PAL_RAMP = (1, 8, 9, 10, 11, 12)
-# Authored slots 2/3, chosen with the maintainer against a render of her own
-# sprite: green and gold. Both canon slots are cool (violet, blue), so the two
-# authored ones go elsewhere in the wheel; crimson was rejected because her bow
-# and accents are already red ($942020/$CD2020) and the costume merged with them.
-SAT_PAL_AUTHORED = (0.34, 0.11)   # HLS hue, luminance + saturation preserved
+# Authored slots 2/3, chosen with the maintainer against renders of her own
+# sprite IN A REAL MATCH. Each is an HLS transform of her costume ramp: `hue`
+# replaces the hue, `lmul`/`smul` scale luminance and saturation.
+#
+# Slot 3 was GOLD until v0.14.15 and the field found it low-contrast against some
+# backgrounds. Measured on the captured stage (mean background luminance 0.57):
+# gold's ramp sits at 0.63 — a separation of only 0.06, the worst of every
+# candidate, which is exactly the reported wash-out.
+#
+# TEAL was the obvious replacement and was rejected on measurement: it reads
+# strongly against a pink stage but that is HUE contrast, and its luminance
+# (0.66) is barely different from gold's, so it would wash out the same way on a
+# cool-coloured stage. NEAR-BLACK separates by LUMINANCE (0.21, separation 0.36),
+# which holds whatever hue the stage is, and keeps a faint violet cast so she
+# still reads as herself.
+# ⚠ It is the darkest option, so it is the one to re-check if a very dark stage
+#   is ever added — the comparison was made on ONE background.
+# Crimson was rejected earlier because her bow is already red ($942020/$CD2020).
+SAT_PAL_AUTHORED = (
+    dict(hue=0.34),                    # slot 2 (Y): green
+    dict(lmul=0.42, smul=0.55),        # slot 3 (X): near-black, violet cast
+)
 # Size of her effect sheet. It is BOTH the MVN count into the staging buffer and
 # the length the effects DMA is forced to (v0.14.11) — the two must agree, so
 # they read the same constant and the decompressed sheet is asserted against it.
@@ -1139,14 +1156,19 @@ def main():
     # in the sprite is untouched and the recolours read as native.
     import colorsys
 
-    def _hue_rotate(pal32, hue):
+    def _recolour(pal32, hue=None, lmul=1.0, smul=1.0):
+        """HLS transform of her COSTUME RAMP only — skin, hair, bow and outline
+        are outside SAT_PAL_RAMP and never move."""
         out = bytearray(pal32)
         for i in SAT_PAL_RAMP:
             v = out[i * 2] | out[i * 2 + 1] << 8
             r, g, b = (v & 31) / 31, ((v >> 5) & 31) / 31, ((v >> 10) & 31) / 31
-            _h, l, s = colorsys.rgb_to_hls(r, g, b)
-            r, g, b = colorsys.hls_to_rgb(hue, l, s)
-            q = [max(0, min(31, round(c * 31))) for c in (r, g, b)]
+            h, l, s = colorsys.rgb_to_hls(r, g, b)
+            if hue is not None:
+                h = hue
+            l = max(0.0, min(1.0, l * lmul))
+            s = max(0.0, min(1.0, s * smul))
+            q = [max(0, min(31, round(c * 31))) for c in colorsys.hls_to_rgb(h, l, s)]
             w = q[0] | (q[1] << 5) | (q[2] << 10)
             out[i * 2], out[i * 2 + 1] = w & 0xFF, w >> 8
         return bytes(out)
@@ -1155,7 +1177,7 @@ def main():
     pal_canon_b = sup[0x20B0A8:0x20B0A8 + 32]
     assert pal_canon_a != pal_canon_b, "her two canon palettes are identical — wrong pointers"
     sat_pals = [pal_canon_a, pal_canon_b] + \
-               [_hue_rotate(pal_canon_a, h) for h in SAT_PAL_AUTHORED]
+               [_recolour(pal_canon_a, **spec) for spec in SAT_PAL_AUTHORED]
     assert len(sat_pals) == SAT_PAL_SLOTS
     assert SAT_PAL_SLOTS and not (SAT_PAL_SLOTS & (SAT_PAL_SLOTS - 1)), \
         "the stub masks the slot with SAT_PAL_SLOTS-1, so it must be a power of 2"

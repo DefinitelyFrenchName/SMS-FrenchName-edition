@@ -104,9 +104,9 @@ history.)
 ## Status in one paragraph
 
 The base patch project is done and green. **SMS + Saturn is feature-complete with
-no open bugs.** Current build is **v0.14.14**
-(`SailorMoonS_REFsaturn_v0.14.14-hidden-stage.sfc`, `f78e6468…`, hidden
-`873a0192…`) on **REF v.2** — patch 100 + 101 + the nameplate, the projectile
+no open bugs.** Current build is **v0.14.15**
+(`SailorMoonS_REFsaturn_v0.14.15-hidden-stage.sfc`, `e1788e31…`, hidden
+`8c5db8e4…`) on **REF v.2** — patch 100 + 101 + the nameplate, the projectile
 fix and her four selectable palettes. She is summoned by holding **L+R** while confirming a **Uranus, Neptune or
 Pluto** slot — the only char-select variant now; the visible slot-10 build was
 retired 2026-08-04 and deleted. Gates: `tools/saturn/verify_saturn.sh` (49

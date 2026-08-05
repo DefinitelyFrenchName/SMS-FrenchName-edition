@@ -53,8 +53,8 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 hidden code is the **only** char-select variant — the v0.10.0 visible slot-10
 build was retired 2026-08-04 and its code deleted (a placeholder that added the
 one char-select surface the story lock exists to avoid; removal proven inert by a
-byte-identical rebuild). Current build on **REF v.2** is **v0.14.14**: hidden
-`873a0192…`, hidden+stage `f78e6468…` — patch 100 + 101 + the nameplate,
+byte-identical rebuild). Current build on **REF v.2** is **v0.14.15**: hidden
+`8c5db8e4…`, hidden+stage `e1788e31…` — patch 100 + 101 + the nameplate,
 the projectile fix and her selectable palettes, both below. The previous v0.14.9 pair `7db39c48…`/`3120d75a…` still
 rebuilds byte-for-byte from the prior builder revision.
 
@@ -103,7 +103,7 @@ palettes per character** (both games' char-select dedup writes 0 or 1; the
 palette and the effects palette), and **a Saturn player can never reach slots
 0-3** — summoning her needs L+R held, and L/R are patch 3's palette modifiers,
 so her reachable slots are 4-7. The copier now reads `$1D02`/`$1D05` and MASKS
-the slot, giving A=violet B=blue Y=green X=gold; slots 2/3 are authored by
+the slot, giving A=violet B=blue Y=green X=near-black (gold until v0.14.15 — the field found it low-contrast; teal was rejected on measurement, it separates by hue not luminance); slots 2/3 are authored by
 rotating only her costume ramp, since Big Zam has no Saturn to lift extras from.
 Verified per button and on both players. Detail: `docs/saturn/BUILDS.md` v0.14.12.
 
