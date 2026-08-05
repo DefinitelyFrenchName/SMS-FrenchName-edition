@@ -15,7 +15,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 
-ROM="${ROM:-build/saturn/SailorMoonS_REFsaturn_v0.14.9-hidden-stage.sfc}"
+ROM="${ROM:-build/saturn/SailorMoonS_REFsaturn_v0.14.11-hidden-stage.sfc}"
 [ -f "$ROM" ] || { echo "verify_saturn: ROM not found: $ROM" >&2; exit 1; }
 QUICK="${QUICK:-0}"
 T=traces/saturn
@@ -82,6 +82,32 @@ check "her projectile uses OBJ pal 7" "+08=1F" "$T/v_pal_hers.txt" "proj slot"
 SATURN=1 TAG=v_pal_vs ROM="$ROM" \
   tools/run.sh tools/saturn/probe_sms_objpal.lua 700 >/dev/null 2>&1
 check "opponent's projectile still on OBJ pal 2" "+08=1A" "$T/v_pal_vs.txt" "proj slot"
+
+echo "== effect sheet reaches VRAM in full, on every shell =="
+# v0.14.11. Her sheet is staged over the shell's, but the DMA that follows was
+# sized from the SHELL's own sheet: Uranus $11C0 / Pluto $10C0 are big enough,
+# NEPTUNE is $0E60, so 15 tiles ($113-$121) never arrived and her 214P
+# projectile lost 7 of its 12 sprites ("two disconnected blue pieces").
+# Asserting CROSS-SHELL INVARIANCE rather than a fixed checksum: the sheet is
+# the same data on every shell, so the sums must agree. Sanity-checked against
+# the known-bad v0.14.8, where shells 6 and 7 disagree — a check that cannot
+# fail is not a check.
+fxshells="6 7 8"; [ "$QUICK" = 1 ] && fxshells="6 7"
+fxsums=""
+for sh in $fxshells; do
+  SHELL_ID=$sh ROM="$ROM" tools/run.sh tools/saturn/probe_saturn_fxsheet.lua 500 >/dev/null 2>&1
+  s="$(grep -E '^FXSHEET' "$T/fxsheet_$sh.txt" 2>/dev/null | tail -1)"
+  case "$s" in
+    *sum=*) fxsums="$fxsums${s##*sum=} ";;
+    *)      bad "effect sheet, shell $sh" "an FXSHEET line" "$s"; fxsums="$fxsums MISSING ";;
+  esac
+done
+fxuniq="$(printf '%s\n' $fxsums | sort -u | wc -l | tr -d ' ')"
+if [ "$fxuniq" = 1 ]; then
+  ok "effect sheet identical across shells $fxshells ($(printf '%s' $fxsums | head -c 9))"
+else
+  bad "effect sheet identical across shells $fxshells" "one checksum" "$fxsums"
+fi
 
 if [ "$QUICK" != 1 ]; then
   echo "== L+R coverage (independent harness) =="

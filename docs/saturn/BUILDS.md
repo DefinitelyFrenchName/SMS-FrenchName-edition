@@ -76,6 +76,8 @@ Versions before 0.6.0 are retroactive labels for the historical lineage
 
 | **0.14.9** | REFsaturn+stage: `03b73cdd…` / hidden: `76ba6d8c…` | (this) | **HER PROJECTILES GET THEIR OWN OBJ PALETTE ROW** — field report: fighting *against* Saturn, the projectiles and only the projectiles come out wrong. This was a knowingly-accepted tradeoff from v0.11.1, now removed. Mechanism, re-measured: both games pick a projectile's palette **per SLOT** — the setup routine writes palette 2 for slot `$1100` and 3 for slot `$1180` into the object's `+0x08`, then ORs the priority bits from `$8F` (giving the `$1A`/`$1B` measured live; OAM attr byte = `+0x08 << 1`, so palette = `+0x08 & 7`). Since v0.11.1 the transform overwrote CGRAM shadow row `$0640` = OBJ pal 2 with Super S's blue effects palette so her fireballs would not be fire-orange — but pal 2 is the **opponent's** projectile row too. pal 3 is not free either: it is slot `$1180`'s row, a *different* authored palette (verified by dumping both). Measured over a full match with projectiles firing (`probe_sms_objpal.lua`, new — it dumps all eight OBJ rows and accumulates a full 3-bit OAM palette histogram): only pals **0/1/2/4** are ever used by any sprite; rows 5 and 6 hold authored ramps that nothing drew, and **row 7 is all zeros in both a Saturn and a vanilla match — never loaded, never used**. Fix: her projectile procs select **row 7** (two immediates in HER copy of the setup routine, inside the ported PROJ block — the engine's own `$C1` copy that every vanilla projectile runs is untouched) and the transform's palette copy targets row 7 instead of row 2. Verified: her projectile `+08=1F` (pal 7), a vanilla Neptune projectile in the same match `+08=1A` (pal 2, unchanged); CGRAM rows 2 **and** 3 now identical to vanilla, row 7 carries her effects palette; her fireball is visually unchanged. Regression 57/57, throws still clean (normal + command), stress harness identical to v0.14.8 (clean, 6 suspect DMAs — HUD digit writes). *Observation, pre-existing and not introduced here:* OBJ rows 5 and 6 also differ between a Saturn and a vanilla match, on v0.14.8 as well; nothing drew with them in the sample, so it is recorded rather than chased. |
 
+| **0.14.11** | REFsaturn+stage: `b180790a…` / hidden: `dacb1c65…` | (this) | **214P PROJECTILE FIXED — the effects DMA was sized from the SHELL, not from her.** Her 0x1040-byte effect sheet is staged over the shell's in `$7F:0000`, but the DMA that follows takes its length from the **shell character's own** sheet, and they differ: Uranus `$11C0`, Pluto `$10C0`, **Neptune `$0E60`** (measured at the kick site, dp+`$32`, D=`$0000`, `probe_saturn_fxdma.lua`). On a Neptune shell the last `$1E0` bytes — 15 tiles, `$113-$121` — never reached VRAM and kept whatever the previous match left there; her 214P travel pose is 12 sprites and **7 of them draw from exactly that range**, so the five 16×16 tiles survived and the seven 8×8 tiles vanished. That is the field report verbatim: *two disconnected blue pieces instead of one shape*, on Neptune, intact on Uranus — and it is why every build bisection came back "identical", since they all compared builds on ONE shell (HANDOFF trap #1). Fix: the DMA stub's armed path now also forces the length (`lda #FX_SHEET_LEN / sta $004305`, long store — DB there is the caller's). Safe in both directions, from the full round-load DMA map: P1 `$6A00`+`$1040` ends at word `$7220` and the next transfer starts at `$7300` (Pluto's own already reaches `$7260`); P2 `$7300`+`$1040` ends at `$7B20`, next starts at `$7C00`. Where a shell's sheet is larger, this also stops its leftover art trailing into tiles past hers. **Byte footprint: 7 inserted bytes + 9 `brl` displacements (each exactly +7) + checksum + version string — nothing else moved**, and the pre-fix rebuild reproduces `7db39c48…`/`3120d75a…` byte-for-byte. Verified: her sheet is byte-identical to `supers_lz`'s decoder output in VRAM on shells 6/7/8 (130/130 tiles; Neptune was 115/130), the composed projectile is one continuous flame, gate 46/46, regression 57/57. New gate check (`probe_saturn_fxsheet.lua`): her effect sheet must be **identical across shells** — sanity-checked against v0.14.8, where it fails. |
+
 ## Field verification, v0.13.2 [P 08-03]
 
 - **Movelist: clean.** Her own list renders correctly in normal play — the
@@ -345,3 +347,69 @@ it covers against `$0CE-$0E6` and `$113-$119`. The DP-based DMA probe from the
 patch-16 font hunt (`probe_fontdma2.lua`, read the parameters from direct page at
 the `$420B` trigger — the DMA registers are write-only) is the tool that already
 works for exactly this question.
+
+### 214P projectile: SOLVED (2026-08-05) — the effects DMA is sized from the SHELL
+
+**It is a per-shell truncation of her effect sheet.** The build stages her
+0x1040-byte sheet over the shell's in `$7F:0000`, but the DMA that follows was
+sized from the **shell character's own** effect sheet, and the shells differ.
+Measured at the kick site (`probe_saturn_fxdma.lua`, dp+`$32`, D=`$0000`):
+
+| shell | P1 effects DMA | vs her `$1040` sheet |
+|---|---|---|
+| 6 Uranus | `vram=$6A00 len=$11C0` | fits |
+| **7 Neptune** | `vram=$6A00 len=$0E60` | **short by `$1E0` = 15 tiles** |
+| 8 Pluto | `vram=$6A00 len=$10C0` | fits |
+
+So on a **Neptune** shell the last 15 tiles (`$113-$121`) never reached VRAM and
+kept whatever the previous match left there. Her 214P travel pose is 12 sprites
+and **7 of them draw from exactly that range** — the five 16×16 tiles
+(`$0CE/$0E0/$0E2/$0E4/$0E6`) survive, the seven 8×8 tiles (`$113-$119`) vanish.
+That is the field report verbatim: *two disconnected blue pieces instead of one
+shape*, on a Neptune shell, and intact on Uranus.
+
+**Fix (v0.14.11):** the DMA stub's armed path now also forces the transfer
+length — `lda #FX_SHEET_LEN / sta $004305` (long store: DB there is the
+caller's). Proved safe in both directions from the full round-load DMA map
+(same probe): P1 `$6A00`+`$1040` ends at word `$7220` and the next transfer
+starts at `$7300` — Pluto's own already reaches `$7260`; P2 `$7300`+`$1040`
+ends at `$7B20`, next starts at `$7C00`. Where a shell's sheet is *larger* this
+also stops its leftover art trailing into tiles past hers.
+
+**Verified:** her sheet is now byte-identical to `supers_lz`'s decoder output in
+VRAM on shells 6/7/8 (130/130 tiles; before: Neptune 115/130), and the composed
+projectile renders as one continuous flame. **The P2 side was measured, not
+assumed** — Saturn as P2 on a Neptune shell was equally broken (114 non-blank
+tiles at VRAM `$7300`) and now checksums identical to P1 (`$91C481B3`), which
+also means P2 was affected on *every* shell, since P2's own transfer is `$0FC0`.
+Gate `verify_saturn.sh` 46/46, regression 57/57.
+
+**Every earlier attempt failed on instrumentation, not on reasoning:**
+
+1. **The "root signature" table above is retracted a second time — but it named
+   the right sprites.** It resolved a sprite's data as `tile * 32`, i.e. OBJ name
+   base 0. The real base is `oamBaseAddress` = word `$6000` (byte `$C000`), with
+   the second name table at word `$7000`, so every "blank VRAM" reading came from
+   an unrelated part of VRAM. Correctly resolved, *all 12 sprites point at tiles
+   that are present and correct* — on Uranus.
+2. **The palette filter and the distance window both mis-identified the
+   sprites.** Her sprite list is emitted on **alternate frames**, so a capture
+   triggered "+20 frames after the slot populates" lands on an empty frame half
+   the time — one such capture returned zero palette-7 entries and three
+   unrelated sprites that looked like a projectile. Identification is now by
+   **correlation over the whole flight** (`probe_saturn_projoam.lua`): the
+   entries that appear when the slot populates, move with it, and vanish with it.
+3. **The bug was never build-dependent — it is SHELL-dependent** (HANDOFF trap
+   #1: test at least two shells). Every bisection compared builds on one shell
+   and correctly reported "identical".
+4. **Two probes reported nothing because they were broken.** `emu.getState()`
+   throws inside a memory callback here and silently kills the hook — and the
+   counter was incremented *after* that call, so a dead probe reported "0 DMA
+   kicks" rather than an error. And the kick site must be hooked at **`$80:92A4`**,
+   not `$C0:92A4`: this code runs from the FastROM mirror.
+
+**The gate could not have caught this** — it passed on the broken build. It now
+carries a check that fails on it: `probe_saturn_fxsheet.lua` asserts her effect
+sheet is **identical across shells** (cross-shell invariance rather than a
+hardcoded checksum, so it survives any change to her art). Sanity-checked
+against v0.14.8: shells 6 and 7 disagree there, and agree on the fix.

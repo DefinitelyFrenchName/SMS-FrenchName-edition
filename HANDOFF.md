@@ -53,36 +53,57 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 hidden code is the **only** char-select variant — the v0.10.0 visible slot-10
 build was retired 2026-08-04 and its code deleted (a placeholder that added the
 one char-select surface the story lock exists to avoid; removal proven inert by a
-byte-identical rebuild). Current build on **REF v.2**: hidden `7db39c48…`,
-hidden+stage `3120d75a…` (patch 100 + 101 + the nameplate).
+byte-identical rebuild). Current build on **REF v.2** is **v0.14.11**: hidden
+`dacb1c65…`, hidden+stage `b180790a…` (patch 100 + 101 + the nameplate + the
+projectile fix below). The previous v0.14.9 pair `7db39c48…`/`3120d75a…` still
+rebuilds byte-for-byte from the prior builder revision.
 
-⚠ **ONE OPEN BUG: her 214P projectile renders with pieces missing.** Root
-signature measured, cause not yet found — 7 of the 12 sprites composing it point
-at VRAM tiles containing NO data (`$0CE/$0E0/$0E2/$0E4/$0E6` entirely blank,
-`$113-$119` partial). The sprite list is structurally fine and points into VRAM
-that was never filled, which is the shape of a transfer too short or based wrong.
-It reproduces on the CURRENT build in practice mode — no savestate or bisection
-needed — and **v0.14.1 is not a known-good reference**. Next step and tooling:
-`docs/NEXT_SESSION.md` item 1, detail in `docs/saturn/BUILDS.md`.
+**The 214P projectile bug is FIXED (v0.14.11, 2026-08-05).** It was a
+**per-shell truncation of her effect sheet**: the build stages her 0x1040-byte
+sheet over the shell's in `$7F:0000`, but the DMA that follows was sized from
+the **shell character's own** sheet — Uranus `$11C0` and Pluto `$10C0` are big
+enough, **Neptune is `$0E60`**, so 15 tiles (`$113-$121`) never reached VRAM and
+kept whatever the previous match left there. Her 214P travel pose draws 7 of its
+12 sprites from exactly that range, which is the field report *two disconnected
+blue pieces instead of one shape* — on a Neptune shell, intact on Uranus. Fix:
+the DMA stub's armed path also forces the length (`sta $004305`), proved safe in
+both directions from the full round-load DMA map. Verified: her sheet is now
+byte-identical to the decoder output in VRAM on shells 6/7/8 (130/130 tiles;
+Neptune was 115/130) and the projectile composes as one flame. The **P2** side
+was measured too, not assumed: P2-as-Saturn was equally broken and now matches
+P1 exactly — and since P2's own transfer is `$0FC0`, P2 was short on *every*
+shell. Detail, and the four instrumentation failures that made this take five
+attempts, in `docs/saturn/BUILDS.md` § "214P projectile: SOLVED".
 
-**Gate before shipping anything: `tools/saturn/verify_saturn.sh`** — 45 checks
+⚠ **The earlier "root signature" was measured through the wrong VRAM.** It
+resolved a sprite's tiles as `tile * 32`; the OBJ name base is word `$6000` with
+the second name table at `$7000`. Correctly resolved, all 12 sprites always
+pointed at valid tiles. It did name the right sprites, though — that part stands.
+
+**Gate before shipping anything: `tools/saturn/verify_saturn.sh`** — 46 checks
 (regression suite, L+R arming across modes x shells incl. flag/latch, story lock,
 2P VS on both pads, throws normal + command with OAM-flood and stage-VRAM
-assertions, the projectile palette split, the lrmodes harness, a randomised
-stress match, and an OBJ-palette census over a full match). Exits 1 on failure;
-`QUICK=1` for a ~4-minute subset. Sanity-checked against a known-bad build: on
-v0.14.6 the quick matrix fails 7 of 16 — a gate that cannot fail is not a gate.
+assertions, the projectile palette split, **her effect sheet's cross-shell
+invariance**, the lrmodes harness, a randomised stress match, and an OBJ-palette
+census over a full match). Exits 1 on failure; `QUICK=1` for a ~4-minute subset.
+Sanity-checked against known-bad builds: on v0.14.6 the quick matrix fails 7 of
+16, and on v0.14.8 the new effect-sheet check fails — a gate that cannot fail is
+not a gate. That check was added *because* the 45-check gate passed on the build
+carrying the projectile bug for two weeks.
 
 **Open work — full detail in `docs/NEXT_SESSION.md`:**
-(1) **the 214P projectile bug above** — the only open defect;
-(2) **patch 16 menu translation** — a complete half-width A-Z now exists
+(1) *(the 214P projectile bug that stood here is FIXED — v0.14.11, above.)*
+(2) **patch 16 menu translation**, now the only open item — a complete half-width A-Z now exists
 (`tools/mkhalfwidth.py`, 17 glyphs condensed from the game's own capitals,
 4 repaired, 5 authored) and every validated string fits its cell budget
 (`MANUAL` takes 3 of the 5 cells the Japanese occupies). Blocked on the same
 class of problem as the projectile: the font block extends and round-trips, but
 nothing carries the extra tiles to VRAM — the transfer covering that region is
 `vram $4000 len $3480 src $7E:C000`, staged in direct page `$02`, and what feeds
-that length is not yet found.
+that length is not yet found. **The projectile bug turned out to be exactly that
+shape and the answer was a LENGTH coming from the wrong source**, so read its
+post-mortem first; `tools/saturn/probe_saturn_fxdma.lua` already dumps every VRAM
+DMA of a load (dest + length + source) from direct page.
 *(The voice-pitch item that stood here is DONE — patch 101, shipped and on by
 default. The "one routine shared with the music" that blocked it was a misread
 PC: `$131D`/`$1327` are the `INC Y` inside a DSP shadow flush and compute
@@ -170,12 +191,15 @@ would actually cost). Short version: ROM is not scarce (384 KB spare), ARAM is
 the only hard wall, and the real constraint is per-character tables sized to nine
 and immediately followed by live data.
 
-**Four traps this project paid for — they generalise:**
+**Eight traps this project paid for — they generalise:**
 
 1. **Per-character fixes must be tested with at least TWO shells.** Saturn can
    be summoned over Uranus, Neptune or Pluto (over any of the nine before
    v0.14.5). A hook keyed to *Uranus's* sprite-list pointer worked only for that
-   shell and looked like two unrelated bugs.
+   shell and looked like two unrelated bugs. **Paid for twice:** the 214P
+   projectile bug (v0.14.11) appeared only on Neptune, so five build bisections
+   run on one shell all correctly reported "identical" and one of them was
+   published as a finding before being retracted.
 2. **Unreferenced, unchanging memory is not free memory.** A candidate ARAM
    region passed both "nothing points at it" and "identical across runs" and was
    still live — proven by finding its bytes in ROM bank `$E4`. Ask where bytes
@@ -188,7 +212,20 @@ and immediately followed by live data.
    `ldx $88` — but during script interpretation it holds whatever object last
    set it, and Saturn's voice came out of the opponent's slot. The interpreter
    already had the object base in X. Check where a value gets SET.
-5. **A probe that reports nothing is usually broken, not evidence of nothing.**
+5. **A per-player OVERRIDE is only as complete as the transfer that carries it.**
+   Staging her effect sheet over the shell's was correct and provably byte-exact
+   in WRAM — and 15 tiles still never reached VRAM, because the DMA's LENGTH came
+   from the shell. When you substitute data, ask what else was sized from the
+   thing you replaced. (v0.14.11; the same question is open for patch 16.)
+6. **Address a tile through the OBJ name base, never as `tile * 32`.** Base is
+   word `$6000` (byte `$C000`), second name table at word `$7000`. A whole "root
+   signature" was measured out of unrelated VRAM this way.
+7. **Sprite lists are emitted on ALTERNATE frames.** A capture triggered N frames
+   after an event lands on an empty frame half the time. Trigger on the thing you
+   want to see, not on a delay — and note `emu.getState()` throws inside a memory
+   callback here, silently killing the hook, so never let a probe's own counter
+   sit downstream of it.
+8. **A probe that reports nothing is usually broken, not evidence of nothing.**
    Three separate cases this session: a movelist search that missed because a
    tilemap interleaves tile+attribute; "the character never jumps", which was the
    entrance and the GO! banner rather than an input fault (the pad read correctly

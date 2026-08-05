@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.9"
+SATURN_VERSION = "0.14.11"
 
 # Character select. The HIDDEN code is now the ONLY variant (maintainer,
 # 2026-08-04): "let's keep only the hidden variant — it solves our story mode
@@ -374,6 +374,10 @@ E8_DMASTUB = 0x2A00   # v0.11.10: CMD stub grew past 0x2980
 SATURN_FLAG = 0xF100      # P1 select flag  ($7F bank — see above)
 SATURN_FLAG2 = 0xF101     # P2 select flag
 EE_TILES = 0xD000         # <- $7F:0000 staging reused); P2 pad = $421A/B.
+# Size of her effect sheet. It is BOTH the MVN count into the staging buffer and
+# the length the effects DMA is forced to (v0.14.11) — the two must agree, so
+# they read the same constant and the decompressed sheet is asserted against it.
+FX_SHEET_LEN = 0x1040
 # v0.11.11: blank cel for her "no cel" poses (0x7E-0x83, celA == 0). Super S
 # treats cel 0 as invisible; SMS's engine does NOT skip it, and a zero-size
 # record makes the DMA transfer 65536 bytes (SNES length-0 semantics) — the
@@ -951,7 +955,28 @@ def main():
     copy = len(d)
     d += bytes((0xC2, 0x30))                             # rep #$30
     d += bytes((0xA2, 0x00, EE_TILES >> 8, 0xA0, 0x00, 0x00,
-                0xA9, 0x3F, 0x10, 0x8B, 0x54, 0x7F, B_MISC, 0xAB))
+                0xA9, (FX_SHEET_LEN - 1) & 0xFF, (FX_SHEET_LEN - 1) >> 8,
+                0x8B, 0x54, 0x7F, B_MISC, 0xAB))          # mvn count = len-1
+    # v0.14.11 — FORCE THE TRANSFER LENGTH TO HER SHEET'S SIZE.
+    # Overriding the $7F:0000 staging buffer is only half the job: the DMA that
+    # follows was sized from the SHELL character's own effect sheet, and the
+    # shells are not the same size. Measured at this very site (dp+$32, D=$0000,
+    # probe_saturn_fxdma.lua): Uranus $11C0, Pluto $10C0, **Neptune $0E60** —
+    # so on a Neptune shell the last $1E0 bytes (15 tiles, $113-$121) of her
+    # 0x1040-byte sheet were never transferred and those tiles kept whatever the
+    # previous match left in VRAM. Her 214P projectile draws 7 of its 12 sprites
+    # from exactly that range, which is the field report "two disconnected blue
+    # pieces instead of one shape" -- and why it reproduced on a Neptune shell
+    # and not on Uranus.
+    # Safe in both directions, from the full round-load DMA map (same probe):
+    # P1 $6A00 + $1040 ends at word $7220 and the next transfer starts at $7300
+    # (Pluto's own already reaches $7260); P2 $7300 + $1040 ends at $7B20 and the
+    # next starts at $7C00. Where the shell's sheet is LARGER this also stops the
+    # transfer trailing the shell's leftover art into tiles past hers.
+    # The store is long: DB here is the caller's, not necessarily a bank that
+    # sees the $43xx registers.
+    d += bytes((0xA9, FX_SHEET_LEN & 0xFF, FX_SHEET_LEN >> 8))   # lda #$1040
+    d += bytes((0x8F, 0x05, 0x43, 0x00))                 # sta $004305 (DMA0 size)
     orig = len(d)
     def _rel8(pos, target, what):
         off = target - (pos + 1)
@@ -1315,7 +1340,7 @@ def main():
     # both -> stream $E3:FA09.
     import supers_lz
     tb = supers_lz.lz_decompress(sup, supers_lz.SATURN_FX_SRC)
-    assert len(tb) == 0x1040, f"effect sheet size drift: {len(tb):#x}"
+    assert len(tb) == FX_SHEET_LEN, f"effect sheet size drift: {len(tb):#x}"
     src_chk, vram_chk, _fl = supers_lz.job_entry(sup, 57)
     assert src_chk == supers_lz.SATURN_FX_SRC and vram_chk == 0x6A00, "job table drift"
     ee[EE_TILES:EE_TILES + len(tb)] = tb

@@ -1,39 +1,61 @@
 # Next-session handoff — 2026-08-05
 
-## Start here: three open items, in priority order
+## Start here: ONE open item (patch 16). The other two are done.
 
-**1. Saturn's 214P projectile — root signature FOUND, cause not yet.**
-Reproduces on the CURRENT build in practice mode; no savestate or bisection
-needed. Filter OAM to **palette 7** (hers alone since v0.14.9 — a palette-2
-filter is invalid, that row is shared with the opponent). 7 of her 12 projectile
-sprites point at VRAM tiles with NO DATA: `$0CE/$0E0/$0E2/$0E4/$0E6` entirely
-blank, `$113-$119` partial (`$114/$116/$117/$118/$119` have data, `$113/$115`
-not). The sprite list is structurally fine and points into VRAM that was never
-filled — the shape of a transfer too short or based wrong.
-NEXT: find what uploads her projectile's effect tiles, compare its coverage to
-those two ranges. Use `tools/saturn/probe_fontdma2.lua` — it reads DMA parameters
-from DIRECT PAGE at the `$420B` trigger, because the DMA registers are write-only
-and every filter built on reading them back fails silently.
-⚠ v0.14.1 is NOT a known-good reference (maintainer double-checking): the
-practice A/B was pixel-identical because BOTH frames were broken.
+**1. Saturn's 214P projectile — FIXED (v0.14.11, 2026-08-05).** It was a
+**per-shell truncation of her effect sheet**, not a bad sprite list. Her
+0x1040-byte sheet is staged over the shell's in `$7F:0000`, but the DMA that
+follows was sized from the **shell's own** sheet: Uranus `$11C0`, Pluto `$10C0`,
+**Neptune `$0E60`** — so on Neptune the last 15 tiles (`$113-$121`) never
+reached VRAM, and the travel pose draws 7 of its 12 sprites from that range.
+Hence *two disconnected pieces*, on Neptune, intact on Uranus. The armed path of
+the DMA stub now forces the length too (`sta $004305`). Verified byte-identical
+to the decoder output on shells 6/7/8; gate 45/45, regression 57/57. Detail:
+`docs/saturn/BUILDS.md` § "214P projectile: SOLVED".
 
-**2. Patch 16 (menu translation)** — a complete half-width A-Z exists and every
-string fits its cell budget. Blocked on the same class of problem as (1): the
-font block extends and round-trips, but nothing carries the extra tiles to VRAM.
-The transfer covering that region is `vram $4000 len $3480 src $7E:C000`, staged
-in direct page `$02`. Find what feeds that length.
+**2. Patch 16 (menu translation)** — now the only open item. A complete
+half-width A-Z exists and every string fits its cell budget; the font block
+extends and round-trips, but nothing carries the extra tiles to VRAM. The
+transfer covering that region is `vram $4000 len $3480 src $7E:C000`, staged in
+direct page `$02`. Find what feeds that length.
+⚠ **Read the projectile post-mortem first — it is probably the same bug.** That
+one was also "the data is right but nothing carries it to VRAM", and the answer
+was that a *length* came from the wrong source. `tools/saturn/probe_saturn_fxdma.lua`
+already dumps every VRAM DMA of a load (dest + length + source) from direct page,
+which is exactly the map this needs; hook it at **`$80:92A4`**, not `$C0:92A4`.
 
 **3. Nameplate — DONE** (v0.14.10): her plate reads SATURN, vanilla untouched,
 regression 57/57. `SATURN_NAMEPLATE=0` reverts to blank.
 
 ## The lesson this session paid for repeatedly
 
-Four probes and three conclusions were wrong for one reason: **an instrument was
+Probes and conclusions kept being wrong for one reason: **an instrument was
 trusted before it was shown to distinguish a known-good case from a known-bad
 one.** Blank VRAM looked like a finding until a vanilla control reproduced it; a
 build A/B looked conclusive until the maintainer saw both frames were broken; a
 register hook reported zero because it was on the wrong bank. Before believing
 any measurement here, make it detect something you already know is there.
+
+The projectile fix closed that loop concretely, and its four failure modes are
+worth knowing before writing the next probe:
+
+* **`tile * 32` is not a VRAM address.** The OBJ name base is word `$6000`
+  (byte `$C000`), second name table at word `$7000`. The whole "blank VRAM"
+  signature was read out of unrelated memory.
+* **Her sprite list is emitted on ALTERNATE frames.** A capture triggered N
+  frames after an event lands on an empty frame half the time — one such capture
+  returned zero palette-7 sprites and three unrelated ones that looked plausible.
+  Trigger on the thing you want to see (`n_palette7 >= 8`), not on a delay.
+* **`emu.getState()` throws inside a memory callback here**, silently killing the
+  hook. If the counter is incremented after that call, a dead probe reports
+  "0 events" instead of an error. Increment first; never let a probe's own
+  bookkeeping sit downstream of a call that can throw.
+* **This code runs from the FastROM mirror: hook `$80:xxxx`, not `$C0:xxxx`.**
+
+And the gate lesson: `verify_saturn.sh` passed on the broken build for two
+weeks. It now asserts her effect sheet is **identical across shells** —
+cross-shell invariance rather than a hardcoded checksum, so it survives changes
+to her art — and that check was sanity-checked against v0.14.8, where it fails.
 
 
 
@@ -46,15 +68,23 @@ history.)
 ## Status in one paragraph
 
 The base patch project is done and green. **SMS + Saturn is feature-complete with
-no open bugs.** Current build is **v0.14.9**
-(`SailorMoonS_REFsaturn_v0.14.9-hidden-stage.sfc`, `03b73cdd…`) on **REF v.2**.
-She is summoned by holding **L+R** while confirming a **Uranus, Neptune or Pluto**
-slot — the only char-select variant now; the visible slot-10 build was retired
-2026-08-04 and deleted. Gates: `tools/saturn/verify_saturn.sh` (45 checks, ALL
-PASS; `QUICK=1` for a ~4-min subset) and `tools/test_regression.lua` (57/57).
-Maintainer's verdict on the current build: "perfectly acceptable for playing".
+no open bugs.** Current build is **v0.14.11**
+(`SailorMoonS_REFsaturn_v0.14.11-hidden-stage.sfc`, `b180790a…`, hidden
+`dacb1c65…`) on **REF v.2** — patch 100 + 101 + the nameplate + the projectile
+fix. She is summoned by holding **L+R** while confirming a **Uranus, Neptune or
+Pluto** slot — the only char-select variant now; the visible slot-10 build was
+retired 2026-08-04 and deleted. Gates: `tools/saturn/verify_saturn.sh` (46
+checks, ALL PASS; `QUICK=1` for a ~4-min subset) and `tools/test_regression.lua`
+(57/57). Maintainer's verdict on the current build: "perfectly acceptable for
+playing".
 
-## The two open work items — both DEFERRED by the maintainer, neither blocking
+## Everything below this line is SUPERSEDED — kept for its technical detail
+
+> ⚠ **Voice pitch is DONE and SHIPPED** as patch 101, on by default since
+> 2026-08-05 (HANDOFF §0 carries the field verdict). The sections below describe
+> it as deferred and, further down, as blocked behind "one routine shared with
+> the music" — that blocker was a misread PC and is gone. Read them for the
+> measured targets and the harness notes, not for status.
 
 ### 1. Voice pitch — BUILT as PATCH 101, not shipped; one finding to settle
 
