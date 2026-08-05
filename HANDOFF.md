@@ -721,6 +721,17 @@ Key API facts probed (tools/probe_*.lua): +0x4D=hitstop countdown / +0x43=connec
 inputPolled precedes exec@$80:8353; getInput is clean if read before setInput; ScriptHud
 size degenerate headless; screenshots don't composite ScriptHud (console surface only).
 
+**One-command consistency check: `tools/health.sh`** (#24). Everything checkable
+from the source tree alone — `mksigs --check`, `mkrelease --check`, Python/shell
+syntax, the release folder, and a round-trip of each release `.bps` against its
+recorded ROM. It **SKIPS** whatever needs the clean ROM, the Super S donor, flips
+or Mesen and says so, because a check that silently passes when its input is
+absent is the thing this repo keeps getting bitten by. Also prints `note` lines
+counting the accreting conventions (#73/#81/#102/#105) — reported, never fatal:
+failing a build on 79 working asserts is how a check gets deleted. CI runs it
+(`.github/workflows/health.yml`); a green tick there is **not** a verified build.
+Acquisition for the four external pieces: `docs/toolchain.md`.
+
 **Regression suite (run before shipping any build):** `tools/test_regression.lua` —
 auto-detects which patches are in the ROM via PRG-ROM fingerprints. **The fingerprints
 are GENERATED**: each builder exports `SIG = [(offset, byte), ...]` (layout/stacking-

@@ -15,8 +15,13 @@ OUT="build/SailorMoonS_FrenchName_v0.22_ALLPATCHES.sfc"
 python3 tools/mkpatch.py   0x04 "$T/s1.sfc"
 python3 tools/mkpatch2.py  --stacked "$T/s1.sfc"  "$T/s2.sfc"
 python3 tools/mkpatch3.py  --stacked "$T/s2.sfc"  "$T/s3.sfc"
+# FROZEN recipe (#61). This script hardcodes v0.22 in its output names, so a
+# derived subtitle would silently produce a bundle whose title and filename
+# disagree the moment BUNDLE_VERSION moves. Assert instead, and pin the text.
 V="$(python3 -c 'import sys;sys.path.insert(0,"tools");from smspaths import BUNDLE_VERSION;print(BUNDLE_VERSION)')"
-python3 tools/mkpatch4.py  --stacked "$T/s3.sfc"  "$T/s4.sfc" --text "FrenchName v.$V"
+[ "$V" = "0.22" ] || { echo "error: build_v022.sh is the frozen v0.22 recipe but BUNDLE_VERSION=$V" >&2
+                       echo "       copy it to build_v0NN.sh for the new bundle" >&2; exit 1; }
+python3 tools/mkpatch4.py  --stacked "$T/s3.sfc"  "$T/s4.sfc" --text "FrenchName v.0.22"
 python3 tools/mkpatch5.py  --stacked "$T/s4.sfc"  "$T/s5.sfc"
 python3 tools/mkpatch6.py  --stacked "$T/s5.sfc"  "$T/s6.sfc"
 python3 tools/mkpatch7.py  --stacked "$T/s6.sfc"  "$T/s7.sfc"

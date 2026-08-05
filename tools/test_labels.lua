@@ -18,7 +18,7 @@ ctxRef=main.run(ROOT,{headless=true, modules={"gamestate","input","recorder","du
   padSource=function(port) return SCEN and SCEN.pad(ctxRef,port) or FALSE end})
 ctxRef.onFirstExec=function(ctx) local f=io.open(TRACE..SCEN.state,"rb")
   ctx.anchor.loadreq=f:read("*a"); f:close() end
-local log=io.open(TRACE.."test_labels.txt","a")
+local log=io.open(TRACE.."test_labels.txt","w")
 local romFired, luaFired = {}, {}
 -- VRAM oracle: the label must actually DRAW on screen and BLANK again after its 48f TTL
 local VRAM=emu.memType.snesVideoRam

@@ -1,0 +1,45 @@
+# Consistency checks that need no ROM, no emulator and no Super S donor (#24).
+#
+# What this CANNOT do, deliberately: build or verify a patched ROM. The clean
+# ROM, the Super S donor and Mesen are all absent from the repo on purpose, so a
+# hosted runner can only check the source tree against itself. tools/health.sh
+# reports those as SKIP rather than passing them silently — a green tick here
+# means "the tree is self-consistent", not "the builds are good".
+#
+# The real gates stay local, and are named in the job summary so nobody mistakes
+# this for them:
+#   ROM=<build> tools/run.sh tools/test_regression.lua 900
+#   ROM=<build> tools/saturn/verify_saturn.sh
+name: health
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: tools/health.sh
+        run: bash tools/health.sh
+      - name: What was not checked here
+        if: always()
+        run: |
+          {
+            echo "### Not checked by CI"
+            echo ""
+            echo "No ROM, no Super S donor and no emulator are available to a hosted"
+            echo "runner, so every check that needs one was skipped. Run these locally"
+            echo "before shipping:"
+            echo ""
+            echo '```'
+            echo 'ROM=build/SailorMoonS_Rev_S-NN.sfc  tools/run.sh tools/test_regression.lua 900'
+            echo 'ROM=build/SailorMoonS_Rev_SS-NN.sfc tools/saturn/verify_saturn.sh'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

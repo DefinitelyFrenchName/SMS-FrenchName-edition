@@ -11,6 +11,9 @@ for a in "$@"; do
   case "$a" in
     --visible) VARIANT=visible ;;
     --ref) STEM=SailorMoonS_REFsaturn ;;
+    # #62: an unrecognised flag used to be ignored, so a typo built the DEFAULT
+    # variant and reported success — the one outcome you did not ask for.
+    *) echo "error: unknown option '$a' (accepts --visible, --ref)" >&2; exit 1 ;;
   esac
 done
 if [ "$STEM" = "SailorMoonS_REFsaturn" ]; then

@@ -23,8 +23,27 @@ from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
 from smspaths import clean_rom, bigzam_rom, require_source, check_not_inplace, fix_checksum  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
-sys.path.insert(0, str(REPO / "vendor/sms-training-mode"))
-from sms_patcher import apply_patch, PATCH_PAL, read_int  # noqa: E402
+VENDOR = REPO / "vendor/sms-training-mode"
+
+
+def _vendor():
+    """Import sprntgd's patcher on demand (#3).
+
+    `vendor/` is gitignored, so on a fresh clone this module is absent — and
+    importing it at module scope made *this whole file* unimportable there.
+    tools/mksigs.py imports every builder for its SIG, so one missing third-party
+    file broke a command that needs none of it. Deferred, with an error that says
+    what to get rather than a ModuleNotFoundError."""
+    sys.path.insert(0, str(VENDOR))
+    try:
+        from sms_patcher import apply_patch, PATCH_PAL, read_int
+    except ModuleNotFoundError:
+        raise SystemExit(
+            "error: sprntgd's sms_patcher.py is not in vendor/sms-training-mode/\n"
+            "  Patch 3 is a re-application of that patcher's palette work, so it needs\n"
+            "  the original. vendor/ is gitignored (third-party, not ours to vendor):\n"
+            "  drop the sms-training-mode tree there and re-run.")
+    return apply_patch, PATCH_PAL, read_int
 
 CLEAN = clean_rom()
 
@@ -54,6 +73,7 @@ def build(src_path, out_path):
         raise SystemExit(f"error: Big Zam donor too short ({len(bz):#x} < {BZ_MIN_LEN:#x})")
 
     # 1) Apply the palette hooks + selection code + appended block (patcher-exact).
+    apply_patch, PATCH_PAL, read_int = _vendor()
     apply_patch(data, PATCH_PAL)
     palette_offset = len(data) - 0x10000
 

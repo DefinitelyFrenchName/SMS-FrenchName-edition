@@ -42,6 +42,8 @@ the files themselves so it cannot go stale.
 The individual patches below stay in `build/` for anyone assembling their own
 combination — see the warning in the release notes about chaining them.
 
+Setting up (what the repo does not ship, and where to get it): [docs/toolchain.md](docs/toolchain.md) — then run `tools/health.sh`.
+
 Deeper docs: [docs/patch_index.md](docs/patch_index.md) (one-line registry, status,
 lifecycle), [docs/patch_notes.md](docs/patch_notes.md) (per-patch mechanism + verification),
 [HANDOFF.md](HANDOFF.md) (operational map: build, test, gotchas),

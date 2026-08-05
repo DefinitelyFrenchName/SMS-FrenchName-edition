@@ -64,7 +64,13 @@ MISFIRE_SETS = {
     8: [0x62, 0x63], 9: [0x63, 0x64],
 }
 if not all(MISFIRE[c] in s for c, s in MISFIRE_SETS.items()):
-    raise ValueError("MISFIRE_SETS out of sync with mkpatch12.MISFIRE (primary act missing from a set)")
+    # SystemExit, not ValueError (#63): this runs at IMPORT, and tools/mksigs.py
+    # imports every builder for its SIG — so a drift here surfaced as a traceback
+    # from an unrelated command. The check itself is worth keeping at import time:
+    # it is a cross-module invariant with mkpatch12, and a builder that cannot be
+    # imported safely cannot be trusted to patch a ROM.
+    raise SystemExit("error: MISFIRE_SETS is out of sync with mkpatch12.MISFIRE "
+                     "(a character's primary misfire act is missing from its set)")
 
 # hooks
 FSM_HOOK = 0x00837B
