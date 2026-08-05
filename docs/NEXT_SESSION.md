@@ -1,4 +1,41 @@
-# Next-session handoff — 2026-08-04
+# Next-session handoff — 2026-08-05
+
+## Start here: three open items, in priority order
+
+**1. Saturn's 214P projectile — root signature FOUND, cause not yet.**
+Reproduces on the CURRENT build in practice mode; no savestate or bisection
+needed. Filter OAM to **palette 7** (hers alone since v0.14.9 — a palette-2
+filter is invalid, that row is shared with the opponent). 7 of her 12 projectile
+sprites point at VRAM tiles with NO DATA: `$0CE/$0E0/$0E2/$0E4/$0E6` entirely
+blank, `$113-$119` partial (`$114/$116/$117/$118/$119` have data, `$113/$115`
+not). The sprite list is structurally fine and points into VRAM that was never
+filled — the shape of a transfer too short or based wrong.
+NEXT: find what uploads her projectile's effect tiles, compare its coverage to
+those two ranges. Use `tools/saturn/probe_fontdma2.lua` — it reads DMA parameters
+from DIRECT PAGE at the `$420B` trigger, because the DMA registers are write-only
+and every filter built on reading them back fails silently.
+⚠ v0.14.1 is NOT a known-good reference (maintainer double-checking): the
+practice A/B was pixel-identical because BOTH frames were broken.
+
+**2. Patch 16 (menu translation)** — a complete half-width A-Z exists and every
+string fits its cell budget. Blocked on the same class of problem as (1): the
+font block extends and round-trips, but nothing carries the extra tiles to VRAM.
+The transfer covering that region is `vram $4000 len $3480 src $7E:C000`, staged
+in direct page `$02`. Find what feeds that length.
+
+**3. Nameplate — DONE** (v0.14.10): her plate reads SATURN, vanilla untouched,
+regression 57/57. `SATURN_NAMEPLATE=0` reverts to blank.
+
+## The lesson this session paid for repeatedly
+
+Four probes and three conclusions were wrong for one reason: **an instrument was
+trusted before it was shown to distinguish a known-good case from a known-bad
+one.** Blank VRAM looked like a finding until a vanilla control reproduced it; a
+build A/B looked conclusive until the maintainer saw both frames were broken; a
+register hook reported zero because it was on the wrong bank. Before believing
+any measurement here, make it detect something you already know is there.
+
+
 
 Fast orientation. **Full operational map: `HANDOFF.md`; Saturn brief:
 `docs/saturn/PROJECT.md`; test-ROM registry: `docs/saturn/BUILDS.md`; patch
