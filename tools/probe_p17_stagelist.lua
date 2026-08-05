@@ -77,12 +77,20 @@ end, emu.callbackType.write, 0x1F59, 0x1F59, emu.cpuType.snes, emu.memType.snesW
 -- fires here, measured in trace_dsp.lua), so shadow those. KON is register $4C.
 local kon, dspw, konbits, reg = 0, 0, 0, 0
 local audio_on = false
+-- A digest of the KEY-ON sequence identifies the tune, so "--bgm N really is the
+-- track id" can be settled by comparison instead of taken on trust: stage 9 with
+-- --bgm set to stage 8's track must digest the same as stage 8 itself.
+local dig = 2166136261
+local function feed(v)
+  dig = (dig ~ v) & 0xFFFFFFFF
+  dig = (dig * 16777619) & 0xFFFFFFFF
+end
 emu.addMemoryCallback(function(_, v) reg = v or 0 end,
   emu.callbackType.write, 0x00F2, 0x00F2, emu.cpuType.spc, emu.memType.spcMemory)
 emu.addMemoryCallback(function(_, v)
   if not audio_on then return end
   dspw = dspw + 1
-  if reg == 0x4C and (v or 0) ~= 0 then kon = kon + 1; konbits = konbits | v end
+  if reg == 0x4C and (v or 0) ~= 0 then kon = kon + 1; konbits = konbits | v; feed(v) end
 end, emu.callbackType.write, 0x00F3, 0x00F3, emu.cpuType.spc, emu.memType.spcMemory)
 
 local seen, order = {}, {}
@@ -169,8 +177,8 @@ local STEPS = {
       audio_on = false
       log(string.format("match: $8E=%d $1838=%d p1hp=%d p2hp=%d",
         ram(0x8E), w16(0x1838), ram(0x1049), ram(0x10C9)))
-      log(string.format("AUDIO tag=%s stage=%d dsp_writes=%d key_ons=%d voices=$%02X",
-        TAG, ram(0x8E) // 2, dspw, kon, konbits))
+      log(string.format("AUDIO tag=%s stage=%d dsp_writes=%d key_ons=%d voices=$%02X kon_digest=%08X",
+        TAG, ram(0x8E) // 2, dspw, kon, konbits, dig))
       local f = io.open(ENV.TRACE .. "p17_stage_" .. TAG .. ".png", "wb")
       if f then f:write(emu.takeScreenshot()); f:close()
         log("screenshot -> traces/p17_stage_" .. TAG .. ".png (gitignored)") end

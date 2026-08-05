@@ -41,11 +41,16 @@ and it is simply absent from a clean ROM, where nothing picks a stage at random
 at all (the retail game has no random stage picker: `$8E` is written from a
 menu selection, a story table at `$C0:E9D9`/`$C0:E9F9`, or `$C2:C009`).
 
-**BGM (optional knob, off).** The scene records at `$E0:018E`+ (10 pointers at
-`$E0:018C`) end in a track id: the nine normal stages use `$0A`-`$12` and the
-hidden one uses `$06` — a different range. It does play (measured: 36 key-ons
-over 480 frames, all eight DSP voices), so nothing is broken; `--bgm N` is there
-only if the maintainer wants a different track.
+**BGM (optional knob, off).** Ten pointers at `$E0:017A` address the scene
+records (`$018E`…`$020D`), and each record's LAST byte is its music track. The
+nine normal stages hold the contiguous run `$0A`-`$12`; the hidden stage's `$06`
+sits outside it, i.e. it has a tune of its own, and it plays (36 key-ons over 480
+frames across all eight DSP voices). `--bgm N` swaps it for any other stage's
+track — verified by measurement, not by trusting the vendor patcher: with
+`--bgm $10` stage 9 takes on stage 8's voice profile while stage 8 itself
+digests byte-identical across the two builds.
+
+    idx 0-9 tracks: $12 $0A $0F $11 $0B $0D $0C $0E $10 $06
 """
 import re
 import sys

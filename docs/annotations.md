@@ -317,9 +317,14 @@ Two more facts recorded here rather than re-derived:
   mislabelled".
 * The name records live in bank `$C4` behind two 10-word tables (`$C3:B5AD`
   palette 3, `$C3:B5C1` palette 4) and the scene records behind ten pointers at
-  `$E0:018C`; both tables already have a full tenth entry, which is why nothing
-  but the bound had to change. Each scene record ends in its BGM track id: the
-  nine normal stages use `$0A`-`$12`, the hidden one `$06` (it does play).
+  **`$E0:017A`** (records `$018E`…`$020D`); both tables already have a full
+  tenth entry, which is why nothing but the bound had to change. **Each scene
+  record's last byte is its BGM track**: 0-8 hold the contiguous run
+  `$12 $0A $0F $11 $0B $0D $0C $0E $10`, the hidden stage `$06` — outside the
+  run, i.e. a tune of its own, and it does play (36 key-ons/480 frames across
+  all eight voices vs stage 8's 51 across six). Measured, not inferred:
+  building with `--bgm $10` gives stage 9 stage 8's voice profile while stage 8
+  itself digests byte-identical across the two builds.
 
 ## Palettes + title (patch 3) — Big Zam extraction
 | Address (file) | Label | Comment |

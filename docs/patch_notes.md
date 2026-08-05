@@ -1617,14 +1617,46 @@ REF v.2 + p17 (identical to REF v.2).
    the whole mechanism (and makes the retail cheat look like it *removes* a
    stage). The two navigator readers settle it.
 
-## BGM (optional knob, default off)
+## BGM — the hidden stage has its OWN track (`--bgm N`, default vanilla)
 
-The scene records at `$E0:018E`+ (ten pointers at `$E0:018C`) end in a track id.
-The nine normal stages use `$0A`-`$12`; the hidden one uses **`$06`** — a
-different range. It is not broken: measured 36 DSP key-ons over 480 frames with
-all eight voices in use, same order as a normal stage's 50. `--bgm N` overrides
-it (one byte at `0x200219`) purely as a taste knob; the vendor patcher exposes
-the same one.
+Ten pointers at **`$E0:017A`** address the scene records (`$018E`…`$020D`), and
+each record's **last byte is its music track**:
+
+| idx | stage | record | BGM | byte |
+|---|---|---|---|---|
+| 0 | CR. TOKYO ◆夕 | `$E0:018E` | `$12` | `0x20019C` |
+| 1 | S. MILLENIUM | `$E0:019D` | `$0A` | `0x2001AB` |
+| 2 | TIME DOOR | `$E0:01AC` | `$0F` | `0x2001BA` |
+| 3 | KAIOSHU PARK | `$E0:01BB` | `$11` | `0x2001C9` |
+| 4 | FOUNTAIN ◆昼 | `$E0:01CA` | `$0B` | `0x2001D6` |
+| 5 | SHOP. STREET | `$E0:01D7` | `$0D` | `0x2001E3` |
+| 6 | SHRINE | `$E0:01E4` | `$0C` | `0x2001F0` |
+| 7 | CR. TOKYO ◆夜 | `$E0:01F1` | `$0E` | `0x2001FF` |
+| 8 | FOUNTAIN ◆夜 | `$E0:0200` | `$10` | `0x20020C` |
+| 9 | **EDITOR. DEPT** | `$E0:020D` | **`$06`** | `0x200219` |
+
+The nine normal stages hold a contiguous run `$0A`-`$12`; the hidden stage's
+`$06` sits outside it, so **it has a tune of its own** rather than borrowing one.
+It plays: 36 DSP key-ons over 480 frames across **all eight** voices, where
+stage 8 uses 51 across six (`$D2`).
+
+**That the byte is the track id was measured, not inferred from the vendor
+patcher.** Building with `--bgm 0x10` (stage 8's track) and digesting the
+key-on sequence:
+
+| run | key-ons | voices | digest |
+|---|---|---|---|
+| stage 9, vanilla BGM | 36 | `$FF` | `9A742001` |
+| stage 9, vanilla BGM (repeat) | 36 | `$FF` | `9A742001` |
+| stage 8 | 51 | `$D2` | `158EEB67` |
+| **stage 9 with `--bgm 0x10`** | 50 | `$D2` | `732D5677` |
+| stage 8 on the `--bgm` build (control) | 51 | `$D2` | `158EEB67` |
+
+Stage 9 takes on stage 8's voice profile, and stage 8 digests **byte-identical**
+across the two builds — so the edit moves that stage's music and nothing else.
+(The two `$D2` digests differ by one key-on: a phase offset, not a different
+tune.) So `--bgm N` with any id from the table above plays that stage's music on
+the hidden stage.
 
 ## Scope
 
