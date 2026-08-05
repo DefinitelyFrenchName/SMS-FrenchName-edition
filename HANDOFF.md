@@ -137,7 +137,10 @@ removes a condition rather than inventing content. `build/sms_allstages.bps`
 (`e5dd325b…`), playable bundle `build/sms_ref_v2_allstages.bps` = REF v.2 + 17
 (`e8fc6045…`); regression 42/42 clean+17 and 57/57 REF v.2+17. **Not folded into
 REF v.2 or the Saturn line** — that renames a published artifact, maintainer's
-call. Detail: `docs/patch_notes.md` § Patch 17.
+call — but it *stacks onto v0.14.15 cleanly and was measured there*
+(`python3 tools/mkpatch17.py --stacked <saturn rom> <out>`: ten stages reachable,
+regression 57/57), so folding it in is one command plus a gate run. Detail:
+`docs/patch_notes.md` § Patch 17.
 
 **Open work — ONE item, full detail in `docs/NEXT_SESSION.md`:**
 
