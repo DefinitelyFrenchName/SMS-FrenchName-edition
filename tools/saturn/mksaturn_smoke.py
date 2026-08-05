@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.12"
+SATURN_VERSION = "0.14.13"
 
 # Character select. The HIDDEN code is now the ONLY variant (maintainer,
 # 2026-08-04): "let's keep only the hidden variant — it solves our story mode
@@ -1273,26 +1273,61 @@ def main():
     # used `lda long,X` with a fixed base, which cannot be indexed by slot; the
     # `[dp],Y` form can. $0C/$0D (the destination) was already clobbered here
     # without saving, but that is the caller's own scratch — $10 is not.
+    # v0.14.13 — SAME MEMORY FOOTPRINT AS THE PRE-PALETTE VERSION.
+    # v0.14.12 selected the palette with `lda [$10],Y`, which meant borrowing
+    # direct page $10-$12 (saved and restored). The field reported her THROWN
+    # sprite corrupting on v0.14.12 and clean on v0.14.11, and a frame-by-frame
+    # A/B of a real throw on shells 6/7/8 (probe_saturn_throwdiff.lua: OAM,
+    # CGRAM, act/pose and every live sprite tile, 260 frames) shows the two
+    # builds IDENTICAL — so the harness cannot see it and the cause is not
+    # established. $10-$12 is the only memory v0.14.12 touched that v0.14.11 did
+    # not, so it is removed rather than defended: the selection is now a branch
+    # over four copy loops, each with its own `lda long,X` base, which leaves the
+    # register and direct-page footprint byte-for-byte what the field-proven
+    # v0.14.11 stub had (X preserved via phx/plx, $0C/$0D only).
+    #
+    # This is a deliberate one-variable change, not a fix with a known mechanism.
+    # If the field still shows the corruption, the palette work is exonerated and
+    # the cause is elsewhere.
+    def _copy_loop(src_off):
+        # ldy #$001F / tyx / lda long,X / sta ($0C),Y / dey / bpl -10
+        return bytes((0xA0, 0x1F, 0x00, 0xBB,
+                      0xBF, src_off & 0xFF, src_off >> 8, B_MISC,
+                      0x91, 0x0C, 0x88, 0x10, 0xF6))
+
     pc_ = bytearray()
-    pc_ += bytes((0xA5, 0x10, 0x48, 0xA5, 0x11, 0x48, 0xA5, 0x12, 0x48))  # save
     pc_ += bytes((0xA5, 0x0E, 0x85, 0x0C, 0xA9, 0x06, 0x85, 0x0D))  # $0C/0D = $06:row
-    # slot = (P1 ? $1D02 : $1D05), clamped
     pc_ += bytes((0xA5, 0x0E, 0xD0, 0x05))               # lda $0E / bne p2
     pc_ += bytes((0xAD, 0x02, 0x1D, 0x80, 0x03))         # lda $1D02 / bra got
     pc_ += bytes((0xAD, 0x05, 0x1D))                     # p2: lda $1D05
-    pc_ += bytes((0x29, SAT_PAL_SLOTS - 1))              # and #(n-1): see above
-    pc_ += bytes((0x0A, 0x0A, 0x0A, 0x0A, 0x0A))         # *0x20
-    pc_ += bytes((0x18, 0x69, EE_FIGHTPALS & 0xFF, 0x85, 0x10))   # + table lo
-    pc_ += bytes((0xA9, EE_FIGHTPALS >> 8, 0x85, 0x11))
-    pc_ += bytes((0xA9, B_MISC, 0x85, 0x12))
-    pc_ += bytes((0xA0, 0x1F, 0x00))                     # ldy #$001F
-    pc_ += bytes((0xB7, 0x10, 0x91, 0x0C, 0x88, 0x10, 0xF9))      # fighter row
+    pc_ += bytes((0x29, SAT_PAL_SLOTS - 1))              # and #(n-1) — MASK, see above
+    pc_ += bytes((0xDA,))                                # phx
+    # dispatch: cmp/beq per slot, then the slot-0 loop falls through
+    loops = [_copy_loop(EE_FIGHTPALS + i * 0x20) for i in range(SAT_PAL_SLOTS)]
+    disp = bytearray()
+    for i in range(1, SAT_PAL_SLOTS):
+        disp += bytes((0xC9, i, 0xF0, 0x00))             # cmp #i / beq (patched)
+    body = bytearray()
+    ends = []
+    for i, lp in enumerate(loops):
+        ends.append(len(body))
+        body += lp
+        body += bytes((0x82, 0x00, 0x00))                # brl fx (patched)
+    fx = len(body)
+    for i in range(1, SAT_PAL_SLOTS):                    # beq -> loop i
+        pos = (i - 1) * 4 + 3
+        off = len(disp) - (pos + 1) + ends[i]
+        assert 0 <= off <= 127, "palette dispatch branch out of range"
+        disp[pos] = off
+    for i in range(SAT_PAL_SLOTS):                       # brl -> fx
+        pos = ends[i] + len(loops[i]) + 1
+        off = fx - (pos + 2)
+        body[pos] = off & 0xFF
+        body[pos + 1] = (off >> 8) & 0xFF
+    pc_ += disp + body
     pc_ += bytes((0xA9, SAT_PROJ_PAL * 0x20, 0x85, 0x0C))         # -> her proj row
-    pc_ += bytes((0xA9, 0x60, 0x85, 0x10, 0xA9, 0xC0, 0x85, 0x11))  # src $EE:C060
-    pc_ += bytes((0xA0, 0x1F, 0x00))
-    pc_ += bytes((0xB7, 0x10, 0x91, 0x0C, 0x88, 0x10, 0xF9))      # effects row
-    pc_ += bytes((0x68, 0x85, 0x12, 0x68, 0x85, 0x11, 0x68, 0x85, 0x10))  # restore
-    pc_ += bytes((0x6B,))                                # rtl
+    pc_ += _copy_loop(0xC060)                                      # effects row
+    pc_ += bytes((0xFA, 0x6B))                           # plx / rtl
     assert len(pc_) <= EE_WINSTUB_NP - EE_PALCOPY, "palcopy overruns the next stub"
     ee[EE_PALCOPY:EE_PALCOPY + len(pc_)] = pc_
 
