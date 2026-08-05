@@ -473,6 +473,37 @@ sprite list is drawn at the right offsets. **No defect was found in the port's
 graphics path.** The engine is drawing her Super S pose `$70` exactly as her data
 specifies it.
 
+### ROOT CAUSE AND FIX (v0.14.14): the $C1 COPY was never hooked
+
+**The v0.14.7 fix patched two read sites and stopped there**, on the documented
+basis that the ROM contains exactly two. That was true of the **clean ROM** and
+false of the **build**: bank `B_C1` is a full copy of `$C1` carrying Saturn's
+ported proc block, and **the copy is taken BEFORE the hook is applied**, so it
+kept two vanilla, unhooked reads. Scanning the BUILT image finds four:
+
+| site | state before v0.14.14 |
+|---|---|
+| `$C1:0735` / `$C1:0C51` | hooked (v0.14.7) |
+| **`$F7:0735` / `$F7:0C51`** | **vanilla — never hooked** |
+
+**When SATURN IS THE THROWER her proc runs out of the copy**, whose unhooked read
+indexes the ten-entry table with victim charID `$1C` — 0x38 bytes past the end,
+*the original bug exactly* — so the victim's pose comes out garbage. Measured on
+Saturn vs Saturn thrown with 6P: victim pose `$55/$88/$B5` against a valid
+`$6F-$7C`, and the substitution stub **is never even entered**. A vanilla thrower
+was always fine, which is why every A/B built around "Jupiter throws Saturn"
+passed and why the defect survived four sessions of instruments.
+
+**Fix:** apply the same hook at the same two in-bank offsets in `B_C1`. After it,
+the mirror throw hands the stub indices `$0000`/`$0003` and the victim's poses
+are `$00`/`$03` — valid entries of her own list — and the rendered victim is a
+clean sprite instead of screen-wide debris.
+
+**Tripwire added:** the builder now asserts that **no** read of the per-victim
+table is left unhooked anywhere in the assembled image. Counting sites in the
+clean ROM cannot see a bank the build itself adds — that is the assumption which
+let this ship, and it is now checked against the artifact.
+
 ⚠ **The `+0x05` trap:** the victim's thrown pose is the byte the THROWER writes
 (`sta $0005,y`). An earlier pass logged `+0x02` — her own animation step — and
 saw "pose=01" throughout, which is the wrong byte and says nothing about the

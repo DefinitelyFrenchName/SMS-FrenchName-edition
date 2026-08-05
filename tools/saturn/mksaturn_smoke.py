@@ -44,7 +44,7 @@ import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser
 # with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.14.13"
+SATURN_VERSION = "0.14.14"
 
 # Character select. The HIDDEN code is now the ONLY variant (maintainer,
 # 2026-08-04): "let's keep only the hidden variant — it solves our story mode
@@ -2205,10 +2205,34 @@ def main():
         f"throw stub was overwritten in bank ${B_MISC:02X} — pick another slot"
     assert bytes(data[_sb + EE_THROWLIST:_sb + EE_THROWLIST + THROWLIST_LEN]) == bytes(sat_list), \
         f"throw list was overwritten in bank ${B_MISC:02X} — pick another slot"
+    # v0.14.14 — HOOK THE $C1 COPY TOO.
+    # The v0.14.7 fix patched the two reads in bank $C1 and stopped there, on the
+    # documented basis that the ROM has exactly two of them. That was true of the
+    # CLEAN ROM and false of the BUILD: bank B_C1 is a full copy of $C1 carrying
+    # Saturn's ported proc block, and the copy is taken BEFORE this hook is
+    # applied, so it kept two vanilla, unhooked reads.
+    #
+    # Consequence, measured: when SATURN IS THE THROWER her proc runs out of the
+    # copy, whose unhooked read indexes the ten-entry table with victim charID
+    # $1C -- 0x38 bytes past the end, exactly the original bug -- and the victim's
+    # pose comes out garbage ($55/$88/$B5 against a valid $6F-$7C). Saturn vs
+    # Saturn thrown with 6P is the clearest case: the stub is never even entered.
+    # A vanilla thrower was always fine, which is why every A/B built around
+    # "Jupiter throws Saturn" passed.
+    _copy_base = (B_C1 << 16) & 0x3FFFFF
     for _i, _site in enumerate(SITE_THROWPOSE):
-        expect(_site, THROWPOSE_OLD, f"thrown-pose list read {_i + 1}")
-        data[_site:_site + 5] = \
-            bytes((0x22, EE_THROWSTUB & 0xFF, EE_THROWSTUB >> 8, B_MISC, 0xAB))
+        for _tag, _at in (("$C1", _site), (f"${B_C1:02X} copy", _copy_base | (_site & 0xFFFF))):
+            expect(_at, THROWPOSE_OLD, f"thrown-pose list read {_i + 1} in {_tag}")
+            data[_at:_at + 5] = \
+                bytes((0x22, EE_THROWSTUB & 0xFF, EE_THROWSTUB >> 8, B_MISC, 0xAB))
+    # Tripwire: no read of the per-victim table may be left unhooked ANYWHERE in
+    # the image. This is the check that would have caught the original miss --
+    # counting sites in the clean ROM cannot see a bank the build itself adds.
+    _reads = [i for i in range(len(data) - 3)
+              if data[i] == 0xB9 and data[i + 1] == 0x81 and data[i + 2] == 0x08]
+    _unhooked = [i for i in _reads if data[i + 0x0B] != 0x22]
+    assert not _unhooked, ("thrown-pose table read left unhooked at "
+                           + ", ".join(f"${0xC0 | (i >> 16):02X}:{i & 0xFFFF:04X}" for i in _unhooked))
     if SATURN_NAME_ON:
         _tiles = bytes(0x70 + (ord(c) - 65) for c in NP_NAME)
         _left = _tiles + bytes(12 - len(_tiles))

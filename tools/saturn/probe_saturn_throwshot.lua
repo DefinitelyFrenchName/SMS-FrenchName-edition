@@ -38,12 +38,19 @@ local THROW_ACTS = { [0x1C] = true, [0x1D] = true, [0x1E] = true, [0x20] = true,
 local seen_throw = false
 
 local function beat(on) return (frames % 7) < 3 and on or {} end
-local function poke() wr(0x1B40, P1CHAR); wr(0x1B80, SHELL) end
+-- MIRROR=1 is the maintainer's repro: Saturn vs Saturn, thrown with 6P. Both
+-- players arm with L+R, so BOTH objects carry id $1C -- the case none of the
+-- earlier probes covered, and the one where the corruption is described as
+-- "tiles all over the place".
+local MIRROR = os.getenv("MIRROR") == "1"
+local function poke()
+  wr(0x1B40, MIRROR and SHELL or P1CHAR); wr(0x1B80, SHELL)
+end
 
 emu.addEventCallback(function()
   for p = 0, 1 do
     local b = pulse[p] and PL.pad(pulse[p]) or PL.pad()
-    if hold and SATURN and p == 1 then b.l = true; b.r = true end
+    if hold and SATURN and (p == 1 or MIRROR) then b.l = true; b.r = true end
     emu.setInput(b, 0, p)
   end
 end, emu.eventType.inputPolled)
@@ -64,8 +71,9 @@ local function shoot()
   dump("vram", VRAM, 0x10000, shots)
   dump("oam", OAM, 0x220, shots)
   dump("cgram", CG, 0x200, shots)
-  log(string.format("SHOT %d frame=%d victim act=%02X pose=%02X char=%02X",
-    shots, frames, ram(0x1081), ram(0x1082), ram(0x1080)))
+  log(string.format("SHOT %d frame=%d victim act=%02X pose2=%02X pose5=%02X char=%02X  thrower char=%02X act=%02X",
+    shots, frames, ram(0x1081), ram(0x1082), ram(0x1085), ram(0x1080),
+    ram(0x1000), ram(0x1001)))
 end
 
 local STEPS = {
@@ -92,6 +100,9 @@ local STEPS = {
     if ram(0x1080) ~= want then
       log(string.format("WRONG VICTIM char=%02X want=%02X", ram(0x1080), want))
       LOG:close(); emu.stop(1)
+    end
+    if MIRROR and ram(0x1000) ~= 0x1C then
+      log("MIRROR asked for but P1 char=" .. ram(0x1000)); LOG:close(); emu.stop(1)
     end
     if sf < 90 then pulse[0] = { right = true }
     elseif sf % 30 < 6 then pulse[0] = { right = true, x = true }

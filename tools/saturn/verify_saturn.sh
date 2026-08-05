@@ -15,7 +15,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 
-ROM="${ROM:-build/saturn/SailorMoonS_REFsaturn_v0.14.13-hidden-stage.sfc}"
+ROM="${ROM:-build/saturn/SailorMoonS_REFsaturn_v0.14.14-hidden-stage.sfc}"
 [ -f "$ROM" ] || { echo "verify_saturn: ROM not found: $ROM" >&2; exit 1; }
 QUICK="${QUICK:-0}"
 T=traces/saturn
