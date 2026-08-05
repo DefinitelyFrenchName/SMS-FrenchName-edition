@@ -19,7 +19,7 @@ Playable roster (charID): 1 Moon, 2 Mercury, 3 Mars, 4 Jupiter, 5 Venus, 6 Uranu
 
 ---
 
-## 0. Current state (2026-08-04) — SMS + Saturn = PATCH 100
+## 0. Current state (2026-08-05) — SMS + Saturn = PATCH 100
 
 **Numbering (2026-08-04, maintainer):** the whole Super S body of work is
 **patch 100**, and the voice-pitch correction is **patch 101**. The gap from 16
@@ -29,13 +29,20 @@ regression rows. Registry rows: `docs/patch_index.md`. Renumbering is
 documentation only: REF v.1 (`2873f214…`), REF v.2 (`6d79fb5f…`) and patch 100
 (`03b73cdd…`) were all rebuilt and are **byte-identical**.
 
-**Patch 101 is BUILT but NOT SHIPPED** (`SATURN_PITCH=1`, off by default;
-`build/saturn/sms_saturn_pitch.bps`, ROM `30a130e8…`). It is measured correct —
-all her voices land on `$0346` against the settled `$0345` — and every gate is
-green, but it is held on one unresolved finding: retuning her voices also moves
-DSP voices 1/2/6, which hold music sources, by the same intervals. Layered sfx
-(benign) or an sfx shadow landing on a music voice (not benign) both fit.
-Detail: `docs/patch_notes.md` "Patch 101", `docs/saturn/sound_scope.md`.
+**Patch 101 (voice pitch) is SHIPPED and ON BY DEFAULT** (2026-08-05). Field
+verdict: her pitch is correct; a Moon facing her is three semitones flat (the
+shared-transpose limitation — the sound ids are char 1's — **accepted**); other
+characters show no downpitch or only mild. `SATURN_PITCH=0` builds patch 100
+alone and reproduces `03b73cdd…` byte-for-byte. One finding stays recorded but
+un-chased: the retune also moves DSP voices 1/2/6 by the same intervals; the
+field test is what cleared it. Detail: `docs/patch_notes.md` "Patch 101".
+
+**The nameplate shows SATURN** (2026-08-05). The name under the health bar used
+to be the shell's. Two `$EE` stubs at the two charID reads (`$C0:D720`/`$C0:D747`)
+return index 0 for her, and her name is written into the two tables' free index-0
+slots — `$D8AE` left-aligned for P1, `$D926` right-aligned for P2. No glyph work
+was needed: the nameplate alphabet turned out to be fully resident, correcting a
+note in `docs/annotations.md`. `SATURN_NAMEPLATE=0` gives a blank plate instead.
 
 The base patch project below is complete and green; active work is the **SMS +
 Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
@@ -46,10 +53,17 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 hidden code is the **only** char-select variant — the v0.10.0 visible slot-10
 build was retired 2026-08-04 and its code deleted (a placeholder that added the
 one char-select surface the story lock exists to avoid; removal proven inert by a
-byte-identical rebuild). Current build **v0.14.9** on **REF v.2**,
-`03b73cdd…`. **Feature-complete, no open bugs** — the three 2026-08-03 field bugs
-and the two follow-ups are all fixed. Maintainer's verdict: "perfectly acceptable
-for playing".
+byte-identical rebuild). Current build on **REF v.2**: hidden `7db39c48…`,
+hidden+stage `3120d75a…` (patch 100 + 101 + the nameplate).
+
+⚠ **ONE OPEN BUG: her 214P projectile renders with pieces missing.** Root
+signature measured, cause not yet found — 7 of the 12 sprites composing it point
+at VRAM tiles containing NO data (`$0CE/$0E0/$0E2/$0E4/$0E6` entirely blank,
+`$113-$119` partial). The sprite list is structurally fine and points into VRAM
+that was never filled, which is the shape of a transfer too short or based wrong.
+It reproduces on the CURRENT build in practice mode — no savestate or bisection
+needed — and **v0.14.1 is not a known-good reference**. Next step and tooling:
+`docs/NEXT_SESSION.md` item 1, detail in `docs/saturn/BUILDS.md`.
 
 **Gate before shipping anything: `tools/saturn/verify_saturn.sh`** — 45 checks
 (regression suite, L+R arming across modes x shells incl. flag/latch, story lock,
@@ -59,13 +73,20 @@ stress match, and an OBJ-palette census over a full match). Exits 1 on failure;
 `QUICK=1` for a ~4-minute subset. Sanity-checked against a known-bad build: on
 v0.14.6 the quick matrix fails 7 of 16 — a gate that cannot fail is not a gate.
 
-**Two deferred work items, neither blocking — full detail in
-`docs/NEXT_SESSION.md`:** (1) her voices play SHARP, with both targets measured
-and confirmed (`$0345` in-fight, `$03E4` select line) but the fix blocked behind
-the SPC driver, since all pitch is emitted from one routine shared with the music
-(`$131D`/`$1327`); (2) patch 16 menu translation, whose groundwork is done and
-whose first screen is ready at full width, but which the maintainer wants to
-explore at HALF width first — that needs room made, not just glyphs drawn.
+**Open work — full detail in `docs/NEXT_SESSION.md`:**
+(1) **the 214P projectile bug above** — the only open defect;
+(2) **patch 16 menu translation** — a complete half-width A-Z now exists
+(`tools/mkhalfwidth.py`, 17 glyphs condensed from the game's own capitals,
+4 repaired, 5 authored) and every validated string fits its cell budget
+(`MANUAL` takes 3 of the 5 cells the Japanese occupies). Blocked on the same
+class of problem as the projectile: the font block extends and round-trips, but
+nothing carries the extra tiles to VRAM — the transfer covering that region is
+`vram $4000 len $3480 src $7E:C000`, staged in direct page `$02`, and what feeds
+that length is not yet found.
+*(The voice-pitch item that stood here is DONE — patch 101, shipped and on by
+default. The "one routine shared with the music" that blocked it was a misread
+PC: `$131D`/`$1327` are the `INC Y` inside a DSP shadow flush and compute
+nothing. Pitch is per-sound NOTE data.)*
 
 **Guard the thing that ARMS, not the thing that acts (v0.14.8).** The shell
 restriction started life in the helper, at the transform — but the select voice,
