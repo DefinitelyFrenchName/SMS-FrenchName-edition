@@ -1,51 +1,43 @@
 #!/usr/bin/env python3
 """mkpatch16.py — menu translation: install a half-width Latin alphabet.
 
-STATUS: INCOMPLETE. The ROM side works — the block is extended, the glyphs are
-in it, it re-encodes, round-trips, relocates and the record is repointed. But the
-extra tiles DO NOT REACH VRAM: a capture of the button-config screen on the built
-ROM still shows the font ending at tile $5B5, exactly as vanilla. Do not treat
-this as a working patch.
+STATUS: STEP 1 WORKS. The 26 glyphs reach VRAM tiles $5C0-$5FF on the button-
+config screen and render as a legible A-Z (read back out of VRAM, not out of the
+build). The tilemap edits — replacing the Japanese strings — come next and depend
+on this.
 
-What is known about why, so the next session does not re-derive it:
-  * `u16b` in the asset record is NOT the upload length. Bumping it $0800 ->
-    $1000 changed nothing, and neither value corresponds to the 182 tiles that
-    actually arrive (182 tiles = 2912 words = $0B60).
-  * the record's dst is $7E:2000, a WRAM staging buffer — decompression target,
-    not the VRAM destination. Something else moves staged bytes to VRAM.
-  * probe_menu_survey's DMA log does not show the font upload at all (54
-    transfers, all len=$0040 to low VRAM = tilemaps). So the upload happens by a
-    route that hook does not observe — another channel, a different code site, or
-    PPU-port writes rather than DMA.
-  * NEXT STEP: find the real upload. Watch writes to $2116/$2117 (VRAM address)
-    and $2118/$2119 (VRAM data) around the font load, or find the code that reads
-    $7E:2000. The length lives there, not in the asset record.
+Two things had to be true at once, which is why this took several attempts:
 
-STEP 1 of the patch: get the glyphs into the game's font and onto VRAM. The
-tilemap edits (replacing Japanese strings with English) come after, and depend on
-this working first.
+1. THE ASSET RECORD LAYOUT IN THE OLD NOTES WAS WRONG. A record is not
+   [src24][dest24][u16][u16]; it is
 
-Where the glyphs go
--------------------
-The menu font is two compressed blocks. The KANJI block ($C7:07F0) decompresses
-to 182 tiles ($300-$3B5 block-relative) and lands at VRAM tile $500, so its
-block-relative $3C0-$3FF would land at VRAM $5C0-$5FF — the run proved free on
-every menu screen by tools/probe_vram_free.lua (it is reused by the match, which
-is fine: a menu font never has to survive gameplay).
+       [vram16][len16][src24][dest24]      10 bytes, table at $C3:BE08
 
-The block's four existing blank slots ($368-$36E) are not enough. A 16x16 slot
-holds two half-width glyphs, so they would give 8 — against 26 needed. Hence the
-block is EXTENDED from 182 to 256 tiles rather than filled.
+   so a block's upload LENGTH sits 2 bytes BEFORE its src pointer, not 8 after.
+   Every earlier attempt bumped the wrong field — which is why it "changed
+   nothing" for the font while quietly lengthening an unrelated transfer.
+   Parsed correctly, 27 of the 58 records match a transfer observed on the
+   config screen exactly (vram, len, dest); parsed the old way, none do.
+   The field is a BYTE count, not words.
 
-Relocation is mandatory, not a choice: this project's encoder is weaker than the
-original's (the untouched block re-encodes larger), so the block cannot be
-written back in place even unchanged. Its only 24-bit pointer is at $C3:BEF2,
-which makes repointing a three-byte edit. That groundwork is mkkanji.py's.
+2. THE KANJI BLOCK IS NOT LOADED ON THE SCREEN BEING TRANSLATED. Earlier
+   versions of this builder extended the kanji block ($C7:07F0, VRAM $500) and
+   tested on the config screen, where its record never runs at all — no transfer
+   to VRAM $5000 occurs there, so those glyphs could never have appeared no
+   matter how the length was set. The sheet that screen actually loads is
+   $C4:2590 -> $7E:C000 -> VRAM $400 (418 tiles), and that is what this patch
+   extends.
 
-Worth knowing: that "only 24-bit pointer" at $C3:BEF2 IS the src field of asset
-record #24 ($BE02 + 24*10 = $BEF2). They are the same three bytes, not two
-independent things — so the record must be located BEFORE the pointer is written,
-or the search finds nothing.
+So: the sheet grows 418 -> 512 tiles, the glyphs land at VRAM $5C0-$5FF (proven
+free across the menu screens), and the record's length grows $3480 -> $4000
+bytes. $4000 is also the ceiling: the source buffer starts at $7E:C000, so a
+longer transfer would run off the end of bank $7E and wrap.
+
+Verification that matters (tools/probe_menu_vram.lua):
+  * POKE=1 stamps a pattern into the source past the vanilla transfer's end:
+    0/256 bytes arrive on clean, 256/256 with the length raised.
+  * on the built ROM, VRAM $5C0-$5FF holds 52 of 64 non-blank tiles — exactly
+    26 letters x 2 tiles — against 0 on clean.
 
     tools/mkpatch16.py <out.sfc>            # from the clean ROM
     tools/mkpatch16.py --stacked <in> <out>
@@ -65,16 +57,24 @@ import sms_lz                                                          # noqa: E
 import mkhalfwidth                                                     # noqa: E402
 
 CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
-KANJI_SRC = (0xC7, 0x07F0)        # bank, offset — the compressed kanji block
-KANJI_PTR = 0x00BEF2              # its ONLY 24-bit pointer, in bank $C3
-TILE_BASE = 0x300                 # block tile 0 is $300
+# The font sheet the menu screens load at VRAM $400 — NOT the kanji block; see
+# the module docstring for why that distinction cost several attempts.
+FONT_SRC = 0xC42590               # compressed sheet, 418 tiles
+FONT_VRAM = 0x4000                # its VRAM word address
+FONT_LEN = 0x3480                 # its vanilla upload length, in BYTES
+FONT_DEST = 0x7EC000              # WRAM staging buffer it decompresses into
+TILE_BASE = 0x400                 # sheet tile 0 lands at VRAM tile $400
 SHEET_W = 16
-NEW_TILES = 0x100                 # extend the block to $300-$3FF
-GLYPH_ROWS = (0x3C0, 0x3E0)       # two rows of 16 half-width glyphs
+NEW_TILES = 0x200                 # extend to 512 tiles -> VRAM $400-$5FF
+NEW_LEN = NEW_TILES * 32          # = $4000 BYTES; also the ceiling, since
+                                  # $7E:C000 + $4000 is exactly the end of bank $7E
+GLYPH_ROWS = (0x5C0, 0x5E0)       # two rows of 16, in VRAM tile numbers
 INK = 7                           # flat ink colour; the kana use 1-8
 
-# The asset job table entry for this block, in case the upload length has to grow
-JOB_TBL = 0x00BE02                # in bank $C3, 10-byte records
+# Asset job table: 10-byte records of [vram16][len16][src24][dest24].
+REC0 = 0x00BE08                   # in bank $C3 — the first record's vram field
+RECSZ = 10
+NRECS = 58
 
 
 def encode_glyph(rows, ink=INK):
@@ -96,6 +96,18 @@ def encode_glyph(rows, ink=INK):
     return out
 
 
+def find_record(data, want_src):
+    """Locate the asset record whose src is `want_src`. Returns (index, file off
+    of the record start). The record is [vram16][len16][src24][dest24]."""
+    B3 = 0x030000
+    for n in range(NRECS):
+        o = B3 + REC0 + n * RECSZ
+        src = data[o + 4] | (data[o + 5] << 8) | (data[o + 6] << 16)
+        if src == want_src:
+            return n, o
+    return None, None
+
+
 def build(src_path, out_path, stacked=False):
     data = bytearray(open(src_path, "rb").read())
     sha = hashlib.sha1(data).hexdigest()
@@ -103,18 +115,30 @@ def build(src_path, out_path, stacked=False):
         raise SystemExit("source is not the clean ROM (%s); pass --stacked to "
                          "build on top of another patch" % sha[:12])
 
-    B3 = 0x030000
-    want = bytes([KANJI_SRC[1] & 0xFF, KANJI_SRC[1] >> 8, KANJI_SRC[0]])
-    if bytes(data[B3 + KANJI_PTR:B3 + KANJI_PTR + 3]) != want:
-        raise SystemExit("kanji font pointer at $C3:%04X is not %02X:%04X — has "
-                         "another patch already moved it?"
-                         % (KANJI_PTR, KANJI_SRC[0], KANJI_SRC[1]))
+    # Locate the record BEFORE touching anything: its src field IS the block's
+    # only pointer, so writing the pointer first would make the search fail.
+    n, rec = find_record(data, FONT_SRC)
+    if rec is None:
+        raise SystemExit("no asset record points at the font sheet $%06X — has "
+                         "another patch moved it?" % FONT_SRC)
+    vram = data[rec] | (data[rec + 1] << 8)
+    old_len = data[rec + 2] | (data[rec + 3] << 8)
+    dest = data[rec + 7] | (data[rec + 8] << 8) | (data[rec + 9] << 16)
+    if (vram, old_len, dest) != (FONT_VRAM, FONT_LEN, FONT_DEST):
+        raise SystemExit("record #%d reads vram $%04X len $%04X dest $%06X, "
+                         "expected $%04X/$%04X/$%06X — the table layout or the "
+                         "asset has changed"
+                         % (n, vram, old_len, dest, FONT_VRAM, FONT_LEN, FONT_DEST))
+    # A longer transfer must not run off the end of the source bank.
+    if (dest & 0xFFFF) + NEW_LEN > 0x10000:
+        raise SystemExit("length $%04X would read past the end of bank $%02X "
+                         "from $%04X" % (NEW_LEN, dest >> 16, dest & 0xFFFF))
 
-    src = ((KANJI_SRC[0] - 0xC0) << 16) | KANJI_SRC[1]
+    src = FONT_SRC & 0x3FFFFF
     sheet = bytearray(sms_lz.decompress(bytes(data), src, 0x8000))
     old_tiles = len(sheet) // 32
-    if old_tiles != 0xB6:
-        raise SystemExit("kanji block is %d tiles, expected 182 — it has moved "
+    if old_tiles != 418:
+        raise SystemExit("font sheet is %d tiles, expected 418 — it has moved "
                          "or been patched" % old_tiles)
     sheet += bytes(NEW_TILES * 32 - len(sheet))          # extend, zero-filled
 
@@ -137,42 +161,24 @@ def build(src_path, out_path, stacked=False):
     packed = sms_lz.encode(bytes(sheet))
     assert sms_lz.decompress(packed, 0, len(sheet)) == bytes(sheet), "font round-trip failed"
 
-    # Find the upload record BEFORE touching anything: $C3:BEF2 — described in
-    # mkkanji.py as the block's "only 24-bit pointer" — is in fact the src field
-    # of asset-table record #24 ($BE02 + 24*10 = $BEF2). They are the same three
-    # bytes. Writing the pointer first and then searching for the old value finds
-    # nothing, which is exactly what the first version of this builder did.
-    rec = None
-    for n in range(59):
-        o = B3 + JOB_TBL + n * 10
-        s = data[o] | (data[o + 1] << 8) | (data[o + 2] << 16)
-        if s == ((KANJI_SRC[0] << 16) | KANJI_SRC[1]):
-            rec = (n, o)
-            break
-    if rec is None:
-        raise SystemExit("no asset-table record points at the kanji block")
-    n, o = rec
-    if o != B3 + KANJI_PTR:
-        raise SystemExit("record #%d is at $C3:%04X, not the expected $C3:%04X"
-                         % (n, o - B3, KANJI_PTR))
-
+    # Relocation is mandatory even for unchanged data: this project's encoder is
+    # weaker than the original's, so the block cannot be written back in place.
     base, bank = next_bank(data)
     write_bank(data, base, packed + bytes((0x10000 - len(packed)) % 0x10000))
-    data[o] = 0x00
-    data[o + 1] = 0x00
-    data[o + 2] = bank
-    old_len = data[o + 8] | (data[o + 9] << 8)
-    new_len = NEW_TILES * 32 // 2                        # VRAM transfers are in WORDS
-    data[o + 8] = new_len & 0xFF
-    data[o + 9] = new_len >> 8
+    data[rec + 4] = 0x00
+    data[rec + 5] = 0x00
+    data[rec + 6] = bank
+    data[rec + 2] = NEW_LEN & 0xFF
+    data[rec + 3] = NEW_LEN >> 8
 
     fix_checksum(data)
     open(out_path, "wb").write(bytes(data))
     print("patch 16 (font install)")
-    print("  kanji block: %d -> %d tiles, %d bytes packed" % (old_tiles, NEW_TILES, len(packed)))
-    print("  relocated to bank $%02X, pointer at $C3:%04X repointed" % (bank, KANJI_PTR))
-    print("  asset record #%d: upload length $%04X -> $%04X words" % (n, old_len, new_len))
-    print("  %d glyphs at block tiles $%03X-$%03X / $%03X-$%03X  (VRAM $5C0+)"
+    print("  font sheet: %d -> %d tiles, %d bytes packed" % (old_tiles, NEW_TILES, len(packed)))
+    print("  relocated to bank $%02X, record #%d src repointed" % (bank, n))
+    print("  upload length $%04X -> $%04X BYTES (field at $C3:%04X)"
+          % (old_len, NEW_LEN, rec - 0x030000 + 2))
+    print("  %d glyphs at VRAM tiles $%03X-$%03X / $%03X-$%03X"
           % (len(placed), GLYPH_ROWS[0], GLYPH_ROWS[0] + 15, GLYPH_ROWS[1], GLYPH_ROWS[1] + 9))
     print("  -> %s  sha1 %s" % (out_path, hashlib.sha1(bytes(data)).hexdigest()))
     json.dump({c: placed[c] for c in sorted(placed)},

@@ -1022,3 +1022,66 @@ in whatever table drives these 50 uploads. Once that value is patchable, the
 glyphs reach VRAM and the tilemap edits can begin.
 
 Not a dead end: a bounded, located problem with the instrument now trustworthy.
+
+## The upload length — SOLVED 2026-08-05, and the record layout was wrong
+
+Patch 16's step 1 works: the 26 half-width glyphs reach VRAM tiles `$5C0-$5FF`
+on the button-config screen and render as a legible A-Z, read back **out of
+VRAM** rather than out of the build.
+
+### The asset record layout in the notes above is WRONG
+
+A record is **not** `[src24][dest24][u16][u16]`. It is
+
+    [vram16][len16][src24][dest24]        10 bytes, table starts $C3:BE08
+
+so a block's upload **length sits 2 bytes BEFORE its src pointer**, not 8 bytes
+after it. That single off-by-one-record is why every earlier attempt to grow the
+transfer "changed nothing": the write landed in the *next* record and quietly
+lengthened an unrelated upload.
+
+Proof, not inference: parsed this way, **27 of the 58 records match a transfer
+observed on the config screen exactly** (vram, len and dest all three), and the
+rest are simply records that screen does not run. Parsed the old way, none line
+up — the pairing only worked if you took record N's `(vram,len)` with record
+N+1's `dest`, which is the same statement as the corrected layout.
+
+The field is a **byte count**, not words: the font record carries `$3480` and its
+measured DMA covers `$1A40` words.
+
+### Which record, and the ceiling
+
+| | |
+|---|---|
+| font sheet the menu screens load | `$C4:2590`, 418 tiles, → `$7E:C000` → VRAM `$400` |
+| its record | #27, at `$C3:BF16` |
+| **the length field** | **`$C3:BF18`** — `$3480` → `$4000` |
+| ceiling | `$4000`. The source is `$7E:C000`, so a longer transfer runs off the end of bank `$7E` and wraps. |
+
+`$4000` bytes = `$2000` words = VRAM `$4000-$6000` = tiles `$400-$5FF`, which is
+exactly the free region this document already proved out.
+
+### The kanji block is a dead end for this screen
+
+Earlier builds extended the **kanji** block (`$C7:07F0`, VRAM `$500`) and tested
+on the config screen — where **no transfer to VRAM `$5000` happens at all**. Those
+glyphs could never have appeared there however the length was set. Whatever
+screen does load the kanji block is a separate question; the config screen's own
+sheet is `$C4:2590`, and that is what `mkpatch16.py` now extends.
+
+### How it was verified
+
+`tools/probe_menu_vram.lua` dumps the region **on the font transfer**, not at the
+end of the run — a dump taken on the final screen reads identical on clean and
+patched ROMs, because a later, smaller upload has already overwritten it.
+
+* **Positive control** (`POKE=1`): stamp a pattern into the source buffer past
+  the vanilla transfer's end. **0/256** bytes arrive on clean, **256/256** with
+  the length raised. Comparing clean against a length-only change without this
+  proves nothing — both source and destination are zero out there, so the dumps
+  come back identical either way.
+* **On the built ROM**: VRAM `$5C0-$5FF` holds **52 of 64** non-blank tiles —
+  exactly 26 letters x 2 tiles — against **0** on clean.
+
+Next: the tilemap edits. The glyph → VRAM tile map is written to
+`docs/halfwidth_tiles.json` by the builder.

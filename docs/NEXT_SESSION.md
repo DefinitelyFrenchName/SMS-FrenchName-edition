@@ -13,16 +13,33 @@ the DMA stub now forces the length too (`sta $004305`). Verified byte-identical
 to the decoder output on shells 6/7/8; gate 47/47, regression 57/57. Detail:
 `docs/saturn/BUILDS.md` § "214P projectile: SOLVED".
 
-**2. Patch 16 (menu translation)** — now the only open item. A complete
-half-width A-Z exists and every string fits its cell budget; the font block
-extends and round-trips, but nothing carries the extra tiles to VRAM. The
-transfer covering that region is `vram $4000 len $3480 src $7E:C000`, staged in
-direct page `$02`. Find what feeds that length.
-⚠ **Read the projectile post-mortem first — it is probably the same bug.** That
-one was also "the data is right but nothing carries it to VRAM", and the answer
-was that a *length* came from the wrong source. `tools/saturn/probe_saturn_fxdma.lua`
-already dumps every VRAM DMA of a load (dest + length + source) from direct page,
-which is exactly the map this needs; hook it at **`$80:92A4`**, not `$C0:92A4`.
+**2. Patch 16 (menu translation) — STEP 1 DONE (2026-08-05).** The 26
+half-width glyphs now reach **VRAM tiles $5C0-$5FF** and render as a legible A-Z,
+read back out of VRAM. It was the same bug class as the projectile after all — a
+LENGTH coming from the wrong place — plus a second, independent mistake:
+
+* **The asset record layout in the old notes was wrong.** A record is
+  `[vram16][len16][src24][dest24]` (table `$C3:BE08`), so a block's upload length
+  sits **2 bytes BEFORE its src pointer**, not 8 after. Earlier attempts bumped
+  the next record's field. Parsed correctly, 27 of 58 records match an observed
+  transfer exactly; parsed the old way, none do. The field is BYTES.
+* **The kanji block is not loaded on the screen being translated.** No transfer
+  to VRAM `$5000` happens on the config screen at all, so glyphs put there could
+  never appear. That screen's sheet is `$C4:2590` -> `$7E:C000` -> VRAM `$400`,
+  and `mkpatch16.py` now extends that one (418 -> 512 tiles), with the length
+  field at **`$C3:BF18`** raised `$3480` -> `$4000` (the ceiling — the source is
+  `$7E:C000`, so more would run off the end of bank `$7E`).
+
+**Remaining: the tilemap edits** — replacing the Japanese strings. The glyph ->
+VRAM tile map is written to `docs/halfwidth_tiles.json`. Strings and cell budgets
+are already validated (`tools/menutext_check.py`); the maintainer supplies the
+text.
+
+⚠ Verify with `tools/probe_menu_vram.lua`, which dumps **on the font transfer**,
+not at the end of the run — a dump taken on the final screen reads identical on
+clean and patched ROMs because a later upload has overwritten the region. Use
+`POKE=1` for the positive control (0/256 bytes arrive on clean, 256/256 patched);
+without it, a clean-vs-patched diff proves nothing, since both are zero there.
 
 **3. Nameplate — DONE** (v0.14.10): her plate reads SATURN, vanilla untouched,
 regression 57/57. `SATURN_NAMEPLATE=0` reverts to blank.
