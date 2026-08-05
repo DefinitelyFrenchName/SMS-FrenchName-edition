@@ -1681,6 +1681,83 @@ bytes — patch 17's three, the version tag, the checksum. Play it instead via
 
 ---
 
+# Patch 18 — no ACS in 2P VS
+
+**Why.** The **A.C.S.** (Ability Customize System) screen redistributes a
+character's stats before the fight — 攻撃 / 防御 / 体力 / 必殺技 / おちゃめ.
+Fine in single player; not something that belongs in a match between two people,
+for the same reason patch 15 removes AUTO. Companion to 15, same screen.
+
+**Where the door is** (measured, `tools/probe_acs_select.lua` — the probe presses
+SELECT and reports the menu state and a screenshot, and asserts it reached the
+config screen first). The VS config screen hands off through a per-game-mode
+dispatcher:
+
+```
+$C3:BB60  jsr $BBCA / lda $8D / asl / tax / jmp ($BB6D,x)
+$C3:BB6D  table: $BB77 $BB93 $BB93 $BBAF $BBBA      ; modes 0..4
+```
+
+`$8D` is the game mode (0 story, **1 = 2P VS**, 2 vs-COM, 3/4 …), and **modes 1
+and 2 share one handler** at `$C3:BB93`:
+
+```
+$BB93  jsl $809737 / lda $1838 / sta $8E / sep #$20
+$BB9E  lda $1C02 / cmp #$02 / beq $BBAA     ; $1C02 == 2 means SELECT was pressed
+$BBA5  lda #$00 / sta $8A / rts             ; -> start the match
+$BBAA  lda #$05 / sta $8A / rts             ; -> menu state $05 = ACS
+```
+
+Menu state `$05` has exactly **two writers in the whole ROM** — `$C3:BB8E` (the
+story handler) and `$C3:BBAA` (this one) — so closing this branch for mode 1
+closes the only versus door, and story/vs-COM keep theirs.
+
+**The edit** — 12 bytes at `0x03BB9E`, in place, no bank and no stub. Because
+modes 1 and 2 share the handler, the mode is re-tested inside it:
+
+| Offset | Vanilla | Patched |
+|---|---|---|
+| `$BB9E` | `AD 02 1C` `lda $1C02` | `A5 8D` `lda $8D` |
+| | `C9 02` `cmp #$02` | `3A` `dec a` — Z iff mode 1 |
+| | `F0 05` `beq $BBAA` | `F0 12` `beq $BBB5` — 2P VS: start the match |
+| `$BBA5` | `A9 00 / 85 8A / 60` | `AD 02 1C` `lda $1C02` |
+| | | `C9 02` `cmp #$02` |
+| | | `D0 0B` `bne $BBB5` — not SELECT: start the match |
+
+`$BBAA` (the ACS branch) is untouched and is now reached by falling through. The
+replaced tail was this handler's own `lda #$00 / sta $8A / rts`; the patched code
+branches instead to the **identical** tail at `$C3:BBB5` inside the mode-3
+handler — same instructions, same 8-bit A (both paths `sep #$20` first), and
+nothing in the bank jumps into the replaced bytes (scanned for jmp/jsr/indirect
+references). Modes other than 1 execute exactly as before.
+
+**Verified in-emulator**, four cells, each with the screen captured:
+
+| ROM | mode | SELECT on the config screen |
+|---|---|---|
+| clean | 2P VS | menu state `$05` — **ACS opens** |
+| clean | vs-COM | `$05` — ACS opens |
+| **patched** | **2P VS** | **`$00` — the match starts; no ACS** |
+| **patched** | vs-COM | `$05` — **ACS still opens** (the control) |
+
+The vs-COM row is what proves the patch removed a *mode's* access rather than
+breaking SELECT. Regression: **42/42** on clean + p18, identical to clean.
+
+⚠ The screen still reads `PRESS "SELECT" TO ACS`, because that strip is part of
+its compressed tilemap — the same shape as patch 15, where the モード row still
+displays マニュアル. The option is inert, not erased.
+
+⚠ Probe note: in **1P-vs-COM the second character is confirmed by P1's pad**, not
+P2's (P2 is inert there, exactly as in Practice). A harness that mashes P2 stalls
+on character select and reports "never reached the config screen".
+
+**Scope.** 12 bytes, no bank use, no WRAM, byte-disjoint from every other patch —
+stacks anywhere (`tools/mkpatch18.py`, `--stacked` supported). Standalone
+`build/sms_noacs_vs.bps` → `67897bbf…`. **Not in the reference builds** unless
+the maintainer wants it there.
+
+---
+
 # Patch 101 — Saturn voice pitch (`SATURN_PITCH=1`)
 
 **Status: BUILT, NOT SHIPPED.** Measured correct and gate-clean; held on one

@@ -45,6 +45,7 @@ PATCHES = [
     ("14",  '"Guts Grip" — same for command grabs (needs 13)', "mkpatch14.py", "sms_gutsgrip.bps"),
     ("15",  "Remove the AUTO option", "mkpatch15.py", "sms_noauto.bps"),
     ("17",  "All stages selectable (hidden stage)", "mkpatch17.py", "sms_allstages.bps"),
+    ("18",  "No ACS in 2P VS", "mkpatch18.py", "sms_noacs_vs.bps"),
 ]
 
 # What each reference carries, for the notes. Kept next to the builder that

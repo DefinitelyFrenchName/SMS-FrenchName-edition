@@ -51,6 +51,7 @@ local SIGS = {
   p14 = { { 0x010835, 0x22 }, { 0x010839, 0xB0 }, { 0x010D5A, 0x22 } },
   p15 = { { 0x03A863, 0xEA }, { 0x03A880, 0x80 } },
   p17 = { { 0x03BADE, 0x9C } },
+  p18 = { { 0x03BB9E, 0xA5 }, { 0x03BBA0, 0x3A } },
 }
 -- SIGS-END
 -- projectile-desperation dispatcher records (file offsets, 7 bytes each)

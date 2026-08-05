@@ -53,6 +53,7 @@ ROM.
 | 14 | "Guts Grip" — same for command grabs (needs 13) | `tools/mkpatch14.py` | `build/sms_gutsgrip.bps` | `1933ee89…` |
 | 15 | Remove the AUTO option | `tools/mkpatch15.py` | `build/sms_noauto.bps` | `d2a13075…` |
 | 17 | All stages selectable (hidden stage) | `tools/mkpatch17.py` | `build/sms_allstages.bps` | `b37ca2c6…` |
+| 18 | No ACS in 2P VS | `tools/mkpatch18.py` | `build/sms_noacs_vs.bps` | `ed3b0d8a…` |
 
 ## Verifying a build
 

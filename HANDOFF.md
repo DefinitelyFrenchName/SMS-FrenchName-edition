@@ -544,6 +544,7 @@ after projectile-special damage (framedata move machine stuck; see §4 and
 | 14 | **"Guts Grip"** — Guts levels also nerf COMMAND GRABS (companion to 13, inert without it; `--all-grabs` extends to all throws; OPTIONAL) | `mkpatch14.py --l1/--l2/--l3 [--all-grabs]` | `build/sms_gutsgrip.bps` |
 | 15 | Remove the AUTO option from the VS button-config screen (OPTIONAL; in REF v.2) | `mkpatch15.py` | `build/sms_noauto.bps` |
 | 17 | **All stages selectable** — the hidden なかよし編集部 stage, in the menu and in the random pool (OPTIONAL; `--no-pool`, `--bgm N`) | `mkpatch17.py` | `build/sms_allstages.bps` |
+| 18 | **No ACS in 2P VS** — the stat-customisation screen is unreachable in versus only (companion to 15; story/vs-COM keep it) | `mkpatch18.py` | `build/sms_noacs_vs.bps` |
 
 ### Playable ROMs (all in `build/`; `.sfc` are gitignored, rebuild from BPS)
 > **2026-07-19 prune:** historical bundles and superseded all-patches BPS/ROMs were deleted (see docs/patch_index.md); rows below describing them are historical record. Kept: per-patch standalone BPS, current all-patches BPS/ROM, and `…v0.7_all5.sfc` (NI-test baseline).

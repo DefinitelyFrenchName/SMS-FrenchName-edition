@@ -77,6 +77,7 @@ no ROM can end up in a commit.
 | 13. Guts (Q-style taunts)          | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py`                 | `build/sms_tauntbuff.bps`                              | `bafb87d4…`   |
 | 14. Guts Grip **(companion to 13)** | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py`                 | `build/sms_gutsgrip.bps`                               | `5fadcaca…`   |
 | 15. No AUTO                      | Removes the AUTO option from the VS button-config screen (Auto binds specials to L/R, colliding with patch 12's taunt) | `tools/mkpatch15.py`                 | `build/sms_noauto.bps`                                 | `31832e6e…`   |
+| 18. No ACS in 2P VS              | Removes the A.C.S. stat-customisation screen from 2P VS only (companion to 15; story and vs-COM keep it) | `tools/mkpatch18.py`                 | `build/sms_noacs_vs.bps`                               | `67897bbf…`   |
 | 17. All stages                   | Unlocks the hidden tenth stage (なかよし編集部) in the stage select, and — where patch 3 is present — in its random default pool | `tools/mkpatch17.py`                 | `build/sms_allstages.bps`                              | `e5dd325b…`   |
 
 Combined builds (each applies to the clean ROM): `build/sms_allpatches_v0.22.bps` — all 14
