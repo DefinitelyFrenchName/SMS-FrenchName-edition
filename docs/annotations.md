@@ -250,6 +250,40 @@ Patch 2 = build/sms_dashfix.bps (stacks with patch 1 via .ips or sms_both.bps); 
 | $C1:BE85 | dashinvuln stub | patch 6: hook 0x9CCD → jsl; for Uranus(+0=6) fwd-dash(+1=0x60) with +0x5D in window, stz +0x41 (empty hurtbox = strike i-frames). Off by default. |
 Patch 6 = build/sms_dashinvuln.bps (strike-only mid-dash i-frames, ~frames 5-10, tunable --lo/--hi); see patch_notes.md "Patch 6".
 
+## Hidden stage (patch 17 groundwork) — 2026-08-05
+
+The hidden stage (Nakayoshi editorial department) is gated by a FLAG with exactly
+**one reader and one writer** in the whole ROM:
+
+| addr | what |
+|---|---|
+| `$C3:BADE` | `sta $1F59` — the flag, set from `lda $1C5A / lsr` |
+| `$C3:AA28` | the ONLY reader |
+
+The reader decides a list bound:
+
+    lda $1F59 / and #$00FF / beq +5
+    lda #$0010        ; flag SET   -> $1C1C = 16
+    bra +3
+    lda #$0012        ; flag CLEAR -> $1C1C = 18
+    sta $1C1C
+
+`16` vs `18` are word indices — **8 vs 9**, i.e. the stage list is bounded to
+0-8 normally and 0-9 with the flag clear. So "it is a 0-8 range" and "it is a
+flag" are both true: the range is what the flag selects.
+
+`sms_patcher.py PATCH_NAKAYOSHI` already exploits this with one byte at
+`$C3:BADE`, `8D` -> `9C` (`sta` -> `stz`, same length, no relocation).
+
+Also learned here: the config screen's live stage index is **pointer-addressed** —
+`ldx $1B00` then `$0038,X`, per the same routine. A flat WRAM sweep of
+`$1800`/`$1B00` will not find it, which is exactly how a first attempt failed.
+
+⚠ **NOT yet confirmed in-game.** No A/B has been run showing a 10th stage
+selectable, and it is unknown whether the same bound governs the RANDOM stage
+pool (the maintainer wants both). `$1C1C` has other readers to enumerate before
+claiming the one byte does everything.
+
 ## Palettes + title (patch 3) — Big Zam extraction
 | Address (file) | Label | Comment |
 |---|---|---|
