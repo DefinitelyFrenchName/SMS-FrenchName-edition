@@ -260,3 +260,37 @@ produces her 214P projectile, or a savestate with it on screen. The same thing
 unblocked the throw corruption in 0.14.8, where the maintainer's minimum SPD
 input (6 2 4 8 + P at contact) succeeded after the suite's own longer motion kept
 whiffing. Guessing the trigger from here has now cost two attempts.
+
+### 214P projectile: it is MODE-DEPENDENT, not build-dependent (2026-08-05)
+
+Reproduced her 214P on v0.14.1 (known-good) and v0.14.6 (known-bad) in **practice
+mode**, same scripted input, captured at the same frame, and compared the
+projectile pixel by pixel over an identical crop window:
+
+    projectile-blue pixels:  both = 641   only-0.14.1 = 0   only-0.14.6 = 0
+
+**Pixel-identical.** The corruption does not reproduce in practice mode on the
+build that demonstrably shows it in the field. So the defect is conditioned on
+something other than the build alone — mode, matchup or shell — and the maintainer's
+capture (health bars, timer, Neptune shell vs Moon) is from a real match, not
+practice.
+
+That kills the whole "bisect the builds" approach as run so far: a build A/B in a
+mode where the bug does not occur can only ever return "identical", which is
+exactly what the retracted OAM metric and this render comparison both did.
+
+**Two things this run did establish, both useful:**
+
+* **Her inputs are dead in vs-COM on v0.14.1** — act `$22` for all 702 frames of
+  the window, no projectile slot ever populated. `BUILDS.md`'s own v0.14.3 row
+  records this ("no entrance animation and no inputs — until she was hit"), so
+  practice is the only mode that works across the whole 0.14.1-0.14.6 range, and
+  it is also the mode where the bug does not appear. Those two facts together are
+  why every automated attempt so far has come back clean.
+* Earlier practice captures that showed "no HUD" were not mistimed — **practice
+  draws no HUD at all**.
+
+**Consequence:** the maintainer's savestates are not a convenience, they are the
+only reliable route — they hold the exact mode, matchup and moment where the bug
+manifests. Fixing the savestate loader (copy `tools/ds_trace.lua` exactly) is now
+the highest-value next step, ahead of any further build bisection.
