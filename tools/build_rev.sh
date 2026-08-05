@@ -16,7 +16,8 @@
 # the same bytes up to those two things, and the release notes say so because
 # `mkrelease.py` measures it rather than asserting it.
 #
-# Rev. S-XX carries the same patch set as REF v.2 (1b+2+3+4+5+7+8+9+12+13+14+15).
+# Rev. S-XX carries REF v.2's patch set plus 18 (no ACS in 2P VS, the companion
+# to 15): 1b+2+3+4+5+7+8+9+12+13+14+15+18.
 # REF v.1 and v.2 keep their own recipes and hashes: they are published
 # artifacts, so this is a NEW name, not a redefinition.
 #
@@ -46,7 +47,8 @@ build_chain() {   # build_chain <subtitle> <out.sfc>
   python3 tools/mkpatch12.py --stacked "$T/r9.sfc"  "$T/r12.sfc"
   python3 tools/mkpatch13.py --stacked "$T/r12.sfc" "$T/r13.sfc"
   python3 tools/mkpatch14.py --stacked "$T/r13.sfc" "$T/r14.sfc"
-  python3 tools/mkpatch15.py --stacked "$T/r14.sfc" "$out"
+  python3 tools/mkpatch15.py --stacked "$T/r14.sfc" "$T/r15.sfc"
+  python3 tools/mkpatch18.py --stacked "$T/r15.sfc" "$out"   # companion to 15
 }
 
 python3 tools/mksigs.py --check      # builder fingerprints must match the suite

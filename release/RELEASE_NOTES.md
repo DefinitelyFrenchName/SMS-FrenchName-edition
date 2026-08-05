@@ -1,4 +1,4 @@
-# Releases — Rev. S-01 and Rev. SS-01
+# Releases — Rev. S-02 and Rev. SS-02
 
 Apply a `.bps` to the **clean Japanese ROM** with Flips (or any BPS
 patcher). Clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`
@@ -13,11 +13,11 @@ Start here. Each is a complete build; you do not stack anything onto it.
 
 | Build | What it is | Patch file | Patched ROM SHA-1 |
 |---|---|---|---|
-| **Rev. S-01** | the reference build, **no Super S content**<br>1b + 2 + 3 + 4 + 5 + 7 + 8 + 9 + 12 + 13 + 14 + 15 | `release/Rev.S-01.bps` (`2560b50c…`) | `7d873757…` |
-| **Rev. SS-01** | the same, **plus Sailor Saturn**<br>1b + 2 + 3 + 4 + 5 + 7 + 8 + 9 + 12 + 13 + 14 + 15 + Saturn (patch 100/101 + her ported stage) | `release/Rev.SS-01.bps` (`7dc8c286…`) | `a2486b0c…` |
+| **Rev. S-02** | the reference build, **no Super S content**<br>1b + 2 + 3 + 4 + 5 + 7 + 8 + 9 + 12 + 13 + 14 + 15 + 18 | `release/Rev.S-02.bps` (`e5682512…`) | `41d93a53…` |
+| **Rev. SS-02** | the same, **plus Sailor Saturn**<br>1b + 2 + 3 + 4 + 5 + 7 + 8 + 9 + 12 + 13 + 14 + 15 + 18 + Saturn (patch 100/101 + her ported stage) | `release/Rev.SS-02.bps` (`1ee98150…`) | `b96f3fe8…` |
 
-The title screen of each reads **FrenchName Rev. S-01** /
-**FrenchName Rev. SS-01** —
+The title screen of each reads **FrenchName Rev. S-02** /
+**FrenchName Rev. SS-02** —
 that string is the naked-eye tell; quote it (or the ROM SHA-1) in any
 report. `Rev. SS` also answers to L+R held while confirming a Uranus,
 Neptune or Pluto slot: that is how Saturn is summoned.
@@ -59,8 +59,8 @@ ROM.
 
 ```bash
 tools/build_rev.sh both                                  # rebuild both references
-ROM=build/SailorMoonS_Rev_S-01.sfc tools/run.sh tools/test_regression.lua 900
-ROM=build/SailorMoonS_Rev_SS-01.sfc tools/saturn/verify_saturn.sh
+ROM=build/SailorMoonS_Rev_S-02.sfc tools/run.sh tools/test_regression.lua 900
+ROM=build/SailorMoonS_Rev_SS-02.sfc tools/saturn/verify_saturn.sh
 ```
 
 The first is the engine + per-patch regression suite; the second is the

@@ -180,8 +180,13 @@ so the two things anyone actually applies now live in **`release/`**:
 
 | | |
 |---|---|
-| **Rev. S-NN** | the reference build, no Super S content (= REF v.2's patch set) |
+| **Rev. S-NN** | the reference build, no Super S content (REF v.2's patch set + 18) |
 | **Rev. SS-NN** | the same, plus Saturn (patch 100/101 + her ported stage) |
+
+**Rev. 02** is current (`41d93a53…` / `b96f3fe8…`); **01 was superseded before
+release** — it predates patch 18, and a revision names one set of bytes for good,
+which is the whole point of printing it on the title screen. Its `.bps` are gone
+from `release/` so there is only ever one thing to apply.
 
 `NN` comes from `smspaths.REV` (override `SMS_REV=NN`) and is printed on the
 **title screen** — the naked-eye tell a pad tester quotes back. One recipe builds
@@ -190,9 +195,9 @@ same patch chain up to the subtitle and the Super S additions. Release notes are
 **generated** (`tools/mkrelease.py`, `--check` in CI-style use) because this
 project has already shipped three stale doc hashes; every hash there is measured
 from the file it names. REF v.1 and v.2 keep their own recipes — published
-artifacts are never redefined: **Rev. S-01 is REF v.2 retitled** and **Rev. SS-01
-is the Saturn build v0.16.1 retitled** — both measured, and in both cases the
-whole diff is patch 4's bank `$E9` plus the checksum (281 and 328 bytes).
+artifacts are never redefined. Rev. 01 was REF v.2 / Saturn v0.16.1 retitled and
+nothing else — measured, the whole diff being patch 4's bank `$E9` plus the
+checksum; Rev. 02 adds patch 18 (12 bytes) on top of that.
 **Patch 17 is in NEITHER** (maintainer, 2026-08-05): it stays an optional
 standalone in `build/sms_allstages.bps`. If it is ever wanted in the Super S
 reference, `SATURN_ALLSTAGES=1` on the Saturn step is the whole change.

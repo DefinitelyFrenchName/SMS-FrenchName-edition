@@ -1753,8 +1753,9 @@ on character select and reports "never reached the config screen".
 
 **Scope.** 12 bytes, no bank use, no WRAM, byte-disjoint from every other patch —
 stacks anywhere (`tools/mkpatch18.py`, `--stacked` supported). Standalone
-`build/sms_noacs_vs.bps` → `67897bbf…`. **Not in the reference builds** unless
-the maintainer wants it there.
+`build/sms_noacs_vs.bps` → `67897bbf…`. **In both reference builds from Rev. 02**
+(maintainer, 2026-08-05), chained straight after patch 15 — the two belong
+together: same screen, same reason.
 
 ---
 

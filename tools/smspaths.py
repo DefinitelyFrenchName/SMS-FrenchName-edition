@@ -28,11 +28,13 @@ SUPERS_SHA1 = "1ada34177e7384612ae83464288f3860e4c4426e"
 BUNDLE_VERSION = "0.22"
 # Release revision for the two REFERENCE builds (maintainer, 2026-08-05):
 #   Rev. S-XX   — the reference build, no Super S content
-#   Rev. SS-XX  — the same plus Saturn (patch 100/101 + patch 17 + the stage port)
+#   Rev. SS-XX  — the same plus Saturn (patch 100/101 + the stage port)
 # Both carry XX on the title screen, which is the naked-eye tell a pad tester
 # reports back. Two digits is the whole namespace; bump it here (or pass
 # SMS_REV=NN) and rebuild — `tools/build_rev.sh` is the single recipe.
-REV = "01"
+# 01 was superseded before release (it predates patch 18); a revision names one
+# set of bytes for good, which is the point of printing it on the title screen.
+REV = "02"
 
 
 def rom_dir():

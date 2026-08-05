@@ -50,7 +50,7 @@ PATCHES = [
 
 # What each reference carries, for the notes. Kept next to the builder that
 # produces them so the two cannot drift apart unnoticed.
-REV_S_CONTENT = "1b + 2 + 3 + 4 + 5 + 7 + 8 + 9 + 12 + 13 + 14 + 15"
+REV_S_CONTENT = "1b + 2 + 3 + 4 + 5 + 7 + 8 + 9 + 12 + 13 + 14 + 15 + 18"
 REV_SS_CONTENT = REV_S_CONTENT + " + Saturn (patch 100/101 + her ported stage)"
 
 
