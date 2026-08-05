@@ -27,7 +27,6 @@ local frames, step, sf = 0, 1, 0
 local pulse, hold, rec = {}, false, 0
 
 local function beat(on) return (frames % 7) < 3 and on or {} end
-local function setchars() wr(0x1B40, P1CHAR); wr(0x1B80, SHELL) end
 
 emu.addEventCallback(function()
   for p = 0, 1 do
@@ -60,27 +59,53 @@ local function snap()
     table.concat(tiles, ",")))
 end
 
+-- Mode navigation lifted from probe_sms_shellguard.lua rather than re-rolled:
+-- a measurement in one mode does not generalise here (HANDOFF trap), and the
+-- practice-only version of this probe found nothing. row: 0 story, 1 2P VS,
+-- 2 vs-COM, 4 practice (measured; the old "0=VS" note was wrong).
+local MODE = os.getenv("MODE") or "practice"
+local MODES = {
+  vs       = { row = 1, confirm2 = "pad2" },
+  vscom    = { row = 2, confirm2 = "none" },
+  practice = { row = 4, confirm2 = "pad1" },
+}
+local M = MODES[MODE] or error("MODE must be vs|vscom|practice")
+local function poke() wr(0x1B40, P1CHAR); wr(0x1B80, SHELL) end
+
 local STEPS = {
   function() return frames >= 900 end,
-  function() pulse[0] = beat({ down = true }); return ram(0x1B10) == 1 end,
-  function() pulse[0] = beat({ right = true }); return ram(0x1B10) == 4 end,
+  function()
+    local want = (M.row == 4) and 1 or M.row
+    pulse[0] = beat({ down = true }); return ram(0x1B10) == want
+  end,
+  function()
+    if M.row ~= 4 then return true end
+    pulse[0] = beat({ right = true }); return ram(0x1B10) == 4
+  end,
   function() pulse[0] = beat({ start = true }); return sf > 40 end,
   function() pulse[0] = {}; return sf > 240 end,
-  function() setchars(); hold = true; return sf > 20 end,
-  function() setchars(); pulse[0] = beat({ a = true })
-             return ram(0x1B42) == 1 or sf > 90 end,
-  function() pulse[0] = {}; return sf > 30 end,
+  function() poke(); hold = true; return sf > 20 end,
+  function() poke(); pulse[0] = beat({ a = true })
+             return ram(0x1B42) == 1 or sf > 120 end,
+  function() pulse[0] = {}; return sf > 20 end,
   function()
-    setchars()
-    pulse[0] = (frames % 14 < 3) and { a = true }
-      or ((frames % 14 >= 7 and frames % 14 < 10) and { start = true } or {})
+    if M.confirm2 == "none" then return true end
+    if M.confirm2 == "pad2" then pulse[1] = beat({ a = true })
+    else pulse[0] = beat({ a = true }) end
+    return ram(0x1B82) == 1 or sf > 120
+  end,
+  function() pulse[0] = {}; pulse[1] = {}; return sf > 30 end,
+  function()
+    poke()
+    local m = frames % 14
+    local b = (m < 3) and { a = true } or ((m >= 7 and m < 10) and { start = true } or {})
+    pulse[0] = b; if M.confirm2 == "pad2" then pulse[1] = b end
     if ram(0x70) == 4 and ram(0x1000) ~= 0 then return true end
-    if sf > 1500 then log("MATCH-LOAD-FAIL"); emu.stop(1) end
+    if sf > 1500 then log("MATCH-LOAD-FAIL"); LOG:close(); emu.stop(1) end
     return false
   end,
-  function() pulse[0] = {}; return ram(0x1FA) == 0x80 and sf > 150 end,
+  function() pulse[0] = {}; pulse[1] = {}; return ram(0x1FA) == 0x80 and sf > 150 end,
   function()
-    -- walk P1 into range and throw: forward, then toward+HP at contact
     if sf < 90 then pulse[0] = { right = true }
     elseif sf % 30 < 6 then pulse[0] = { right = true, x = true }
     else pulse[0] = {} end
