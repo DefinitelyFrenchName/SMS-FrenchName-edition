@@ -363,3 +363,40 @@ Gates: `test_regression.lua` **ALL PASS (57)**, `verify_saturn.sh QUICK`
 upload the missing glyphs. The glyph half remains the real work, because the
 nameplate font is matchup-loaded (URANUS supplies all but `T`; PLUTO lacks
 `S A R N`).
+
+### THE EXTRA MILE: her name actually shows (v0.14.10)
+
+There are **two** name tables, which is why P2's plate looks right:
+
+    table A  base $D8AE  — P1, names LEFT-aligned    (read at $C0:D738)
+    table B  base $D926  — P2, names RIGHT-aligned   (read at $C0:D75F)
+
+Both are 1-indexed, and **both index-0 slots are twelve free zero bytes**. So the
+blank fix and the name fix are the same hook with different data: writing
+`SATURN` left-aligned into `$D8AE` and right-aligned into `$D926` turns the blank
+plate into her name with **no code change at all**. The stubs still just return
+index 0. Those two slots are also the only free ones in reach, since X is 8-bit
+at the read.
+
+**The glyph problem does not exist.** The prediction was that `SATURN` would show
+gaps, because `docs/annotations.md` recorded the nameplate font as
+matchup-loaded. Measured instead — all 26 letter tiles carry glyph data in every
+shell's matchup — and corroborated independently by the rendered frame: she reads
+`SATURN` on a **Neptune** shell versus Jupiter, where neither displayed name
+contains an `S` or an `A`. The old note was an inference from "G is in no
+character's name", which is a true fact with a false conclusion attached.
+`docs/annotations.md` is corrected.
+
+**Verified, 1P-vs-COM:**
+
+| | her plate | opponent |
+|---|---|---|
+| shell 6 (Uranus) | **SATURN** | JUPITER |
+| shell 7 (Neptune) | **SATURN** | JUPITER |
+| shell 8 (Pluto) | all 26 letters present | — |
+| nobody armed | NEPTUNE, normal | JUPITER |
+
+Gates: regression **ALL PASS (57)**, `verify_saturn.sh QUICK` **ALL PASS (16)**.
+Hashes: hidden `7db39c48…`, hidden+stage `3120d75a…`.
+
+`SATURN_NAMEPLATE=0` reverts to the blank plate; the hook is unchanged either way.

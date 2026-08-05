@@ -105,6 +105,25 @@ local STEPS = {
     -- screenshot LATE: the earlier probes captured during the round intro, when
     -- the HUD is not drawn yet, so the nameplate was not in frame at all
     if sf == 380 then
+      -- Which nameplate LETTERS actually exist in VRAM for this matchup?
+      -- annotations.md says the glyphs are matchup-loaded, not a resident A-Z
+      -- set. If that is right, most letters should be blank here; if all 26 have
+      -- data, the note is wrong for this screen and SATURN renders anywhere.
+      -- BG3 CHR base is word $5000 and these are 2bpp, so tile N sits at byte
+      -- $A000 + N*16.
+      local present, absent = {}, {}
+      for i = 0, 25 do
+        local t = 0x70 + i
+        local base = 0xA000 + t * 16
+        local nz = 0
+        for k = 0, 15 do
+          if (emu.read(base + k, emu.memType.snesVideoRam) or 0) ~= 0 then nz = nz + 1 end
+        end
+        local ch = string.char(65 + i)
+        if nz > 0 then present[#present + 1] = ch else absent[#absent + 1] = ch end
+      end
+      log("letters WITH glyph data: " .. table.concat(present))
+      log("letters BLANK:           " .. table.concat(absent))
       local f = io.open(ENV.TRACE .. "saturn/" .. TAG .. ".png", "wb")
       if f then f:write(emu.takeScreenshot()); f:close() end
     end

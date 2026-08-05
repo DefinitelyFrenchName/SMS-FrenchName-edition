@@ -335,7 +335,7 @@ Combo/status counting logic proven in tools/training/{combo,labels}.lua (reads +
 |---|---|---|
 | BG3 CHR base | word $5000 | HUD is BG3, 2bpp (mode 1); tile T CHR at word $5000+T*8 |
 | glyph CHR slots | tiles 0xC7-0xDF | free (zero across 5 matchups); patch-10 uploads the label font here, tilemap word = 0x2C00|tile |
-| nameplate font | A=0x70..Z=0x89 | fixed tile-id layout BUT glyphs are matchup-loaded; **G(0x76) is in no character name** — hence a custom uploaded font |
+| nameplate font | A=0x70..Z=0x89 | fixed tile-id layout. ⚠ **CORRECTED 2026-08-05: the full A-Z IS resident** — measured in three different matchups (Uranus/Neptune/Pluto shells vs Jupiter), all 26 letter tiles carry glyph data. The old "glyphs are matchup-loaded" note was an inference from "G is in no character name" (true as a fact about names) and is wrong for this screen; SATURN renders on a Neptune shell where neither displayed name contains S or A. Patch 10's status labels still need their own font — different screen, different tiles. |
 | digit tiles | 0x50-0x59 top / 0x60-0x69 bottom | big 2-tall HUD digits (timer/combo counter) |
 | label state | $0900 (P1) / $0908 (P2) | prevAct,conRec,hardRec,movePhase,hpShadow,labelId,labelTTL,shown (8 bytes) |
 | glyph-load flag | $0910 | re-armed when both labels idle (survives per-match CHR reload) |

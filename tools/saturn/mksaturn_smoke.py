@@ -574,6 +574,18 @@ NP_P1_OLD = bytes.fromhex("AD00100A0A")      # lda $1000 / asl A / asl A
 NP_P2_OLD = bytes.fromhex("AD80100A0A")      # lda $1080 / asl A / asl A
 EE_NPHOOK1 = 0xCD00
 EE_NPHOOK2 = 0xCD40
+# There are TWO name tables, and the second one is why P2's plate looks right:
+#   table A base $D8AE — P1, names LEFT-aligned   (read at $C0:D738)
+#   table B base $D926 — P2, names RIGHT-aligned  (read at $C0:D75F)
+# Both are 1-indexed, and BOTH index-0 slots are twelve free zero bytes. So the
+# blank fix and the name fix are the same hook with different data: writing her
+# name into those two slots turns "blank" into "SATURN" with no code change.
+# X is 8-bit at the read (sep #$30 at $C0:D71E), so a record must live within
+# base+255 — these two slots are the only free ones in reach.
+NP_TBL_P1 = 0x00D8AE          # left-aligned  (index 0)
+NP_TBL_P2 = 0x00D926          # right-aligned (index 0)
+NP_NAME = "SATURN"
+SATURN_NAME_ON = _osv.environ.get("SATURN_NAMEPLATE", "1") != "0"
 EE_THROWLIST = 0xCC40         # her 21 bytes, read by `lda EE_THROWLIST,Y` long
 # (0xC700 was tried first and is NOT free: it is zero when this code runs and is
 #  overwritten later in the bank build, so the "slot busy" assert passed and the
@@ -2042,6 +2054,15 @@ def main():
         expect(_site, THROWPOSE_OLD, f"thrown-pose list read {_i + 1}")
         data[_site:_site + 5] = \
             bytes((0x22, EE_THROWSTUB & 0xFF, EE_THROWSTUB >> 8, B_MISC, 0xAB))
+    if SATURN_NAME_ON:
+        _tiles = bytes(0x70 + (ord(c) - 65) for c in NP_NAME)
+        _left = _tiles + bytes(12 - len(_tiles))
+        _right = bytes(12 - len(_tiles)) + _tiles
+        for _off, _rec, _what in ((NP_TBL_P1, _left, "P1 left-aligned"),
+                                  (NP_TBL_P2, _right, "P2 right-aligned")):
+            expect(_off, bytes(12), f"nameplate index-0 slot ({_what})")
+            data[_off:_off + 12] = _rec
+
     for _site, _old, _tgt in ((SITE_NP_P1, NP_P1_OLD, EE_NPHOOK1),
                               (SITE_NP_P2, NP_P2_OLD, EE_NPHOOK2)):
         expect(_site, _old, f"nameplate charID read {_site:#x}")
