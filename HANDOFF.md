@@ -123,19 +123,36 @@ Sanity-checked against known-bad builds: on v0.14.6 the quick matrix fails 7 of
 not a gate. That check was added *because* the 45-check gate passed on the build
 carrying the projectile bug for two weeks.
 
-**Open work — full detail in `docs/NEXT_SESSION.md`:**
-(1) *(the 214P projectile bug that stood here is FIXED — v0.14.11, above.)*
-(2) **patch 16 menu translation**, now the only open item — a complete half-width A-Z now exists
-(`tools/mkhalfwidth.py`, 17 glyphs condensed from the game's own capitals,
-4 repaired, 5 authored) and every validated string fits its cell budget
-(`MANUAL` takes 3 of the 5 cells the Japanese occupies). Blocked on the same
-class of problem as the projectile: the font block extends and round-trips, but
-nothing carries the extra tiles to VRAM — the transfer covering that region is
-`vram $4000 len $3480 src $7E:C000`, staged in direct page `$02`, and what feeds
-that length is not yet found. **The projectile bug turned out to be exactly that
-shape and the answer was a LENGTH coming from the wrong source**, so read its
-post-mortem first; `tools/saturn/probe_saturn_fxdma.lua` already dumps every VRAM
-DMA of a load (dest + length + source) from direct page.
+**Open work — TWO items, full detail in `docs/NEXT_SESSION.md`:**
+
+**(1) Patch 16 — menu translation. Step 1 DONE, step 2 blocked on one screen.**
+The half-width A-Z now *reaches VRAM* (tiles `$5C0-$5FF`, read back out of VRAM,
+52/64 non-blank vs 0 on clean). Two things had been wrong and both are fixed:
+the asset-record layout is `[vram16][len16][src24][dest24]` — the upload LENGTH
+sits 2 bytes BEFORE the src pointer (field `$C3:BF18`, `$3480` -> `$4000`), and
+the kanji block is not loaded on the screen being translated (that screen's sheet
+is `$C4:2590`). *The old "what feeds that length is not yet found" note is
+answered and gone.*
+⚠ **The first tilemap edit is written but GATED OFF** (`SMS_P16_OPTIONS=1`): the
+glyphs do not reach VRAM on the **Options** screen even though it runs the
+extended transfer, so enabling it clears the Japanese and draws nothing. Next
+diagnostic is one dump: WRAM `$7E:C000+$3800` on that screen.
+⚠ The option **values** cannot be done in the tilemap at all — rewritten at
+runtime as the player cycles a setting.
+Screens: Options + Tournament share the extended sheet (no second install);
+**win and ACS are not yet probed**. Priority: Options, Win, ACS, Tournament;
+story out of scope.
+
+**(2) Patch 17 — all stages selectable.** Mechanism decoded, not yet confirmed
+in-game. `$1F59` has exactly one reader (`$C3:AA28`) and one writer
+(`$C3:BADE`); the reader sets the menu list bound `$1C1C` to 16 or 18 — word
+indices, **0-8 vs 0-9**. One byte does it (`$C3:BADE` `8D`->`9C`), as in
+`sms_patcher.py PATCH_NAKAYOSHI`.
+⚠ **Covers the MENU only.** `$1C1C` is a generic menu-list length; the RANDOM
+stage picker is not among its readers, so the pool needs that picker located.
+⚠ The live stage index is **pointer-addressed** (`ldx $1B00`, then `$0038,X`) —
+a flat WRAM sweep will not find it, and the first A/B attempt was void.
+
 *(The voice-pitch item that stood here is DONE — patch 101, shipped and on by
 default. The "one routine shared with the music" that blocked it was a misread
 PC: `$131D`/`$1327` are the `INC Y` inside a DSP shadow flush and compute

@@ -1,6 +1,6 @@
 # Next-session handoff — 2026-08-05
 
-## Start here: ONE open item (patch 16). The other two are done.
+## Start here: TWO open items — patch 16 (step 2) and patch 17. Saturn is done.
 
 **1. Saturn's 214P projectile — FIXED (v0.14.11, 2026-08-05).** It was a
 **per-shell truncation of her effect sheet**, not a bad sprite list. Her
@@ -10,7 +10,7 @@ follows was sized from the **shell's own** sheet: Uranus `$11C0`, Pluto `$10C0`,
 reached VRAM, and the travel pose draws 7 of its 12 sprites from that range.
 Hence *two disconnected pieces*, on Neptune, intact on Uranus. The armed path of
 the DMA stub now forces the length too (`sta $004305`). Verified byte-identical
-to the decoder output on shells 6/7/8; gate 47/47, regression 57/57. Detail:
+to the decoder output on shells 6/7/8; gate 49/49, regression 57/57. Detail:
 `docs/saturn/BUILDS.md` § "214P projectile: SOLVED".
 
 **2. Patch 16 (menu translation) — STEP 1 DONE (2026-08-05).** The 26
@@ -30,10 +30,35 @@ LENGTH coming from the wrong place — plus a second, independent mistake:
   field at **`$C3:BF18`** raised `$3480` -> `$4000` (the ceiling — the source is
   `$7E:C000`, so more would run off the end of bank `$7E`).
 
-**Remaining: the tilemap edits** — replacing the Japanese strings. The glyph ->
-VRAM tile map is written to `docs/halfwidth_tiles.json`. Strings and cell budgets
-are already validated (`tools/menutext_check.py`); the maintainer supplies the
-text.
+**Remaining: step 2, the tilemap edits — and the first one is BLOCKED.** The
+Options screen is written and **gated OFF by default** (`SMS_P16_OPTIONS=1`),
+because enabling it clears the Japanese and draws nothing: **the glyphs do not
+reach VRAM on that screen**, even though it runs the extended transfer
+(`vram $4000 len $4000 src $7E:C000`, confirmed on the built ROM) and record 27
+is the only record staging into that buffer. Screen-specific — most likely the
+upload precedes that screen's decompression and carries a stale buffer.
+**NEXT: dump WRAM `$7E:C000+$3800` on the Options screen** (absent from the
+BUFFER = ordering; present = the fault is after the transfer).
+
+Everything else for Options is ready: its tilemap is **asset record 19**
+(`$C3:69F0`), budgets are measured (**18 columns for a label, 6 for a value**;
+half-width glyph = ONE map column), the maintainer's strings all fit, and the
+addressing is known (MAP tile = VRAM tile − `$200`; glyph = 2 rows,
+`bottom = top + $10`; labels attr `$0C00`, values `$1000`).
+⚠ `tools/menutext_check.py` only knows the STAGE names — it does not validate
+these; the Options budgets were measured off the live tilemap.
+⚠ **The VALUES cannot be done in the tilemap at all** — they are rewritten at
+runtime as the player cycles a setting, so English baked into the map is
+overwritten on first input. That writer is still to be found.
+
+**Screen coverage:** Options and Tournament both load the same sheet the font
+install extends (record 27), so no second install is needed for them. The **win**
+and **ACS** screens are NOT yet probed — neither is reachable from the title menu
+(one needs a KO, the other SELECT at char select), so their sheets are unknown.
+Priority order (maintainer): Options, Win, ACS, Tournament. Story is out of
+scope. プレイヤーセレクト on the *illustrated char-select* is off-limits (part of
+the artwork, rainbow-animated) — but the one on the Tournament screen is plain
+text and DOES need translating, as do that screen's per-line character names.
 
 ⚠ Verify with `tools/probe_menu_vram.lua`, which dumps **on the font transfer**,
 not at the end of the run — a dump taken on the final screen reads identical on
@@ -44,7 +69,7 @@ without it, a clean-vs-patched diff proves nothing, since both are zero there.
 **3. Nameplate — DONE** (v0.14.10): her plate reads SATURN, vanilla untouched,
 regression 57/57. `SATURN_NAMEPLATE=0` reverts to blank.
 
-**4. Thrown sprite — FIXED (v0.14.14).** v0.14.7 fixed the OAM flood; the sprite
+**4. Thrown sprite — FIXED (v0.14.14), field-confirmed.** v0.14.7 fixed the OAM flood; the sprite
 stayed wrong until now and no build v0.14.8→v0.14.13 differed by a pixel. The
 v0.14.7 hook covered the two reads in `$C1` on the basis that the ROM has exactly
 two — true of the CLEAN ROM, false of the BUILD, because bank `B_C1` is a full
@@ -53,7 +78,23 @@ her proc ran out of that copy's unhooked read. Repro: Saturn vs Saturn, 6P.
 The gate now covers Saturn-as-thrower and the builder asserts no unhooked read
 survives anywhere in the image.
 
-**5. Her four palettes — DONE** (v0.14.12, maintainer request). Her transform
+**5. Patch 17 (all stages selectable) — MECHANISM DECODED, not confirmed.**
+The hidden stage (Nakayoshi editorial department) is gated by `$1F59`, which has
+exactly ONE reader (`$C3:AA28`) and one writer (`$C3:BADE`). The reader picks a
+list bound: flag set -> `$1C1C` = 16, flag clear -> 18 — word indices, i.e.
+**0-8 vs 0-9**. So "a 0-8 range" and "a flag" are the same thing. One byte does
+it: `$C3:BADE` `8D` -> `9C` (`sta` -> `stz`), already in
+`sms_patcher.py PATCH_NAKAYOSHI`.
+* ⚠ **No in-game A/B yet.** The first attempt was VOID (a probe edit silently
+  failed to apply, so the old sweep ran under a new printout and reported address
+  keys as stage indices). The live stage index is **pointer-addressed** —
+  `ldx $1B00`, then `$0038,X` — which is why a flat WRAM sweep found nothing.
+* ⚠ **The one byte covers the MENU only.** `$1C1C` is a generic menu-list length
+  (5 writers in `$C3`, 2 readers at `$C3:8002`/`$801A`); the RANDOM stage picker
+  is not among its readers, so it bounds itself separately and must be located
+  before the stage can join the pool — which the maintainer also wants.
+
+**6. Her four palettes — DONE** (v0.14.12, retuned v0.14.15, maintainer request). Her transform
 copied palette 0 unconditionally and threw away the slot the character select
 had loaded. Two things to know before touching this again: **Super S ships only
 TWO palettes per character** (the "four manifest palette pointers" are char pal
@@ -274,10 +315,11 @@ is input-free work.
 ```bash
 tools/build_ref_v2.sh                                   # REF v.2 = v.1 + patch 15
 SATURN_HIDDEN=1 bash tools/saturn/build_refsaturn.sh    # Saturn on REF v.2
-bash tools/saturn/build_saturn_stage.sh --ref           # + the stage port <- v0.14.9
+bash tools/saturn/build_saturn_stage.sh --ref           # + the stage port <- v0.14.15
 tools/saturn/verify_saturn.sh                           # 49 checks, the gate
 QUICK=1 tools/saturn/verify_saturn.sh                   # ~4 min subset
 ROM=<rom> tools/run.sh tools/test_regression.lua 900    # 57/57
+python3 tools/mkpatch16.py <out.sfc>                     # patch 16 (font install)
 ```
 
 ## Session hygiene
