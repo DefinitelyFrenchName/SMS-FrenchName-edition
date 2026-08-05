@@ -415,3 +415,47 @@ carries a check that fails on it: `probe_saturn_fxsheet.lua` asserts her effect
 sheet is **identical across shells** (cross-shell invariance rather than a
 hardcoded checksum, so it survives any change to her art). Sanity-checked
 against v0.14.8: shells 6 and 7 disagree there, and agree on the fix.
+
+## THROWN SPRITE: the v0.14.7 fix left a RESIDUAL, and it is still open (2026-08-05)
+
+**Field report:** her sprite corrupts while she is thrown, "the same way as when
+we first had that bug". **Reproduced, with a frame-matched vanilla control** —
+`probe_saturn_throwshot.lua` captures VRAM+OAM+CGRAM on each phase of a real
+throw and the victim is composed offline.
+
+**It is NOT a v0.14.12 palette regression, and not new.** Rendered at the same
+frame of the same throw:
+
+| build | thrown sprite |
+|---|---|
+| v0.13.0 | almost nothing renders (the pre-fix era) |
+| **v0.14.8** | legs and skirt correct; head+torso a smear of fragments, glaive shaft drawn through it |
+| **v0.14.11** | pixel-identical to v0.14.8 |
+| **v0.14.13** | pixel-identical to v0.14.8 |
+| vanilla Neptune, same throw | clean, complete tumbling figure |
+
+So the defect has been unchanged since **v0.14.7**, the build that "fixed the
+throw corruption". That fix is intact and verified still in place — both read
+sites hooked (`JSL` at `$C1:0740` and `$C1:0C5C`), the stub correct
+(`cmp #$1C` -> `tyx` -> `lda EE_THROWLIST,X`), her 21-byte list present, and the
+table has **exactly two** read sites in the whole ROM (checked by scanning every
+instruction that references `$0881`). The v0.11.11 blank-cel fix is intact too.
+
+**What v0.14.7 actually fixed was the OAM FLOOD, not the sprite.** Its A/B
+measured sprite COUNT (127 -> 57) and stage-tile VRAM (92% -> 0%); both are
+still correct today. Nobody rendered the picture, so the residual shipped. This
+is the same failure mode as the 214P projectile: *an instrument that measures a
+proxy will pass a build whose proxy is fixed.*
+
+**Where it is NOT:** every one of her thrown-sprite OAM entries points at a tile
+that HAS data (checked through the OBJ name base, `$6000` word / second table
+`$7000` — not `tile*32`), and she draws MORE sprites than vanilla (22 vs 18), so
+this is not the projectile's "pointing at VRAM that was never filled". The
+components are present and mis-positioned: her x-span is 181-250 against
+vanilla's 183-223, with a detached cluster.
+
+**Next:** her throw poses come from `EE_THROWLIST` (Super S table idx 10), and
+the tiles are valid, so the suspicion is the pose -> spritelist layer or a
+cel/pose mismatch — the streamed cel not matching the sprite list the same pose
+selects. Compare her thrown pose's sprite list against Super S's for the same
+pose, and check what the cel streamer uploads for it.
