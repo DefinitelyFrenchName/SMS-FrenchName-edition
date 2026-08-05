@@ -109,6 +109,20 @@ else
   bad "effect sheet identical across shells $fxshells" "one checksum" "$fxsums"
 fi
 
+echo "== throws with SATURN AS THE THROWER (the \$C1-copy path) =="
+# v0.14.14. Every throw test above uses a VANILLA thrower, and that is exactly
+# why the copy bug shipped: with Saturn throwing, her proc runs out of the $C1
+# COPY, whose read of the per-victim pose table was never hooked. The stub was
+# then never entered and the victim got a pose from past the ten-entry table --
+# screen-wide debris. Assert the stub IS entered and the index stays inside her
+# 21-byte list. Negative-controlled: v0.14.13 reports stub-never-entered.
+for m in 1 0; do
+  n=$([ "$m" = 1 ] && echo "saturn thrower (mirror)" || echo "vanilla thrower")
+  MIRROR=$m SHELL_ID=7 TAG=v_idx_$m ROM="$ROM" \
+    tools/run.sh tools/saturn/probe_saturn_throwidx.lua 700 >/dev/null 2>&1
+  check "thrown-pose index, $n" "THROWIDX PASS" "$T/throwidx_v_idx_$m.txt" "THROWIDX"
+done
+
 echo "== her four palettes follow the confirm button =="
 # v0.14.12. Her transform used to copy palette 0 unconditionally, throwing away
 # the slot the character select had loaded, so she looked identical on every

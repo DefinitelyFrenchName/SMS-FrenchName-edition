@@ -53,8 +53,8 @@ Saturn** effort (brief: `docs/saturn/PROJECT.md`, test ROMs:
 hidden code is the **only** char-select variant — the v0.10.0 visible slot-10
 build was retired 2026-08-04 and its code deleted (a placeholder that added the
 one char-select surface the story lock exists to avoid; removal proven inert by a
-byte-identical rebuild). Current build on **REF v.2** is **v0.14.12**: hidden
-`a56a9a2e…`, hidden+stage `57332d87…` — patch 100 + 101 + the nameplate,
+byte-identical rebuild). Current build on **REF v.2** is **v0.14.14**: hidden
+`873a0192…`, hidden+stage `f78e6468…` — patch 100 + 101 + the nameplate,
 the projectile fix and her selectable palettes, both below. The previous v0.14.9 pair `7db39c48…`/`3120d75a…` still
 rebuilds byte-for-byte from the prior builder revision.
 
@@ -75,6 +75,24 @@ P1 exactly — and since P2's own transfer is `$0FC0`, P2 was short on *every*
 shell. Detail, and the four instrumentation failures that made this take five
 attempts, in `docs/saturn/BUILDS.md` § "214P projectile: SOLVED".
 
+**THE THROW CORRUPTION IS FIXED FOR REAL (v0.14.14, 2026-08-05).** v0.14.7
+fixed the OAM flood; the sprite stayed wrong until now, and no build between
+v0.14.8 and v0.14.13 differed by a pixel. Cause: v0.14.7 hooked the two reads of
+the per-victim thrown-pose table on the documented basis that the ROM has
+**exactly two** — true of the CLEAN ROM, false of the BUILD. Bank `B_C1` is a
+full copy of `$C1` carrying her ported proc block, and **the copy is taken before
+the hook is applied**, so it kept two vanilla reads (`$F7:0735`/`$F7:0C51`).
+**With SATURN AS THE THROWER** her proc runs out of that copy, the unhooked read
+indexes the ten-entry table with charID `$1C` (0x38 bytes past — the original
+bug), and the victim's pose is garbage. Saturn vs Saturn with 6P is the clearest
+case: poses `$55/$88/$B5`, the stub never entered, screen-wide debris. A vanilla
+thrower was always fine, which is why every A/B built on "Jupiter throws Saturn"
+passed. Fix: hook the same two in-bank offsets in `B_C1`; the builder now asserts
+**no** read of that table is left unhooked anywhere in the assembled image.
+⚠ **Generalises: patch a bank and you must patch its COPIES, and "N sites exist"
+is a claim about a specific image — re-verify it against the one you ship.**
+Detail: `docs/saturn/BUILDS.md` § "ROOT CAUSE AND FIX (v0.14.14)".
+
 **Her palettes follow the confirm button as of v0.14.12** (maintainer request).
 Her transform copied palette 0 unconditionally, overwriting the slot the
 character select had loaded — she looked identical on every button and her
@@ -94,11 +112,11 @@ resolved a sprite's tiles as `tile * 32`; the OBJ name base is word `$6000` with
 the second name table at `$7000`. Correctly resolved, all 12 sprites always
 pointed at valid tiles. It did name the right sprites, though — that part stands.
 
-**Gate before shipping anything: `tools/saturn/verify_saturn.sh`** — 47 checks
+**Gate before shipping anything: `tools/saturn/verify_saturn.sh`** — 49 checks
 (regression suite, L+R arming across modes x shells incl. flag/latch, story lock,
 2P VS on both pads, throws normal + command with OAM-flood and stage-VRAM
 assertions, the projectile palette split, **her effect sheet's cross-shell
-invariance**, **her four selectable palettes**, the lrmodes harness, a randomised stress match, and an OBJ-palette
+invariance**, **her four selectable palettes**, **throws with SATURN AS THE THROWER**, the lrmodes harness, a randomised stress match, and an OBJ-palette
 census over a full match). Exits 1 on failure; `QUICK=1` for a ~4-minute subset.
 Sanity-checked against known-bad builds: on v0.14.6 the quick matrix fails 7 of
 16, and on v0.14.8 the new effect-sheet check fails — a gate that cannot fail is
@@ -205,7 +223,7 @@ would actually cost). Short version: ROM is not scarce (384 KB spare), ARAM is
 the only hard wall, and the real constraint is per-character tables sized to nine
 and immediately followed by live data.
 
-**Eight traps this project paid for — they generalise:**
+**Nine traps this project paid for — they generalise:**
 
 1. **Per-character fixes must be tested with at least TWO shells.** Saturn can
    be summoned over Uranus, Neptune or Pluto (over any of the nine before
@@ -226,20 +244,26 @@ and immediately followed by live data.
    `ldx $88` — but during script interpretation it holds whatever object last
    set it, and Saturn's voice came out of the opponent's slot. The interpreter
    already had the object base in X. Check where a value gets SET.
-5. **A per-player OVERRIDE is only as complete as the transfer that carries it.**
+5. **Patch a bank and you must patch its COPIES.** The build grafts a full copy
+   of `$C1` into an appended bank for Saturn's proc; a hook applied to `$C1`
+   after that copy is taken protects only half the paths. "The ROM has exactly
+   two of these" was measured on the CLEAN ROM and was false of the artifact
+   — the throw corruption survived four sessions behind that one assumption.
+   Count sites in the image you SHIP.
+6. **A per-player OVERRIDE is only as complete as the transfer that carries it.**
    Staging her effect sheet over the shell's was correct and provably byte-exact
    in WRAM — and 15 tiles still never reached VRAM, because the DMA's LENGTH came
    from the shell. When you substitute data, ask what else was sized from the
    thing you replaced. (v0.14.11; the same question is open for patch 16.)
-6. **Address a tile through the OBJ name base, never as `tile * 32`.** Base is
+7. **Address a tile through the OBJ name base, never as `tile * 32`.** Base is
    word `$6000` (byte `$C000`), second name table at word `$7000`. A whole "root
    signature" was measured out of unrelated VRAM this way.
-7. **Sprite lists are emitted on ALTERNATE frames.** A capture triggered N frames
+8. **Sprite lists are emitted on ALTERNATE frames.** A capture triggered N frames
    after an event lands on an empty frame half the time. Trigger on the thing you
    want to see, not on a delay — and note `emu.getState()` throws inside a memory
    callback here, silently killing the hook, so never let a probe's own counter
    sit downstream of it.
-8. **A probe that reports nothing is usually broken, not evidence of nothing.**
+9. **A probe that reports nothing is usually broken, not evidence of nothing.**
    Three separate cases this session: a movelist search that missed because a
    tilemap interleaves tile+attribute; "the character never jumps", which was the
    entrance and the GO! banner rather than an input fault (the pad read correctly

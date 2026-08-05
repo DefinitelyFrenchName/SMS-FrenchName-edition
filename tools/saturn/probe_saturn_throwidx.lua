@@ -69,8 +69,24 @@ emu.addEventCallback(function()
     local ks={}
     for k,v in pairs(hits) do ks[#ks+1]=string.format("%s  x%d",k,v) end
     table.sort(ks)
-    if #ks==0 then log("STUB NEVER ENTERED — harness problem, not a finding") end
     for _,l in ipairs(ks) do log("  "..l) end
+    -- Verdict line for the gate. Two ways to fail, and the mirror case failed
+    -- the FIRST one before v0.14.14: with Saturn as the thrower her proc ran out
+    -- of the $C1 COPY, whose read was never hooked, so the substitution stub was
+    -- never entered at all and the victim got a pose from 0x38 bytes past the
+    -- ten-entry table.
+    local worst = -1
+    for k,_ in pairs(hits) do
+      local y = tonumber(k:match("index Y=%$(%x+)"), 16) or 0
+      if y > worst then worst = y end
+    end
+    if #ks == 0 then
+      log("THROWIDX FAIL stub-never-entered")
+    elseif worst >= 0x15 then
+      log(string.format("THROWIDX FAIL index-past-list worst=$%04X", worst))
+    else
+      log(string.format("THROWIDX PASS entered, max index $%04X (< $15)", worst))
+    end
     LOG:close(); emu.stop(0)
   end
   if frames>6000 then log("TIMEOUT "..step); LOG:close(); emu.stop(1) end

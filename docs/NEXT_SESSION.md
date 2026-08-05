@@ -44,7 +44,16 @@ without it, a clean-vs-patched diff proves nothing, since both are zero there.
 **3. Nameplate — DONE** (v0.14.10): her plate reads SATURN, vanilla untouched,
 regression 57/57. `SATURN_NAMEPLATE=0` reverts to blank.
 
-**4. Her four palettes — DONE** (v0.14.12, maintainer request). Her transform
+**4. Thrown sprite — FIXED (v0.14.14).** v0.14.7 fixed the OAM flood; the sprite
+stayed wrong until now and no build v0.14.8→v0.14.13 differed by a pixel. The
+v0.14.7 hook covered the two reads in `$C1` on the basis that the ROM has exactly
+two — true of the CLEAN ROM, false of the BUILD, because bank `B_C1` is a full
+copy of `$C1` taken BEFORE the hook is applied. With **Saturn as the thrower**
+her proc ran out of that copy's unhooked read. Repro: Saturn vs Saturn, 6P.
+The gate now covers Saturn-as-thrower and the builder asserts no unhooked read
+survives anywhere in the image.
+
+**5. Her four palettes — DONE** (v0.14.12, maintainer request). Her transform
 copied palette 0 unconditionally and threw away the slot the character select
 had loaded. Two things to know before touching this again: **Super S ships only
 TWO palettes per character** (the "four manifest palette pointers" are char pal
@@ -95,12 +104,12 @@ history.)
 ## Status in one paragraph
 
 The base patch project is done and green. **SMS + Saturn is feature-complete with
-no open bugs.** Current build is **v0.14.12**
-(`SailorMoonS_REFsaturn_v0.14.12-hidden-stage.sfc`, `57332d87…`, hidden
-`a56a9a2e…`) on **REF v.2** — patch 100 + 101 + the nameplate, the projectile
+no open bugs.** Current build is **v0.14.14**
+(`SailorMoonS_REFsaturn_v0.14.14-hidden-stage.sfc`, `f78e6468…`, hidden
+`873a0192…`) on **REF v.2** — patch 100 + 101 + the nameplate, the projectile
 fix and her four selectable palettes. She is summoned by holding **L+R** while confirming a **Uranus, Neptune or
 Pluto** slot — the only char-select variant now; the visible slot-10 build was
-retired 2026-08-04 and deleted. Gates: `tools/saturn/verify_saturn.sh` (47
+retired 2026-08-04 and deleted. Gates: `tools/saturn/verify_saturn.sh` (49
 checks, ALL PASS; `QUICK=1` for a ~4-min subset) and `tools/test_regression.lua`
 (57/57). Maintainer's verdict on the current build: "perfectly acceptable for
 playing".
@@ -266,7 +275,7 @@ is input-free work.
 tools/build_ref_v2.sh                                   # REF v.2 = v.1 + patch 15
 SATURN_HIDDEN=1 bash tools/saturn/build_refsaturn.sh    # Saturn on REF v.2
 bash tools/saturn/build_saturn_stage.sh --ref           # + the stage port <- v0.14.9
-tools/saturn/verify_saturn.sh                           # 47 checks, the gate
+tools/saturn/verify_saturn.sh                           # 49 checks, the gate
 QUICK=1 tools/saturn/verify_saturn.sh                   # ~4 min subset
 ROM=<rom> tools/run.sh tools/test_regression.lua 900    # 57/57
 ```
