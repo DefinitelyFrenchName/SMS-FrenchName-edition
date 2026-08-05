@@ -18,12 +18,29 @@ Any patch listed as not fully tested has been tested using the automated test su
 
 ## Get started (applying a patch)
 
+**Most people want one of the two reference builds in
+[`release/`](release/RELEASE_NOTES.md).** Each is complete — you apply it and
+play; nothing is stacked on top:
+
+| | |
+|---|---|
+| **Rev. S-NN** | the reference build, no Super S content |
+| **Rev. SS-NN** | the same, plus **Sailor Saturn** (hold L+R while confirming Uranus, Neptune or Pluto) |
+
+`NN` is the revision, and it is printed on the title screen — quote it (or the
+ROM SHA-1) in any bug report. Hashes and contents:
+[`release/RELEASE_NOTES.md`](release/RELEASE_NOTES.md), which is generated from
+the files themselves so it cannot go stale.
+
 1. Obtain the clean ROM: *Bishoujo Senshi Sailor Moon S: Jougai Rantou!?* (SFC, Japan) —
    verify SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`. ROMs are never distributed here.
 2. Get [Floating IPS (flips)](https://github.com/Alcaro/Flips) (or any BPS patcher).
-3. Apply a `.bps` from `build/` to the clean ROM, e.g.
-   `flips --apply build/sms_allpatches_v0.22.bps "<clean>.sfc" out.sfc`
-4. Verify the output SHA-1 against the tables below / [docs/patch_index.md](docs/patch_index.md).
+3. Apply a `.bps` to the clean ROM, e.g.
+   `flips --apply release/Rev.SS-01.bps "<clean>.sfc" out.sfc`
+4. Verify the output SHA-1 against [`release/RELEASE_NOTES.md`](release/RELEASE_NOTES.md).
+
+The individual patches below stay in `build/` for anyone assembling their own
+combination — see the warning in the release notes about chaining them.
 
 Deeper docs: [docs/patch_index.md](docs/patch_index.md) (one-line registry, status,
 lifecycle), [docs/patch_notes.md](docs/patch_notes.md) (per-patch mechanism + verification),

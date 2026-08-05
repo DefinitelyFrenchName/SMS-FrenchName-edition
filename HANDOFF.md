@@ -174,6 +174,32 @@ Saturn builder keeps the hook off by default (`SATURN_ALLSTAGES=1` opts in,
 tagging the version **S**), and reproduces v0.14.15 byte-for-byte without it.
 Detail: `docs/patch_notes.md` § Patch 17, `docs/saturn/BUILDS.md` 0.15.0.
 
+**RELEASES — two reference builds (2026-08-05, maintainer request).** `build/`
+holds every patch flat, which is right for development and wrong for a player,
+so the two things anyone actually applies now live in **`release/`**:
+
+| | |
+|---|---|
+| **Rev. S-NN** | the reference build, no Super S content (= REF v.2's patch set) |
+| **Rev. SS-NN** | the same, plus Saturn (patch 100/101 + her ported stage) |
+
+`NN` comes from `smspaths.REV` (override `SMS_REV=NN`) and is printed on the
+**title screen** — the naked-eye tell a pad tester quotes back. One recipe builds
+both, `tools/build_rev.sh s|ss|both`, so the two cannot drift apart: they are the
+same patch chain up to the subtitle and the Super S additions. Release notes are
+**generated** (`tools/mkrelease.py`, `--check` in CI-style use) because this
+project has already shipped three stale doc hashes; every hash there is measured
+from the file it names. REF v.1 and v.2 keep their own recipes — published
+artifacts are never redefined: **Rev. S-01 is REF v.2 retitled** and **Rev. SS-01
+is the Saturn build v0.16.1 retitled** — both measured, and in both cases the
+whole diff is patch 4's bank `$E9` plus the checksum (281 and 328 bytes).
+**Patch 17 is in NEITHER** (maintainer, 2026-08-05): it stays an optional
+standalone in `build/sms_allstages.bps`. If it is ever wanted in the Super S
+reference, `SATURN_ALLSTAGES=1` on the Saturn step is the whole change.
+⚠ The title font had no `S` or `-`; both were authored in `texttiles.py`. The
+strip is **168 px** and "FrenchName Rev. SS-99" renders **146 px**, so the
+naming has 22 px to spare — two digits is nowhere near the limit.
+
 **Open work — ONE item, full detail in `docs/NEXT_SESSION.md`:**
 
 **Patch 16 — menu translation. Step 1 DONE, step 2 blocked on one screen.**
