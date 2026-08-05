@@ -279,10 +279,22 @@ Also learned here: the config screen's live stage index is **pointer-addressed**
 `ldx $1B00` then `$0038,X`, per the same routine. A flat WRAM sweep of
 `$1800`/`$1B00` will not find it, which is exactly how a first attempt failed.
 
-⚠ **NOT yet confirmed in-game.** No A/B has been run showing a 10th stage
-selectable, and it is unknown whether the same bound governs the RANDOM stage
-pool (the maintainer wants both). `$1C1C` has other readers to enumerate before
-claiming the one byte does everything.
+`$1C1C` is a **generic "current menu list length"**, not a stage-specific one:
+in the code banks it is written by five sites in `$C3` (`A343`, `A364`, `A86C`,
+**`AA38`** = the stage list, `AED8`) and read by exactly two (`$C3:8002` cmp and
+`$C3:801A` lda — the shared list-navigation bounds check). So each menu sets its
+own bound and the flag edit touches only the stage list. *(Search note: a raw
+byte-pair scan is useless here — `trb abs` is opcode `$1C`, so `1C 1C` matches
+art data across banks `$C7-$E4`. Filter to the code banks.)*
+
+**Consequence for patch 17's two tiers:**
+* *minimum — selectable in the config screen*: the one-byte edit is the whole
+  mechanism, proven in code. ⚠ Still not confirmed in-game: no A/B has yet shown
+  a 10th entry, and the first attempt at one was void (see BUILDS/commit log).
+* *ideal — in the RANDOM pool too*: **the one byte will not do it.** The random
+  stage picker is not among `$1C1C`'s two readers, so it bounds itself
+  separately. That picker still has to be located — separate work, not a
+  follow-on of this edit.
 
 ## Palettes + title (patch 3) — Big Zam extraction
 | Address (file) | Label | Comment |
