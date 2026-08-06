@@ -1175,6 +1175,18 @@ and the `$5C0-$5FF` glyph census. Results:
 | Win = REPORT CARD | **bank `$DF` loader** (`$DF:83CE` writes `$1C18`), no `$80:92D2` uploads | 0 | KOタイム/HITすう/ダメージ/勝ちすう/ベスト (values numeric) |
 | Tournament (select + bracket) | **bank `$DF` loader** (same) | 0 | プレイヤーセレクト, per-line char names, brackets' セーラー〜 VS 〜 |
 
+**STATUS (2026-08-06, late): tournament select names AND the REPORT CARD
+labels are DONE** — built by `mkpatch16.py` under `SMS_P16_DF=1`, verified
+in-emulator (select shows "1P MOON" in the kana's teal; the report card
+renders KO TIME/HIT COUNT/DAMAGE/BEST/WIN COUNT in both boxes with numbers
+and colors intact; regression 45/45). Implementation notes live as comments
+in the builder; the traps paid for on the way: script entry[4] on the select
+screen decompresses OVER VRAM $500+ after the sheet upload (the glyph block
+therefore sits padded at the $5C0 window), and the kana ink on these screens
+is colour 1, not the menu font's 7. Remaining on the $DF side: bracket
+names, プレイヤーセレクト header (codec-2 base map), the unidentified fourth
+script ($DF:9B27).
+
 Consequences:
 * **Win and Tournament share ONE system — the bank-`$DF` screen engine — and
   it is now DECODED (2026-08-06, same session):**
