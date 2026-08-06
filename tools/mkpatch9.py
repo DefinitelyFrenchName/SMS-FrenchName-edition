@@ -35,7 +35,6 @@ CLEAN = clean_rom()
 # regression suite's SIGS table. ONLY bytes invariant across stub-layout and
 # bank-stacking changes: the DEFAULT --yoff -11 in three of the four active boxes; rerun mksigs --write after retuning
 SIG = [(0xAFD5D, 0xF5), (0xAFD65, 0xF5), (0xAFD6D, 0xF5)]
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 # Deep Submerge fireball object box table $8A:FD51 = file 0xAFD51 (8-byte entries).
 # y_off is byte +4 of each entry. Active hit-box entries are 1,2,3,4.

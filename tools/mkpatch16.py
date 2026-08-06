@@ -52,11 +52,10 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "tools"))
 sys.path.insert(0, os.path.join(REPO, "tools", "saturn"))
 
-from smspaths import clean_rom, fix_checksum, next_bank, write_bank   # noqa: E402
+from smspaths import clean_rom, fix_checksum, next_bank, write_bank, require_source   # noqa: E402
 import sms_lz                                                          # noqa: E402
 import mkhalfwidth                                                     # noqa: E402
 
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 # The font sheet the menu screens load at VRAM $400 — NOT the kanji block; see
 # the module docstring for why that distinction cost several attempts.
 FONT_SRC = 0xC42590               # compressed sheet, 418 tiles
@@ -147,11 +146,8 @@ def find_record(data, want_src):
 
 
 def build(src_path, out_path, stacked=False):
+    require_source(src_path, stacked)   # the series' #12/#66 gate (was a hand-rolled copy)
     data = bytearray(open(src_path, "rb").read())
-    sha = hashlib.sha1(data).hexdigest()
-    if not stacked and sha != CLEAN_SHA1:
-        raise SystemExit("source is not the clean ROM (%s); pass --stacked to "
-                         "build on top of another patch" % sha[:12])
 
     # Locate the record BEFORE touching anything: its src field IS the block's
     # only pointer, so writing the pointer first would make the search fail.

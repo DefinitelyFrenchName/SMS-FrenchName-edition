@@ -18,7 +18,7 @@ from hashlib import sha1
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, require_source, check_not_inplace, BUNDLE_VERSION, fix_checksum, trim_banks, next_bank, write_bank  # noqa: E402
+from smspaths import clean_rom, require_source, check_not_inplace, BUNDLE_VERSION, fix_checksum, trim_banks, next_bank, write_bank, pad_to_size_multiple, write_header_title  # noqa: E402
 import texttiles as T  # noqa: E402
 
 CLEAN = clean_rom()
@@ -28,7 +28,6 @@ CLEAN = clean_rom()
 # bank-stacking changes: JSL operand low bytes at the title-CHR hook: the stub is structurally FIRST in the
 # appended bank (offset 0); vanilla operand is 43 8C. Bank byte varies with stacking.
 SIG = [(0x3B820, 0x00), (0x3B821, 0x00)]
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 HOOK = 0x3B81F           # JSL $808C43 in the title CHR loader tail
 HOOK_OLD = bytes.fromhex("22438c80")
 TEXT = f"FrenchName v.{BUNDLE_VERSION}"   # default subtitle (single source: smspaths.BUNDLE_VERSION); override with --text
@@ -201,8 +200,8 @@ def build(src_path, out_path, text=TEXT, style=STYLE, credit=True):
     data[HOOK:HOOK+4] = bytes([0x22, stub_addr & 0xFF, (stub_addr >> 8) & 0xFF, stub_snes_bank])
 
     # header title (keep FrenchName identity) + checksum + pad to power-of-two-ish
-    data[0xFFC0:0xFFD5] = b"\xBE\xB0\xD7\xB0\xD1\xB0\xDDS FrenchName  "
-    data += b"\x00" * ((len(data) + 0x7FFFF) // 0x80000 * 0x80000 - len(data))
+    write_header_title(data)
+    data = pad_to_size_multiple(data)
     fix_checksum(data)
 
     open(out_path, "wb").write(data)

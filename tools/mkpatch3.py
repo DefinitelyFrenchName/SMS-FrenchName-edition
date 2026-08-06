@@ -22,7 +22,7 @@ from hashlib import sha1
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, bigzam_rom, require_source, check_not_inplace, fix_checksum  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, bigzam_rom, require_source, check_not_inplace, fix_checksum, pad_to_size_multiple, write_header_title  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 VENDOR = REPO / "vendor/sms-training-mode"
 
 
@@ -51,7 +51,6 @@ CLEAN = clean_rom()
 # regression suite's SIGS table. ONLY bytes invariant across stub-layout and
 # bank-stacking changes: first bytes of the vendor patcher's 1P palette-map hook (fixed rewrite)
 SIG = [(0x884B, 0xA9), (0x884C, 0x0C), (0x884F, 0x65)]
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 BIGZAM = bigzam_rom()
 BZ_SHA1 = "12114423b278d3114a301c5366a7a1811913ba25"   # donor validation (issue #8)
 BZ_PAL_BASE = 0x2A0000  # palette block in the Big Zam ROM
@@ -112,8 +111,8 @@ def build(src_path, out_path):
                 imported += 1
 
     # 4) Header title + checksum + pad to 4 Mbit boundary (patcher-exact).
-    data[0xFFC0:0xFFD5] = b"\xBE\xB0\xD7\xB0\xD1\xB0\xDDS " + TITLE.ljust(11) + b" "
-    data += b"\x00" * ((len(data) + 0x7FFFF) // 0x80000 * 0x80000 - len(data))
+    write_header_title(data, TITLE)
+    data = pad_to_size_multiple(data)
     fix_checksum(data)
 
     open(out_path, "wb").write(data)

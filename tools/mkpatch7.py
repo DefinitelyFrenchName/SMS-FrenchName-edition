@@ -33,7 +33,6 @@ CLEAN = clean_rom()
 # regression suite's SIGS table. ONLY bytes invariant across stub-layout and
 # bank-stacking changes: the DEFAULT box height 62 — a --h retune changes this byte; rerun mksigs --write
 SIG = [(0xAF0DE, 0x3E)]
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 # Pluto hit table $8A:F0C1 = file 0xAF0C1; box 0x03 at +0x18; height byte at +5.
 H_OFF = 0xAF0C1 + 0x03 * 8 + 5

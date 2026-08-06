@@ -40,7 +40,7 @@ import sys
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, trim_banks, next_bank, write_bank  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, trim_banks, next_bank, write_bank, pad_to_size_multiple  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 import asm65816 as A  # noqa: E402
 
 CLEAN = clean_rom()
@@ -198,7 +198,7 @@ def build(src, out, pcts=(20, 40, 60), all_grabs=False):
     data[TOSS_TAIL:TOSS_TAIL + 7] = jsl + bytes([0xB0, 0x37, 0xEA])
     data[TICK_TAIL:TICK_TAIL + 7] = jsl + bytes([0xB0, 0x03, 0xEA])
 
-    data += b"\x00" * ((len(data) + 0x7FFFF) // 0x80000 * 0x80000 - len(data))
+    data = pad_to_size_multiple(data)
     fix_checksum(data)
     open(out, "wb").write(data)
     print(f"wrote {out} from {src}: pcts={pcts} all_grabs={all_grabs} bank={bank:#04x} "

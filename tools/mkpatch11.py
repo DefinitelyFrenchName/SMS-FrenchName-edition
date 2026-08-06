@@ -35,7 +35,7 @@ import sys
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, trim_banks, next_bank, write_bank  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, trim_banks, next_bank, write_bank, pad_to_size_multiple  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 import asm65816 as A  # noqa: E402
 import hudfont  # noqa: E402
 
@@ -46,7 +46,6 @@ CLEAN = clean_rom()
 # bank-stacking changes: JML opcode at the joy_read hook (vanilla C2; operands vary with stub layout —
 # the old fingerprint pinned them and would have broken on any p11 blob change)
 SIG = [(0x8373, 0x5C)]
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 INP = 0x008373
 INP_OLD = bytes.fromhex("c220a55c")
@@ -1890,7 +1889,7 @@ def build(src, out, stage="tier1"):
     data[INP:INP + 4] = bytes([0x5C, inp_off & 0xFF, (inp_off >> 8) & 0xFF, bank])
     data[UPL2:UPL2 + 4] = bytes([0x5C, upl_off & 0xFF, (upl_off >> 8) & 0xFF, bank])
 
-    data += b"\x00" * ((len(data) + 0x7FFFF) // 0x80000 * 0x80000 - len(data))
+    data = pad_to_size_multiple(data)
     fix_checksum(data)
     open(out, "wb").write(data)
     print(f"wrote {out} from {src}: stage={stage} bank={bank:#04x} "

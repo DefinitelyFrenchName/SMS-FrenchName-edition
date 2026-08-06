@@ -180,3 +180,17 @@ def write_bank(data, bankbase, blob):
         raise SystemExit(f"error: target bank at {bankbase:#x} is already occupied "
                          "(never stack standalone BPS files; chain the builders)")
     data[bankbase:bankbase + len(blob)] = blob
+
+
+def pad_to_size_multiple(data):
+    """Pad the image with zeros to the next 512 KiB multiple (emulators and flips
+    both want power-of-two-ish sizes; single home per the dedup rule, #73)."""
+    data += b"\x00" * ((len(data) + 0x7FFFF) // 0x80000 * 0x80000 - len(data))
+    return data
+
+
+def write_header_title(data, name=b"FrenchName "):
+    """Write the 21-byte internal ROM header title at 0xFFC0: the kana prefix +
+    an 11-char name + one space — the "FrenchName" ROM-ID tell (#73: one home;
+    it was built independently in three builders)."""
+    data[0xFFC0:0xFFD5] = b"\xBE\xB0\xD7\xB0\xD1\xB0\xDDS " + name.ljust(11) + b" "

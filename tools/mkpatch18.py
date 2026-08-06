@@ -54,7 +54,6 @@ CLEAN = clean_rom()
 # suite's SIGS table. A fixed-address byte write in the base region, no stub
 # layout or bank dependency.
 SIG = [(0x03BB9E, 0xA5), (0x03BBA0, 0x3A)]
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 SITE = 0x03BB9E                                    # $C3:BB9E
 OLD = bytes.fromhex("ad021cc902f005a90085 8a60".replace(" ", ""))

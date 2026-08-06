@@ -24,7 +24,7 @@ import sys
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, trim_banks, next_bank, write_bank  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, trim_banks, next_bank, write_bank, pad_to_size_multiple, write_header_title  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 import asm65816 as A  # noqa: E402
 
 CLEAN = clean_rom()
@@ -33,7 +33,6 @@ CLEAN = clean_rom()
 # regression suite's SIGS table. ONLY bytes invariant across stub-layout and
 # bank-stacking changes: JML opcodes at the two HUD hooks (operands vary with bank/stub layout)
 SIG = [(0xD56F, 0x5C), (0xD5E8, 0x5C)]
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 PROD = 0x00D5E8            # hud_producer entry; first bytes C2 10 E2 20
 PROD_OLD = bytes.fromhex("c210e220")
@@ -710,8 +709,8 @@ glok:
     data[UPL:UPL + 4] = bytes([0x5C, flush_off & 0xFF, (flush_off >> 8) & 0xFF, bank])
     # (UPL_OLD was 5 bytes; byte at UPL+4 = 0x08 is orphaned, skipped by the jml)
 
-    data[0xFFC0:0xFFD5] = b"\xBE\xB0\xD7\xB0\xD1\xB0\xDDS FrenchName  "
-    data += b"\x00" * ((len(data) + 0x7FFFF) // 0x80000 * 0x80000 - len(data))
+    write_header_title(data)
+    data = pad_to_size_multiple(data)
     fix_checksum(data)
     open(out, "wb").write(data)
     print(f"wrote {out} from {src}: stage={stage} bank={bank:#04x} "

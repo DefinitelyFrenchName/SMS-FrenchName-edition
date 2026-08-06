@@ -44,7 +44,7 @@ import sys
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, trim_banks, next_bank, write_bank  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, trim_banks, next_bank, write_bank, pad_to_size_multiple  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 import asm65816 as A  # noqa: E402
 from mkpatch12 import MISFIRE  # single source of truth for the primary misfire acts
 
@@ -55,7 +55,6 @@ CLEAN = clean_rom()
 # bank-stacking changes: JML at the FSM hook + JSL opcodes at two melee thunks (operands shift with the
 # stub — pinning one silently skipped all p13 tests when #21 changed the stub)
 SIG = [(0x837B, 0x5C), (0xC09C, 0x22), (0xC16F, 0x22)]
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 # full per-character misfire-act sets (probe_p12_rec harvest: all specials' record+6)
 MISFIRE_SETS = {
@@ -539,7 +538,7 @@ def build(src, out, pcts=(20, 40, 60)):
     data[IND_HOOK:IND_HOOK + 4] = bytes([0x5C, ind_off & 0xFF, (ind_off >> 8) & 0xFF, bank])
     # IND_OLD was 5 bytes; the byte at IND_HOOK+4 (0x20) is orphaned, skipped by the jml
 
-    data += b"\x00" * ((len(data) + 0x7FFFF) // 0x80000 * 0x80000 - len(data))
+    data = pad_to_size_multiple(data)
     fix_checksum(data)
     open(out, "wb").write(data)
     print(f"wrote {out} from {src}: pcts={pcts} bank={bank:#04x} fsm={len(fsm_body)}B "

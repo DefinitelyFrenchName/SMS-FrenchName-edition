@@ -48,7 +48,6 @@ sys.path.insert(0, str(REPO / "tools" / "saturn"))
 from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, supers_bytes
 import supers_lz as LZ
 
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 # ---- SMS side -----------------------------------------------------------
 SMS_RECORDS = 0x02DC          # asset record 0, in bank $E0

@@ -33,7 +33,7 @@ import sys
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent  # repo root (cwd-independent)
 sys.path.insert(0, str(REPO / "tools"))
-from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, trim_banks, next_bank, write_bank  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
+from smspaths import clean_rom, require_source, check_not_inplace, fix_checksum, trim_banks, next_bank, write_bank, pad_to_size_multiple  # ROM location: $SMS_ROM_DIR -> roms/ -> ../roms/
 import asm65816 as A  # noqa: E402
 
 CLEAN = clean_rom()
@@ -42,7 +42,6 @@ CLEAN = clean_rom()
 # regression suite's SIGS table. ONLY bytes invariant across stub-layout and
 # bank-stacking changes: JML opcode at the joy_read hook (vanilla 45; operands are stub-layout-dependent)
 SIG = [(0x8377, 0x5C)]
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 HOOK = 0x008377
 HOOK_OLD = bytes.fromhex("4564255c")   # eor $64 / and $5C (P1 edge derivation)
@@ -145,7 +144,7 @@ def build(src, out):
     write_bank(data, bankbase, blob)   # 64K-fit + virgin-bank guards (#27)
     data[HOOK:HOOK + 4] = bytes([0x5C, off & 0xFF, (off >> 8) & 0xFF, bank])
 
-    data += b"\x00" * ((len(data) + 0x7FFFF) // 0x80000 * 0x80000 - len(data))
+    data = pad_to_size_multiple(data)
     fix_checksum(data)
     open(out, "wb").write(data)
     print(f"wrote {out} from {src}: bank={bank:#04x} stub={len(body)}B "

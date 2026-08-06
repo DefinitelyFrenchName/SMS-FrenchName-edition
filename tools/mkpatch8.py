@@ -42,7 +42,6 @@ CLEAN = clean_rom()
 # regression suite's SIGS table. ONLY bytes invariant across stub-layout and
 # bank-stacking changes: the DEFAULT --extra 1 script byte; rerun mksigs --write after retuning
 SIG = [(0x16C70, 0x01)]
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 # Venus throw-hold animation script at $C1:6C53 (file 0x16C53), 8-byte entries per anim step.
 # Hold steps = entries 1..5; byte5 of each entry gates mash sampling for that step.

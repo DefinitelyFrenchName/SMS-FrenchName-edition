@@ -27,7 +27,6 @@ CLEAN = clean_rom()
 # bank-stacking changes: the DEFAULT dash speed 0x0640 — a --speed retune changes these bytes; rerun
 # tools/mksigs.py --write after retuning or detection reads p5 absent
 SIG = [(0x188EA, 0x40), (0x188EB, 0x06)]
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 SITE = 0x188E9              # LDA #$0B00  (dash X-speed)
 OLD = bytes.fromhex("a9000b")
 NEW_SPEED = 0x0640          # 6.25 px/f  (~ -1/3 distance: 121px -> 82px)

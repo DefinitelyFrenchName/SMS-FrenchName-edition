@@ -35,7 +35,6 @@ CLEAN = clean_rom()
 # suite's SIGS table. All three edits are fixed-address byte writes with no
 # stub layout or bank dependency, so any of them is a stable signature.
 SIG = [(0x03A863, 0xEA), (0x03A880, 0x80)]
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 # (file offset, expected bytes, replacement) — all inside the mode-row handler
 EDITS = (

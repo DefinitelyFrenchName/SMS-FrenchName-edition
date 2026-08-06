@@ -67,7 +67,6 @@ CLEAN = clean_rom()
 # with no stub layout or bank dependency; the pool edit is deliberately NOT in
 # the signature, since it is conditional on patch 3 being in the image.
 SIG = [(0x03BADE, 0x9C)]
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 # --- edit 1: the menu bound -------------------------------------------------
 # anchor covers the whole latch so a shifted/rebuilt image cannot match by luck

@@ -36,7 +36,6 @@ CLEAN = clean_rom()
 # regression suite's SIGS table. ONLY bytes invariant across stub-layout and
 # bank-stacking changes: jsl $C1:BE85 at the box-index writer (stub address is FIXED)
 SIG = [(0x9CCD, 0x22), (0x9CCE, 0x85), (0x9CCF, 0xBE)]
-CLEAN_SHA1 = "bc0e29ee383574443226695215496eb0d09aaa1c"
 
 HOOK = 0x09CCD                       # sta $41,X ; lda ($10),Y   (C0:9CCD)
 HOOK_OLD = bytes.fromhex("9541b110")
