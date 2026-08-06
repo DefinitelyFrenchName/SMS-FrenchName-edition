@@ -168,6 +168,7 @@ emu.addEventCallback(function()
     for x = 0, 0x1FFFF do wt[#wt + 1] = string.char(emu.read(x, WRAM)) end
     wf:write(table.concat(wt)); wf:close()
     local sfp = io.open(ENV.TRACE .. "saturn/movelist_" .. TAG .. ".png", "wb")
+    if not sfp then print("probe_sms_movelist.lua: cannot open " .. (ENV.TRACE .. "saturn/movelist_" .. TAG .. ".png")) emu.stop(1) return end
     sfp:write(emu.takeScreenshot()); sfp:close()
     log("VRAM + screenshot dumped")
     log("done")

@@ -4,9 +4,9 @@ local WRAM = emu.memType.snesWorkRam
 local function r(a) return emu.read(a, WRAM) end
 local t, needLoad = -1, true
 local FALSE = { a=false,b=false,x=false,y=false,l=false,r=false,up=false,down=false,left=false,right=false,start=false,select=false }
-local log = io.open(TRACE.."probe_cc.txt","w")
+local log = assert(io.open(TRACE.."probe_cc.txt","w"), "probe_cc.lua: cannot open " .. (TRACE.."probe_cc.txt"))
 emu.addMemoryCallback(function()
-  if needLoad then local f=io.open(TRACE.."venus_vs_jupiter_clean.mss","rb"); if not f then return end
+  if needLoad then local f = io.open(TRACE.."venus_vs_jupiter_clean.mss","rb") if not f then print("probe_cc.lua: cannot open " .. (TRACE.."venus_vs_jupiter_clean.mss")) emu.stop(1) return end
     emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
 end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)
 emu.addEventCallback(function()
@@ -26,7 +26,7 @@ emu.addEventCallback(function()
     log:write(string.format("t=%d p2hp=%02X my_hits(P2def)=%d ttl=%d shown=%d\n",
       t, r(0x10C9), r(0x08B0), r(0x08B2), r(0x08B3))); log:flush()
   end
-  if t==92 then local f=io.open(TRACE.."cc_full_shot.png","wb"); f:write(emu.takeScreenshot()); f:close() end
+  if t==92 then local f = io.open(TRACE.."cc_full_shot.png","wb") if not f then print("probe_cc.lua: cannot open " .. (TRACE.."cc_full_shot.png")) emu.stop(1) return end f:write(emu.takeScreenshot()); f:close() end
   if t==110 then log:close(); emu.stop(0) end
   t=t+1
 end, emu.eventType.endFrame)

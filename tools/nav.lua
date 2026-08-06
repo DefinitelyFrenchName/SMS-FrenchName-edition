@@ -3,7 +3,7 @@
 -- Screenshots dumped every SHOT_EVERY frames between SHOT_FROM and SHOT_TO.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE = ENV.TRACE
-local log = io.open(TRACE .. "nav.txt", "w")
+local log = assert(io.open(TRACE .. "nav.txt", "w"), "nav.lua: cannot open " .. (TRACE .. "nav.txt"))
 local frames = 0
 
 -- dofile the schedule so this harness stays fixed

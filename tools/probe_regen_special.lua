@@ -29,6 +29,7 @@ local ctx = main.run(ROOT, {
 
 ctx.onFirstExec = function(c)
   local f = io.open(TRACE .. "neptune_vs_jupiter.mss", "rb")
+  if not f then print("probe_regen_special.lua: cannot open " .. (TRACE .. "neptune_vs_jupiter.mss")) emu.stop(1) return end
   c.anchor.loadreq = f:read("*a"); f:close()
 end
 
@@ -36,7 +37,7 @@ local CLSNAME = {}
 for k, v in pairs(ctx.C.CLS) do CLSNAME[v] = k end
 
 local MAXT = 620
-local log = io.open(TRACE .. "probe_regen_special.txt", "w")
+local log = assert(io.open(TRACE .. "probe_regen_special.txt", "w"), "probe_regen_special.lua: cannot open " .. (TRACE .. "probe_regen_special.txt"))
 local prevHp = nil
 
 table.insert(ctx.hooks.frame, function(c)

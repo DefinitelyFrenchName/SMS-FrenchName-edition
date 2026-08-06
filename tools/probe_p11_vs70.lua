@@ -13,7 +13,7 @@ emu.addEventCallback(function()
   t = t + 1
   if t == 5 then
     local function r(a) return emu.read(a, emu.memType.snesWorkRam) end
-    io.open(TRACE .. "p11_vs70.txt", "w"):write(string.format(
+    local __f = io.open(TRACE .. "p11_vs70.txt", "w") if not __f then print("probe_p11_vs70.lua: cannot open " .. (TRACE .. "p11_vs70.txt")) emu.stop(1) return end __f:write(string.format(
       "VS state: mode=%02X f0070=%02X f01FA=%02X\n", r(0x8D), r(0x70), r(0x1FA))):close()
     emu.stop(0)
   end

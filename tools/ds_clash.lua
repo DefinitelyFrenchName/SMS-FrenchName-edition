@@ -17,7 +17,7 @@ local function w8(a) return emu.read(a, WRAM) end
 local function b8(a) return emu.read(a, BUS) end
 local function b16(a) return b8(a) + 256 * b8(a + 1) end
 local function sgn(v) return v > 127 and v - 256 or v end
-local log = io.open(TRACE .. OUT, "w")
+local log = assert(io.open(TRACE .. OUT, "w"), "ds_clash.lua: cannot open " .. (TRACE .. OUT))
 local PT_HIT = 0x8AC1F1
 
 local P1 = { [8]={down=true},[11]={down=true,left=true},[14]={left=true,y=true},[17]={} }
@@ -26,7 +26,9 @@ local c1, a1, c2, a2 = {}, -1, {}, -1
 
 emu.addMemoryCallback(function()
   if not loaded then
-    local f = io.open(TRACE .. STATE, "rb"); local ss = f:read("*a"); f:close()
+    local f = io.open(TRACE .. STATE, "rb")
+    if not f then print("ds_clash.lua: cannot open " .. (TRACE .. STATE)) emu.stop(1) return end
+    local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss); loaded = true; t = 0
   end
 end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)

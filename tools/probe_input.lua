@@ -4,7 +4,7 @@
 -- frame 59..70 taken at the TOP of inputPolled. Sticky => {y} persists past 63.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE = ENV.TRACE
-local log = io.open(TRACE .. "probe_input.txt", "w")
+local log = assert(io.open(TRACE .. "probe_input.txt", "w"), "probe_input.lua: cannot open " .. (TRACE .. "probe_input.txt"))
 local t, needLoad = -1, true
 local FALSE = { a=false,b=false,x=false,y=false,l=false,r=false,
                 up=false,down=false,left=false,right=false,start=false,select=false }
@@ -12,7 +12,7 @@ local FALSE = { a=false,b=false,x=false,y=false,l=false,r=false,
 emu.addMemoryCallback(function()
   if needLoad then
     local f = io.open(TRACE .. "venus_vs_jupiter_clean.mss", "rb")
-    if not f then return end
+    if not f then print("probe_input.lua: cannot open " .. (TRACE .. "venus_vs_jupiter_clean.mss")) emu.stop(1) return end
     local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss)
     needLoad = false; t = 0

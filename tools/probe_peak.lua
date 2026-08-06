@@ -12,10 +12,10 @@ local function plan(t)
   local o={}; for k,v in pairs(FALSE) do o[k]=v end; for k,v in pairs(best) do o[k]=v end; return o
 end
 local t, needLoad = -1, true
-local log=io.open(TRACE.."probe_peak.txt","w")
+local log = assert(io.open(TRACE.."probe_peak.txt","w"), "probe_peak.lua: cannot open " .. (TRACE.."probe_peak.txt"))
 local shotDone=false
 emu.addMemoryCallback(function()
-  if needLoad then local f=io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb"); if not f then return end
+  if needLoad then local f = io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb") if not f then print("probe_peak.lua: cannot open " .. (TRACE.."uranus_vs_jupiter_v07.mss")) emu.stop(1) return end
     emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
 end, emu.callbackType.exec, 0x808353,0x808353, emu.cpuType.snes, emu.memType.snesMemory)
 emu.addEventCallback(function()
@@ -30,7 +30,9 @@ emu.addEventCallback(function()
     log:write(string.format("t=%d hits=%d shown=%d\n",t,h,emu.read(0x08B3,WRAM))); log:flush()
     if t>=126 and t<=130 then log:write(string.format("  stgL: %02X%02X %02X%02X %02X%02X %02X%02X dirty=%02X\n", emu.read(0x08D2,WRAM),emu.read(0x08D1,WRAM), emu.read(0x08D4,WRAM),emu.read(0x08D3,WRAM), emu.read(0x08D6,WRAM),emu.read(0x08D5,WRAM), emu.read(0x08D8,WRAM),emu.read(0x08D7,WRAM), emu.read(0x08D0,WRAM))) end
     if t==128 and not shotDone then
-      local f=io.open(TRACE.."cc_peak_shot.png","wb"); f:write(emu.takeScreenshot()); f:close(); shotDone=true
+      local f = io.open(TRACE.."cc_peak_shot.png","wb")
+      if not f then print("probe_peak.lua: cannot open " .. (TRACE.."cc_peak_shot.png")) emu.stop(1) return end
+      f:write(emu.takeScreenshot()); f:close(); shotDone=true
     end
   end
   if t==140 then log:close(); emu.stop(0) end

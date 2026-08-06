@@ -28,7 +28,7 @@ end
 emu.addEventCallback(function()
   t = t + 1
   if t == 700 then
-    local f = io.open(TRACE .. "titleppu_" .. TAG .. ".txt", "w")
+    local f = assert(io.open(TRACE .. "titleppu_" .. TAG .. ".txt", "w"), "probe_title_ppu.lua: cannot open " .. (TRACE .. "titleppu_" .. TAG .. ".txt"))
     local st = emu.getState()
     dumpTable(f, st, "")
     f:close()

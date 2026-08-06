@@ -65,7 +65,9 @@ emu.addEventCallback(function()
     -- and keep the buffer itself, to prove it is the font
     local b = {}
     for a = 0x7E3000, 0x7E3FFF do b[#b + 1] = string.char(emu.read(a, MEMT) or 0) end
-    local f = io.open(DIR .. "font_wram.bin", "wb"); f:write(table.concat(b)); f:close()
+    local f = io.open(DIR .. "font_wram.bin", "wb")
+    if not f then print("probe_menu_font.lua: cannot open " .. (DIR .. "font_wram.bin")) emu.stop(1) return end
+    f:write(table.concat(b)); f:close()
   end
   if frames > 1320 then log("done"); emu.stop(0) end
 end, emu.eventType.endFrame)

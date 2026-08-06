@@ -3,7 +3,7 @@ local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: too
 print("ROOT  = " .. ENV.ROOT)
 print("TOOLS = " .. ENV.TOOLS)
 print("TRACE = " .. ENV.TRACE)
-local f = io.open(ENV.TRACE .. "smsenv_probe.txt", "w")
+local f = assert(io.open(ENV.TRACE .. "smsenv_probe.txt", "w"), "probe_smsenv.lua: cannot open " .. (ENV.TRACE .. "smsenv_probe.txt"))
 f:write("ok\n"); f:close()
 print("write to TRACE: OK")
 local c = ENV.cfg("does_not_exist_cfg.lua")

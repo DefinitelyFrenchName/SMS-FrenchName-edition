@@ -35,13 +35,15 @@ local FALSE = { a=false,b=false,x=false,y=false,l=false,r=false,
                 up=false,down=false,left=false,right=false,start=false,select=false }
 
 local t, playStart = 0, WARMUP + 1
-local log = io.open(OUT, "w")
+local log = assert(io.open(OUT, "w"), "probe_p10_vs.lua: cannot open " .. (OUT))
 local first = {}   -- first frame each pipeline stage fires
 
 local __loaded = false
 emu.addMemoryCallback(function()
   if not __loaded then
-    local f = io.open(STATE, "rb"); local ss = f:read("*a"); f:close()
+    local f = io.open(STATE, "rb")
+    if not f then print("probe_p10_vs.lua: cannot open " .. (STATE)) emu.stop(1) return end
+    local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss); __loaded = true
     t = 0; playStart = WARMUP + 1
   end

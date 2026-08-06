@@ -5,7 +5,7 @@
 -- Headless: ROM=<clean> tools/run.sh tools/probe_api.lua 90 → traces/probe_api.txt
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE = ENV.TRACE
-local log = io.open(TRACE .. "probe_api.txt", "w")
+local log = assert(io.open(TRACE .. "probe_api.txt", "w"), "probe_api.lua: cannot open " .. (TRACE .. "probe_api.txt"))
 local function L(s) log:write(s .. "\n"); log:flush() end
 local WRAM = emu.memType.snesWorkRam
 local function r(a) return emu.read(a, WRAM) end

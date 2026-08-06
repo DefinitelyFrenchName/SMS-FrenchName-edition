@@ -15,7 +15,7 @@ local function drawbox(sx,sy,addr,col)
   emu.drawRectangle(sx+xo,sy+yo,w,h,0xC8000000+col,true); emu.drawRectangle(sx+xo,sy+yo,w,h,col,false)
 end
 emu.addMemoryCallback(function()
-  if needLoad then local f=io.open(TRACE.."neptune_vs_jupiter.mss","rb"); if not f then return end
+  if needLoad then local f = io.open(TRACE.."neptune_vs_jupiter.mss","rb") if not f then print("probe_vfix.lua: cannot open " .. (TRACE.."neptune_vs_jupiter.mss")) emu.stop(1) return end
     emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
 end, emu.callbackType.exec,0x808353,0x808353,emu.cpuType.snes,emu.memType.snesMemory)
 emu.addEventCallback(function()
@@ -44,7 +44,7 @@ emu.addEventCallback(function()
     if hb~=0 then drawbox(sx,sy,hit+hb*8,0xE03028) end
     emu.drawString(4,20,string.format("%s t=%d hb=%d hub=%d",BEFORE and "BEFORE(garbage hurt)" or "AFTER(fix)",t,hb,hub),0xFFFF00,0)
   end
-  if t==100 then local f=io.open(TRACE..(VOUT or "vfix.png"),"wb"); f:write(emu.takeScreenshot()); f:close(); emu.stop(0) end
+  if t==100 then local f = io.open(TRACE..(VOUT or "vfix.png"),"wb") if not f then print("probe_vfix.lua: cannot open " .. (TRACE..(VOUT or "vfix.png"))) emu.stop(1) return end f:write(emu.takeScreenshot()); f:close(); emu.stop(0) end
   t=t+1
 end, emu.eventType.endFrame)
 print("vfix loaded")

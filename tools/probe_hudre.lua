@@ -5,7 +5,7 @@
 -- USE: ROM=<clean> tools/run.sh tools/probe_hudre.lua 90 → traces/probe_hudre.txt
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE = ENV.TRACE
-local log = io.open(TRACE .. "probe_hudre.txt", "w")
+local log = assert(io.open(TRACE .. "probe_hudre.txt", "w"), "probe_hudre.lua: cannot open " .. (TRACE .. "probe_hudre.txt"))
 local WRAM = emu.memType.snesWorkRam
 local function r(a) return emu.read(a, WRAM) end
 local t, needLoad = -1, true
@@ -22,7 +22,7 @@ end
 emu.addMemoryCallback(function()
   if needLoad then
     local f = io.open(TRACE .. "venus_vs_jupiter_clean.mss", "rb")
-    if not f then return end
+    if not f then print("probe_hudre.lua: cannot open " .. (TRACE .. "venus_vs_jupiter_clean.mss")) emu.stop(1) return end
     local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss)
     needLoad = false; t = 0

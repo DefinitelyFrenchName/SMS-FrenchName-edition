@@ -85,6 +85,7 @@ local STEPS = {
       log(string.format("pre-throw: p1=%02X act=%02X  dummy=%02X act=%02X",
         ram(0x1000), ram(0x1001), ram(0x1080), ram(0x1081)))
       local f = io.open(ENV.TRACE .. "saturn/throwbug_before.png", "wb")
+      if not f then print("probe_sms_throwbug.lua: cannot open " .. (ENV.TRACE .. "saturn/throwbug_before.png")) emu.stop(1) return end
       f:write(emu.takeScreenshot()); f:close()
     end
     pulse[0] = { right = true }
@@ -104,6 +105,7 @@ local STEPS = {
     end
     if sf == 60 or sf == 120 then
       local f = io.open(ENV.TRACE .. "saturn/throwbug_" .. sf .. ".png", "wb")
+      if not f then print("probe_sms_throwbug.lua: cannot open " .. (ENV.TRACE .. "saturn/throwbug_" .. sf .. ".png")) emu.stop(1) return end
       f:write(emu.takeScreenshot()); f:close()
     end
     if sf > 130 then

@@ -50,6 +50,7 @@ emu.addEventCallback(function()
     labelUploads = uploads - idleUploads
     local ok = idleUploads <= 2 and labelUploads >= 1
     local log = io.open(OUT, "w")
+    if not log then print("probe_p93_glyphdma.lua: cannot open " .. (OUT)) emu.stop(1) return end
     log:write(string.format(
       "idle uploads (300f)=%d  uploads after label=%d -> %s\n",
       idleUploads, labelUploads,

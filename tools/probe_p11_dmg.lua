@@ -61,7 +61,9 @@ emu.addEventCallback(function()
   if t == 96 then pulse[0] = nil end
   if t == 150 then
     live("mode5jab"); log(string.format("verdict5 p2hp=%02X p2act=%02X bar2=%02X", ram(0x10C9), ram(0x1081), ram(0x801)))
-    local f = io.open(TRACE .. "p11_dmg_mode5.png", "wb"); f:write(emu.takeScreenshot()); f:close()
+    local f = io.open(TRACE .. "p11_dmg_mode5.png", "wb")
+    if not f then print("probe_p11_dmg.lua: cannot open " .. (TRACE .. "p11_dmg_mode5.png")) emu.stop(1) return end
+    f:write(emu.takeScreenshot()); f:close()
   end
   if t == 160 then wr(0x8D, 0x04); log("poke $8D->04") end
   if t == 200 then live("backto4"); log("done"); emu.stop(0) end

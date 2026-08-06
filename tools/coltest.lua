@@ -45,14 +45,19 @@ local dump = false
 emu.addMemoryCallback(function()
   if dump then
     local cf = io.open(TRACE .. "cg_" .. TAG .. ".bin", "wb")
+    if not cf then print("coltest.lua: cannot open " .. (TRACE .. "cg_" .. TAG .. ".bin")) emu.stop(1) return end
     local t = {}
     for a = 0, 0x1FF do t[#t+1] = string.char(emu.read(a, emu.memType.snesCgRam)) end
     cf:write(table.concat(t)); cf:close()
     -- also screenshot for eyeball
-    local sfp = io.open(TRACE .. "cg_" .. TAG .. ".png", "wb"); sfp:write(emu.takeScreenshot()); sfp:close()
+    local sfp = io.open(TRACE .. "cg_" .. TAG .. ".png", "wb")
+    if not sfp then print("coltest.lua: cannot open " .. (TRACE .. "cg_" .. TAG .. ".png")) emu.stop(1) return end
+    sfp:write(emu.takeScreenshot()); sfp:close()
     if SAVE then
       local ss = emu.createSavestate()
-      local so = io.open(TRACE .. SAVE, "wb"); so:write(ss); so:close()
+      local so = io.open(TRACE .. SAVE, "wb")
+      if not so then print("coltest.lua: cannot open " .. (TRACE .. SAVE)) emu.stop(1) return end
+      so:write(ss); so:close()
       print("savestate: " .. SAVE .. " len=" .. #ss)
     end
     print("CGRAM dumped: " .. TAG)

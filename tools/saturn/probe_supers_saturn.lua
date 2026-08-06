@@ -55,8 +55,12 @@ emu.addMemoryCallback(function()
     end
     log(string.format("mode 8D=%02X inmatch 70=%02X clock=%02X%02X frame=%02X", ram(0x8D), ram(0x70), ram(0x804), ram(0x803), ram(0x802)))
     local ss = emu.createSavestate()
-    local so = io.open(ENV.TRACE .. "saturn/saturn_vs_uranus_supers.mss", "wb"); so:write(ss); so:close()
-    local sp = io.open(ENV.TRACE .. "saturn/saturn_vs_uranus_supers.png", "wb"); sp:write(emu.takeScreenshot()); sp:close()
+    local so = io.open(ENV.TRACE .. "saturn/saturn_vs_uranus_supers.mss", "wb")
+    if not so then print("probe_supers_saturn.lua: cannot open " .. (ENV.TRACE .. "saturn/saturn_vs_uranus_supers.mss")) emu.stop(1) return end
+    so:write(ss); so:close()
+    local sp = io.open(ENV.TRACE .. "saturn/saturn_vs_uranus_supers.png", "wb")
+    if not sp then print("probe_supers_saturn.lua: cannot open " .. (ENV.TRACE .. "saturn/saturn_vs_uranus_supers.png")) emu.stop(1) return end
+    sp:write(emu.takeScreenshot()); sp:close()
     log("savestate len=" .. #ss)
     emu.stop(0)
   end

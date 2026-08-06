@@ -119,6 +119,7 @@ emu.addEventCallback(function()
     local d = frames - armed_at
     if d == 60 or d == 110 or d == 160 or d == 210 or d == 260 or d == 320 then
       local f = io.open(ENV.TRACE .. "saturn/entrance_" .. d .. ".png", "wb")
+      if not f then print("probe_sms_transform_timing.lua: cannot open " .. (ENV.TRACE .. "saturn/entrance_" .. d .. ".png")) emu.stop(1) return end
       f:write(emu.takeScreenshot()); f:close()
     end
   end

@@ -3,13 +3,13 @@
 -- traces/probe_hud.png for visual inspection. Headless-friendly.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE = ENV.TRACE
-local log = io.open(TRACE .. "probe_hud.txt", "w")
+local log = assert(io.open(TRACE .. "probe_hud.txt", "w"), "probe_hud.lua: cannot open " .. (TRACE .. "probe_hud.txt"))
 local t, needLoad = -1, true
 
 emu.addMemoryCallback(function()
   if needLoad then
     local f = io.open(TRACE .. "venus_vs_jupiter_clean.mss", "rb")
-    if not f then return end
+    if not f then print("probe_hud.lua: cannot open " .. (TRACE .. "venus_vs_jupiter_clean.mss")) emu.stop(1) return end
     local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss)
     needLoad = false; t = 0
@@ -51,7 +51,9 @@ emu.addEventCallback(function()
   end
   if t == 55 then
     local shot = emu.takeScreenshot()
-    local f = io.open(TRACE .. "probe_hud.png", "wb"); f:write(shot); f:close()
+    local f = io.open(TRACE .. "probe_hud.png", "wb")
+    if not f then print("probe_hud.lua: cannot open " .. (TRACE .. "probe_hud.png")) emu.stop(1) return end
+    f:write(shot); f:close()
     log:write("screenshot bytes=" .. tostring(#shot) .. "\n"); log:flush()
   end
   if t == 62 then log:close(); emu.stop(0) end

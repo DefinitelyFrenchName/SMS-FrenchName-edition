@@ -89,7 +89,7 @@ local STEPS = {
     end
     if sf > 26 and sf <= 150 and (sf % 8 == 0) then snap("obs-" .. at.name) end
     if at.shot and sf == 100 then
-      local sp = io.open(TRACE .. shotName, "wb"); sp:write(emu.takeScreenshot()); sp:close()
+      local sp = assert(io.open(TRACE .. shotName, "wb"), "probe_p11_lr.lua: cannot open " .. (TRACE .. shotName)); sp:write(emu.takeScreenshot()); sp:close()
       log("SCREENSHOT " .. shotName .. " menu=" .. ram(0x1F005))
     end
     if sf == 150 then

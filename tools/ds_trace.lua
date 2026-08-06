@@ -10,7 +10,7 @@ BTN   = BTN or "y"          -- y = LP (214LP), x = HP (214HP)
 OUT   = OUT or "ds_trace.txt"
 MAXT  = MAXT or 130
 
-local log = io.open(TRACE .. OUT, "w")
+local log = assert(io.open(TRACE .. OUT, "w"), "ds_trace.lua: cannot open " .. (TRACE .. OUT))
 local loaded, t = false, -1
 local function ram(a) return emu.read(a, emu.memType.snesWorkRam) end
 local function s16(lo, hi) local v = lo + 256 * hi; return v >= 32768 and v - 65536 or v end
@@ -27,7 +27,9 @@ local cur, applied = {}, -1
 
 emu.addMemoryCallback(function()
   if not loaded then
-    local f = io.open(TRACE .. STATE, "rb"); local ss = f:read("*a"); f:close()
+    local f = io.open(TRACE .. STATE, "rb")
+    if not f then print("ds_trace.lua: cannot open " .. (TRACE .. STATE)) emu.stop(1) return end
+    local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss); loaded = true; t = 0
   end
 end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)

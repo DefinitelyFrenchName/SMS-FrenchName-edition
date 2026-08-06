@@ -151,8 +151,10 @@ local function palcensus()
       t, n6, lo, hi, ram(0x1001), ram(0x1081)))
     log("PAL6 ROW: " .. table.concat(cols, " "))
     if pal6shot == 1 then
-      local f = io.open(ENV.TRACE .. "saturn/pal6_" .. SEED
-        .. (os.getenv("VANILLA") == "1" and "_vanilla" or "_saturn") .. ".png", "wb")
+      local p = ENV.TRACE .. "saturn/pal6_" .. SEED
+        .. (os.getenv("VANILLA") == "1" and "_vanilla" or "_saturn") .. ".png"
+      local f = io.open(p, "wb")
+      if not f then print("probe_sms_stress.lua: cannot open " .. p) emu.stop(1) return end
       f:write(emu.takeScreenshot()); f:close()
     end
   end

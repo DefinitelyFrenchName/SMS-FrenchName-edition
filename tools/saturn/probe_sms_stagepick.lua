@@ -229,6 +229,7 @@ local STEPS = {
       local buf = {}
       for a = 0, n - 1 do buf[#buf + 1] = string.char(emu.read(a, emu.memType.snesWorkRam)) end
       local f = io.open(ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_wram" .. sf .. ".bin", "wb")
+      if not f then print("probe_sms_stagepick.lua: cannot open " .. (ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_wram" .. sf .. ".bin")) emu.stop(1) return end
       f:write(table.concat(buf)); f:close()
       -- and all of VRAM, so each PLANE can be rendered separately offline: which
       -- tilemap holds the palace and which the ground is not readable off the
@@ -237,6 +238,7 @@ local STEPS = {
       local vb = {}
       for a = 0, 0xFFFF do vb[#vb + 1] = string.char(emu.read(a, emu.memType.snesVideoRam) or 0) end
       local vf = io.open(ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_vram" .. sf .. ".bin", "wb")
+      if not vf then print("probe_sms_stagepick.lua: cannot open " .. (ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_vram" .. sf .. ".bin")) emu.stop(1) return end
       vf:write(table.concat(vb)); vf:close()
       local ok, ob = pcall(function()
         local t = {}
@@ -245,6 +247,7 @@ local STEPS = {
       end)
       if ok then
         local g = io.open(ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_oam" .. sf .. ".bin", "wb")
+        if not g then print("probe_sms_stagepick.lua: cannot open " .. (ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_oam" .. sf .. ".bin")) emu.stop(1) return end
         g:write(ob); g:close()
       else
         log("  (OAM unavailable: " .. tostring(ob) .. ")")
@@ -253,12 +256,14 @@ local STEPS = {
     if (sf == 118 or sf == 132 or sf == 145 or sf == 175) and shots < 4 then
       shots = shots + 1
       local f = io.open(ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_" .. sf .. ".png", "wb")
+      if not f then print("probe_sms_stagepick.lua: cannot open " .. (ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_" .. sf .. ".png")) emu.stop(1) return end
       f:write(emu.takeScreenshot()); f:close()
       -- CGRAM too: colour 0 is the BACKDROP, which no palette record carries and
       -- which a stage's sky may well be showing through transparent tiles
       local cg = {}
       for a = 0, 0x1FF do cg[#cg + 1] = string.char(emu.read(a, emu.memType.snesCgRam) or 0) end
       local cf = io.open(ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_cgram" .. sf .. ".bin", "wb")
+      if not cf then print("probe_sms_stagepick.lua: cannot open " .. (ENV.TRACE .. "saturn/stagejump_" .. TAG .. "_cgram" .. sf .. ".bin")) emu.stop(1) return end
       cf:write(table.concat(cg)); cf:close()
     end
     return sf > 205

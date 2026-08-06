@@ -31,10 +31,14 @@ emu.addEventCallback(function()
   if t >= 62 and t <= 110 then pulse[0] = { down = true } end
   if t == 111 then pulse[0] = nil end
   if t == 95 then
-    local f = io.open(TRACE .. "p11_demo_show.png", "wb"); f:write(emu.takeScreenshot()); f:close()
+    local f = io.open(TRACE .. "p11_demo_show.png", "wb")
+    if not f then print("probe_p11_demo.lua: cannot open " .. (TRACE .. "p11_demo_show.png")) emu.stop(1) return end
+    f:write(emu.takeScreenshot()); f:close()
   end
   if t == 115 then
-    local f = io.open(TRACE .. "p11_demo_adv.png", "wb"); f:write(emu.takeScreenshot()); f:close()
+    local f = io.open(TRACE .. "p11_demo_adv.png", "wb")
+    if not f then print("probe_p11_demo.lua: cannot open " .. (TRACE .. "p11_demo_adv.png")) emu.stop(1) return end
+    f:write(emu.takeScreenshot()); f:close()
     emu.stop(0)
   end
 end, emu.eventType.endFrame)

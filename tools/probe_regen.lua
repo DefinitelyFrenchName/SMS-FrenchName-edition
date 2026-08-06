@@ -6,16 +6,18 @@ local ctxRef
 local main=dofile(ROOT.."training/main.lua")
 ctxRef=main.run(ROOT,{headless=true, modules={"gamestate","input","framedata","combo","regen"},
   padSource=function() return FALSE end})
-ctxRef.onFirstExec=function(ctx) local f=io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb"); ctx.anchor.loadreq=f:read("*a"); f:close() end
+ctxRef.onFirstExec=function(ctx) local f = io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb") if not f then print("probe_regen.lua: cannot open " .. (TRACE.."uranus_vs_jupiter_v07.mss")) emu.stop(1) return end ctx.anchor.loadreq=f:read("*a"); f:close() end
 local function cw(w) return emu.read(w*2,VRAM)+emu.read(w*2+1,VRAM)*256 end
 local function p2bar() local o={}; for i=18,29 do o[#o+1]=string.format("%04X",cw(0x1060+i)) end; return table.concat(o," ") end
-local log=io.open(TRACE.."probe_regen.txt","w")
+local log = assert(io.open(TRACE.."probe_regen.txt","w"), "probe_regen.lua: cannot open " .. (TRACE.."probe_regen.txt"))
 table.insert(ctxRef.hooks.frame, function(ctx)
   local t=ctx.t
   if t==30 then emu.write(0x10C9,0x26,WRAM) end     -- damage P2 (struct) -> bar drains red
   if t==75 then log:write("damaged: "..p2bar().." hp="..string.format("%02X",emu.read(0x10C9,WRAM)).."\n") end
   -- regen heals after 120 idle frames (~t=195); dump + shot after
   if t==210 then log:write("after regen: "..p2bar().." hp="..string.format("%02X",emu.read(0x10C9,WRAM)).."\n")
-    local f=io.open(TRACE.."regen_fixed.png","wb"); f:write(emu.takeScreenshot()); f:close(); log:close(); emu.stop(0) end
+    local f = io.open(TRACE.."regen_fixed.png","wb")
+    if not f then print("probe_regen.lua: cannot open " .. (TRACE.."regen_fixed.png")) emu.stop(1) return end
+    f:write(emu.takeScreenshot()); f:close(); log:close(); emu.stop(0) end
 end)
 print("regen loaded")

@@ -19,7 +19,9 @@ local cur, applied = {}, -1
 
 emu.addMemoryCallback(function()
   if not loaded then
-    local f = io.open(TRACE .. STATE, "rb"); local ss = f:read("*a"); f:close()
+    local f = io.open(TRACE .. STATE, "rb")
+    if not f then print("ds_overlay.lua: cannot open " .. (TRACE .. STATE)) emu.stop(1) return end
+    local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss); loaded = true; t = 0
   end
 end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)

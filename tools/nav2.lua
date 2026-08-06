@@ -12,7 +12,7 @@ local frames = 0
 local stepIdx = 1
 local stepFrame = 0
 local pulsing = {}    -- port -> btn
-local log = io.open(TRACE .. "nav2.txt", "w")
+local log = assert(io.open(TRACE .. "nav2.txt", "w"), "nav2.lua: cannot open " .. (TRACE .. "nav2.txt"))
 
 local function ram(addr) return emu.read(addr, emu.memType.snesWorkRam) end
 local function w16(a) return ram(a) + 256 * ram(a + 1) end

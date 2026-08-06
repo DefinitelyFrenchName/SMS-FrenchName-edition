@@ -23,10 +23,10 @@ local t,needLoad=-1,true
 local cS,fS,upS = nil,nil,nil
 local compute,flush,frame,uploadSpanScan = {},{},{},{}
 local lastFrameClk=nil
-local log=io.open(TRACE.."perf_patch10.txt","w")
+local log = assert(io.open(TRACE.."perf_patch10.txt","w"), "perf_patch10.lua: cannot open " .. (TRACE.."perf_patch10.txt"))
 
 emu.addMemoryCallback(function()
-  if needLoad then local f=io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb"); if not f then return end
+  if needLoad then local f = io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb") if not f then print("perf_patch10.lua: cannot open " .. (TRACE.."uranus_vs_jupiter_v07.mss")) emu.stop(1) return end
     emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
 end, emu.callbackType.exec,0x808353,0x808353,emu.cpuType.snes,emu.memType.snesMemory)
 emu.addEventCallback(function() if t<0 then emu.setInput(FALSE,0,0);emu.setInput(FALSE,0,1);return end

@@ -9,7 +9,7 @@ OUT = OUT or "wramdump.txt"
 local t, needLoad = -1, true
 emu.addMemoryCallback(function()
   if needLoad then
-    local f = io.open(TRACE .. STATE, "rb"); if not f then return end
+    local f = io.open(TRACE .. STATE, "rb") if not f then print("wramdump.lua: cannot open " .. (TRACE .. STATE)) emu.stop(1) return end
     local ss = f:read("*a"); f:close(); emu.loadSavestate(ss)
     needLoad = false; t = 0
   end
@@ -18,6 +18,7 @@ emu.addEventCallback(function()
   if t < 0 then return end
   if t == 3 then
     local f = io.open(TRACE .. OUT, "w")
+    if not f then print("wramdump.lua: cannot open " .. (TRACE .. OUT)) emu.stop(1) return end
     for a = LO, HI, 16 do
       local row = {}
       for i = 0, 15 do row[#row+1] = string.format("%02X", emu.read(a+i, emu.memType.snesWorkRam)) end

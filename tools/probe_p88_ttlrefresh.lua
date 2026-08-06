@@ -59,6 +59,7 @@ emu.addEventCallback(function()
   end
   if t == VERDICT then
     local log = io.open(OUT, "w")
+    if not log then print("probe_p88_ttlrefresh.lua: cannot open " .. (OUT)) emu.stop(1) return end
     local ok = firedAt and not blankAt and minTTL > 0
     log:write(string.format(
       "fired@%s minTTL=%d blank@%s mode=%d -> %s\n",

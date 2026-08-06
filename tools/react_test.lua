@@ -80,7 +80,7 @@ local lastVerdict, lastKind = "...", nil
 local driving = true
 local hold = 0
 local HOLD = (DEMO_LOG ~= nil) and 2 or 150
-local __log = (DEMO_LOG ~= nil) and io.open(DEMO_LOG,"w") or nil
+local __log = (DEMO_LOG ~= nil) and assert(io.open(DEMO_LOG,"w"), "react_test.lua: cannot open " .. tostring(DEMO_LOG)) or nil
 
 local keyPrev = {}
 local function pressed(name)

@@ -3,14 +3,14 @@ local TRACE=ENV.TRACE
 local WRAM=emu.memType.snesWorkRam; local BUS=emu.memType.snesMemory
 local FALSE={a=false,b=false,x=false,y=false,l=false,r=false,up=false,down=false,left=false,right=false,start=false,select=false}
 local t,needLoad=-1,true
-local log=io.open(TRACE.."probe_ds2.txt","w")
+local log = assert(io.open(TRACE.."probe_ds2.txt","w"), "probe_ds2.lua: cannot open " .. (TRACE.."probe_ds2.txt"))
 -- Neptune hit table for obj 0x18: $8A:FD51. box entry = 8 bytes; y_off at +4, h at +5.
 local function boxyoff(idx) if idx==0 then return "--","--" end
   local a=0xAFD51+idx*8
   local yo=emu.read(0x8A0000+idx*8+0xFD51, BUS); -- careful addressing
   return idx, "?" end
 emu.addMemoryCallback(function()
-  if needLoad then local f=io.open(TRACE.."neptune_vs_jupiter.mss","rb"); if not f then return end
+  if needLoad then local f = io.open(TRACE.."neptune_vs_jupiter.mss","rb") if not f then print("probe_ds2.lua: cannot open " .. (TRACE.."neptune_vs_jupiter.mss")) emu.stop(1) return end
     emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
 end, emu.callbackType.exec,0x808353,0x808353,emu.cpuType.snes,emu.memType.snesMemory)
 emu.addEventCallback(function()

@@ -92,12 +92,14 @@ if DEMO_STATE ~= nil then
   local __loaded = false
   emu.addMemoryCallback(function()
     if not __loaded then
-      local f = io.open(DEMO_STATE, "rb"); local ss = f:read("*a"); f:close()
+      local f = io.open(DEMO_STATE, "rb")
+      if not f then print("demo_truecombo.lua: cannot open " .. (DEMO_STATE)) emu.stop(1) return end
+      local ss = f:read("*a"); f:close()
       emu.loadSavestate(ss); __loaded = true
       t = 0; playStart = WARMUP + 1
     end
   end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)
-  if DEMO_LOG ~= nil then __log = io.open(DEMO_LOG, "w") end
+  if DEMO_LOG ~= nil then __log = io.open(DEMO_LOG, "w") if not __log then print("demo_truecombo.lua: cannot open " .. (DEMO_LOG)) emu.stop(1) return end end
 end
 
 emu.addEventCallback(function()

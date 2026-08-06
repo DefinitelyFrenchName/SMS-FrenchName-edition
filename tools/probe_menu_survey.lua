@@ -170,6 +170,7 @@ emu.addEventCallback(function()
   elseif frames % 90 < 3 then pulse[0] = { start = true } end   -- keep it moving
   if frames % EVERY == 0 then
     local f = io.open(string.format("%s%s_%04d.png", DIR, TAG, frames), "wb")
+    if not f then print("probe_menu_survey.lua: cannot open " .. (string.format("%s%s_%04d.png", DIR, TAG, frames))) emu.stop(1) return end
     f:write(emu.takeScreenshot()); f:close()
     dump_maps(frames)
     local s = ppu()

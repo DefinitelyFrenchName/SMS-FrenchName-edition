@@ -171,6 +171,7 @@ local STEPS = {
       log(string.format("  PROJECTILE LIVE at sf=%d: $1100=%02X $1180=%02X",
         sf, ram(0x1100), ram(0x1180)))
       local f = io.open(ENV.TRACE .. "saturn/" .. TAG .. "_proj.png", "wb")
+      if not f then print("probe_sms_objpal.lua: cannot open " .. (ENV.TRACE .. "saturn/" .. TAG .. "_proj.png")) emu.stop(1) return end
       f:write(emu.takeScreenshot()); f:close()
     end
     if projframes < 6 and (ram(0x1100) ~= 0 or ram(0x1180) ~= 0) then

@@ -61,14 +61,18 @@ emu.addEventCallback(function()
     local nz = false
     for i = 0, 15 do if emu.read(0xA000 + (0xC7 + 14) * 16 + i, emu.memType.snesVideoRam) ~= 0 then nz = true end end
     check("chrT", nz)
-    local f = io.open(TRACE .. "p11_pipe.png", "wb"); f:write(emu.takeScreenshot()); f:close()
+    local f = io.open(TRACE .. "p11_pipe.png", "wb")
+    if not f then print("test_p11_pipe.lua: cannot open " .. (TRACE .. "p11_pipe.png")) emu.stop(1) return end
+    f:write(emu.takeScreenshot()); f:close()
   end
   if t >= 80 and t <= 82 then pulse[0] = { start = true } end
   if t == 83 then pulse[0] = nil end
   if t == 140 then
     check("movelist-visdrop", st7f(2) == 0, string.format("vis=%02X f01FA=%02X", st7f(2), ram(0x1FA)))
     check("movelist-rowblank", vword(0x1124) == 0x2000, string.format("w=%04X", vword(0x1124)))
-    local f = io.open(TRACE .. "p11_pipe_movelist.png", "wb"); f:write(emu.takeScreenshot()); f:close()
+    local f = io.open(TRACE .. "p11_pipe_movelist.png", "wb")
+    if not f then print("test_p11_pipe.lua: cannot open " .. (TRACE .. "p11_pipe_movelist.png")) emu.stop(1) return end
+    f:write(emu.takeScreenshot()); f:close()
   end
   if t >= 160 and t <= 162 then pulse[0] = { start = true } end
   if t == 163 then pulse[0] = nil end

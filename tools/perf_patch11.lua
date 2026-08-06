@@ -79,7 +79,9 @@ emu.addEventCallback(function()
       local ok = ram(0x1001) <= 0x7F and ram(0x1081) <= 0x7F and ram(0x10C9) <= 0x60 and ram(0x1049) <= 0x60
       log(string.format("soak sanity: p1act=%02X p2act=%02X hp=%02X/%02X mode=%02X %s",
         ram(0x1001), ram(0x1081), ram(0x1049), ram(0x10C9), ram(0x8D), ok and "OK" or "SUSPECT"))
-      local f = io.open(TRACE .. "p11_soak.png", "wb"); f:write(emu.takeScreenshot()); f:close()
+      local f = io.open(TRACE .. "p11_soak.png", "wb")
+      if not f then print("perf_patch11.lua: cannot open " .. (TRACE .. "p11_soak.png")) emu.stop(1) return end
+      f:write(emu.takeScreenshot()); f:close()
     end
   else
     if t < 200 then phase = "idle" end

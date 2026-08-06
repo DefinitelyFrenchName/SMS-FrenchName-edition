@@ -30,9 +30,10 @@ ctxRef = main.run(ROOT, {
 })
 ctxRef.onFirstExec = function(ctx)
   local f = io.open(TRACE .. "uranus_vs_jupiter_v07.mss", "rb")
+  if not f then print("probe_oracle.lua: cannot open " .. (TRACE .. "uranus_vs_jupiter_v07.mss")) emu.stop(1) return end
   ctx.anchor.loadreq = f:read("*a"); f:close()
 end
-local log = io.open(TRACE .. "probe_oracle.txt", "w")
+local log = assert(io.open(TRACE .. "probe_oracle.txt", "w"), "probe_oracle.lua: cannot open " .. (TRACE .. "probe_oracle.txt"))
 local mism = 0
 table.insert(ctxRef.hooks.frame, function(ctx)
   local t = ctx.t
@@ -49,7 +50,7 @@ table.insert(ctxRef.hooks.frame, function(ctx)
       end
     end
   end
-  if t == 130 then local f=io.open(TRACE.."cc_oracle_shot.png","wb"); f:write(emu.takeScreenshot()); f:close() end
+  if t == 130 then local f = io.open(TRACE.."cc_oracle_shot.png","wb") if not f then print("probe_oracle.lua: cannot open " .. (TRACE.."cc_oracle_shot.png")) emu.stop(1) return end f:write(emu.takeScreenshot()); f:close() end
   if t == 150 then
     log:write(string.format("total mismatches: %d\n", mism))
     log:write(string.format("final rom_hits=%d lua_hits=%d\n",

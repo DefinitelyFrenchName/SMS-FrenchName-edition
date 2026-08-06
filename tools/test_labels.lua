@@ -16,9 +16,9 @@ local ctxRef
 local main=dofile(ROOT.."training/main.lua")
 ctxRef=main.run(ROOT,{headless=true, modules={"gamestate","input","recorder","dummy","framedata","combo","labels"},
   padSource=function(port) return SCEN and SCEN.pad(ctxRef,port) or FALSE end})
-ctxRef.onFirstExec=function(ctx) local f=io.open(TRACE..SCEN.state,"rb")
+ctxRef.onFirstExec=function(ctx) local f = io.open(TRACE..SCEN.state,"rb") if not f then print("test_labels.lua: cannot open " .. (TRACE..SCEN.state)) emu.stop(1) return end
   ctx.anchor.loadreq=f:read("*a"); f:close() end
-local log=io.open(TRACE.."test_labels.txt","w")
+local log = assert(io.open(TRACE.."test_labels.txt","w"), "test_labels.lua: cannot open " .. (TRACE.."test_labels.txt"))
 local romFired, luaFired = {}, {}
 -- VRAM oracle: the label must actually DRAW on screen and BLANK again after its 48f TTL
 local VRAM=emu.memType.snesVideoRam

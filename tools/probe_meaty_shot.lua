@@ -7,7 +7,7 @@ local function pl1(t) local kf={{10,{down=true}},{60,{down=true,y=true}},{62,{do
   local o={}; for k,v in pairs(FALSE) do o[k]=v end; for k,v in pairs(b) do o[k]=v end; return o end
 local t,needLoad=-1,true
 emu.addMemoryCallback(function()
-  if needLoad then local f=io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb"); if not f then return end
+  if needLoad then local f = io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb") if not f then print("probe_meaty_shot.lua: cannot open " .. (TRACE.."uranus_vs_jupiter_v07.mss")) emu.stop(1) return end
     emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
 end, emu.callbackType.exec,0x808353,0x808353,emu.cpuType.snes,emu.memType.snesMemory)
 emu.addEventCallback(function() if t<0 then emu.setInput(FALSE,0,0);emu.setInput(FALSE,0,1);return end
@@ -15,7 +15,7 @@ emu.addEventCallback(function() if t<0 then emu.setInput(FALSE,0,0);emu.setInput
 emu.addEventCallback(function()
   if t<0 then return end
   if t==5 then emu.write(0x1021,0xE8,WRAM) end
-  if t==125 then local f=io.open(TRACE.."cc_meaty_shot.png","wb"); f:write(emu.takeScreenshot()); f:close() end
+  if t==125 then local f = io.open(TRACE.."cc_meaty_shot.png","wb") if not f then print("probe_meaty_shot.lua: cannot open " .. (TRACE.."cc_meaty_shot.png")) emu.stop(1) return end f:write(emu.takeScreenshot()); f:close() end
   if t==140 then emu.stop(0) end
   t=t+1
 end, emu.eventType.endFrame)

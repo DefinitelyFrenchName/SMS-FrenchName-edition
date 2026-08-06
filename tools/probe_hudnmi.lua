@@ -3,7 +3,7 @@
 -- USE: ROM=<clean> tools/run.sh tools/probe_hudnmi.lua 60 → traces/probe_hudnmi.txt
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE = ENV.TRACE
-local log = io.open(TRACE .. "probe_hudnmi.txt", "w")
+local log = assert(io.open(TRACE .. "probe_hudnmi.txt", "w"), "probe_hudnmi.lua: cannot open " .. (TRACE .. "probe_hudnmi.txt"))
 local t, needLoad = -1, true
 local consumers, others = {}, {}
 
@@ -16,7 +16,7 @@ end
 emu.addMemoryCallback(function()
   if needLoad then
     local f = io.open(TRACE .. "venus_vs_jupiter_clean.mss", "rb")
-    if not f then return end
+    if not f then print("probe_hudnmi.lua: cannot open " .. (TRACE .. "venus_vs_jupiter_clean.mss")) emu.stop(1) return end
     local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss)
     needLoad = false; t = 0

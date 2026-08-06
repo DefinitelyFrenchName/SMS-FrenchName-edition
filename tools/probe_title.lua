@@ -3,6 +3,6 @@ local TRACE=ENV.TRACE
 local frames=0
 emu.addEventCallback(function()
   frames=frames+1
-  if frames==1200 then local f=io.open(TRACE.."allpatches_title.png","wb"); f:write(emu.takeScreenshot()); f:close(); emu.stop(0) end
+  if frames==1200 then local f = assert(io.open(TRACE.."allpatches_title.png","wb"), "probe_title.lua: cannot open " .. (TRACE.."allpatches_title.png")); f:write(emu.takeScreenshot()); f:close(); emu.stop(0) end
 end, emu.eventType.endFrame)
 print("title loaded")

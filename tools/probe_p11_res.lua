@@ -75,7 +75,9 @@ emu.addEventCallback(function()
     log("wrote digit rows 8-15 cols 4-13")
   end
   if t == 45 then
-    local f = io.open(TRACE .. "p11_res_rows.png", "wb"); f:write(emu.takeScreenshot()); f:close()
+    local f = io.open(TRACE .. "p11_res_rows.png", "wb")
+    if not f then print("probe_p11_res.lua: cannot open " .. (TRACE .. "p11_res_rows.png")) emu.stop(1) return end
+    f:write(emu.takeScreenshot()); f:close()
   end
   -- some fighting action for realistic WRAM traffic
   if t >= 60 and t <= 140 then

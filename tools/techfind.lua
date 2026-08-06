@@ -27,8 +27,8 @@ local function r(a) return emu.read(a, WRAM) end
 local FALSE = { a=false,b=false,x=false,y=false,l=false,r=false,
                 up=false,down=false,left=false,right=false,start=false,select=false }
 
-local log  = io.open(TRACE .. "techfind.txt", "w")
-local dump = io.open(TRACE .. "techfind_dump.txt", "w")
+local log = assert(io.open(TRACE .. "techfind.txt", "w"), "techfind.lua: cannot open " .. (TRACE .. "techfind.txt"))
+local dump = assert(io.open(TRACE .. "techfind_dump.txt", "w"), "techfind.lua: cannot open " .. (TRACE .. "techfind_dump.txt"))
 local t, needLoad = -1, true
 
 local function pcstr()
@@ -50,7 +50,7 @@ end
 emu.addMemoryCallback(function()
   if needLoad then
     local f = io.open(TRACE .. STATE, "rb")
-    if not f then return end
+    if not f then print("techfind.lua: cannot open " .. (TRACE .. STATE)) emu.stop(1) return end
     local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss)
     needLoad = false; t = 0

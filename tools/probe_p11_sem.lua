@@ -13,7 +13,9 @@ local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local function ram(a) return emu.read(a, emu.memType.snesWorkRam) end
 local function vram(b) return emu.read(b, emu.memType.snesVideoRam) end
 local function shot(name)
-  local f = io.open(TRACE .. "p11_sem_" .. name .. ".png", "wb"); f:write(emu.takeScreenshot()); f:close()
+  local f = io.open(TRACE .. "p11_sem_" .. name .. ".png", "wb")
+  if not f then print("probe_p11_sem.lua: cannot open " .. (TRACE .. "p11_sem_" .. name .. ".png")) emu.stop(1) return end
+  f:write(emu.takeScreenshot()); f:close()
 end
 
 local t, needLoad = -1, true

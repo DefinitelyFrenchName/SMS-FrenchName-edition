@@ -15,7 +15,9 @@ local __loaded = false
 
 emu.addMemoryCallback(function()
   if not __loaded then
-    local f = io.open(STATE, "rb"); local ss = f:read("*a"); f:close()
+    local f = io.open(STATE, "rb")
+    if not f then print("probe_p10_practice.lua: cannot open " .. (STATE)) emu.stop(1) return end
+    local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss); __loaded = true
   end
 end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)
@@ -29,6 +31,7 @@ emu.addEventCallback(function()
   t = t + 1
   if t >= MAXT then
     local log = io.open(OUT, "w")
+    if not log then print("probe_p10_practice.lua: cannot open " .. (OUT)) emu.stop(1) return end
     log:write(string.format("mode $008D=%d frames=%d p10-compute execs=%d -> %s\n",
       emu.read(0x8D, WRAM), t, execs,
       execs == 0 and "producer NEVER runs in practice (p10 counter impossible here)"

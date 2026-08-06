@@ -4,7 +4,7 @@ pcall(dofile,ENV.TOOLS .. "probe_chr_cfg.lua")
 local ST=CHRSTATE or "venus_vs_jupiter_clean.mss"
 local t,needLoad=-1,true
 emu.addMemoryCallback(function()
-  if needLoad then local f=io.open(TRACE..ST,"rb"); if not f then print("NOFILE "..ST); emu.stop(1); return end
+  if needLoad then local f=io.open(TRACE..ST,"rb"); if not f then print("probe_chr.lua: cannot open "..TRACE..ST); emu.stop(1); return end
     emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
 end, emu.callbackType.exec,0x808353,0x808353,emu.cpuType.snes,emu.memType.snesMemory)
 emu.addEventCallback(function()
@@ -17,7 +17,7 @@ emu.addEventCallback(function()
         local v=emu.read(wa*2, emu.memType.snesVideoRam)+emu.read(wa*2+1, emu.memType.snesVideoRam)*256
         if v~=0 then nz=nz+1 end end
     end
-    io.open(TRACE.."probe_chr.txt","a"):write(string.format("%s: BG3 CHR 0xC7-0xD2 nonzero_words=%d\n",ST,nz)):close()
+    local __f = io.open(TRACE.."probe_chr.txt","a") if not __f then print("probe_chr.lua: cannot open " .. (TRACE.."probe_chr.txt")) emu.stop(1) return end __f:write(string.format("%s: BG3 CHR 0xC7-0xD2 nonzero_words=%d\n",ST,nz)):close()
     emu.stop(0)
   end
   t=t+1

@@ -132,10 +132,12 @@ local STEPS = {
     pulse[0] = {}; pulse[1] = {}
     if sf % 15 == 0 and sf <= 600 then
       local f = io.open(ENV.TRACE .. "saturn/stagename_" .. TAG .. "_" .. sf .. ".png", "wb")
+      if not f then print("probe_sms_stagename.lua: cannot open " .. (ENV.TRACE .. "saturn/stagename_" .. TAG .. "_" .. sf .. ".png")) emu.stop(1) return end
       f:write(emu.takeScreenshot()); f:close()
       local vb = {}
       for a = 0, 0xFFFF do vb[#vb + 1] = string.char(emu.read(a, emu.memType.snesVideoRam) or 0) end
       local vf = io.open(ENV.TRACE .. "saturn/stagename_" .. TAG .. "_vram" .. sf .. ".bin", "wb")
+      if not vf then print("probe_sms_stagename.lua: cannot open " .. (ENV.TRACE .. "saturn/stagename_" .. TAG .. "_vram" .. sf .. ".bin")) emu.stop(1) return end
       vf:write(table.concat(vb)); vf:close()
     end
     return sf > 620

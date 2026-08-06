@@ -2,7 +2,7 @@
 -- with PC + context. Also log writes to $1004 (mirror).
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE = ENV.TRACE
-local log = io.open(TRACE .. "trap_dash.txt", "w")
+local log = assert(io.open(TRACE .. "trap_dash.txt", "w"), "trap_dash.lua: cannot open " .. (TRACE .. "trap_dash.txt"))
 local loaded = false
 local t = -1
 
@@ -11,6 +11,7 @@ local function ram(addr) return emu.read(addr, emu.memType.snesWorkRam) end
 emu.addMemoryCallback(function()
   if not loaded then
     local f = io.open(TRACE .. "uranus_vs_moon.mss", "rb")
+    if not f then print("trap_dash.lua: cannot open " .. (TRACE .. "uranus_vs_moon.mss")) emu.stop(1) return end
     local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss)
     loaded = true

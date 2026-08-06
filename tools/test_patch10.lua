@@ -17,9 +17,9 @@ local main=dofile(ROOT.."training/main.lua")
 ctxRef=main.run(ROOT,{headless=true, modules={"gamestate","input","framedata","combo"},
   padSource=function(port) local t=ctxRef and ctxRef.t or -1
     if port==0 and t>=0 then return plan(t) end; return FALSE end})
-ctxRef.onFirstExec=function(ctx) local f=io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb")
+ctxRef.onFirstExec=function(ctx) local f = io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb") if not f then print("test_patch10.lua: cannot open " .. (TRACE.."uranus_vs_jupiter_v07.mss")) emu.stop(1) return end
   ctx.anchor.loadreq=f:read("*a"); f:close() end
-local log=io.open(TRACE.."test_patch10.txt","w")
+local log = assert(io.open(TRACE.."test_patch10.txt","w"), "test_patch10.lua: cannot open " .. (TRACE.."test_patch10.txt"))
 local fails,mism,peak=0,0,0
 local phase="oracle"
 local function fail(s) fails=fails+1; log:write("FAIL: "..s.."\n") end

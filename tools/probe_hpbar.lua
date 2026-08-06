@@ -20,10 +20,12 @@ ctxRef = main.run(ROOT, {
 })
 ctxRef.onFirstExec = function(ctx)
   local f = io.open(TRACE .. "venus_vs_jupiter_clean.mss", "rb")
+  if not f then print("probe_hpbar.lua: cannot open " .. (TRACE .. "venus_vs_jupiter_clean.mss")) emu.stop(1) return end
   ctx.anchor.loadreq = f:read("*a"); f:close()
 end
 local function dump(name)
   local f = io.open(TRACE .. "hpbar_" .. name .. ".bin", "wb")
+  if not f then print("probe_hpbar.lua: cannot open " .. (TRACE .. "hpbar_" .. name .. ".bin")) emu.stop(1) return end
   local t = {}
   for a = 0, 0x1FFF do t[#t + 1] = string.char(emu.read(a, emu.memType.snesWorkRam)) end
   f:write(table.concat(t)); f:close()
@@ -37,7 +39,9 @@ end)
 table.insert(ctxRef.hooks.draw, function(ctx)
   if ctx.t == 40 or ctx.t == 130 or ctx.t == 260 then
     local shot = emu.takeScreenshot()
-    local f = io.open(TRACE .. "hpbar_" .. ctx.t .. ".png", "wb"); f:write(shot); f:close()
+    local f = io.open(TRACE .. "hpbar_" .. ctx.t .. ".png", "wb")
+    if not f then print("probe_hpbar.lua: cannot open " .. (TRACE .. "hpbar_" .. ctx.t .. ".png")) emu.stop(1) return end
+    f:write(shot); f:close()
   end
   if ctx.t == 265 then emu.stop(0) end
 end)

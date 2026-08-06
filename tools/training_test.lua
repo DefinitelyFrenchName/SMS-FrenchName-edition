@@ -558,7 +558,7 @@ end)()
 -- ---------- harness ----------
 local T = tests[TEST]
 if not T then error("unknown TEST " .. tostring(TEST)) end
-local log = io.open(TRACE .. "training_test_" .. TEST .. ".txt", "w")
+local log = assert(io.open(TRACE .. "training_test_" .. TEST .. ".txt", "w"), "training_test.lua: cannot open " .. (TRACE .. "training_test_" .. TEST .. ".txt"))
 local fails, ran = 0, 0
 
 local function planPad(plan, t)

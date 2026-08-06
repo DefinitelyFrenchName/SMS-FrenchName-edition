@@ -24,14 +24,14 @@ end
 emu.addEventCallback(function()
   frames = frames + 1
   if frames == 990 then  -- before shot
-    local f = io.open(TRACE .. OUT .. "_before.png", "wb"); f:write(emu.takeScreenshot()); f:close()
+    local f = assert(io.open(TRACE .. OUT .. "_before.png", "wb"), "mockup.lua: cannot open " .. (TRACE .. OUT .. "_before.png")); f:write(emu.takeScreenshot()); f:close()
   end
   if frames >= 1000 and frames <= 1008 then  -- write every frame to survive any refresh
     for _, t in ipairs(tiles) do writeTile(t[1], t[2]) end
     wrote = true
   end
   if frames == 1009 then
-    local f = io.open(TRACE .. OUT .. ".png", "wb"); f:write(emu.takeScreenshot()); f:close()
+    local f = assert(io.open(TRACE .. OUT .. ".png", "wb"), "mockup.lua: cannot open " .. (TRACE .. OUT .. ".png")); f:write(emu.takeScreenshot()); f:close()
     print("mockup screenshot: " .. OUT .. " (tiles=" .. #tiles .. ")")
     emu.stop(0)
   end

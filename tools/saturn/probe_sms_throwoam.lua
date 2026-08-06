@@ -243,6 +243,7 @@ local STEPS = {
         sf, ram(0x1001), ram(0x1080), ram(0x1081), ram(0x1098)))
       oamdump("throw+" .. sf)
       local f = io.open(ENV.TRACE .. "saturn/" .. TAG .. "_" .. sf .. ".png", "wb")
+      if not f then print("probe_sms_throwoam.lua: cannot open " .. (ENV.TRACE .. "saturn/" .. TAG .. "_" .. sf .. ".png")) emu.stop(1) return end
       f:write(emu.takeScreenshot()); f:close()
     end
     return sf > 260

@@ -13,7 +13,7 @@ local function drawbox(sx,sy,idx,col)
   emu.drawRectangle(sx+xr, sy+yo, wr, h, col, false)
 end
 emu.addMemoryCallback(function()
-  if needLoad then local f=io.open(TRACE.."neptune_vs_jupiter.mss","rb"); if not f then return end
+  if needLoad then local f = io.open(TRACE.."neptune_vs_jupiter.mss","rb") if not f then print("probe_dsbox.lua: cannot open " .. (TRACE.."neptune_vs_jupiter.mss")) emu.stop(1) return end
     emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
 end, emu.callbackType.exec,0x808353,0x808353,emu.cpuType.snes,emu.memType.snesMemory)
 emu.addEventCallback(function()
@@ -37,8 +37,8 @@ emu.addEventCallback(function()
     drawbox(sx,sy,emu.read(0x1140,WRAM),0xFF0000)
     emu.drawString(4,20,string.format("t=%d hb=%d hub=%d sx=%d sy=%d",t,emu.read(0x1140,WRAM),emu.read(0x1141,WRAM),sx,sy),0xFFFF00,0x000000)
   end
-  if t==90 then local f=io.open(TRACE.."dsbox_descend.png","wb"); f:write(emu.takeScreenshot()); f:close() end
-  if t==100 then local f=io.open(TRACE.."dsbox_trans.png","wb"); f:write(emu.takeScreenshot()); f:close(); emu.stop(0) end
+  if t==90 then local f = io.open(TRACE.."dsbox_descend.png","wb") if not f then print("probe_dsbox.lua: cannot open " .. (TRACE.."dsbox_descend.png")) emu.stop(1) return end f:write(emu.takeScreenshot()); f:close() end
+  if t==100 then local f = io.open(TRACE.."dsbox_trans.png","wb") if not f then print("probe_dsbox.lua: cannot open " .. (TRACE.."dsbox_trans.png")) emu.stop(1) return end f:write(emu.takeScreenshot()); f:close(); emu.stop(0) end
   t=t+1
 end, emu.eventType.endFrame)
 print("dsbox loaded")

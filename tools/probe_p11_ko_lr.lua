@@ -67,7 +67,9 @@ emu.addEventCallback(function()
   if t >= 620 and t <= 622 then pulse[0] = { l = true, r = true } elseif t == 623 then pulse[0] = nil end
   if t == 700 then snap("LR-after-KO-2", t) end
   if t == 720 then
-    local sp = io.open(TRACE .. "p11_ko_lr.png", "wb"); sp:write(emu.takeScreenshot()); sp:close()
+    local sp = io.open(TRACE .. "p11_ko_lr.png", "wb")
+    if not sp then print("probe_p11_ko_lr.lua: cannot open " .. (TRACE .. "p11_ko_lr.png")) emu.stop(1) return end
+    sp:write(emu.takeScreenshot()); sp:close()
     snap("DONE", t); emu.stop(0)
   end
 end, emu.eventType.endFrame)

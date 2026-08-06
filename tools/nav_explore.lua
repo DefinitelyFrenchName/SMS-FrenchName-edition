@@ -1,7 +1,7 @@
 -- nav_explore.lua: press start periodically, screenshot + RAM dump to see menu flow
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE = ENV.TRACE
-local log = io.open(TRACE .. "nav_explore.txt", "w")
+local log = assert(io.open(TRACE .. "nav_explore.txt", "w"), "nav_explore.lua: cannot open " .. (TRACE .. "nav_explore.txt"))
 local frames = 0
 
 local function ram(addr) return emu.read(addr, emu.memType.snesWorkRam) end

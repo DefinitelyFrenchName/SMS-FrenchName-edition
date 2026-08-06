@@ -67,10 +67,12 @@ emu.addMemoryCallback(function()
     end
     log(string.format("mode 8D=%02X inmatch 70=%02X clock=%02X%02X frame=%02X", ram(0x8D), ram(0x70), ram(0x804), ram(0x803), ram(0x802)))
     local sp = io.open(ENV.TRACE .. "saturn/supers_stage_" .. TAG .. ".png", "wb")
+    if not sp then print("probe_supers_stagepal.lua: cannot open " .. (ENV.TRACE .. "saturn/supers_stage_" .. TAG .. ".png")) emu.stop(1) return end
     sp:write(emu.takeScreenshot()); sp:close()
     local cg = {}
     for i = 0, 511 do cg[#cg + 1] = string.char(emu.read(i, emu.memType.snesCgRam)) end
     local cf = io.open(ENV.TRACE .. "saturn/supers_cg_" .. TAG .. ".bin", "wb")
+    if not cf then print("probe_supers_stagepal.lua: cannot open " .. (ENV.TRACE .. "saturn/supers_cg_" .. TAG .. ".bin")) emu.stop(1) return end
     cf:write(table.concat(cg)); cf:close()
     log("cgram dumped for stage " .. STAGE)
     emu.stop(0)

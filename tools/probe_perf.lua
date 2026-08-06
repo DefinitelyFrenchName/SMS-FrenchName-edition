@@ -9,7 +9,7 @@ local cStart, fStart = nil, nil
 local computeCyc, flushCyc = {}, {}
 local frameClk, lastFrame = {}, nil
 emu.addMemoryCallback(function()
-  if needLoad then local f=io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb"); if not f then return end
+  if needLoad then local f = io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb") if not f then print("probe_perf.lua: cannot open " .. (TRACE.."uranus_vs_jupiter_v07.mss")) emu.stop(1) return end
     emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
 end, emu.callbackType.exec,0x808353,0x808353,emu.cpuType.snes,emu.memType.snesMemory)
 -- compute stub entry ($EA:0000 for v07 build) and exit (PROD_CONT $80D5EC)
@@ -28,7 +28,8 @@ emu.addEventCallback(function()
     local function stats(a) if #a==0 then return "n=0" end
       local s,mx=0,0; for _,v in ipairs(a) do s=s+v; if v>mx then mx=v end end
       return string.format("n=%d mean=%.0f max=%d", #a, s/#a, mx) end
-    local log=io.open(TRACE.."probe_perf.txt","w")
+    local log = io.open(TRACE.."probe_perf.txt","w")
+    if not log then print("probe_perf.lua: cannot open " .. (TRACE.."probe_perf.txt")) emu.stop(1) return end
     log:write("compute stub cycles: "..stats(computeCyc).."\n")
     log:write("flush stub cycles:   "..stats(flushCyc).."\n")
     log:write("full frame cycles:   "..stats(frameClk).."\n")

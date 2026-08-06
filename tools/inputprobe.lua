@@ -1,7 +1,7 @@
 -- inputprobe.lua: at the menu (f>=900), hold start; log reads of $4016/17/4218-421B
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE = ENV.TRACE
-local log = io.open(TRACE .. "inputprobe.txt", "w")
+local log = assert(io.open(TRACE .. "inputprobe.txt", "w"), "inputprobe.lua: cannot open " .. (TRACE .. "inputprobe.txt"))
 local frames = 0
 local logging = false
 local count = 0

@@ -6,7 +6,7 @@ local FALSE={a=false,b=false,x=false,y=false,l=false,r=false,up=false,down=false
 local t,needLoad=-1,true
 local sig=0
 emu.addMemoryCallback(function()
-  if needLoad then local f=io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb"); if not f then return end
+  if needLoad then local f = io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb") if not f then print("probe_soak.lua: cannot open " .. (TRACE.."uranus_vs_jupiter_v07.mss")) emu.stop(1) return end
     emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
 end, emu.callbackType.exec,0x808353,0x808353,emu.cpuType.snes,emu.memType.snesMemory)
 emu.addEventCallback(function()
@@ -19,7 +19,7 @@ emu.addEventCallback(function()
   if t<0 then return end
   -- accumulate a rolling signature of gameplay state each frame
   for a=0x1000,0x10FF do sig=(sig*31 + emu.read(a,WRAM))%2147483647 end
-  if t==1500 then io.open(TRACE..(SOAKOUT or "soak.txt"),"w"):write("sig="..sig.."\n"):close(); emu.stop(0) end
+  if t==1500 then local __f = io.open(TRACE..(SOAKOUT or "soak.txt"),"w") if not __f then print("probe_soak.lua: cannot open " .. (TRACE..(SOAKOUT or "soak.txt"))) emu.stop(1) return end __f:write("sig="..sig.."\n"):close(); emu.stop(0) end
   t=t+1
 end, emu.eventType.endFrame)
 print("soak loaded")

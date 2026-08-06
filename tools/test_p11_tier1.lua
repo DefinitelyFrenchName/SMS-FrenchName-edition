@@ -251,7 +251,9 @@ local PHASES = {
       if pt == 71 then pulse[0] = nil end
       if pt == 90 then
         check("show-inp-clear", vword(0x1264 + 1) == 0x2000, string.format("%04X", vword(0x1264 + 1)))
-        local f = io.open(TRACE .. "p11_show.png", "wb"); f:write(emu.takeScreenshot()); f:close()
+        local f = io.open(TRACE .. "p11_show.png", "wb")
+        if not f then print("test_p11_tier1.lua: cannot open " .. (TRACE .. "p11_show.png")) emu.stop(1) return end
+        f:write(emu.takeScreenshot()); f:close()
       end
       -- advantage: land a 2LP on the idle dummy, expect ~+6 settle
       if pt >= 100 and pt <= 101 then pulse[0] = { down = true, y = true } elseif pt == 102 then pulse[0] = nil end
@@ -298,7 +300,9 @@ local PHASES = {
         check("menu-posename", vword(rowaddr(1) + 3) == tw("P"), string.format("%04X", vword(rowaddr(1) + 3)))
         check("menu-cursor1", vword(rowaddr(1) + 1) == tw(">"), string.format("%04X", vword(rowaddr(1) + 1)))
         check("menu-standval", vword(rowaddr(1) + 10) == tw("S"), string.format("%04X", vword(rowaddr(1) + 10)))
-        local f = io.open(TRACE .. "p11_menu.png", "wb"); f:write(emu.takeScreenshot()); f:close()
+        local f = io.open(TRACE .. "p11_menu.png", "wb")
+        if not f then print("test_p11_tier1.lua: cannot open " .. (TRACE .. "p11_menu.png")) emu.stop(1) return end
+        f:write(emu.takeScreenshot()); f:close()
       end
       if pt >= 55 and pt <= 56 then pulse[0] = { down = true } elseif pt == 57 then pulse[0] = nil end
       if pt == 70 then

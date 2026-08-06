@@ -39,6 +39,7 @@ emu.addEventCallback(function()
   if t > 10 and a2 >= 0x2B and not leakAct then leakAct = { t = t, act = a2 } end
   if t == 200 then
     local log = io.open(OUT, "w")
+    if not log then print("probe_p89_padleak.lua: cannot open " .. (OUT)) emu.stop(1) return end
     log:write(leakAct
       and string.format("FAIL (leak): P2 act=%02X at t=%d with dummy mode 1\n", leakAct.act, leakAct.t)
       or "PASS: held physical P2 buttons did not reach the mode-1 dummy\n")

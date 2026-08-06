@@ -5,7 +5,7 @@ local t, needLoad = -1, true
 emu.addMemoryCallback(function()
   if needLoad then
     local f = io.open(TRACE .. "venus_vs_jupiter_clean.mss", "rb")
-    if not f then return end
+    if not f then print("probe_vram.lua: cannot open " .. (TRACE .. "venus_vs_jupiter_clean.mss")) emu.stop(1) return end
     local ss = f:read("*a"); f:close(); emu.loadSavestate(ss)
     needLoad = false; t = 0
   end
@@ -14,15 +14,19 @@ emu.addEventCallback(function()
   if t < 0 then return end
   if t == 30 then
     local f = io.open(TRACE .. "vram_match.bin", "wb")
+    if not f then print("probe_vram.lua: cannot open " .. (TRACE .. "vram_match.bin")) emu.stop(1) return end
     local buf = {}
     for a = 0, 0xFFFF do buf[#buf+1] = string.char(emu.read(a, emu.memType.snesVideoRam)) end
     f:write(table.concat(buf)); f:close()
     f = io.open(TRACE .. "cgram_match.bin", "wb")
+    if not f then print("probe_vram.lua: cannot open " .. (TRACE .. "cgram_match.bin")) emu.stop(1) return end
     buf = {}
     for a = 0, 0x1FF do buf[#buf+1] = string.char(emu.read(a, emu.memType.snesCgRam)) end
     f:write(table.concat(buf)); f:close()
     local shot = emu.takeScreenshot()
-    f = io.open(TRACE .. "vram_match.png", "wb"); f:write(shot); f:close()
+    f = io.open(TRACE .. "vram_match.png", "wb")
+    if not f then print("probe_vram.lua: cannot open " .. (TRACE .. "vram_match.png")) emu.stop(1) return end
+    f:write(shot); f:close()
     emu.stop(0)
   end
   t = t + 1

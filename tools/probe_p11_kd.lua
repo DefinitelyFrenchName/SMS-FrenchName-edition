@@ -88,7 +88,9 @@ emu.addEventCallback(function()
   if t >= 204 and t <= 205 then pulse[0] = { y = true, down = true } end
   if t == 206 then pulse[0] = nil end
   if t == 600 then
-    local f = io.open(TRACE .. "p11_kd_end.png", "wb"); f:write(emu.takeScreenshot()); f:close()
+    local f = io.open(TRACE .. "p11_kd_end.png", "wb")
+    if not f then print("probe_p11_kd.lua: cannot open " .. (TRACE .. "p11_kd_end.png")) emu.stop(1) return end
+    f:write(emu.takeScreenshot()); f:close()
     log(string.format("VERDICT-B mode=%02X f0070=%02X p2hp=%02X p2act=%02X p1act=%02X",
       ram(0x8D), ram(0x70), ram(0x10C9), ram(0x1081), ram(0x1001)))
     log("done"); emu.stop(0)

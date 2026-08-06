@@ -12,7 +12,7 @@ local TRACE = ENV.TRACE
 -- under version control; they now write a temp file and point this at it.
 dofile(os.getenv("TRACE_PLAN") or (ENV.TOOLS .. "trace_plan.lua"))
 
-local log = io.open(TRACE .. (OUT or "trace.txt"), "w")
+local log = assert(io.open(TRACE .. (OUT or "trace.txt"), "w"), "trace.lua: cannot open " .. (TRACE .. (OUT or "trace.txt")))
 local loaded = false
 local t = -1              -- local frame counter, starts when state loaded
 local cur1, cur2 = {}, {}
@@ -24,6 +24,7 @@ local function ram(addr) return emu.read(addr, emu.memType.snesWorkRam) end
 emu.addMemoryCallback(function()
   if not loaded then
     local f = io.open(TRACE .. (STATE or "uranus_vs_moon.mss"), "rb")
+    if not f then print("trace.lua: cannot open " .. (TRACE .. (STATE or "uranus_vs_moon.mss"))) emu.stop(1) return end
     local ss = f:read("*a")
     f:close()
     emu.loadSavestate(ss)

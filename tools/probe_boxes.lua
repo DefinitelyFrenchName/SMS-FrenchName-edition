@@ -18,6 +18,7 @@ ctxRef = main.run(ROOT, {
 })
 ctxRef.onFirstExec = function(ctx)
   local f = io.open(TRACE .. "venus_vs_jupiter_clean.mss", "rb")
+  if not f then print("probe_boxes.lua: cannot open " .. (TRACE .. "venus_vs_jupiter_clean.mss")) emu.stop(1) return end
   ctx.anchor.loadreq = f:read("*a"); f:close()
 end
 table.insert(ctxRef.hooks.frame, function(ctx)
@@ -28,6 +29,7 @@ table.insert(ctxRef.hooks.draw, function(ctx)
   if ctx.t == 64 or ctx.t == 30 then
     local shot = emu.takeScreenshot()
     local f = io.open(TRACE .. "probe_boxes_" .. ctx.t .. ".png", "wb")
+    if not f then print("probe_boxes.lua: cannot open " .. (TRACE .. "probe_boxes_" .. ctx.t .. ".png")) emu.stop(1) return end
     f:write(shot); f:close()
   end
   if ctx.t == 70 then emu.stop(0) end

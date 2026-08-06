@@ -10,9 +10,9 @@ local function plan(t) local kf={{10,{down=true}},{60,{down=true,y=true}},{62,{d
   local b={}; for _,e in ipairs(kf) do if e[1]<=t then b=e[2] end end
   local o={}; for k,v in pairs(FALSE) do o[k]=v end; for k,v in pairs(b) do o[k]=v end; return o end
 local t,needLoad=-1,true
-local log=io.open(TRACE..(OUTF or "ni.txt"),"w")
+local log = assert(io.open(TRACE..(OUTF or "ni.txt"),"w"), "probe_noninterf.lua: cannot open " .. (TRACE..(OUTF or "ni.txt")))
 emu.addMemoryCallback(function()
-  if needLoad then local f=io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb"); if not f then return end
+  if needLoad then local f = io.open(TRACE.."uranus_vs_jupiter_v07.mss","rb") if not f then print("probe_noninterf.lua: cannot open " .. (TRACE.."uranus_vs_jupiter_v07.mss")) emu.stop(1) return end
     emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
 end, emu.callbackType.exec,0x808353,0x808353,emu.cpuType.snes,emu.memType.snesMemory)
 emu.addEventCallback(function()

@@ -46,8 +46,10 @@ emu.addEventCallback(function()
     if a ~= actSeq[#actSeq] then actSeq[#actSeq + 1] = a end
     if ram(b + 0x40) ~= 0 then sawHB = true end
     if t == startT + 15 then
-      local f = io.open(TRACE .. string.format("p12_act_%s_p%d_%02X.png",
-        STATE:gsub("%.mss", ""), e.player, e.act), "wb")
+      local p = TRACE .. string.format("p12_act_%s_p%d_%02X.png",
+        STATE:gsub("%.mss", ""), e.player, e.act)
+      local f = io.open(p, "wb")
+      if not f then print("probe_p12_acts.lua: cannot open " .. p) emu.stop(1) return end
       f:write(emu.takeScreenshot()); f:close()
     end
     if a == 0 or a == 3 then

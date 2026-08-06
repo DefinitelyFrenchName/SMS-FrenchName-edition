@@ -19,16 +19,16 @@ local DUMPS = { [700]=true, [1000]=true, [1300]=true }
 emu.addEventCallback(function()
   t = t + 1
   if DUMPS[t] then
-    local f = io.open(TRACE .. "titlevram_" .. TAG .. "_" .. t .. ".bin", "wb")
+    local f = assert(io.open(TRACE .. "titlevram_" .. TAG .. "_" .. t .. ".bin", "wb"), "probe_title_vram.lua: cannot open " .. (TRACE .. "titlevram_" .. TAG .. "_" .. t .. ".bin"))
     local buf = {}
     for a = 0, 0xFFFF do buf[#buf+1] = string.char(emu.read(a, emu.memType.snesVideoRam)) end
     f:write(table.concat(buf)); f:close()
-    f = io.open(TRACE .. "titlevram_" .. TAG .. "_" .. t .. ".cgram", "wb")
+    f = assert(io.open(TRACE .. "titlevram_" .. TAG .. "_" .. t .. ".cgram", "wb"), "probe_title_vram.lua: cannot open " .. (TRACE .. "titlevram_" .. TAG .. "_" .. t .. ".cgram"))
     buf = {}
     for a = 0, 0x1FF do buf[#buf+1] = string.char(emu.read(a, emu.memType.snesCgRam)) end
     f:write(table.concat(buf)); f:close()
     local png = emu.takeScreenshot()
-    f = io.open(TRACE .. "titlevram_" .. TAG .. "_" .. t .. ".png", "wb"); f:write(png); f:close()
+    f = assert(io.open(TRACE .. "titlevram_" .. TAG .. "_" .. t .. ".png", "wb"), "probe_title_vram.lua: cannot open " .. (TRACE .. "titlevram_" .. TAG .. "_" .. t .. ".png")); f:write(png); f:close()
     if t >= 1300 then emu.stop(0) end
   end
 end, emu.eventType.endFrame)

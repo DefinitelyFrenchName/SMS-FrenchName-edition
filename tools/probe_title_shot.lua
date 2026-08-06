@@ -20,7 +20,7 @@ emu.addEventCallback(function()
   t = t + 1
   if SHOTS[t] then
     local png = emu.takeScreenshot()
-    local f = io.open(ENV.TRACE .. "title_" .. t .. ".png", "wb")
+    local f = assert(io.open(ENV.TRACE .. "title_" .. t .. ".png", "wb"), "probe_title_shot.lua: cannot open " .. (ENV.TRACE .. "title_" .. t .. ".png"))
     f:write(png); f:close()
   end
   if t > 1350 then emu.stop(0) end

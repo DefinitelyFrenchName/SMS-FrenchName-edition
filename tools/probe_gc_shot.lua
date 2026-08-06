@@ -9,7 +9,7 @@ local P1={[10]={down=true},[60]={down=true,x=true},[63]={down=true}}
 local P2={[10]={right=true,down=true},[74]={right=true},[76]={right=true,down=true},[78]={down=true},[80]={down=true,left=true},[82]={left=true,b=true},[85]={left=true},[87]={}}
 local t,needLoad=-1,true
 emu.addMemoryCallback(function()
-  if needLoad then local f=io.open(TRACE.."uranus_vs_mars_v07.mss","rb"); if not f then return end
+  if needLoad then local f = io.open(TRACE.."uranus_vs_mars_v07.mss","rb") if not f then print("probe_gc_shot.lua: cannot open " .. (TRACE.."uranus_vs_mars_v07.mss")) emu.stop(1) return end
     emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
 end, emu.callbackType.exec,0x808353,0x808353,emu.cpuType.snes,emu.memType.snesMemory)
 emu.addEventCallback(function()
@@ -21,10 +21,10 @@ emu.addEventCallback(function()
   if t==5 then emu.write(0x1021,0xE8,WRAM) end
   -- P2 does GC around t=83; label shows on P2 (right) side. shoot a few frames after.
   if t>=84 and t<=110 then
-    io.open(TRACE.."probe_gc_shot.txt","a"):write(string.format("t=%d P2labelId=%d ttl=%d\n",
+    local __f = io.open(TRACE.."probe_gc_shot.txt","a") if not __f then print("probe_gc_shot.lua: cannot open " .. (TRACE.."probe_gc_shot.txt")) emu.stop(1) return end __f:write(string.format("t=%d P2labelId=%d ttl=%d\n",
       t, emu.read(0x090D,WRAM), emu.read(0x090E,WRAM))):close()
   end
-  if t==95 then local f=io.open(TRACE.."cc_gc_shot.png","wb"); f:write(emu.takeScreenshot()); f:close() end
+  if t==95 then local f = io.open(TRACE.."cc_gc_shot.png","wb") if not f then print("probe_gc_shot.lua: cannot open " .. (TRACE.."cc_gc_shot.png")) emu.stop(1) return end f:write(emu.takeScreenshot()); f:close() end
   if t==115 then emu.stop(0) end
   t=t+1
 end, emu.eventType.endFrame)

@@ -91,7 +91,7 @@ local t, needLoad = -1, true
 local F = (VARY == "MASH") and FFIX or cands[1]
 if VARY == "MASH" then curMash = cands[1] end
 local sawHeld, sawTech, sawToss, hpRef, hpEnd, techFrame, connectFrame = false,false,false,nil,nil,nil,nil
-local log = io.open(TRACE .. OUT, "w")
+local log = assert(io.open(TRACE .. OUT, "w"), "techsweep.lua: cannot open " .. (TRACE .. OUT))
 
 local function resetAttempt()
   sawHeld, sawTech, sawToss, hpRef, hpEnd, techFrame, connectFrame = false,false,false,nil,nil,nil,nil

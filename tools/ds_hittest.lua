@@ -11,7 +11,7 @@ OUT   = OUT or "ds_hit.txt"
 local WRAM = emu.memType.snesWorkRam
 local loaded, t = false, -1
 local function ram(a) return emu.read(a, WRAM) end
-local log = io.open(TRACE .. OUT, "w")
+local log = assert(io.open(TRACE .. OUT, "w"), "ds_hittest.lua: cannot open " .. (TRACE .. OUT))
 
 local P1PLAN = { [8]={down=true},[11]={down=true,left=true},[14]={left=true,[BTN]=true},[17]={} }
 local cur, applied = {}, -1
@@ -19,7 +19,9 @@ local hp0
 
 emu.addMemoryCallback(function()
   if not loaded then
-    local f = io.open(TRACE .. STATE, "rb"); local ss = f:read("*a"); f:close()
+    local f = io.open(TRACE .. STATE, "rb")
+    if not f then print("ds_hittest.lua: cannot open " .. (TRACE .. STATE)) emu.stop(1) return end
+    local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss); loaded = true; t = 0
   end
 end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)

@@ -1,11 +1,11 @@
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE = ENV.TRACE
-local log = io.open(TRACE .. "probe_ctx.txt", "w")
+local log = assert(io.open(TRACE .. "probe_ctx.txt", "w"), "probe_ctx.lua: cannot open " .. (TRACE .. "probe_ctx.txt"))
 local t, needLoad = -1, true
 local prodFrames, uplFrames = {}, {}
 local function sl() local ok,st=pcall(emu.getState); return ok and (st["ppu.scanline"] or -1) or -1 end
 emu.addMemoryCallback(function()
-  if needLoad then local f=io.open(TRACE.."venus_vs_jupiter_clean.mss","rb"); if not f then return end
+  if needLoad then local f = io.open(TRACE.."venus_vs_jupiter_clean.mss","rb") if not f then print("probe_ctx.lua: cannot open " .. (TRACE.."venus_vs_jupiter_clean.mss")) emu.stop(1) return end
     emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
 end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)
 -- producer entry (via $80 mirror)

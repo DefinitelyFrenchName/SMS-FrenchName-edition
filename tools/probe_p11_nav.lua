@@ -60,8 +60,12 @@ emu.addMemoryCallback(function()
       log("target exists; writing " .. target .. " instead (set NAV_FORCE=true to overwrite)")
     elseif existing then existing:close() end
     local ss = emu.createSavestate()
-    local so = io.open(target, "wb"); so:write(ss); so:close()
-    local sp = io.open(TRACE .. "p11_nav.png", "wb"); sp:write(emu.takeScreenshot()); sp:close()
+    local so = io.open(target, "wb")
+    if not so then print("probe_p11_nav.lua: cannot open " .. (target)) emu.stop(1) return end
+    so:write(ss); so:close()
+    local sp = io.open(TRACE .. "p11_nav.png", "wb")
+    if not sp then print("probe_p11_nav.lua: cannot open " .. (TRACE .. "p11_nav.png")) emu.stop(1) return end
+    sp:write(emu.takeScreenshot()); sp:close()
     snap("SAVED")
     log(string.format("savestate len=%d -> %s", #ss, target))
     emu.stop(0)

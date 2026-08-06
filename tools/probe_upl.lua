@@ -1,6 +1,6 @@
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE = ENV.TRACE
-local log = io.open(TRACE .. "probe_upl.txt", "w")
+local log = assert(io.open(TRACE .. "probe_upl.txt", "w"), "probe_upl.lua: cannot open " .. (TRACE .. "probe_upl.txt"))
 local t, needLoad = -1, true
 local callers = {}
 local dumpedKeys = false
@@ -18,7 +18,7 @@ local function ret()
   return string.format("%02X:%04X sl=%s", bk, (hi*256+lo), tostring(sl))
 end
 emu.addMemoryCallback(function()
-  if needLoad then local f=io.open(TRACE.."venus_vs_jupiter_clean.mss","rb"); if not f then return end
+  if needLoad then local f = io.open(TRACE.."venus_vs_jupiter_clean.mss","rb") if not f then print("probe_upl.lua: cannot open " .. (TRACE.."venus_vs_jupiter_clean.mss")) emu.stop(1) return end
     emu.loadSavestate(f:read("*a")); f:close(); needLoad=false; t=0 end
 end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)
 for _, addr in ipairs({0xC0D56F, 0x80D56F}) do

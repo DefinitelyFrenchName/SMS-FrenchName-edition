@@ -3,12 +3,12 @@ local TRACE=ENV.TRACE
 local WRAM=emu.memType.snesWorkRam
 local loaded,t=false,-1
 local function ram(a) return emu.read(a,WRAM) end
-local log=io.open(TRACE.."ds_hurttest.txt","w")
+local log = assert(io.open(TRACE.."ds_hurttest.txt","w"), "ds_hurttest.lua: cannot open " .. (TRACE.."ds_hurttest.txt"))
 local P1={[8]={down=true},[11]={down=true,left=true},[14]={left=true,y=true},[17]={}}
 local cur,applied={},-1
 local last_alive=-1
 emu.addMemoryCallback(function()
-  if not loaded then local f=io.open(TRACE.."neptune_vs_jupiter.mss","rb");local ss=f:read("*a");f:close();emu.loadSavestate(ss);loaded=true;t=0 end
+  if not loaded then local f = io.open(TRACE.."neptune_vs_jupiter.mss","rb") if not f then print("ds_hurttest.lua: cannot open " .. (TRACE.."neptune_vs_jupiter.mss")) emu.stop(1) return end local ss=f:read("*a");f:close();emu.loadSavestate(ss);loaded=true;t=0 end
 end,emu.callbackType.exec,0x808353,0x808353,emu.cpuType.snes,emu.memType.snesMemory)
 emu.addEventCallback(function()
   if t>=0 then for k,v in pairs(P1) do if k<=t and k>applied then cur=v;applied=k end end end

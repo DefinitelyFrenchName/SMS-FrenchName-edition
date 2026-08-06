@@ -114,6 +114,7 @@ emu.addEventCallback(function()
   end
   if t == 60 or t == 100 or t == 140 then
     local f = io.open(TRACE .. string.format("p13e_desp_%d.png", t), "wb")
+    if not f then print("probe_p13e_desp.lua: cannot open " .. (TRACE .. string.format("p13e_desp_%d.png", t))) emu.stop(1) return end
     f:write(emu.takeScreenshot()); f:close()
   end
   if t == 620 then
