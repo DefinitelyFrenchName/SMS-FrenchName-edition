@@ -1183,8 +1183,21 @@ records + the char-select glyph hook), `SMS_P16_ACS` (wheel labels,
 raster — needs STAGES). ACS trap paid for: the runtime prompt bar
 references the blank \$5C0 tiles through another BG's CHR base, so NO glyph
 hook on that screen (raster labels need none). Deferred: ACS name card +
-prompt, プレイヤーセレクト (codec 2), bracket VS names (script \$A43E,
-port-written), Saturn stage name.
+prompt, and the bracket VS names. PLAYER SELECT shipped (queued 19th row
+record); Saturn stage name shipped behind `SMS_P16_SATURN=1` (default off).
+**Bracket VS names, state of knowledge (2026-08-06):** the line is MAP
+CELLS at rows 4-5 of the bracket's `$7000` map, in the SMALL font (attr
+`$14xx`), баked as Moon-vs-Moon inside the codec-2 blob `$C7:3BBD` (a
+plain byte search cannot find them — the blob is compressed) and rewritten
+per entrant by an unfound runtime builder. A VRAM write-watch on the map
+rows caught nothing at screen entry — codec 2 flushes via DMA, which the
+watch misses. NEXT: play a tournament round to force a bracket-advance
+redraw with the watch armed then (the rewrite should be port-writes), or
+find the builder statically from the small-font code mapping. Translating
+them also needs glyph delivery on the bracket screen — its script `$A43E`
+loads NO big sheet; the plan is to extend the SMALL font blob (`$C227E0`)
+with the half-width set and bump ONLY `$A43E`'s len field (bumping the
+report screen's would collide with its big sheet at tile `$2A0`).
 
 **Earlier same-day status: tournament select names AND the REPORT CARD
 labels DONE** — built by `mkpatch16.py` under `SMS_P16_DF=1`, verified

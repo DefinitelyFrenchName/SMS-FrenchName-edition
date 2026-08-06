@@ -105,6 +105,24 @@ for b = 0x00, 0xBF do
   end
 end
 
+-- VSWATCH=1: log VRAM writes to the bracket's VS-line rows (map words
+-- $7040-$70DF) with writer PC — the bracket names are port-written (no DMA
+-- trace), so this names the writer directly
+if os.getenv("VSWATCH") == "1" then
+  local seen, n = {}, 0
+  emu.addMemoryCallback(function(addr, v)
+    if n >= 300 then return end
+    local s = st()
+    local pc = s and (((s["cpu.k"] or 0) << 16) | (s["cpu.pc"] or 0)) or -1
+    seen[pc] = (seen[pc] or 0) + 1
+    if seen[pc] <= 8 then
+      n = n + 1
+      msgs[#msgs + 1] = string.format("f%d VS $%04X=%02X pc=$%06X",
+        frames, addr or 0, v or 0, pc)
+    end
+  end, emu.callbackType.write, 0xE080, 0xE1BF, emu.cpuType.snes, VRAM)
+end
+
 -- ROWWATCH=1: log the first writes to the $DF system's staged row records
 -- ($7F:8000-$83FF) with writer PC — names the text-builder code directly
 if os.getenv("ROWWATCH") == "1" then
