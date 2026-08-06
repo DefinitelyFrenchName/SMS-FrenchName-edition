@@ -10,7 +10,7 @@ identify Neptune's Deep Submerge fireball table and read its y_off/h bytes.
 Usage: python3 extract_proj_boxes.py <rom.sfc>
 Verified against SHA-1 bc0e29ee383574443226695215496eb0d09aaa1c.
 """
-import sys, struct, hashlib
+import sys
 
 BANK = 0x0A0000  # file offset of SNES bank $8A
 PT_HIT = 0xC1F1  # hit pointer table offset within bank
@@ -21,27 +21,15 @@ ROSTER = {1: "Moon", 2: "Mercury", 3: "Mars", 4: "Jupiter", 5: "Venus",
           6: "Uranus", 7: "Neptune", 8: "Pluto", 9: "Chibimoon"}
 
 
-def s8(b):
-    return b - 256 if b > 127 else b
-
-
-def parse_box(e):
-    return (s8(e[0]), e[1], s8(e[2]), e[3], s8(e[4]), e[5], e[6], e[7])
-
 
 def main():
-    rom = open(sys.argv[1], "rb").read()
-    if len(rom) % 0x8000 == 0x200:
-        rom = rom[0x200:]  # strip copier header (issue #38: was % 0x100000, never matched)
-    h = hashlib.sha1(rom).hexdigest()
-    print("SHA-1:", h, file=sys.stderr)
     from pathlib import Path as _P
     sys.path.insert(0, str(_P(__file__).resolve().parent))
     from smspaths import CLEAN_SHA1
-    if h != CLEAN_SHA1 and "--force" not in sys.argv:
-        raise SystemExit(f"error: not the clean ROM (expected {CLEAN_SHA1}); "
-                         "pass --force to extract anyway")
-    rw = lambda fo: struct.unpack("<H", rom[fo:fo + 2])[0]
+    from boxlib import parse_box_tuple as parse_box, strip_copier_header, sha_gate, word  # (#85)
+    rom = strip_copier_header(open(sys.argv[1], "rb").read())
+    sha_gate(rom, CLEAN_SHA1, "--force" in sys.argv, "clean ROM")
+    rw = lambda fo: word(rom, fo)
 
     ptrs = [rw(BANK + PT_HIT + i * 2) for i in range(N_PTR)]
     # distinct table starts, sorted, to bound each table's extent. Each table ends

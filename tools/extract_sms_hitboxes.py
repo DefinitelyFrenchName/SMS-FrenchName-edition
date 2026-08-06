@@ -11,22 +11,17 @@ data — NOT in this game; earlier versions invented an entry for her from proje
 table bytes (issue #38), which is why old copies of docs/sms_all_boxes.json carry a
 bogus "Saturn" key.
 """
-import sys, json, struct, hashlib
+import sys, json
 from pathlib import Path as _P
 REPO = _P(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "tools"))
 from smspaths import CLEAN_SHA1  # noqa: E402
+from boxlib import parse_box_dict as parse_box, strip_copier_header, sha_gate, word  # noqa: E402  (#85)
 
 BANK = 0x0A0000  # file offset of SNES bank $8A
 TABLES = {"hit": (0xC1F1, 8), "hurt": (0xC229, 16), "coll": (0xC23D, 8)}
 NAMES = {1: "Moon", 2: "Mercury", 3: "Mars", 4: "Jupiter", 5: "Venus",
          6: "Uranus", 7: "Neptune", 8: "Pluto", 9: "Chibimoon"}
-
-def s8(b): return b - 256 if b > 127 else b
-
-def parse_box(e):
-    return {"x_off_r": s8(e[0]), "w_r": e[1], "x_off_l": s8(e[2]), "w_l": e[3],
-            "y_off": s8(e[4]), "h": e[5], "flags": e[6]}
 
 def main():
     # argparse (#72): the old hand-parse read argv[1] positionally (a leading flag
@@ -38,15 +33,9 @@ def main():
     ap.add_argument("--json", metavar="OUT", default=None, help="write JSON here instead of stdout")
     ap.add_argument("--force", action="store_true", help="extract even if the SHA-1 does not match the clean ROM")
     a = ap.parse_args()
-    rom = open(a.rom, "rb").read()
-    if len(rom) % 0x8000 == 0x200:
-        rom = rom[0x200:]  # strip copier header (issue #38: was % 0x100000, never matched)
-    h = hashlib.sha1(rom).hexdigest()
-    print("SHA-1:", h, file=sys.stderr)
-    if h != CLEAN_SHA1 and not a.force:
-        raise SystemExit(f"error: not the clean ROM (expected {CLEAN_SHA1}); "
-                         "pass --force to extract anyway")
-    rw = lambda fo: struct.unpack("<H", rom[fo:fo + 2])[0]
+    rom = strip_copier_header(open(a.rom, "rb").read())
+    sha_gate(rom, CLEAN_SHA1, a.force, "clean ROM")
+    rw = lambda fo: word(rom, fo)
 
     # read pointer tables (hit table also has projectile entries; chars are 1..9)
     ptrs = {t: [rw(BANK + off + i * 2) for i in range(12)] for t, (off, _) in TABLES.items()}
