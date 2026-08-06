@@ -28,16 +28,13 @@ See HANDOFF.md §4 for the harness.
 - `saturn/probe_buttonmap.lua` — which BUTTON selects which byte of the per-character
 - `saturn/probe_cardheal.lua` — cardsat flow (P1=CHAR, SAT=1 confirms with L+R held; KO P2
 - `saturn/probe_cardloader.lua` — cardsat flow (P1=CHAR, SAT=1 confirms with L+R held; KO P2
-- `saturn/probe_cardp2.lua` — cardsat flow with P2 as the WINNER: P1=CHAR, P2=6 (poked at
-- `saturn/probe_cardp2sat.lua` — cardsat flow with P2 as SATURN and the winner: P2 confirms
-- `saturn/probe_cardpal.lua` — cardsat flow (P1=CHAR, SAT=1 confirms with L+R held; KO P2
+- `saturn/probe_cardp2.lua` — the report-card instrumentation probe (the whole cardp family,
 - `saturn/probe_cardportrait.lua` — VS flow, P1 selects CHAR (poked at select), KO P2
 - `saturn/probe_cardportrait2.lua` — cardportrait flow (P1 selects CHAR poked at select, KO
 - `saturn/probe_cardportrait3.lua` — cardportrait flow + the $9F:84E8 decompressor hook; also
 - `saturn/probe_cardportrait4.lua` — cardportrait flow + the $9F:84E8 decompressor hook;
 - `saturn/probe_cardportrait5.lua` — cardportrait flow + the $9F:84E8 decompressor hook and
 - `saturn/probe_cardportrait6.lua` — VS flow (P1 CHAR poked at select), KO P2 twice, then
-- `saturn/probe_cardpvc.lua` — report-card instrumentation with mode switches: PVC=1 skips
 - `saturn/probe_cardsaturn.lua` — VS flow to the report card with SAT=1 holding L+R at
 - `saturn/probe_celparity.lua` — force each act and compare the CEL the engine resolves
 - `saturn/probe_cg_sms.lua` — probe_CGRAMDUMP — dump CGRAM OBJ palette rows during a fireball

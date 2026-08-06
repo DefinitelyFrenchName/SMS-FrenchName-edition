@@ -1,11 +1,23 @@
 
--- probe_cardp2.lua — cardsat flow with P2 as the WINNER: P1=CHAR, P2=6 (poked at
--- select); P1's HP is pinned to 1 and P2 mashes Y to KO P1 twice, then dump
--- VRAM/CGRAM/WRAM/OAM + screenshot at the report card.
+-- probe_cardp2.lua — the report-card instrumentation probe (the whole cardp family,
+-- folded here by #100). Flow: char select (P1=CHAR, P2=CHAR2), optional L+R Saturn
+-- confirm, two KOs, then dump VRAM/CGRAM/WRAM/OAM + screenshot at the report card.
+-- Env knobs (defaults reproduce the old probe_cardp2 exactly):
+--   CHAR  = P1 slot (default 6)      CHAR2 = P2 slot (default 6)
+--   KO    = 1 (default): P1 is KO'd, P2 mashes/wins (the old probe_cardp2)
+--           2: P2 is KO'd, P1 mashes/wins (the old probe_cardpal)
+--   SAT   = 1: P1 confirms with L+R (Saturn)   2: P2 does (the old probe_cardp2sat)
+--   PVC   = 1: skip the VS-mode pick, 1P-vs-COM flow (the old probe_cardpvc;
+--           NOTE: this mode did not complete on v0.16.1 before the fold either — NO-MATCH)
+-- Retired invocations: probe_cardpal  == CHAR2=4 KO=2
+--                      probe_cardpvc  == CHAR2=4 KO=2 [PVC=1]
+--                      probe_cardp2sat== SAT=2
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "6")
 local TAG = os.getenv("TAG") or "x"
+local CHAR2 = tonumber(os.getenv("CHAR2") or "6")
+local KO = tonumber(os.getenv("KO") or "1")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/cardsat_" .. TAG .. ".txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 local ram, wr = PL.ram, PL.wr
@@ -259,15 +271,19 @@ local function dumpvram(tag)
 end
 local STEPS = {
   function() return frames >= 900 end,
-  function() pulse[0]=beat({down=true}); return ram(0x1B10)==1 end,
+  function() if os.getenv("PVC") == "1" then return true end
+             pulse[0]=beat({down=true}); return ram(0x1B10)==1 end,
   function() pulse[0]=beat({start=true}); return sf>40 end,
   function() return sf>300 end,
-  function() wr(0x1B40, CHAR); wr(0x1B80, 6); return sf>20 end,
+  function() wr(0x1B40, CHAR); wr(0x1B80, CHAR2); return sf>20 end,
   function() code[0] = (os.getenv("SAT") == "1") or nil
              pulse[0]=beat({a=true})
              if ram(0x1B42)==1 or sf>150 then code[0] = nil; return true end
              return false end,
-  function() pulse[1]=beat({a=true}); return ram(0x1B82)==1 or sf>150 end,
+  function() code[1] = (os.getenv("SAT") == "2") or nil
+             pulse[1]=beat({a=true})
+             if ram(0x1B82)==1 or sf>150 then code[1] = nil; return true end
+             return false end,
   function()
     pulse[0] = (sf % 20 < 3) and {start=true} or {}
     if ram(0x70)==4 and ram(0x1000)~=0 and ram(0x1080)~=0 then return true end
@@ -277,12 +293,14 @@ local STEPS = {
   function() return sf > 150 end,
   -- two quick KOs
   function() wr(0x1021, 0x90); wr(0x1022, 0); wr(0x10A1, 0xA6); wr(0x10A2, 0)
-             wr(0x1049, 1); pulse[1] = (sf % 12 < 3) and {y=true} or {}
-             return ram(0x1049) == 0 or sf > 300 end,
-  function() pulse[1]={}; return sf > 420 end,
+             local hp = (KO == 2) and 0x10C9 or 0x1049
+             wr(hp, 1); pulse[(KO == 2) and 0 or 1] = (sf % 12 < 3) and {y=true} or {}
+             return ram(hp) == 0 or sf > 300 end,
+  function() pulse[(KO == 2) and 0 or 1]={}; return sf > 420 end,
   function() wr(0x1021, 0x90); wr(0x1022, 0); wr(0x10A1, 0xA6); wr(0x10A2, 0)
-             wr(0x1049, 1); pulse[1] = (sf % 12 < 3) and {y=true} or {}
-             return ram(0x1049) == 0 or sf > 400 end,
+             local hp = (KO == 2) and 0x10C9 or 0x1049
+             wr(hp, 1); pulse[(KO == 2) and 0 or 1] = (sf % 12 < 3) and {y=true} or {}
+             return ram(hp) == 0 or sf > 400 end,
   function()   -- advance to the REPORT CARD, detected by state, then settle
     watching = true
     pulse[0] = (sf % 40 < 3) and {start=true} or {}
