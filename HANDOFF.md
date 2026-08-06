@@ -214,12 +214,20 @@ comments + closes what is already fixed or wrongly premised. Batch plan and
 per-issue verdicts: `~/.claude/plans/i-ll-look-into-all-purrfect-blum.md`;
 running state: `docs/NEXT_SESSION.md`.
 
-Done so far: **batch 1** (integrity — #79 #81 #82 #83 #59 #60 #65 #66 #13),
-**batch 1b** (#24 #61 #62 #3, #63 rescoped), **batch 3 complete** (docs/registry
-— #67 #68 #74 #103 #52 #75; mkindex now recursive + self-checking, run.sh takes
-`$MESEN` and its scriptTimeout flag was measured INERT under --testrunner, 50
-copy-paste probe headers corrected, nested `build/saturn/*.bps` trackable), and
-**batch 2 complete**
+**THE PROGRAMME IS COMPLETE (2026-08-06):** all 61 real issues from both
+adversarial reviews are resolved; only the two tracking meta-issues (#57,
+#106) remain open. **Batch 4** (duplication/dead code/conventions — 18
+issues) closed it out: boxlib.py + saturn/gfxlib.py dedups, mksaturn_smoke's
+three ad-hoc assemblers replaced by asm65816 (byte-identity-gated incl. all
+env variants; two lesser assembler-class sites recorded on #98 as follow-up),
+hitstun unified at 0x10-0x18 across 12 hand-rolled sites, 77 saturn bare
+asserts and 237 silent io.open sites swept, #35 closed by measurement
+(~2.2 µs/frame for the whole HUD), trainer.lua kept deliberately standalone
+(maintainer decision). Earlier: **batch 1** (integrity — #79 #81 #82 #83 #59
+#60 #65 #66 #13), **batch 1b** (#24 #61 #62 #3, #63 rescoped), **batch 3**
+(docs/registry — #67 #68 #74 #103 #52 #75; mkindex recursive +
+self-checking, run.sh takes `$MESEN`, scriptTimeout measured INERT under
+--testrunner, 50 probe headers corrected), and **batch 2**
 (2026-08-06: #87 #92 #91 #86, then one commit per issue for #88 #90 #96 #94
 #89 #80 #97 #69 #76 #71 #18 #93; #84 refuted by measurement). Convention:
 **one commit per issue** (`Fixes #NN`) — the two batch commits are deliberate

@@ -20,7 +20,30 @@ already fixed or wrongly premised.
 | 1b — health command + fresh clone | #24 #61 #62 #3, rescoped #63 | **DONE** (`f3b6e68`) |
 | 2 — correctness in shipped code | #87 #92 #91 #86 #88 #90 #96 #94 #89 #80 #97 #69 #76 #71 #18 #93; #84 refuted | **DONE** (2026-08-06, one commit per issue from #88 on) |
 | 3 — docs/registry drift | #67 #68 #74 #103 #52 #75 | **DONE** (2026-08-06, one commit per issue) |
-| 4 — duplication, dead code, conventions | #73 #85 #95 #98 #100 #101 #70 #77 #99 #102 #105 #104 #78 #35 #32 #44 #64 #72 | not started |
+| 4 — duplication, dead code, conventions | #73 #85 #95 #98 #100 #101 #70 #77 #99 #102 #105 #104 #78 #35 #32 #44 #64 #72 | **DONE** (2026-08-06) — the remediation programme is COMPLETE; only the two tracking meta-issues (#57 #106) remain open |
+
+Batch 4 outcomes that changed how things work (per-issue detail in the commits):
+* **New shared modules**: `tools/boxlib.py` (extractor core ×3 → 1),
+  `tools/saturn/gfxlib.py` (renderer primitives ×4-5 → 1, gated on a
+  full-domain property test).
+* **mksaturn_smoke's three ad-hoc assemblers are gone** — asm65816 grew
+  jsl/DP forms/absolute-X/jsr and a jmp cross-bank raise; every conversion
+  byte-identity-gated incl. all env-variant paths. Two assembler-class
+  sites REMAIN, recorded on #98: the round-load `_flagblock` (_rel8/_rel16)
+  and the SND_MAP dispatch loop.
+* **Hitstun is 0x10-0x18 everywhere** (flame/electric included) — twelve
+  hand-rolled 0x16 copies widened by hand, suites proved no site meant the
+  narrow range.
+* **Bare asserts in tools/saturn/*.py: 77 → 0**; unwrapped io.open: 237 → 0
+  silent (46 assert / 140 print+stop per the #80 swallowed-error rule / 48
+  with pre-existing handling).
+* **#35 closed by measurement**: the entire HUD stack costs ~2.2 µs/frame
+  in a live match — the issue's own bar forbade landing speculative
+  optimization.
+* **#64 closed as already fixed** (batch 1 fixed gen_plan alongside #13).
+* **trainer.lua / demo_truecombo / demo_infinite are deliberately
+  self-contained** (maintainer decision on #78) — scope notes in their
+  headers keep the next dedup sweep from re-filing them.
 
 **RESOLVED (maintainer, 2026-08-06): v0.22 re-recorded as a lineage step.**
 Batch 2 moved patches 10b/11, so the recipe drifted from the recorded hash;
