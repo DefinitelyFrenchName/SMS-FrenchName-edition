@@ -368,6 +368,19 @@ local ROUTES = {
       return sf > 20
     end,
   },
+  story = {  -- mash into story mode; shoot everything until the fight loads
+    function() return frames >= 900 end,
+    function() pulse[0] = beat({ start = true }); return sf > 40 end,
+    function()
+      pulse[0] = (frames % 20 < 3) and { start = true }
+        or ((frames % 20 >= 10 and frames % 20 < 13) and { a = true } or {})
+      if sf % 120 == 0 then
+        local f = io.open(string.format("%sp16scr_story_f%d.png", ENV.TRACE, frames), "wb")
+        if f then f:write(emu.takeScreenshot()); f:close() end
+      end
+      return ram(0x70) == 4 or sf > 3600
+    end,
+  },
   tournament = {
     function() return frames >= 900 end,
     function() pulse[0] = beat({ down = true }); return ram(0x1B10) == 0 end,

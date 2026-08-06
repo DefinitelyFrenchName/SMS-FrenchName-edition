@@ -193,7 +193,13 @@ DF_SHEET_RAW = 0x4C00             # 608 tiles decompressed
 # (placed[ch] - $200).
 DF_GLYPH_TILE = 0x320             # sheet tile of the first glyph row
 DF_SHEET_TILES = 0x360            # padded total
-DF_SCRIPT_REFS = (0x1F8D24, 0x1F941B, 0x1F96CC)   # file offsets of src24 fields
+# ⚠ Only the TWO screens that need glyphs are repointed. The third $C348D0
+# script entry ($DF:941B, script $9405) was bumped speculatively in the first
+# build ("the bracket" — wrong: the bracket is script $A43E) and turned out to
+# be the STORY PRE-FIGHT PORTRAIT screen, whose background plane REFERENCES
+# the tiles the extension lands on — the maintainer field-reported stray
+# letters there (2026-08-06). Blank-but-referenced again; it stays vanilla.
+DF_SCRIPT_REFS = (0x1F8D24, 0x1F96CC)             # file offsets of src24 fields
 DF_SHEET_AT = 0xA000              # packed extended sheet's offset in the blob
 # name blocks: (file offset of block, text) — 12 cells x 2 rows each,
 # left-aligned like the Japanese; identified by rendering (docs/menu_text.md).
