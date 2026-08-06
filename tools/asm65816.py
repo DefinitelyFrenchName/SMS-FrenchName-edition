@@ -50,6 +50,8 @@ def assemble(lines, org, bank):
             return 2  # direct page (_dpx = dp,X; _ildp = [dp] indirect long)
         if mn in ("lda_y","sta_y","adc_y","cmp_y"):
             return 3  # absolute,Y
+        if mn in ("lda_x",):
+            return 3  # absolute,X
         if mn == "lsr_a":
             return 1
         raise ValueError(f"size: unknown {mn} {op}")
@@ -120,6 +122,7 @@ def assemble(lines, org, bank):
     DP = {"lda_dp":0xA5,"sta_dp":0x85,"sty_dp":0x84,"adc_dp":0x65,
           "lda_dpx":0xB5,"lda_ildp":0xA7}  # direct page (_dpx = dp,X; _ildp = [dp])
     ABSY = {"lda_y":0xB9,"sta_y":0x99,"adc_y":0x79,"cmp_y":0xD9}                  # absolute,Y
+    ABSX = {"lda_x":0xBD}                                                         # absolute,X
     # absolute opcodes: (imm, abs)
     OPS = {"lda":(0xA9,0xAD),"sta":(None,0x8D),"cmp":(0xC9,0xCD),"ldx":(0xA2,0xAE),
            "stx":(None,0x8E),"ldy":(0xA0,0xAC),"sty":(None,0x8C),"adc":(0x69,0x6D),
@@ -179,6 +182,11 @@ def assemble(lines, org, bank):
             if v > 0xFFFF:
                 raise ValueError(f"absolute address out of range: {mn} {op} ({v:#x} > 0xffff)")
             out += bytes([ABSY[mn], v & 0xFF, (v >> 8) & 0xFF]); pc += 3
+        elif mn in ABSX:
+            v = int(op.replace("$",""), 16)
+            if v > 0xFFFF:
+                raise ValueError(f"absolute address out of range: {mn} {op} ({v:#x} > 0xffff)")
+            out += bytes([ABSX[mn], v & 0xFF, (v >> 8) & 0xFF]); pc += 3
         elif mn in OPS:
             imm_op, abs_op = OPS[mn]
             if op.startswith("#"):

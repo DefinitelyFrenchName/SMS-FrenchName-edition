@@ -2209,79 +2209,107 @@ keep:
         # Entered by JSL from the char loader with M=1/X=1 and A = the vanilla
         # bank id. $C0:EC5E returns with the index registers 16-bit, hence the
         # `sep #$30` after every call.
-        def _asm(body):
-            out, fix, lbls = bytearray(), [], {}
+        def _load(bank_id):
+            """lda #bank / jsl $80:EC5E / sep #$30 (see the width note above)"""
+            return f"""
+  lda #${bank_id:02X}
+  jsl $80EC5E
+  sep #$30"""
 
-            def emit(*bs): out.extend(bs)
+        def _setdp10(val):
+            return f"""
+  lda #${val & 0xFF:02X}
+  sta_dp $10
+  lda #${val >> 8:02X}
+  sta_dp $11"""
 
-            def br(op, name):
-                out.extend((op, 0x00)); fix.append((len(out) - 1, name))
+        p1_asm = f"""
+  assume m=1, x=1      ; JSL entry, M=1/X=1 (see above)
+  pha                  ; (bank id)
+  lda_l ${SATURN_BANK:02X}{SATURN_FLAG:04X}
+  cmp #${SATURN_MAGIC:02X}
+  beq sat
+  lda_l ${SATURN_BANK:02X}{SATURN_LATCH:04X}
+  cmp #${SATURN_MAGIC:02X}
+  beq sat
+  ; not Saturn: put char 1's own directory back if we dirtied it
+  lda_l ${SATURN_BANK:02X}{VOICE_DIRTY:04X}
+  cmp #${SATURN_MAGIC:02X}
+  bne vanilla
+  lda_dp $10           ; save dp $10/$11
+  pha
+  lda_dp $11
+  pha
+{_setdp10(0x0000)}
+{_load(VOICE_ID_RESP1)}
+  pla                  ; restore dp
+  sta_dp $11
+  pla
+  sta_dp $10
+  lda #$00
+  sta_l ${SATURN_BANK:02X}{VOICE_DIRTY:04X}
+vanilla:
+  pla
+  jsl $80EB4B
+  rtl
+sat:
+  lda_dp $10           ; save dp $10/$11
+  pha
+  lda_dp $11
+  pha
+{_setdp10(0x0000)}
+  ; samples -> $B700
+{_load(VOICE_ID_SAMP)}
+{_setdp10(0x0000)}
+  ; directory -> $34C0
+{_load(VOICE_ID_DIRP1)}
+  pla                  ; restore dp
+  sta_dp $11
+  pla
+  sta_dp $10
+  lda #${SATURN_MAGIC:02X}
+  sta_l ${SATURN_BANK:02X}{VOICE_DIRTY:04X}
+  pla
+  rtl
+"""
+        p1blob, _ = A.assemble(p1_asm.splitlines(), 0, 0)
 
-            def lbl(name): lbls[name] = len(out)
-            body(emit, br, lbl)
-            for pos, name in fix:
-                d = lbls[name] - (pos + 1)
-                assert -128 <= d <= 127, f"voice hook branch to {name} out of range ({d})"
-                out[pos] = d & 0xFF
-            return bytes(out)
-
-        def _load(emit, bank_id):
-            emit(0xA9, bank_id, 0x22, 0x5E, 0xEC, 0x80, 0xE2, 0x30)
-
-        def _setdp10(emit, val):
-            emit(0xA9, val & 0xFF, 0x85, 0x10, 0xA9, val >> 8, 0x85, 0x11)
-
-        def _p1(emit, br, lbl):
-            emit(0x48)                                              # pha (bank id)
-            emit(0xAF, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK)
-            emit(0xC9, SATURN_MAGIC); br(0xF0, "sat")
-            emit(0xAF, SATURN_LATCH & 0xFF, SATURN_LATCH >> 8, SATURN_BANK)
-            emit(0xC9, SATURN_MAGIC); br(0xF0, "sat")
-            # not Saturn: put char 1's own directory back if we dirtied it
-            emit(0xAF, VOICE_DIRTY & 0xFF, VOICE_DIRTY >> 8, SATURN_BANK)
-            emit(0xC9, SATURN_MAGIC); br(0xD0, "vanilla")
-            emit(0xA5, 0x10, 0x48, 0xA5, 0x11, 0x48)                # save dp $10/$11
-            _setdp10(emit, 0x0000)
-            _load(emit, VOICE_ID_RESP1)
-            emit(0x68, 0x85, 0x11, 0x68, 0x85, 0x10)                # restore dp
-            emit(0xA9, 0x00, 0x8F, VOICE_DIRTY & 0xFF, VOICE_DIRTY >> 8, SATURN_BANK)
-            lbl("vanilla")
-            emit(0x68)                                              # pla
-            emit(0x22, 0x4B, 0xEB, 0x80)                            # jsl $80:EB4B
-            emit(0x6B)
-            lbl("sat")
-            emit(0xA5, 0x10, 0x48, 0xA5, 0x11, 0x48)
-            _setdp10(emit, 0x0000)
-            _load(emit, VOICE_ID_SAMP)                              # samples -> $B700
-            _setdp10(emit, 0x0000)
-            _load(emit, VOICE_ID_DIRP1)                             # directory -> $34C0
-            emit(0x68, 0x85, 0x11, 0x68, 0x85, 0x10)
-            emit(0xA9, SATURN_MAGIC, 0x8F, VOICE_DIRTY & 0xFF, VOICE_DIRTY >> 8, SATURN_BANK)
-            emit(0x68, 0x6B)                                        # pla / rtl
-
-        def _p2(emit, br, lbl):
-            emit(0x48)
-            emit(0xAF, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK)
-            emit(0xC9, SATURN_MAGIC); br(0xF0, "sat")
-            emit(0xAF, SATURN_LATCH2 & 0xFF, SATURN_LATCH2 >> 8, SATURN_BANK)
-            emit(0xC9, SATURN_MAGIC); br(0xF0, "sat")
-            emit(0xAF, VOICE_DIRTY2 & 0xFF, VOICE_DIRTY2 >> 8, SATURN_BANK)
-            emit(0xC9, SATURN_MAGIC); br(0xD0, "vanilla")
-            _setdp10(emit, 0x0010)                                  # -> $34D0
-            _load(emit, VOICE_ID_RESP2)
-            emit(0xA9, 0x00, 0x8F, VOICE_DIRTY2 & 0xFF, VOICE_DIRTY2 >> 8, SATURN_BANK)
-            lbl("vanilla")
-            _setdp10(emit, 0x2400)                                  # as the caller had it
-            emit(0x68)
-            emit(0x22, 0x5E, 0xEC, 0x80)                            # jsl $80:EC5E
-            emit(0x6B)
-            lbl("sat")
-            _setdp10(emit, 0x2400)
-            _load(emit, VOICE_ID_SAMP)                              # samples -> $DB00
-            _setdp10(emit, 0x0010)
-            _load(emit, VOICE_ID_DIRP2)                             # directory -> $34D0
-            emit(0xA9, SATURN_MAGIC, 0x8F, VOICE_DIRTY2 & 0xFF, VOICE_DIRTY2 >> 8, SATURN_BANK)
-            emit(0x68, 0x6B)
+        p2_asm = f"""
+  assume m=1, x=1      ; JSL entry, M=1/X=1 (see above)
+  pha                  ; (bank id)
+  lda_l ${SATURN_BANK:02X}{SATURN_FLAG2:04X}
+  cmp #${SATURN_MAGIC:02X}
+  beq sat
+  lda_l ${SATURN_BANK:02X}{SATURN_LATCH2:04X}
+  cmp #${SATURN_MAGIC:02X}
+  beq sat
+  lda_l ${SATURN_BANK:02X}{VOICE_DIRTY2:04X}
+  cmp #${SATURN_MAGIC:02X}
+  bne vanilla
+  ; -> $34D0
+{_setdp10(0x0010)}
+{_load(VOICE_ID_RESP2)}
+  lda #$00
+  sta_l ${SATURN_BANK:02X}{VOICE_DIRTY2:04X}
+vanilla:
+  ; as the caller had it
+{_setdp10(0x2400)}
+  pla
+  jsl $80EC5E
+  rtl
+sat:
+{_setdp10(0x2400)}
+  ; samples -> $DB00
+{_load(VOICE_ID_SAMP)}
+{_setdp10(0x0010)}
+  ; directory -> $34D0
+{_load(VOICE_ID_DIRP2)}
+  lda #${SATURN_MAGIC:02X}
+  sta_l ${SATURN_BANK:02X}{VOICE_DIRTY2:04X}
+  pla
+  rtl
+"""
+        p2blob, _ = A.assemble(p2_asm.splitlines(), 0, 0)
 
         # --- select-voice hooks ---------------------------------------------
         def _who(player):
@@ -2299,27 +2327,30 @@ keep:
                     + bytes((0x8D, 0x1E, 0x1B))                     # sta $1B1E
                     + bytes((0x6B,)))                               # rtl
 
-        def _selbank(emit, br, lbl):
-            # entry: M=8-bit, X=16-bit = charID, DB = the caller's (so the vanilla
-            # `lda $AE75,X` still resolves). Substitute her bank id when the
-            # player being voiced is Saturn; otherwise do exactly what we replaced.
-            emit(0xDA)                                              # phx
-            emit(0xA2, 0x00, 0x00)                                  # ldx #$0000
-            emit(0xAF, VOICE_PLAYER & 0xFF, VOICE_PLAYER >> 8, SATURN_BANK)
-            br(0xF0, "p1")
-            emit(0xA2, 0x01, 0x00)                                  # ldx #$0001
-            lbl("p1")
-            emit(0xBF, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK)  # lda $7FF100,X
-            emit(0xFA)                                              # plx (restores charID)
-            emit(0xC9, SATURN_MAGIC)
-            br(0xD0, "vanilla")
-            emit(0xA9, VOICE_SEL_ID)                                # lda #her bank
-            br(0x80, "go")
-            lbl("vanilla")
-            emit(0xBD, 0x75, 0xAE)                                  # lda $AE75,X
-            lbl("go")
-            emit(0x22, 0x4B, 0xEB, 0x80)                            # jsl $80:EB4B
-            emit(0x6B)
+        # entry: M=8-bit, X=16-bit = charID, DB = the caller's (so the vanilla
+        # `lda_x $AE75` still resolves). Substitute her bank id when the
+        # player being voiced is Saturn; otherwise do exactly what we replaced.
+        sel_asm = f"""
+  assume m=1, x=0      ; caller-guaranteed entry widths (see above)
+  phx
+  ldx #$0000
+  lda_l ${SATURN_BANK:02X}{VOICE_PLAYER:04X}
+  beq p1
+  ldx #$0001
+p1:
+  lda_lx ${SATURN_BANK:02X}{SATURN_FLAG:04X}
+  plx                  ; restores charID
+  cmp #${SATURN_MAGIC:02X}
+  bne vanilla
+  lda #${VOICE_SEL_ID:02X}   ; her bank
+  bra go
+vanilla:
+  lda_x $AE75
+go:
+  jsl $80EB4B
+  rtl
+"""
+        selblob, _ = A.assemble(sel_asm.splitlines(), 0, 0)
 
         # --- movelist ------------------------------------------------------
         _mspec = _ilu.spec_from_file_location(
@@ -2354,12 +2385,11 @@ keep:
         for off, blob in ((V_MOVELIST, mlblob),
                           (V_MLHOOK1, _mlhook(0)), (V_MLHOOK2, _mlhook(1)),
                           (V_WHO1, _who(0)), (V_WHO2, _who(1)),
-                          (V_SELHOOK, _asm(_selbank))):
+                          (V_SELHOOK, selblob)):
             assert not any(f1[off:off + len(blob)]), f"select stub at {off:#06x} overlaps"
             f1[off:off + len(blob)] = blob
 
-        for off, body in ((V_HOOK1, _p1), (V_HOOK2, _p2)):
-            blob = _asm(body)
+        for off, blob in ((V_HOOK1, p1blob), (V_HOOK2, p2blob)):
             assert not any(f1[off:off + len(blob)]), f"voice hook at {off:#06x} overlaps"
             f1[off:off + len(blob)] = blob
         # keep the full 64K: every other appended bank is a whole bank, and
