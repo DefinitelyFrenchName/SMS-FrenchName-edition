@@ -33,6 +33,7 @@ note() { [ "$QUIET" = 1 ] || printf '  note  %s\n' "$1"; }
 echo "== generated artifacts are in sync with their sources =="
 if out="$(python3 tools/mksigs.py --check 2>&1)"; then ok "$out"; else bad "mksigs: $out"; fi
 if out="$(python3 tools/mkrelease.py --check 2>&1)"; then ok "$out"; else bad "mkrelease: $out"; fi
+if out="$(python3 tools/mkindex.py --check 2>&1)"; then ok "$out"; else bad "mkindex: $out"; fi
 
 echo "== every Python tool parses, and imports cleanly enough to be introspected =="
 syn=0

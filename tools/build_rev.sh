@@ -52,6 +52,7 @@ build_chain() {   # build_chain <subtitle> <out.sfc>
 }
 
 python3 tools/mksigs.py --check      # builder fingerprints must match the suite
+python3 tools/mkindex.py --check     # tools/ index must match the tree (#103)
 # Preflight (#60): fail in a second, not after a 13-step chain. flips is gitignored
 # (a local drop-in), so "missing" is the normal state of a fresh clone.
 [ -x tools/Flips/flips ] || { echo "error: tools/Flips/flips missing or not executable — see HANDOFF.md §2" >&2; exit 1; }
