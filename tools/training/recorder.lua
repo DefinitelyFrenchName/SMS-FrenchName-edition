@@ -13,9 +13,9 @@
 --     special once, set guard=all + trigger=gc, then run your blockstrings — the dummy
 --     GCs through them). M.gcChance (menu "gc chance") makes it probabilistic so you can
 --     practice hit-confirming vs random GCs.
---   * reversal_lead (cfg): start playback N frames before the predicted first actionable
---     frame so reversal-timed recordings come out frame-perfect (default 1; the engine
---     latches a press on the last constrained frame into a move on the next).
+--   * reversal timing needs no knob: playback fires on the first free frame's input
+--     poll, and the engine's press-latch makes that frame-perfect for move starts
+--     (an earlier documented reversal_lead cfg was never read and is gone — #18).
 -- Persistence: traces/training_slots.lua (auto-saved on record end, auto-loaded at boot).
 local M = {}
 
@@ -135,8 +135,8 @@ function M.init(ctx)
     if not s then return end
     local d = s.p[dummyPort]
     local con = CONSTRAINED[d.cls]
-    -- predictive fire: the LAST constrained frames before freedom aren't knowable ahead of
-    -- time in general; reversal_lead=1 relies on the engine's press-latch: firing on the
+    -- predictive fire: the LAST constrained frames before freedom aren't knowable ahead
+    -- of time in general; instead we rely on the engine's press-latch — firing on the
     -- first free frame's input poll is frame-perfect for move starts.
     if wasConstraint and not con then
       if (M.trigger == "wakeup" and wasConstraint == "wakeup")

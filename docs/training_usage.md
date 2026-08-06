@@ -60,9 +60,9 @@ Settings persist to `traces/training_settings.lua` when the menu closes.
 2. Perform the sequence, press `R`/`Select` again — trailing neutral is trimmed, the slot
    is saved to `traces/training_slots.lua`.
 3. Play it: `T` (manual), or set a trigger (`U`): **wakeup** replays it the instant P2
-   becomes actionable after a knockdown — the classic reversal dummy. `reversal_lead`
-   (cfg, default 1) starts playback a frame early so reversal-timed moves come out
-   frame-perfect.
+   becomes actionable after a knockdown — the classic reversal dummy. Playback fires on
+   the first actionable frame's input poll, which the engine's press-latch makes
+   frame-perfect for reversal-timed moves — no timing knob needed.
 4. Recordings store **back/forward relative to facing** — they mirror automatically when
    sides switch.
 

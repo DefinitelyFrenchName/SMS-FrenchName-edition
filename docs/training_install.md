@@ -68,7 +68,6 @@ TM_CFG = {
                          --   if text is too small on your monitor)
   meterCells = 80,       -- frame-meter width in cells (one cell = one frame)
   rollRows = 40,         -- piano-roll visible rows
-  reversal_lead = 1,     -- frames of early playback for reversal-timed recordings
   padControls = true,    -- pad extras: hold R = control dummy, Select = record toggle
   keys = { ... },        -- rebind any hotkey (see training_usage.md for the map)
 }

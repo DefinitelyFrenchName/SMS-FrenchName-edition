@@ -4,7 +4,8 @@
 --   inputPolled (input pipeline, sees ctx.t = N)  →  exec@$80:8353 (joy_read; savestate ops)
 --   →  game logic for frame N  →  endFrame (frame hooks see post-frame state at ctx.t = N,
 --   then ctx.t increments). A trigger detected at endFrame N can first act at inputPolled
---   N+1 — hence the recorder's tunable reversal_lead (default 1).
+--   N+1 — which is frame-perfect for move starts, because the engine latches a press on
+--   the first free frame's poll (see recorder.lua's autoTrigger).
 local M = {}
 
 function M.run(ROOT, opts)
@@ -31,7 +32,6 @@ function M.run(ROOT, opts)
     keys = { menu = "M", hud = "9", boxes = "8", record = "R", play = "T",
              slot = "Y", trigger = "U", posSave = "Q", posLoad = "E",
              meterFreeze = "G", padSwap = "P", sConv = "F", reset = "0" },
-    reversal_lead = 1,
     meterCells = 80,
     rollRows = 40,
   }
