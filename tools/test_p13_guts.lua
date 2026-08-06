@@ -215,6 +215,66 @@ local STACK = {
       check("stack-taunted", saw.taunt)
       check("stack-granted", lv(1) == 1, string.format("lv=%d", lv(1)))
     end },
+  -- #84: patch 11 drives HP to max on purpose (menu row, dummy regen, post-KO
+  -- refill) and patch 13 infers "a new round started" from exactly that
+  -- transition, so a training toggle wiped BOTH players' Guts levels mid-round.
+  -- Poke the setting and toggle the menu, the way the recplay test applies its
+  -- settings, then assert the levels are untouched. Negative-controlled: on a
+  -- build without the fix this case fails on guts-survived-hp-toggle.
+  -- #84: patch 11 drives HP to max on purpose (menu row, dummy regen, post-KO
+  -- refill) and patch 13 infers "a new round started" from exactly that
+  -- transition, so a training toggle wiped BOTH players' Guts levels mid-round.
+  -- The P1 HP row applies on a LEFT/RIGHT press while the cursor is on it, so
+  -- this drives the real menu: open, walk the cursor to row 11, toggle twice.
+  -- The cursor read is a PRECONDITION — a navigation that never arrives would
+  -- otherwise look exactly like "the bug is fixed".
+  -- #84 said a training HP toggle wipes both players' Guts levels: patch 11
+  -- drives HP to max on purpose and patch 13 infers "new round" from exactly
+  -- that transition. MEASURED FALSE (2026-08-06) — twice over. Patch 11 hooks
+  -- ahead of patch 13 in the same frame chain, so patch 13's own epilogue
+  -- latches PREVHP in the SAME frame the HP changes (p1hp 17->60 and prev0
+  -- 17->60 together); there is never a frame where HP is max and PREVHP is not.
+  -- And P1's action ID is 0x21 while the menu is open, so rsig's idle
+  -- precondition fails anyway. Nothing was changed in the patches.
+  -- The case stays because it PINS that: it is the thing that would break if the
+  -- hook order or the menu-open act ever changed. Three facts it had to learn,
+  -- each now a precondition rather than a comment: the cursor starts on row 1
+  -- (row 11 is TEN presses), it RESETS to 1 on every reopen, and the menu
+  -- FREEZES the game — toggling with it open cannot reach patch 13 at all.
+  { name = "hp-toggle-keeps-guts", state = "training_p11.mss", dur = 470,
+    tick = function(pt)
+      local function navdown(t0)     -- ten press/release pairs from t0
+        if pt >= t0 and pt < t0 + 10 * 6 then
+          pulse[0] = ((pt - t0) % 6 < 2) and { down = true } or nil
+        end
+      end
+      if pt == 6 then setlv(1, 2); setlv(2, 3) end
+      if pt >= 10 and pt <= 12 then pulse[0] = { l = true, r = true } elseif pt == 13 then pulse[0] = nil end
+      navdown(20)
+      if pt == 92 then saw.cursor = ram(0x1F006) end
+      if pt >= 100 and pt <= 101 then pulse[0] = { right = true } elseif pt == 102 then pulse[0] = nil end
+      if pt >= 110 and pt <= 112 then pulse[0] = { l = true, r = true } elseif pt == 113 then pulse[0] = nil end
+      if pt == 170 then saw.hplow = ram(0x1049); saw.lvmid1 = lv(1) end
+      if pt >= 180 and pt <= 182 then pulse[0] = { l = true, r = true } elseif pt == 183 then pulse[0] = nil end
+      navdown(190)
+      if pt == 262 then saw.cursor2 = ram(0x1F006) end
+      if pt >= 270 and pt <= 271 then pulse[0] = { left = true } elseif pt == 272 then pulse[0] = nil end
+      if pt >= 280 and pt <= 282 then pulse[0] = { l = true, r = true } elseif pt == 283 then pulse[0] = nil end
+      if pt == 450 then saw.hpfull = ram(0x1049); saw.lv1 = lv(1); saw.lv2 = lv(2) end
+    end,
+    fin = function()
+      check("hp-toggle-reached-row11", saw.cursor == 11,
+        string.format("cursor=%s want 11 (navigation failed — the rest means nothing)",
+                      tostring(saw.cursor)))
+      check("hp-toggle-row11-again", saw.cursor2 == 11,
+        string.format("cursor=%s after reopen", tostring(saw.cursor2)))
+      check("hp-toggle-went-low", saw.hplow == 0x17,
+        string.format("hp=%02X want 17", saw.hplow or 0xFF))
+      check("hp-toggle-back-to-full", saw.hpfull == ram(0x104A),
+        string.format("hp=%02X want %02X", saw.hpfull or 0xFF, ram(0x104A)))
+      check("guts-survived-hp-toggle", saw.lv1 == 2 and saw.lv2 == 3,
+        string.format("lv1=%d want 2, lv2=%d want 3", saw.lv1 or -1, saw.lv2 or -1))
+    end },
   { name = "interrupted-taunt-no-grant", state = "training_p11.mss", dur = 220,
     tick = function(pt)
       if pt == 10 then p2close(24) end

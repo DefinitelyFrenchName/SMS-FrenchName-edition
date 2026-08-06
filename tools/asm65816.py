@@ -90,11 +90,23 @@ def assemble(lines, org, bank):
     out = bytearray()
     pc = org
     m, x = 1, 1
+    # Range-check before masking (#87). Silently truncating an over-wide operand
+    # turns a layout mistake into a WRAPPED address that assembles cleanly and
+    # runs somewhere else — the hardest class of bug this project has, and the
+    # one the branch check below already refuses to allow. Same message shape.
     def imm_bytes(op, width16):
         v = int(op[1:].replace("$",""), 16)
+        lim = 0xFFFF if width16 else 0xFF
+        if v > lim:
+            raise ValueError(f"immediate out of range for {'16' if width16 else '8'}-bit "
+                             f"accumulator: {op} ({v:#x} > {lim:#x}) — check the sep/rep "
+                             f"state, not the operand")
         return [v & 0xFF, (v >> 8) & 0xFF] if width16 else [v & 0xFF]
     def abs_bytes(op):
         v = int(op.replace("$",""), 16)
+        if v > 0xFFFF:
+            raise ValueError(f"absolute address out of range: {op} ({v:#x} > 0xffff) — "
+                             f"a long address needs a long opcode")
         return [v & 0xFF, (v >> 8) & 0xFF]
     SIMPLE = {"php":0x08,"plp":0x28,"phb":0x8B,"plb":0xAB,"pha":0x48,"pla":0x68,"lsr_a":0x4A,
               "phx":0xDA,"plx":0xFA,"phy":0x5A,"ply":0x7A,"rtl":0x6B,"rts":0x60,
@@ -144,9 +156,13 @@ def assemble(lines, org, bank):
                 out += bytes([0x4C, addr & 0xFF, (addr >> 8) & 0xFF]); pc += 3
         elif mn in LONG:
             v = int(op.replace("$",""), 16)
+            if v > 0xFFFFFF:
+                raise ValueError(f"long address out of range: {mn} {op} ({v:#x} > 0xffffff)")
             out += bytes([LONG[mn], v & 0xFF, (v >> 8) & 0xFF, (v >> 16) & 0xFF]); pc += 4
         elif mn in ABSY:
             v = int(op.replace("$",""), 16)
+            if v > 0xFFFF:
+                raise ValueError(f"absolute address out of range: {mn} {op} ({v:#x} > 0xffff)")
             out += bytes([ABSY[mn], v & 0xFF, (v >> 8) & 0xFF]); pc += 3
         elif mn in OPS:
             imm_op, abs_op = OPS[mn]
