@@ -13,7 +13,7 @@ what that stops you doing, and it exits 0 when the tree itself is consistent.
 |---|---|---|---|
 | **Clean ROM** — *Bishoujo Senshi Sailor Moon S: Jougai Rantou!?* (SFC, Japan), SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c` | `$SMS_ROM_DIR`, `roms/`, or `../roms/` (preferred: above the tree, so it can never be committed) | not distributed | nothing builds |
 | **Super S donor** — *Zenin Sanka!!*, SHA-1 `1ada34177e7384612ae83464288f3860e4c4426e` | same directory | not distributed | no Saturn build (patch 100/101, Rev. SS) |
-| **Mesen 2.1.1** | `tools/Mesen.app` (macOS) | https://github.com/SourMesen/Mesen2/releases — any Mesen 2 with the Lua script window | no regression suite, no Saturn gate, no probes |
+| **Mesen 2.1.1** | `tools/Mesen.app` (macOS); other platforms: `tools/Mesen`, or point `$MESEN` at any Mesen 2 binary (`run.sh` resolves `$MESEN` → per-OS default, #52) | https://github.com/SourMesen/Mesen2/releases — any Mesen 2 with the Lua script window | no regression suite, no Saturn gate, no probes |
 | **Floating IPS (flips)** | `tools/Flips/flips` | https://github.com/Alcaro/Flips | no `.bps` can be created or applied |
 | **sprntgd's sms-training-mode** | `vendor/sms-training-mode/` | the community release this project builds on (see the acknowledgement in `README.md`) | **patch 3 only** — it re-applies that patcher's palette work |
 
