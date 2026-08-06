@@ -31,7 +31,11 @@ local function readfile(p)
   local f = io.open(p, "rb"); if not f then return nil end
   local d = f:read("*a"); f:close(); return d
 end
-local WANT = readfile("/tmp/saturn_tm.bin")
+-- check 2's oracle: the UNCOMPRESSED tilemap. Stage it with
+--   python3 tools/saturn/mkmovelist.py --raw build/saturn/saturn_tm.bin
+-- (or point ML_RAW at it). The old hardcoded /tmp/saturn_tm.bin was a
+-- hand-staged scratch file no tool in the tree produced.
+local WANT = readfile(os.getenv("ML_RAW") or (ENV.ROOT .. "build/saturn/saturn_tm.bin"))
 
 local frames, step, sf = 0, 1, 0
 local pulse = {}

@@ -211,8 +211,9 @@ open issues from two adversarial cross-model reviews (#2-#58 in 2026-07-28,
 #59-#105 in 2026-08-04) were triaged against HEAD: 6 already fixed, 8 partial,
 47 valid. Maintainer's calls: **address everything warranted**, and Claude
 comments + closes what is already fixed or wrongly premised. Batch plan and
-per-issue verdicts: `~/.claude/plans/i-ll-look-into-all-purrfect-blum.md`;
-running state: `docs/NEXT_SESSION.md`.
+per-issue verdicts: recorded in the per-issue commits (`Fixes #NN`) and on
+tracking issues #57/#106 — the working plan was a session-local file, not in
+the repo; running state: `docs/NEXT_SESSION.md`.
 
 **THE PROGRAMME IS COMPLETE (2026-08-06):** all 61 real issues from both
 adversarial reviews are resolved; only the two tracking meta-issues (#57,

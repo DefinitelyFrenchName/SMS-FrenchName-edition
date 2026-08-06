@@ -6,8 +6,10 @@
 
 ### 1. GitHub issue remediation — IN PROGRESS (started 2026-08-06)
 
-Plan (batches, per-issue verdicts, ordering constraints):
-`~/.claude/plans/i-ll-look-into-all-purrfect-blum.md`.
+Plan (batches, per-issue verdicts, ordering constraints): the batch tables
+below plus the per-issue commits and tracking issues #57/#106. (The working
+plan was a session-local Claude plan file — machine-local, never in the
+repo; everything operative from it is recorded here.)
 
 63 open issues from two adversarial cross-model reviews were triaged against
 HEAD: **6 already fixed**, 8 partial, 47 valid, 0 fully invalid. Maintainer's
