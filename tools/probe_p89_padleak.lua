@@ -26,7 +26,8 @@ local t, leakAct = 0, nil
 local __loaded = false
 emu.addMemoryCallback(function()
   if not __loaded then
-    local f = assert(io.open(STATE, "rb"), "probe_p89: missing savestate " .. STATE)
+    local f = io.open(STATE, "rb")
+    if not f then print("probe_p89: missing savestate " .. STATE); emu.stop(1); return end
     emu.loadSavestate(f:read("*a")); f:close(); __loaded = true; t = 0
   end
 end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)

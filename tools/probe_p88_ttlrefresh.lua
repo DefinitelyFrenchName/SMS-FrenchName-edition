@@ -28,7 +28,8 @@ local firedAt, minTTL, blankAt = nil, 999, nil
 local __loaded = false
 emu.addMemoryCallback(function()
   if not __loaded then
-    local f = assert(io.open(STATE, "rb"), "probe_p88: missing savestate " .. STATE)
+    local f = io.open(STATE, "rb")
+    if not f then print("probe_p88: missing savestate " .. STATE); emu.stop(1); return end
     local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss); __loaded = true; t = 0
   end

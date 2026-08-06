@@ -73,7 +73,7 @@ local FV = cands[1]
 local seen53, sawBlock, hpRef, hitP2 = false, false, nil, nil
 local driving = true
 local hold = 0
-local __log = (DEMO_LOG ~= nil) and io.open(DEMO_LOG, "w") or nil
+local __log = (DEMO_LOG ~= nil) and assert(io.open(DEMO_LOG, "w"), "demo_link: cannot write " .. tostring(DEMO_LOG)) or nil
 
 local keyPrev = {}
 local function pressed(name)
@@ -89,8 +89,12 @@ end
 
 emu.addMemoryCallback(function()
   if needLoad then
+    -- #80: fail loudly — a silent return here retried the missing file forever.
+    -- assert() is NOT enough: an error thrown inside a memory callback is
+    -- swallowed by Mesen without a message, so print + emu.stop is the only
+    -- form that actually reports and exits (probe_chr.lua's pattern).
     local f = io.open(STATE, "rb")
-    if not f then return end
+    if not f then print("demo_link: missing savestate " .. STATE); emu.stop(1); return end
     local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss)
     needLoad = false; t = 0; resetAttempt()
