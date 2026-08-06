@@ -44,11 +44,15 @@ def main():
     rw = lambda fo: struct.unpack("<H", rom[fo:fo + 2])[0]
 
     ptrs = [rw(BANK + PT_HIT + i * 2) for i in range(N_PTR)]
-    # distinct table starts, sorted, to bound each table's extent
+    # distinct table starts, sorted, to bound each table's extent. Each table ends
+    # where the next one starts; the LAST has no following pointer to bound it and
+    # no documented neighbour in bank $8A (#71), so its extent is UNKNOWN — it is
+    # previewed below with an explicit marker instead of an invented count.
+    PREVIEW = 6                     # entries shown for the unbounded final table
     starts = sorted(set(p for p in ptrs if p != 0))
     nxt = {}
     for i, s in enumerate(starts):
-        nxt[s] = starts[i + 1] if i + 1 < len(starts) else s + 0x30  # last: guess a small span
+        nxt[s] = starts[i + 1] if i + 1 < len(starts) else None
 
     print("hit pointer table $8A:C1F1 (28 entries):")
     for i, p in enumerate(ptrs):
@@ -65,10 +69,18 @@ def main():
     print("\ndistinct tables and their box entries:")
     for s in starts:
         end = nxt[s]
-        n = max(0, (end - s) // ESZ)
         owners = [i for i, p in enumerate(ptrs) if p == s]
         owner_str = ",".join(str(o) for o in owners)
-        print(f"\n$8A:{s:04X} (file 0x{BANK+s:05X})  used by pointer idx [{owner_str}]  ~{n} entries:")
+        if end is None:
+            n = PREVIEW
+            print(f"\n$8A:{s:04X} (file 0x{BANK+s:05X})  used by pointer idx [{owner_str}]  "
+                  f"extent UNKNOWN (final table, nothing bounds it) — "
+                  f"first {PREVIEW} entries as a preview, NOT a derived count:")
+        else:
+            n = max(0, (end - s) // ESZ)
+            # ~: the span to the next pointer start is an upper bound — for the
+            # roster tables it also contains that character's hurt/coll data
+            print(f"\n$8A:{s:04X} (file 0x{BANK+s:05X})  used by pointer idx [{owner_str}]  ~{n} entries:")
         for j in range(n):
             fo = BANK + s + j * ESZ
             b = parse_box(rom[fo:fo + ESZ])
