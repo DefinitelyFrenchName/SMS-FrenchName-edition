@@ -215,7 +215,11 @@ per-issue verdicts: `~/.claude/plans/i-ll-look-into-all-purrfect-blum.md`;
 running state: `docs/NEXT_SESSION.md`.
 
 Done so far: **batch 1** (integrity — #79 #81 #82 #83 #59 #60 #65 #66 #13),
-**batch 1b** (#24 #61 #62 #3, #63 rescoped), and **batch 2 complete**
+**batch 1b** (#24 #61 #62 #3, #63 rescoped), **batch 3 complete** (docs/registry
+— #67 #68 #74 #103 #52 #75; mkindex now recursive + self-checking, run.sh takes
+`$MESEN` and its scriptTimeout flag was measured INERT under --testrunner, 50
+copy-paste probe headers corrected, nested `build/saturn/*.bps` trackable), and
+**batch 2 complete**
 (2026-08-06: #87 #92 #91 #86, then one commit per issue for #88 #90 #96 #94
 #89 #80 #97 #69 #76 #71 #18 #93; #84 refuted by measurement). Convention:
 **one commit per issue** (`Fixes #NN`) — the two batch commits are deliberate

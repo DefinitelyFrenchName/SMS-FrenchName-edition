@@ -19,8 +19,29 @@ already fixed or wrongly premised.
 | 1 — integrity ("results that can lie") | #79 #81 #82 #83 #59 #60 #65 #66 #13 | **DONE** (`87a5b5a`) |
 | 1b — health command + fresh clone | #24 #61 #62 #3, rescoped #63 | **DONE** (`f3b6e68`) |
 | 2 — correctness in shipped code | #87 #92 #91 #86 #88 #90 #96 #94 #89 #80 #97 #69 #76 #71 #18 #93; #84 refuted | **DONE** (2026-08-06, one commit per issue from #88 on) |
-| 3 — docs/registry drift | #67 #68 #74 #103 #52 #75 | not started |
+| 3 — docs/registry drift | #67 #68 #74 #103 #52 #75 | **DONE** (2026-08-06, one commit per issue) |
 | 4 — duplication, dead code, conventions | #73 #85 #95 #98 #100 #101 #70 #77 #99 #102 #105 #104 #78 #35 #32 #44 #64 #72 | not started |
+
+⚠ **PENDING REGISTRY DECISION (maintainer): the v0.22 recipe has drifted.**
+`tools/build_v022.sh` now produces `e6b999b5…`, not the recorded `3bb9c829…`,
+because batch 2 moved patches 10b and 11. The tracked
+`build/sms_allpatches_v0.22.bps` is untouched (still applies to `3bb9c829…`).
+REF v.1/v.2 and both releases are unaffected (they carry neither patch).
+Options: re-record v0.22 as a new lineage step (the 07-25/07-30 precedent),
+leave frozen and annotate, or retire the bundle.
+
+Batch 3 findings that generalise:
+* **`--debug.scriptWindow.scriptTimeout` is INERT under --testrunner**
+  (measured, #52): every Lua entry is capped at a hard 1 second whatever
+  value is passed; total time is bounded only by `--timeout`. run.sh no
+  longer passes the flag.
+* **`run.sh` resolves the emulator via `$MESEN`** (per-OS default:
+  the vendored bundle on Darwin, `./tools/Mesen` elsewhere).
+* **mkindex is recursive and self-checking** — `python3 tools/mkindex.py
+  --check` is wired into build_v022/build_ref_v1/build_ref_v2/build_rev and
+  health.sh; it caught its first real staleness within an hour of landing.
+* **`build/saturn/*.bps` is now trackable** (#75) — `sms_saturn_pitch.bps`
+  (patch 101's documented artifact) entered the tree with the #74 commit.
 
 Batch 2 findings that generalise (detail in the per-issue commits):
 * **The #46 "fixed" pattern never worked** — an error (assert included) thrown
