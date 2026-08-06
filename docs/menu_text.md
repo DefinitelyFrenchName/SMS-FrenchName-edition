@@ -1242,9 +1242,16 @@ screen:**
 * **VS config rows:** モード → MODE, 弱パンチ/強パンチ → LP / HP,
   弱キック/強キック → LK / HK, 弱必殺モード/強必殺モード → LSP / HSP,
   ステージ → STAGE, マニュアル → MANUAL (オート removed by p15 in refs).
-* **Stage names:** maintainer wants them translated; his 2026-08-04
-  proposals (§ below, validated at 12 full-width cells) stand unless revised
-  now that half-width doubles the budget to ~24 columns.
+* **Stage names — revised long forms (2026-08-06), superseding the 12-cell
+  abbreviations:** Crystal Tokyo, evening / Silver Millenium / Space-time
+  Door / Kaioushuu Park / Fountain Park, day / Juuban Shopping Street /
+  Hikawa Shrine / Crystal Tokyo, night / Fountain Park, night / Nakayoshi
+  Editorial Department / Silent Throne of the Messiah.
+  ⚠ Two exceed the 24-column half-width budget (#10 = 30, Saturn = 28) and
+  the mixed case as written needs ~36 distinct glyphs, which is more than
+  the 32-glyph (64-tile) window the config/char-select screens have free —
+  see the case/budget note in the session log; caps-only versions fit
+  everything. Pending the maintainer's call.
 
 **Values: SOLVED the same day (2026-08-06) — the runtime writer is found and
 the records are plain data.** The draw path is `$80:8C43` (JSL): DP `$74/$76`
