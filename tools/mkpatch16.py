@@ -205,6 +205,21 @@ DF_NAMES = (
     (0x1F916F, "PLUTO"),   (0x1F91A5, "NEPTUNE"), (0x1F91DB, "URANUS"),
 )
 
+# ---- プレイヤーセレクト -> PLAYER SELECT (tournament select header) --------
+# The header is plain cells (rows 5-6, cols 7-24, attr $1000) in the codec-2
+# base map — but the screen REDRAWS its queued records every frame, so no
+# codec work is needed: a 19th record is queued that overdraws the header.
+# Hook: the select screen's own block-copy setup at $DF:8ED3
+# ('ldx #$9247 / ldy #$8800', 6 bytes) becomes JSL + 2 nop; the stub copies a
+# prepared [vmadd $70A7][len $24][rows 2][cells] record from the patch bank to
+# $7F:8900, queues it the way $DF:8126 does (first zero slot in $1CD0, addr +
+# bank $7F), restores X/Y and returns — the displaced mvn then runs unchanged.
+PS_HOOK_FILE = 0x1F8ED3
+PS_HOOK_OLD = bytes.fromhex("a24792a00088")
+PS_REC_AT = 0x8700                # the record's offset in the blob
+PS_STUB_AT = 0x7FA0
+PS_TEXT = "PLAYER SELECT"
+
 # ---- the REPORT CARD (Win screen) labels -----------------------------------
 # The screen's text is a tilemap blob ($C8:703C, the second, unreversed codec)
 # decompressed to $7F:0000; the match numbers are inserted by $DF:9732 and the
@@ -401,6 +416,40 @@ def cs_stub(bank, arm):
   rep #$30
   lda #${arm:04X}
   sta_l $7E1C18
+  rtl
+"""
+
+
+def ps_stub(bank):
+    """Tournament-select hook: copy the PLAYER SELECT record to $7F:8900,
+    queue it (first zero slot in $1CD0, the $DF:8126 convention), restore the
+    displaced X/Y and return."""
+    return f"""
+  rep #$30
+  ldx #$0000
+copy:
+  lda_lx ${bank:02X}{PS_REC_AT:04X}
+  sta_lx $7F8900
+  inx
+  inx
+  cpx #$004E
+  bcc copy
+  ldy #$0000
+scan:
+  lda_y $1CD0
+  beq free
+  iny
+  iny
+  iny
+  iny
+  bra scan
+free:
+  lda #$8900
+  sta_y $1CD0
+  lda #$007F
+  sta_y $1CD2
+  ldx #$9247
+  ldy #$8800
   rtl
 """
 
@@ -854,16 +903,38 @@ def build(src_path, out_path, stacked=False):
         if REPORT_AT + len(rstub) > DF_SHEET_AT:
             raise SystemExit("report stub (%#x bytes) overruns the DF sheet slot"
                              % len(rstub))
+        # PLAYER SELECT header record + queue stub
+        if bytes(data[PS_HOOK_FILE:PS_HOOK_FILE + 6]) != PS_HOOK_OLD:
+            raise SystemExit("PLAYER SELECT hook site reads %s, expected %s"
+                             % (bytes(data[PS_HOOK_FILE:PS_HOOK_FILE + 6]).hex(),
+                                PS_HOOK_OLD.hex()))
+        psrec = bytearray([0xA7, 0x70, 0x24, 0x00, 0x02, 0x00])
+        start = (18 - len(PS_TEXT)) // 2
+        for row in (0, 1):
+            for c in range(18):
+                j = c - start
+                w = 0
+                if 0 <= j < len(PS_TEXT) and PS_TEXT[j] != " ":
+                    t = placed[PS_TEXT[j]] - 0x200 + (0x10 if row else 0)
+                    w = 0x1000 | t
+                psrec += bytes([w & 0xFF, w >> 8])
+        psstub, _ = asm65816.assemble(ps_stub(bank).splitlines(), PS_STUB_AT, bank)
+        if PS_STUB_AT + len(psstub) > MAP_AT:
+            raise SystemExit("ps stub (%#x bytes) overruns the map slot" % len(psstub))
     blob = bytearray(0x10000)
     blob[0:len(packed)] = packed
     blob[STUB_AT:STUB_AT + len(stub)] = stub
     if packed_map:
-        if MAP_AT + len(packed_map) > REPORT_AT:
-            raise SystemExit("packed options map (%#x) overruns the report stub slot"
+        if MAP_AT + len(packed_map) > PS_REC_AT:
+            raise SystemExit("packed options map (%#x) overruns the ps-record slot"
                              % len(packed_map))
         blob[MAP_AT:MAP_AT + len(packed_map)] = packed_map
     if rstub:
         blob[REPORT_AT:REPORT_AT + len(rstub)] = rstub
+        blob[PS_STUB_AT:PS_STUB_AT + len(psstub)] = psstub
+        if PS_REC_AT + len(psrec) > CS_BLOCK_AT:
+            raise SystemExit("ps record overruns the glyph-block slot")
+        blob[PS_REC_AT:PS_REC_AT + len(psrec)] = psrec
     if csstub:
         blob[CS_STUB_AT:CS_STUB_AT + len(csstub)] = csstub
         blob[CS_BLOCK_AT:CS_BLOCK_AT + len(csblock)] = csblock
@@ -913,6 +984,9 @@ def build(src_path, out_path, stacked=False):
         # the report-card hook: 'sep #$10 / ldy #$00 / jsr $84F9' -> JSL stub
         data[DF_REPORT_HOOK:DF_REPORT_HOOK + 7] = bytes(
             [0x22, REPORT_AT & 0xFF, REPORT_AT >> 8, bank, 0xEA, 0xEA, 0xEA])
+        # the PLAYER SELECT hook: 'ldx #$9247 / ldy #$8800' -> JSL stub
+        data[PS_HOOK_FILE:PS_HOOK_FILE + 6] = bytes(
+            [0x22, PS_STUB_AT & 0xFF, PS_STUB_AT >> 8, bank, 0xEA, 0xEA])
     if csstub:
         data[CS_HOOK_FILE:CS_HOOK_FILE + 6] = bytes(
             [0x22, CS_STUB_AT & 0xFF, CS_STUB_AT >> 8, bank, 0xEA, 0xEA])
