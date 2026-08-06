@@ -1157,7 +1157,21 @@ at `$5C0-$5FF` overlap nothing on this screen. Verified: census goes 0/64 →
 the six labels render in English (screenshot-checked); the button-config screen
 re-verifies green on the hooked build (52/64 + the `POKE=1` positive control).
 
-**Values are a separate problem:** they change as the player cycles a setting, so
-they are written at runtime from a table the tilemap does not own. Baking English
-into the map would be overwritten on first input. That writer still has to be
-found.
+**Values: SOLVED the same day (2026-08-06) — the runtime writer is found and
+the records are plain data.** The draw path is `$80:8C43` (JSL): DP `$74/$76`
+points at a self-describing record `[vmadd16][len16][rows16][cells…]` in bank
+`$C4`, DMA'd row by row to the BG1 tilemap (2 rows × 10 cells at cols 20-29,
+`vmadd $00B4` = the COM row, `$0114` = TIMER). One record per value **per
+highlight state**, selected by four pointer tables — `$C3:A44F` (COM, shown
+state) / `$A45B` (COM, other state) / `$A463` + `$A457` (TIMER likewise) —
+indexed by WRAM `$1B14`/`$1B16` = value×2; attr `$1000` = highlighted,
+`$0C00` = not. Value order, identified by rendering the cells from the
+screen's own text sheet: COM なかよし/やさしい/ふつう/むずかしい (indices
+0-3), TIMER あり/なし. BGM/SFX/VOICES are numeric — nothing to translate.
+Because the records are **uncompressed** and are the single source for both
+the initial draw and every redraw, the translation is an in-place cell edit
+of all 12 records (`OPT_VALUES` in `mkpatch16.py`, same `SMS_P16_OPTIONS`
+gate; English centred in the 10-cell field, each record keeping its own
+attr). Verified: NORMAL/YES on the settled screen AND after a cursor move
+(both highlight-state record sets exercised in-emulator); all 12 records
+render the intended strings when decoded from the built ROM.

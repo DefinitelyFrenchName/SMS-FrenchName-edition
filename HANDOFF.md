@@ -282,8 +282,12 @@ Verified: VRAM census 0/64 -> 52/64 across the stub's transfer, settled;
 button-config re-verifies green on the hooked build. Mechanism + asset-record
 plumbing (pointer tables `$C3:BCCD`/`$BCFF`, font = B index 15):
 `docs/menu_text.md`; probe: `tools/probe_p16_options_buf.lua`.
-⚠ The option **values** cannot be done in the tilemap at all — rewritten at
-runtime as the player cycles a setting; that writer is still to be found.
+The option **values** are translated too (2026-08-06): the runtime writer is
+`$80:8C43`, drawing self-describing records `[vmadd][len][rows][cells]` from
+bank `$C4` via pointer tables `$C3:A44F/$A457/$A45B/$A463` ($1B14/$1B16 =
+value*2, one record per value per highlight state) — uncompressed, so 12
+in-place cell edits (`OPT_VALUES`). Verified in-emulator through both
+highlight states + all 12 decoded from the built ROM.
 **Win and ACS are not yet probed**; Tournament's sheet needs re-checking (the
 "shares the extended sheet" note predates the loader finding). Priority:
 Options ✓, Win, ACS, Tournament; story out of scope.

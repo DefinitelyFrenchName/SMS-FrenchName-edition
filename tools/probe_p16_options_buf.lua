@@ -160,6 +160,15 @@ local STEPS = {
   function() pulse[0] = beat({ right = true }); return ram(0x1B10) == 5 end,
   function() pulse[0] = beat({ start = true }); return sf > 40 end,
   function() pulse[0] = {}; return sf > 300 end,
+  function()  -- cursor to the next row: redraws both values via the OTHER
+              -- highlight-state records (patch 16's value edits cover 12)
+    if sf == 1 then
+      local f = io.open(ENV.TRACE .. "p16_options_screen_a.png", "wb")
+      if f then f:write(emu.takeScreenshot()); f:close() end
+    end
+    pulse[0] = sf < 20 and { down = true } or {}
+    return sf > 90
+  end,
   function() finale(); return true end,
 }
 local lastCensus = -1

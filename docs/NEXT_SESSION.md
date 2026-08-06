@@ -39,7 +39,10 @@ menu-entry transfer, misattributed. Fix (always on in `mkpatch16.py`): the
 loader's first record load is JSL-hooked to a stub that uploads the font
 first. `SMS_P16_OPTIONS=1` now renders the six English labels
 (screenshot-verified); button-config still green on the hooked build.
-Builder A/B today: base `206fee3d…`, with labels `bef8b366…`.
+Values are DONE too (same day): the runtime writer is `$80:8C43` + record
+tables at `$C3:A44F..A46B`; records uncompressed in bank `$C4`, 12 in-place
+cell edits, verified through both highlight states. Builder A/B today: base
+`206fee3d…`, full Options translation `3cba4171…`.
 
 **Everything else for Options is ready:**
 * Its tilemap is **asset record 19** (`$C3:69F0`).
@@ -48,10 +51,9 @@ Builder A/B today: base `206fee3d…`, with labels `bef8b366…`.
   all fit.
 * Addressing: MAP tile = VRAM tile − `$200`; a glyph is 2 rows,
   `bottom = top + $10`; labels attr `$0C00`, values `$1000`.
-* ⚠ **The option VALUES cannot be done in the tilemap at all** — the game
-  rewrites them at runtime as the player cycles a setting, so English baked
-  into the map is overwritten on first input. That writer is still to be
-  found.
+* The option VALUES are indeed not tilemap work — they are drawn by
+  `$80:8C43` from self-describing records in bank `$C4` (uncompressed;
+  found and translated 2026-08-06, see `docs/menu_text.md` § Values).
 
 **Screen coverage (maintainer priority: Options ✓, Win, ACS, Tournament; story
 out of scope):**

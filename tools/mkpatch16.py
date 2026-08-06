@@ -127,10 +127,25 @@ CHR_BASE_TILE = 0x200
 # Row = the TOP half of the glyph pair. The maintainer's strings, 2026-08-05.
 OPT_LABELS = ((5, "COM LEVEL"), (8, "TIMER"), (11, "BGM"),
               (14, "SFX"), (17, "VOICES"), (20, "EXIT"))
-# NOTE: the VALUES (ふつう/あり/...) are NOT translated here. They change while
-# the player cycles a setting, so they are written at runtime from a table the
-# tilemap does not own -- baking English into the map would be overwritten the
-# moment the setting is touched. Locating that writer is the next step.
+# ---- the option VALUES (runtime-drawn; writer found 2026-08-06) -----------
+# The values could never be tilemap edits: they are redrawn by $80:8C43, which
+# DMAs a self-describing record [vmadd16][len16][rows16][cells...] from bank
+# $C4 straight to the BG1 map (2 rows x 10 cells at cols 20-29). One record
+# per value PER HIGHLIGHT STATE, selected via four pointer tables at
+# $C3:A44F/$A457/$A45B/$A463 (WRAM $1B14/$1B16 = value*2; attr $1000 =
+# highlighted, $0C00 = not). The records are UNCOMPRESSED and are the single
+# source for the initial draw and every redraw, so translating a value is an
+# in-place cell edit — no relocation, no hook. Identified by rendering the
+# cells from the screen's own text sheet ($C3:48D0): COM order is
+# なかよし/やさしい/ふつう/むずかしい, TIMER あり/なし; BGM/SFX/VOICES are
+# numeric. English is centred in the 10-cell field; each record keeps its own
+# attr so both highlight palettes survive.
+OPT_VALUES = (
+    (0x6590, "FRIEND"), (0x65BE, "EASY"), (0x65EC, "NORMAL"), (0x661A, "HARD"),
+    (0x64D8, "FRIEND"), (0x6506, "EASY"), (0x6534, "NORMAL"), (0x6562, "HARD"),
+    (0x6648, "YES"), (0x6676, "NO"),
+    (0x66A4, "YES"), (0x66D2, "NO"),
+)
 
 # Asset job table: 10-byte records of [vram16][len16][src24][dest24].
 REC0 = 0x00BE08                   # in bank $C3 — the first record's vram field
@@ -297,6 +312,37 @@ def build(src_path, out_path, stacked=False):
      packed_map = sms_lz.encode(bytes(omap))
      assert sms_lz.decompress(packed_map, 0, len(omap)) == bytes(omap), "options map round-trip failed"
 
+     # value records: in-place cell edits in bank $C4 (see OPT_VALUES)
+     for head, text in OPT_VALUES:
+         o = 0x040000 + head
+         vmadd = data[o] | (data[o + 1] << 8)
+         ln = data[o + 2] | (data[o + 3] << 8)
+         nrows = data[o + 4] | (data[o + 5] << 8)
+         if (ln, nrows) != (0x14, 2) or vmadd not in (0x00B4, 0x0114):
+             raise SystemExit("value record $C4:%04X reads vmadd=$%04X len=$%04X "
+                              "rows=%d — layout changed" % (head, vmadd, ln, nrows))
+         cells = o + 6
+         attr = 0
+         for i in range(20):
+             w = data[cells + i * 2] | (data[cells + i * 2 + 1] << 8)
+             if w & 0x03FF:
+                 attr = w & 0xFC00
+                 break
+         if not attr:
+             raise SystemExit("value record $C4:%04X has no glyph cells" % head)
+         if len(text) > 10:
+             raise SystemExit("%r is %d cells, the value field is 10" % (text, len(text)))
+         start = (10 - len(text)) // 2
+         for c in range(10):
+             top = bot = 0
+             i = c - start
+             if 0 <= i < len(text):
+                 t = placed[text[i]] - CHR_BASE_TILE
+                 top, bot = attr | t, attr | (t + 0x10)
+             for r, w in ((0, top), (1, bot)):
+                 off = cells + (r * 10 + c) * 2
+                 data[off], data[off + 1] = w & 0xFF, w >> 8
+
     # Relocation is mandatory even for unchanged data: this project's encoder is
     # weaker than the original's, so the block cannot be written back in place.
     # Both relocated blocks share one appended bank: the font at $0000 and the
@@ -353,6 +399,8 @@ def build(src_path, out_path, stacked=False):
     if OPT_TRANSLATE:
         print("  options screen: record #%d relocated, %d labels translated (%s)"
               % (on, len(OPT_LABELS), ", ".join(t for _, t in OPT_LABELS)))
+        print("  option values: %d records edited in place (%s)"
+              % (len(OPT_VALUES), ", ".join(sorted(set(t for _, t in OPT_VALUES)))))
     else:
         print("  options screen: labels NOT translated (SMS_P16_OPTIONS=1 to enable)")
     print("  -> %s  sha1 %s" % (out_path, hashlib.sha1(bytes(data)).hexdigest()))
