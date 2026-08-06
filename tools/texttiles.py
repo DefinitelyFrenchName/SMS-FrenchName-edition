@@ -64,7 +64,11 @@ d(' ', ["........"])
 
 def _cell(ch):
     """Return a 16-row x 8-col grid of palette indices for one character cell."""
-    rows, top = G.get(ch, G[' '])
+    if ch not in G:
+        # #76: falling back to the space glyph silently rendered unrenderable
+        # text as blanks; only mkpatch4 pre-validated, leaving the CLI exposed
+        raise ValueError(f"no glyph for {ch!r} in texttiles.py — add it to G first")
+    rows, top = G[ch]
     grid = [[0]*8 for _ in range(16)]
     for i, r in enumerate(rows):
         y = top + i
@@ -121,7 +125,10 @@ def render(text, mode="red_white", ncells=21, gap=1):
     W = ncells * 8
     # build core strip
     glyphs = []
-    for ch in text:
+    for i, ch in enumerate(text):
+        if ch not in G:
+            raise ValueError(
+                f"no glyph for {ch!r} at position {i} of {text!r} — add it to texttiles.py G first")
         glyphs.append(_glyph_cols(ch))
     total = sum(len(g) for g in glyphs) + gap*(len(glyphs)-1)
     if total > W:
