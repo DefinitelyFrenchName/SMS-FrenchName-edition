@@ -1086,7 +1086,16 @@ patched ROMs, because a later, smaller upload has already overwritten it.
 Next: the tilemap edits. The glyph → VRAM tile map is written to
 `docs/halfwidth_tiles.json` by the builder.
 
-## Options screen: WORKS — labels translated (2026-08-06)
+## Options screen: WORKS — labels translated (2026-08-06; field-confirmed same day)
+
+**Field report (maintainer, 2026-08-06):** legibility "excellent"; repeated
+entry/exit and value cycling clean; other menu screens confirmed untouched.
+One observation, accepted as-is: the letters render with a slightly wobbly
+bottom alignment — that is per-letter baseline variance from the condensation
+in `mkhalfwidth.py` (the glyphs are consistent in the sheet), and the
+maintainer likes the effect ("a fun, childish look"), so it stays. The flat,
+unshaded ink also stays — it reads better than the shaded full-width font at
+this size.
 
 **Strings (maintainer, 2026-08-05)** and the measured fields. Labels start at map
 column 4, values occupy columns 22-27. A half-width glyph is **one map column**
