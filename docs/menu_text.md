@@ -1222,11 +1222,29 @@ Consequences:
   attacks; strikes underflow-kill normally. HP pins must use the per-A.C.S.
   max (`$104A`), not a constant.
 
-**Maintainer-supplied strings, REPORT CARD (2026-08-06):** KOタイム → KO
-TIME, HITすう → HIT COUNT (HITS if short), ダメージ → DAMAGE (DMG if short),
-勝ちすう → WIN COUNT (WINS if short), ベスト → BEST. With the half-width
-font installed on this screen the long forms all fit; the short forms are the
-fallback if the layout forces full-width.
+**Maintainer-supplied strings (2026-08-06) — the full set for every censused
+screen:**
+
+* **REPORT CARD:** KOタイム → KO TIME, HITすう → HIT COUNT (HITS if short),
+  ダメージ → DAMAGE (DMG if short), 勝ちすう → WIN COUNT (WINS if short),
+  ベスト → BEST. With half-width installed the long forms fit; short forms
+  are the full-width fallback.
+* **Tournament select rows (12 chars):** MOON, MERCURY, MARS, JUPITER,
+  VENUS, URANUS, NEPTUNE, PLUTO, CHIBI.
+* **Bracket names:** short style — MOON VS MARS etc. (all sailor names
+  possible, not just the two shown).
+* **プレイヤーセレクト header → PLAYER SELECT.**
+* **A.C.S. wheel:** 攻撃 → ATK, 防御 → DEF, ? → DESP, 体力 → HP,
+  必殺技 → SP, おちゃめ → SILLY. Prompt line
+  「<名前>の好きな能力をあげてね ▶N」 → `RAISE <NAME>'S STATS` — ⚠ the name
+  is substituted per selected character, so the prompt edit must preserve the
+  name-insertion mechanism (or bake per-character strings).
+* **VS config rows:** モード → MODE, 弱パンチ/強パンチ → LP / HP,
+  弱キック/強キック → LK / HK, 弱必殺モード/強必殺モード → LSP / HSP,
+  ステージ → STAGE, マニュアル → MANUAL (オート removed by p15 in refs).
+* **Stage names:** maintainer wants them translated; his 2026-08-04
+  proposals (§ below, validated at 12 full-width cells) stand unless revised
+  now that half-width doubles the budget to ~24 columns.
 
 **Values: SOLVED the same day (2026-08-06) — the runtime writer is found and
 the records are plain data.** The draw path is `$80:8C43` (JSL): DP `$74/$76`
