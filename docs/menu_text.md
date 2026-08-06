@@ -1175,8 +1175,19 @@ and the `$5C0-$5FF` glyph census. Results:
 | Win = REPORT CARD | **bank `$DF` loader** (`$DF:83CE` writes `$1C18`), no `$80:92D2` uploads | 0 | KOタイム/HITすう/ダメージ/勝ちすう/ベスト (values numeric) |
 | Tournament (select + bracket) | **bank `$DF` loader** (same) | 0 | プレイヤーセレクト, per-line char names, brackets' セーラー〜 VS 〜 |
 
-**STATUS (2026-08-06, late): tournament select names AND the REPORT CARD
-labels are DONE** — built by `mkpatch16.py` under `SMS_P16_DF=1`, verified
+**STATUS (2026-08-06, late): tournament select names, REPORT CARD labels,
+stage names, the whole VS config screen, AND the ACS wheel are DONE.**
+Build gates: `SMS_P16_OPTIONS` (Options), `SMS_P16_DF` (tournament select +
+report card), `SMS_P16_STAGES` (stage names + config rows + MANUAL/AUTO
+records + the char-select glyph hook), `SMS_P16_ACS` (wheel labels,
+raster — needs STAGES). ACS trap paid for: the runtime prompt bar
+references the blank \$5C0 tiles through another BG's CHR base, so NO glyph
+hook on that screen (raster labels need none). Deferred: ACS name card +
+prompt, プレイヤーセレクト (codec 2), bracket VS names (script \$A43E,
+port-written), Saturn stage name.
+
+**Earlier same-day status: tournament select names AND the REPORT CARD
+labels DONE** — built by `mkpatch16.py` under `SMS_P16_DF=1`, verified
 in-emulator (select shows "1P MOON" in the kana's teal; the report card
 renders KO TIME/HIT COUNT/DAMAGE/BEST/WIN COUNT in both boxes with numbers
 and colors intact; regression 45/45). Implementation notes live as comments
