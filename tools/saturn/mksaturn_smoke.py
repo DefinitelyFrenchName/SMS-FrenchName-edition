@@ -58,9 +58,9 @@ SATURN_VERSION = "0.16.1"
 # The bytes come from `mkpatch17.apply_to()` — never a second copy of them.
 # Byte-checked both ways: default == v0.14.15 exactly; with the flag, the diff
 # is patch 17's three bytes + the version tag + the checksum.
-import os as _osv0  # noqa: E402
-SATURN_ALLSTAGES = _osv0.environ.get("SATURN_ALLSTAGES") == "1"
-SATURN_STAGE_BGM = _osv0.environ.get("SATURN_STAGE_BGM")
+import os  # noqa: E402  (one import; #70 — it had accreted four aliases)
+SATURN_ALLSTAGES = os.environ.get("SATURN_ALLSTAGES") == "1"
+SATURN_STAGE_BGM = os.environ.get("SATURN_STAGE_BGM")
 
 # Character select. The HIDDEN code is now the ONLY variant (maintainer,
 # 2026-08-04): "let's keep only the hidden variant — it solves our story mode
@@ -78,7 +78,6 @@ SATURN_STAGE_BGM = _osv0.environ.get("SATURN_STAGE_BGM")
 # and diffing: byte-identical ROM. History: BUILDS.md 0.10.0/0.11.0, and git.
 # The "-hidden"/"H" tags stay in the filename and the on-screen version string:
 # every recorded hash and doc reference uses them, and they are a continuity tell.
-import os as _osv
 # Card-portrait: ON since v0.12.1 (complete — art, layout and palette). Three
 # pieces, all under per-player flag control so a non-Saturn card is untouched:
 #   1. tiles  — her Super S portrait, converted from a 1:1 capture, DMA'd over
@@ -88,9 +87,9 @@ import os as _osv
 #   3. palette — re-seeded into the CGRAM shadow every frame from that same
 #      stub, because a one-shot copy is overwritten by the engine's own refill.
 # Set SATURN_PORTRAIT=0 to build without it.
-SATURN_PORTRAIT = _osv.environ.get("SATURN_PORTRAIT") != "0"
-SATURN_PORTRAIT_FORCE = _osv.environ.get("SATURN_PORTRAIT_FORCE") == "1"
-SATURN_STACKED = bool(_osv.environ.get("SATURN_BASE"))
+SATURN_PORTRAIT = os.environ.get("SATURN_PORTRAIT") != "0"
+SATURN_PORTRAIT_FORCE = os.environ.get("SATURN_PORTRAIT_FORCE") == "1"
+SATURN_STACKED = bool(os.environ.get("SATURN_BASE"))
 VARIANT_FILE = f"{SATURN_VERSION}-hidden"
 VARIANT_STR = SATURN_VERSION + "H" + ("R" if SATURN_STACKED else "") \
     + ("S" if SATURN_ALLSTAGES else "")
@@ -174,7 +173,7 @@ THROW_ACT_SHOULDER = 0x7B
 SITE_THROWFACE = 0x0619                 # in the $C1 copy (her proc's own path)
 THROWFACE_OLD = bytes.fromhex("b5502901490195 09".replace(" ", ""))
 EF_THROWDIR = 0xDA90                    # zero run $DA90-$DAF3, asserted at build
-SATURN_THROWFIX = _osv0.environ.get("SATURN_THROWFIX") != "0"
+SATURN_THROWFIX = os.environ.get("SATURN_THROWFIX") != "0"
 PROJ_IDS = [i for i in range(0x1D, 0x30)]
 PROJ_DESPAWN = 0x0E23
 # Button-map hook: same 11-byte head shape as the recognizer dispatch, at $C1:15C4.
@@ -247,13 +246,13 @@ CMD_SND_MAP = {0x15: 0x05, 0x14: 0x06, 0x0E: 0x06, 0x20: 0x06,
                0x23: 0x06, 0x24: 0x06, 0x25: 0x06}
 # v0.13.0 — HER REAL VOICE (task #44). Set SATURN_VOICE=0 to build without it
 # (CMD args 0x22-0x25 then fall back to the v0.12.7 whoosh/silence above).
-SATURN_VOICE = _osv.environ.get("SATURN_VOICE") != "0"
+SATURN_VOICE = os.environ.get("SATURN_VOICE") != "0"
 # PATCH 101 — the voice pitch correction. ON by default since 2026-08-04:
 # field-tested by the maintainer, who confirmed her pitch is correct, that a Moon
 # facing her is flat (the shared-transpose limitation, accepted), and that other
 # characters show no or only mild downpitch. Build with SATURN_PITCH=0 to get
 # patch 100 alone; it keeps its own registry row and its own standalone BPS.
-SATURN_PITCH = _osv.environ.get("SATURN_PITCH", "1") != "0"
+SATURN_PITCH = os.environ.get("SATURN_PITCH", "1") != "0"
 #
 # How SMS voices a fighter (all measured — probe_sms_voiceload / voiceid /
 # voicetrace; full write-up in docs/saturn/sound_scope.md):
@@ -684,7 +683,7 @@ EE_NPHOOK2 = 0xCD40
 NP_TBL_P1 = 0x00D8AE          # left-aligned  (index 0)
 NP_TBL_P2 = 0x00D926          # right-aligned (index 0)
 NP_NAME = "SATURN"
-SATURN_NAME_ON = _osv.environ.get("SATURN_NAMEPLATE", "1") != "0"
+SATURN_NAME_ON = os.environ.get("SATURN_NAMEPLATE", "1") != "0"
 EE_THROWLIST = 0xCC40         # her 21 bytes, read by `lda EE_THROWLIST,Y` long
 # (0xC700 was tried first and is NOT free: it is zero when this code runs and is
 #  overwritten later in the bank build, so the "slot busy" assert passed and the
@@ -817,7 +816,7 @@ def main():
     out_path = sys.argv[1] if len(sys.argv) == 2 else \
         str(REPO / "build" / "saturn" / f"{ROM_STEM}_v{VARIANT_FILE}.sfc")
 
-    base_path = _osv.environ.get("SATURN_BASE")
+    base_path = os.environ.get("SATURN_BASE")
     if base_path:
         require_source(base_path, stacked=True)
         data = bytearray(open(base_path, "rb").read())
@@ -1721,7 +1720,6 @@ def main():
     ee[EE_BLIT:EE_BLIT + len(bl)] = bl
 
     cp, lbl, br, fix = _asm()
-    brl_fix = []
     # The loader uses DP $00-$0E as workspace, so the destination in $03 must be
     # stashed BEFORE calling it (v0.12.0 bring-up bug: reading $03 afterwards
     # gave garbage and the blit never ran). Entry A/flags belong to the loader.
@@ -1740,14 +1738,8 @@ def main():
     cp += bytes((0x08, 0xC2, 0x30, 0x48, 0xDA, 0x5A))   # php/rep #$30/pha/phx/phy
     cp += bytes((0xE2, 0x20))                           # sep #$20
     cp += bytes((0xA9, 0x00, 0x8F, SATURN_MARK & 0xFF, SATURN_MARK >> 8, SATURN_BANK))
-    lbl("done")
     cp += bytes((0xC2, 0x30, 0x7A, 0xFA, 0x68, 0x28, 0x6B))   # restore / rtl
     fix()
-    done_at = len(cp) - 7    # the restore/rtl tail assembled last
-    for pos in brl_fix:
-        off = done_at - (pos + 2)
-        cp[pos] = off & 0xFF
-        cp[pos + 1] = (off >> 8) & 0xFF
     assert len(cp) <= 0xF0, f"card-portrait stub too big: {len(cp)}"
     ee[EE_CARDPORT:EE_CARDPORT + len(cp)] = cp
     write_bank(data, bankbase, bytes(ee))
@@ -2358,14 +2350,12 @@ def main():
     data[0x10000 + STUB2:0x10000 + STUB2 + 4] = bytes.fromhex("FCA6006B")
     # recognizer hook data slot = Saturn's button record (skipped via surgery)
     data[0x10000 + BTN_RECORD_ADDR:0x10000 + BTN_RECORD_ADDR + 7] = SATURN_BTN_RECORD
-    import os as _os
-    if _os.environ.get("SATURN_SKIP") != "btn":
+    if os.environ.get("SATURN_SKIP") != "btn":
         # the 7 skipped bytes host the projectile-proc mini-stub (jsr-dispatch
         # target at $C1:15C8): JSL $EF:DB30 (tramp3) / RTS
         data[SITE_BTN:SITE_BTN + 11] = \
             bytes((0x22, E8_BTNSTUB & 0xFF, E8_BTNSTUB >> 8, 0xE8)) \
             + bytes((0x22, EF_TRAMP3 & 0xFF, EF_TRAMP3 >> 8, B_C1, 0x60)) + b"\xFF" * 2
-    import os
     if os.environ.get("SATURN_SKIP") != "box":
         for site in BOX_PLB_SITES:
             data[site + 1] = B_BOX - 0x40

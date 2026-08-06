@@ -113,8 +113,9 @@ GLYPH = {
 # The four kanji the real name needs and the font lacks, authored into the blank
 # slots above. Set to "" to build with the stock font (STAGE_NAME must then use
 # only characters the font already has).
-AUTHOR_KANJI = __import__("os").environ.get("AUTHOR_KANJI", "沈黙玉座")
-STAGE_NAME = __import__("os").environ.get("STAGE_NAME", "沈黙のメシアの玉座")
+import os  # (#70: was four __import__("os") calls with no import statement)
+AUTHOR_KANJI = os.environ.get("AUTHOR_KANJI", "沈黙玉座")
+STAGE_NAME = os.environ.get("STAGE_NAME", "沈黙のメシアの玉座")
 
 
 def write_stage_name(data, stage, name):
@@ -157,7 +158,7 @@ SUP_PALRECS = 0xAC7A          # palette record 0 (bank $E0)
 # Maintainer's ruling (2026-08-03): the space-time door is the one slot worth
 # losing, and **Silent Throne of the Messiah** is what takes it. Its BGM stays
 # the space-time door's, untouched.
-SUPERS_SCENE = int(__import__("os").environ.get("SUPERS_SCENE", "8"))
+SUPERS_SCENE = int(os.environ.get("SUPERS_SCENE", "8"))
 
 # Which Super S scene is what, and which SMS scroll routine matches it. The
 # right-hand column is MEASURED (probe_supers_stagejump.lua, per scene): what
@@ -194,8 +195,9 @@ SUPERS_STAGES = {
 #     front plane = palace + ground      back plane = sky
 # which renders in the right order with no priority bits at all, so the
 # fighters stay in front of everything.
-MERGE_GROUND = False
-STRIP_PRIORITY = False
+# (MERGE_GROUND / STRIP_PRIORITY — the re-cut experiments — were removed with
+# their code, #70: superseded by porting $8F, which composes the stage with
+# Super S's own priority bits. History: docs/saturn/supers_assets.md #43.)
 
 # PLANE SPLIT (2026-08-03, field round 2 on #43). Measured on Super S itself
 # (probe_supers_stagejump.lua): at a jump apex its palace band moves +4 px while
@@ -211,10 +213,8 @@ STRIP_PRIORITY = False
 # either original), sky + palace on BG2 at camera/4 (Super S's own rate).
 # BG1 draws in front of BG2 in mode 1, which is the occlusion order the re-cut
 # was invented to get.
-PLANE_SPLIT = False           # superseded by PORT_SCRIPT_TAIL: with $8F ported
-                              # the fighters sit at OBJ priority 3 and Super S's
-                              # own priority bits compose the stage correctly,
-                              # so the maps go in VERBATIM — no re-cut at all
+# (PLANE_SPLIT — likewise removed, #70: superseded by PORT_SCRIPT_TAIL; with
+# $8F ported the maps go in VERBATIM, no re-cut at all.)
 
 # Per-stage SCROLL ROUTINE. $C0:B317 is a 10-byte table (one per stage) of word
 # offsets into a routine pointer table at $C0:B32B:
@@ -235,8 +235,8 @@ PLANE_SPLIT = False           # superseded by PORT_SCRIPT_TAIL: with $8F ported
 # plane's VERTICAL offset under the new scroll routine, not its horizontal one.
 # Fixing that needs BG2VOFS measured ($210E/$2110) and then either a row
 # rotation here or a small custom scroll routine.
-MAP1_SHIFT = 0                # tiles; horizontal re-framing (unused: the
-                              # far layer is off VERTICALLY, not horizontally)
+# (MAP1_SHIFT — the horizontal re-framing rotation — removed unused, #70: the
+# far layer was off VERTICALLY, not horizontally.)
 
 # Which PLANE each tilemap lands on. The two games put their stage tilemaps at
 # the same VRAM addresses ($0000 and $0800), but if their BG tilemap-base
@@ -244,7 +244,7 @@ MAP1_SHIFT = 0                # tiles; horizontal re-framing (unused: the
 # plane. Field symptoms of exactly that: the sky/horizon drawn IN FRONT of the
 # palace, the far layer framed wrong, and the two planes scrolling at each
 # other's rates.
-SWAP_MAPS = False
+# (SWAP_MAPS — the plane-exchange experiment — removed with its code, #70.)
 
 # Carry the scene script's THIRD LIST and its three tail bytes across with the
 # art (see parse_script). Without this the ported stage keeps SMS stage 2's
@@ -252,7 +252,7 @@ SWAP_MAPS = False
 # the fighters at OBJ priority 2 -- and no arrangement of two BG planes can then
 # reproduce the three depths the art was drawn for.
 PORT_SCRIPT_TAIL = True
-PORT_A2 = __import__("os").environ.get("PORT_A2") == "1"
+PORT_A2 = os.environ.get("PORT_A2") == "1"
 
 SCROLL_PTR = 0x00B32F         # the entry stage 2 selects
 SCROLL_PTR_OLD = bytes.fromhex("54b4")    # $C0:B454, the vortex
@@ -281,26 +281,9 @@ SCROLL_PTR_NEW = (bytes([_SCROLL_TARGET & 0xFF, _SCROLL_TARGET >> 8])
 # Fix: keep B40A's horizontal treatment, restore stage 2's own 1:1 vertical, in
 # a routine written over the vortex -- which only stage 2 selects, so no other
 # stage can see it, and the pointer at $C0:B32F is then left alone.
-GROUND_TRACKS_CAMERA = False
-SCROLL_CODE = 0x00B454        # the vortex routine's body; code runs to $B4C0,
-                              # data (its HDMA table) starts at $B4C1
-SCROLL_CODE_OLD = bytes.fromhex("c220ad000a38ed180a8500")   # its first 11 bytes
-SCROLL_CODE_NEW = bytes.fromhex(
-    "c220"          # rep #$20
-    "ad000a"        # lda $0A00      camera x
-    "8d240a"        # sta $0A24
-    "4a4a"          # lsr a : lsr a
-    "8d180a"        # sta $0A18      BG1 h = camera/4
-    "8d1c0a"        # sta $0A1C      BG2 h = camera/4  (same as BG1: the two
-    "8d200a"        # sta $0A20       planes must not drift horizontally)
-    "ad020a"        # lda $0A02      camera y
-    "8d260a"        # sta $0A26
-    "8d1a0a"        # sta $0A1A      BG1 v = camera 1:1   — the ground tracks
-    "4a4a"          # lsr a : lsr a    the fighters (they stay planted)
-    "8d1e0a"        # sta $0A1E      BG2 v = camera/4     — the palace parallax,
-    "8d220a"        # sta $0A22        Super S's own rate (+4 px at the apex)
-    "60")           # rts
-
+# (GROUND_TRACKS_CAMERA and its in-place scroll rewrite were removed with
+# their code, #70 — the shipped fix keeps SMS stage 2's own vortex; the
+# measurements above are the record of why.)
 STUB = 0x8000                 # in our appended bank
 BLOBS = 0x8100
 
@@ -371,72 +354,11 @@ def build(src_path, out_path):
     for j in jobs:
         s, vram, _f = LZ.job_entry(sup, j)
         raw = LZ.lz_decompress(sup, s)
-        if MAP1_SHIFT and vram == 0x0800:
-            m = bytearray(raw)
-            for row in range(32):                    # 64x32 entries, 2 bytes each
-                o = row * 128
-                sh = (MAP1_SHIFT % 64) * 2
-                m[o:o + 128] = m[o + sh:o + 128] + m[o:o + sh]
-            raw = bytes(m)
-            print(f"    (rotated the far tilemap by {MAP1_SHIFT} tiles)")
         blobs.append((raw, vram))
         print(f"  supers job {j:2d}: {len(raw):#07x} bytes -> VRAM {vram:04X}")
 
-    # --- re-cut the two planes (see PLANE_SPLIT / MERGE_GROUND) ---
-    if PLANE_SPLIT:
-        idx = {v: i for i, (_r, v) in enumerate(blobs)}
-        if 0x0000 in idx and 0x0800 in idx:
-            src = bytearray(blobs[idx[0x0000]][0])      # sky + palace + ground
-            other = bytearray(blobs[idx[0x0800]][0])    # a small foreground block
-            front = bytearray(len(src))                 # ground only
-            back = bytearray(src)                       # sky + palace
-            moved = 0
-            for k in range(0, len(src), 2):
-                if src[k + 1] & 0x20:                   # priority = in front of the palace
-                    front[k:k + 2] = src[k:k + 2]
-                    back[k:k + 2] = b"\x00\x00"
-                    moved += 1
-            # The PALACE is in the second map, not the first — and the first map
-            # (sky) has no blank cells, so a "fill the gaps" merge silently threw
-            # the whole palace away and the stage rendered as bare sky. The
-            # second map wins wherever it has a tile: it is the nearer art.
-            kept = 0
-            for k in range(0, len(other), 2):
-                if (other[k] | other[k + 1] << 8) & 0x3FF:
-                    back[k:k + 2] = other[k:k + 2]
-                    kept += 1
-            blobs[idx[0x0000]] = (bytes(front), 0x0000)
-            blobs[idx[0x0800]] = (bytes(back), 0x0800)
-            print(f"    (plane split: {moved} ground cells to BG1, sky+palace to BG2, "
-                  f"{kept} cells kept from the second map)")
-    elif MERGE_GROUND:
-        idx = {v: i for i, (_r, v) in enumerate(blobs)}
-        if 0x0000 in idx and 0x0800 in idx:
-            near = bytearray(blobs[idx[0x0000]][0])     # sky + ground
-            far = bytearray(blobs[idx[0x0800]][0])      # palace
-            moved = 0
-            for k in range(0, len(near), 2):
-                if near[k + 1] & 0x20:                  # high-priority = ground
-                    far[k:k + 2] = near[k:k + 2]        # draw it on the front plane
-                    near[k:k + 2] = b"\x00\x00"         # and blank it behind
-                    moved += 1
-            blobs[idx[0x0000]] = (bytes(near), 0x0000)
-            blobs[idx[0x0800]] = (bytes(far), 0x0800)
-            print(f"    (moved {moved} ground cells onto the front plane)")
-
-    if STRIP_PRIORITY:
-        for i, (raw, vram) in enumerate(blobs):
-            if vram not in (0x0000, 0x0800):
-                continue
-            m = bytearray(raw)
-            n = 0
-            for k in range(1, len(m), 2):
-                if m[k] & 0x20:
-                    m[k] &= ~0x20
-                    n += 1
-            if n:
-                print(f"    (cleared the priority bit on {n} entries)")
-            blobs[i] = (bytes(m), vram)
+    # (the PLANE_SPLIT / MERGE_GROUND / STRIP_PRIORITY re-cut passes lived
+    # here; removed, #70 — the maps go in verbatim since PORT_SCRIPT_TAIL)
 
     # --- our bank ---
     bank_file = len(data)
@@ -520,18 +442,10 @@ def build(src_path, out_path):
     recs = [r for r in recs if r != 4]
     if len(recs) != 3:
         raise SystemExit(f"SMS scene {SMS_STAGE} is not a 3-asset stage: {recs}")
-    order = list(range(len(recs)))
-    if SWAP_MAPS and not PLANE_SPLIT:
-        maps = [i for i, (_r, v) in enumerate(blobs) if v in (0x0000, 0x0800)]
-        if len(maps) == 2:
-            order[maps[0]], order[maps[1]] = order[maps[1]], order[maps[0]]
-            print("  (tilemaps swapped between planes)")
-    addrs = [addrs[i] for i in order]
-    blobs = [blobs[i] for i in order]
     for r, (blobaddr, (raw, vram)) in zip(recs, zip(addrs, blobs)):
         o = E0 + SMS_RECORDS + r * 6
         old_vram = data[o + 3] | data[o + 4] << 8
-        if old_vram != vram and not (SWAP_MAPS and {old_vram, vram} == {0x0000, 0x0800}):
+        if old_vram != vram:
             raise SystemExit(f"record {r}: VRAM {old_vram:04X} but the Super S asset "
                              f"targets {vram:04X} — asset order mismatch")
         print(f"  SMS record {r}: src {data[o]|data[o+1]<<8|data[o+2]<<16:06X} -> "
@@ -580,18 +494,8 @@ def build(src_path, out_path):
                          f"expected {SITE_LOAD_OLD.hex()}")
     data[SITE_LOAD:SITE_LOAD + 7] = bytes((0x5C, STUB & 0xFF, STUB >> 8, bank)) + b"\xEA" * 3
 
-    # scroll routine (see SCROLL_PTR / GROUND_TRACKS_CAMERA)
-    if GROUND_TRACKS_CAMERA:
-        got = bytes(data[SCROLL_CODE:SCROLL_CODE + len(SCROLL_CODE_OLD)])
-        if got != SCROLL_CODE_OLD:
-            raise SystemExit(f"scroll routine @{SCROLL_CODE:#08x}: found {got.hex()}, "
-                             f"expected {SCROLL_CODE_OLD.hex()}")
-        if SCROLL_CODE + len(SCROLL_CODE_NEW) > 0x00B4C1:
-            raise SystemExit("scroll routine would run into the vortex HDMA table at $B4C1")
-        data[SCROLL_CODE:SCROLL_CODE + len(SCROLL_CODE_NEW)] = SCROLL_CODE_NEW
-        print(f"  scroll routine: $C0:B454 rewritten in place "
-              f"({len(SCROLL_CODE_NEW)} B) — BG1 h = camera/4, BG1 v = camera 1:1")
-    elif SCROLL_PTR_NEW is None:
+    # scroll routine (see SCROLL_PTR)
+    if SCROLL_PTR_NEW is None:
         print("  scroll routine: left as SMS stage 2's vortex "
               "(the source scene drifts a plane too)")
     else:

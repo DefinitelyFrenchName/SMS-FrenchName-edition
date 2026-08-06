@@ -105,42 +105,6 @@ def cmd_render(vram_path, oam_path, cg_path, out_path):
     print(f"rendered {out_path} from {len(read_oam(oam_path))} sprites")
 
 
-def coverage(sprites):
-    """Screen pixels the composition actually draws, as {(x, y): (tile, r, c)}."""
-    cov = {}
-    for x, y, t, a, is16 in sprites:
-        flipx, flipy = bool(a & 0x40), bool(a & 0x80)
-        size = 16 if is16 else 8
-        for dx, dy, tn in sprite_tiles(t, is16):
-            for r in range(8):
-                for c in range(8):
-                    ox, oy = dx + c, dy + r
-                    if flipx:
-                        ox = size - 1 - ox
-                    if flipy:
-                        oy = size - 1 - oy
-                    cov[(x + ox, y + oy)] = (tn, r, c)
-    return cov
-
-
-def best_offset(img, cov, span=8):
-    """Slide the composition over the capture and keep the offset that captures
-    the most of the figure. The card background is a light patterned lilac, so
-    "not the background colour" is a useless cue (it counts the pattern); the
-    reliable signal is DARK pixels — her hair, outline and glaive shaft."""
-    src = img.load()
-    w, h = img.size
-    best, bestoff = -1, (0, 0)
-    for dy in range(-span, span + 1):
-        for dx in range(-span, span + 1):
-            n = 0
-            for (x, y) in cov:
-                sx, sy = x + dx, y + dy
-                if 0 <= sx < w and 0 <= sy < h and sum(src[sx, sy]) < 240:
-                    n += 1
-            if n > best:
-                best, bestoff = n, (dx, dy)
-    return bestoff, best, None
 
 
 def cmd_convert(cap_path, oam_path, tiles_out, pal_out, offset="0,0"):
