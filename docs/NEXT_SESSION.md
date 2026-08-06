@@ -5,15 +5,19 @@ active work item. **2026-08-06 (this session) shipped:** Options labels +
 values (`SMS_P16_OPTIONS`), tournament select names + REPORT CARD labels
 (`SMS_P16_DF`), stage names in caps + the char-select/config glyph delivery
 (`SMS_P16_STAGES`) — all verified in-emulator, regression 45/45 at every
-step. **Remaining:** VS-config row labels (モード/…パンチ/… — likely in the
-`$C3:7C00` tilemap that cluster `$AF8A` loads to VRAM `$0000`) + the
-マニュアル value record; ACS wheel labels + prompt (cluster `$C3:9CF2`,
-needs its own glyph hook; strings ATK/DEF/DESP/HP/SP/SILLY on file);
-プレイヤーセレクト header (codec-2 base map — hook or reverse `$80:8E9A`);
-bracket VS names (the bracket is script `$DF:A43E`, NOT `$9405`; names are
-port-written, no DMA trace — needs a VRAM write-watch to find the writer);
-the Saturn build's stage name (SILENT THRONE OF MESSIAH) via its builder.
-All mechanisms and traps are documented in `docs/menu_text.md`. The issue-remediation programme is
+step. **Also shipped later the same day:** the whole VS config screen (row labels
+via the relocated `$C3:7C00` map + all EIGHT MANUAL/AUTO records), the ACS
+wheel (raster erase+stamp in the relocated `$C23400` art sheet — NO glyph
+hook there, the runtime prompt bar references the blank `$5C0` tiles
+through another BG's CHR base), PLAYER SELECT (a queued 19th row record —
+no codec-2 work needed), and `SMS_P16_SATURN=1` for the Saturn stage name
+(default OFF, maintainer's ruling — only for a future Saturn chain that
+stacks this patch). **Remaining:** bracket VS names (script `$DF:A43E`,
+port-written, no DMA trace — needs a VRAM write-watch); ACS name card +
+prompt (runtime-drawn with name substitution; glyph window needs a census
+first — the `$5C0` trap). Codec 2 (`$80:8E9A`) is partially decoded
+(tile-unit codec, XOR row filters, 2-bit command stream) but nothing
+shipped needs it. All mechanisms and traps: `docs/menu_text.md`. The issue-remediation programme is
 COMPLETE (all 61 review issues resolved, tracker empty — record and lessons:
 `HANDOFF.md` §0 + traps 12-18); everything else ships green. Dormant
 maintainer options, not tasks: HANDOFF §8's fold-6/7/8-into-canonical and
