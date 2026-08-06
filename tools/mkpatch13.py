@@ -559,6 +559,11 @@ if __name__ == "__main__":
     ap.add_argument("--stacked", action="store_true",
                     help="src is an already-patched ROM (builder chaining); skips the clean-SHA gate")
     a = ap.parse_args()
+    # 0..100 is what the flag means and what make_tables can express: above 100
+    # every damage collapses to 1, below 0 the table overflows a byte (#91).
+    for name, v in (("--l1", a.l1), ("--l2", a.l2), ("--l3", a.l3)):
+        if not 0 <= v <= 100:
+            raise SystemExit(f"error: {name} must be a percentage 0..100, got {v}")
     check_not_inplace(a.src, a.out)
     require_source(a.src, a.stacked)
     build(a.src, a.out, (a.l1, a.l2, a.l3))

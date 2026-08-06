@@ -219,6 +219,11 @@ if __name__ == "__main__":
     ap.add_argument("--stacked", action="store_true",
                     help="src is an already-patched ROM (builder chaining); skips the clean-SHA gate")
     args = ap.parse_args()
+    # 0..100 is what the flag means and what the shared table builder can express
+    # (above 100 every damage collapses to 1, below 0 the table overflows) (#91).
+    for name, v in (("--l1", args.l1), ("--l2", args.l2), ("--l3", args.l3)):
+        if not 0 <= v <= 100:
+            raise SystemExit(f"error: {name} must be a percentage 0..100, got {v}")
     check_not_inplace(args.src, args.out)
     require_source(args.src, args.stacked)
     build(args.src, args.out, (args.l1, args.l2, args.l3), args.all_grabs)

@@ -32,7 +32,20 @@ SITE = 0x188E9              # LDA #$0B00  (dash X-speed)
 OLD = bytes.fromhex("a9000b")
 NEW_SPEED = 0x0640          # 6.25 px/f  (~ -1/3 distance: 121px -> 82px)
 
+SPEED_MIN, SPEED_MAX = 0x0400, 0x0B00      # -1/2 .. vanilla, the tested band
+
+
 def build(src_path, out_path, speed=NEW_SPEED):
+    # The two stores below MASK, so an out-of-range value used to write a
+    # silently wrong dash speed (#91). Reject what cannot be represented; only
+    # warn outside the tested band, which is a legitimate thing to experiment
+    # with and not ours to forbid.
+    if not 0 < speed <= 0xFFFF:
+        raise SystemExit(f"error: --speed {speed:#x} does not fit the 16-bit fixed-point "
+                         f"field (expected 0 < speed <= 0xffff)")
+    if not SPEED_MIN <= speed <= SPEED_MAX:
+        print(f"warning: --speed {speed:#06x} is outside the tested band "
+              f"{SPEED_MIN:#06x}..{SPEED_MAX:#06x} (vanilla is 0x0b00) — building anyway")
     data = bytearray(open(src_path, "rb").read())
     if not (data[SITE:SITE+3] == OLD):
         raise ValueError(f"dash-speed site: {data[SITE:SITE+3].hex()}")
