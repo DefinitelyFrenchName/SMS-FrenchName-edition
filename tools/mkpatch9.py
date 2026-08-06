@@ -84,7 +84,7 @@ if __name__ == "__main__":
                     help="src is an already-patched ROM (builder chaining); skips the clean-SHA gate")
     a = ap.parse_args()
     if not (-30 <= a.yoff <= 5):
-        raise ValueError("yoff should be a small signed offset around the origin")
+        raise SystemExit(f"error: --yoff {a.yoff} out of range (-30..5, a small signed offset around the origin)")
     check_not_inplace(a.src, a.out)
     require_source(a.src, a.stacked)
     build(a.src, a.out, a.yoff)

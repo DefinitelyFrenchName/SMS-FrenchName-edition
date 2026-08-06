@@ -88,7 +88,7 @@ if __name__ == "__main__":
                     help="src is an already-patched ROM (builder chaining); skips the clean-SHA gate")
     a = ap.parse_args()
     if not (1 <= a.lo <= a.hi <= 14):
-        raise ValueError("window must be within dash frames 1..14")
+        raise SystemExit(f"error: --lo/--hi window {a.lo}..{a.hi} out of range (dash frames 1..14)")
     check_not_inplace(a.src, a.out)
     require_source(a.src, a.stacked)
     build(a.src, a.out, a.lo, a.hi)

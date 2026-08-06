@@ -121,10 +121,13 @@ def build(src_path, out_path):
 
 
 if __name__ == "__main__":
-    argv = [x for x in sys.argv[1:] if x != "--stacked"]
-    stacked = "--stacked" in sys.argv[1:]
-    src = argv[0] if len(argv) > 0 else CLEAN
-    out = argv[1] if len(argv) > 1 else str(REPO / "build/sms_palettes.sfc")
-    check_not_inplace(src, out)
-    require_source(src, stacked)
-    build(src, out)
+    import argparse
+    ap = argparse.ArgumentParser(description="Big Zam palettes + FrenchName ROM header.")
+    ap.add_argument("src", nargs="?", default=CLEAN)
+    ap.add_argument("out", nargs="?", default=str(REPO / "build/sms_palettes.sfc"))
+    ap.add_argument("--stacked", action="store_true",
+                    help="src is an already-patched ROM (builder chaining); skips the clean-SHA gate")
+    a = ap.parse_args()
+    check_not_inplace(a.src, a.out)
+    require_source(a.src, a.stacked)
+    build(a.src, a.out)

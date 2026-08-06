@@ -60,7 +60,7 @@ if __name__ == "__main__":
                     help="src is an already-patched ROM (builder chaining); skips the clean-SHA gate")
     a = ap.parse_args()
     if not (VANILLA_H <= a.h <= 90):
-        raise ValueError("h should be between vanilla (54) and ~90")
+        raise SystemExit(f"error: --h {a.h} out of range ({VANILLA_H}..90, vanilla={VANILLA_H})")
     check_not_inplace(a.src, a.out)
     require_source(a.src, a.stacked)
     build(a.src, a.out, a.h)
