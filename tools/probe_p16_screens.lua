@@ -153,6 +153,21 @@ local function dump7f(tag)
     chunk[#chunk + 1] = string.char(emu.read(0x10000 + i, emu.memType.snesWorkRam) or 0)
   end
   f:write(table.concat(chunk)); f:close()
+  -- VRAM ground truth: tiles $280-$55F (bytes $5000-$ABFF) + map words
+  -- $7000-$77FF (bytes $E000-$EFFF)
+  f = assert(io.open(string.format("%sp16_vram_%s_%s.bin", ENV.TRACE, ROUTE, tag), "wb"))
+  chunk = {}
+  for a = 0x5000, 0xABFF do
+    chunk[#chunk + 1] = string.char(emu.read(a, VRAM) or 0)
+    if #chunk == 4096 then f:write(table.concat(chunk)); chunk = {} end
+  end
+  f:write(table.concat(chunk)); f:close()
+  f = assert(io.open(string.format("%sp16_map_%s_%s.bin", ENV.TRACE, ROUTE, tag), "wb"))
+  chunk = {}
+  for a = 0xE000, 0xEFFF do
+    chunk[#chunk + 1] = string.char(emu.read(a, VRAM) or 0)
+  end
+  f:write(table.concat(chunk)); f:close()
   log(string.format("f%d DUMP7F %s", frames, tag))
 end
 

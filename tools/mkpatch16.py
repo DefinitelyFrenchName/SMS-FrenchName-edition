@@ -152,6 +152,49 @@ REC0 = 0x00BE08                   # in bank $C3 — the first record's vram fiel
 RECSZ = 10
 NRECS = 58
 
+# ---- the bank-$DF screens (Win/REPORT CARD, Tournament) — 2026-08-06 -------
+# Nine screens driven by scripts at $DF ('lda #script / jsr $DF:83E1'); their
+# glyphs come from the big text sheet $C3:48D0 (sms_lz), uploaded whole from
+# $7F:0000. The sheet has a full-width Latin alphabet missing Q/S/Z and no
+# half-width, so this builder (SMS_P16_DF=1 while in bring-up):
+#   1. extends the sheet 608 -> 660 tiles with the half-width A-Z (26 tops at
+#      sheet tile $260, 26 bottoms at $27A), relocates the packed copy to the
+#      patch bank, and repoints the THREE verified $DF script entries
+#      (tournament select $DF:8D24, bracket $DF:941B, report $DF:96CC),
+#      raising their upload length $5000 -> $5280. The fourth $DF reference
+#      ($DF:9B37, an unidentified screen) and the two $C3 records
+#      ($C3:BEC0/$BEE8 — char select/config, where the kanji block overwrites
+#      the extension's VRAM anyway) keep the ORIGINAL blob, which stays in
+#      place untouched.
+#   2. rewrites the tournament-select name blocks — uncompressed
+#      [vmadd][len][rows][cells...] arrays in bank $DF via the pointer table
+#      $DF:8EAC — with the maintainer's names. Cell id on that screen =
+#      sheet tile + $A0 (sheet at vmadd $2A00, CHR base $200).
+DF_TRANSLATE = os.environ.get("SMS_P16_DF") == "1"
+DF_SHEET_SRC = 0xC348D0
+DF_SHEET_RAW = 0x4C00             # 608 tiles decompressed
+# ⚠ the glyphs cannot sit right after the sheet: on tournament select, script
+# entry[4] ($CA6A10 -> VRAM $5000) decompresses OVER tiles $500+ after the
+# sheet upload (measured — the first attempt's letters were stomped). So the
+# sheet is padded to tile $320 and the glyphs laid out exactly like the menu
+# font's $5C0-window (tops at +0, bottoms at +$10, second row at +$20): on the
+# vmadd-$2A00 screens (select, report) they land at VRAM $5C0-$5FF — the
+# window measured blank there — and cell ids equal the menu convention
+# (placed[ch] - $200).
+DF_GLYPH_TILE = 0x320             # sheet tile of the first glyph row
+DF_SHEET_TILES = 0x360            # padded total
+DF_SCRIPT_REFS = (0x1F8D24, 0x1F941B, 0x1F96CC)   # file offsets of src24 fields
+DF_SHEET_AT = 0xA000              # packed extended sheet's offset in the blob
+# name blocks: (file offset of block, text) — 12 cells x 2 rows each,
+# left-aligned like the Japanese; identified by rendering (docs/menu_text.md).
+# ⚠ pointer-table entry 0 ($DF:9211) is the BLANK block (all-zero cells, the
+# "no entry" row) — the names start at entry 1.
+DF_NAMES = (
+    (0x1F902B, "MOON"),    (0x1F9061, "MERCURY"), (0x1F9097, "MARS"),
+    (0x1F90CD, "JUPITER"), (0x1F9103, "VENUS"),   (0x1F9139, "CHIBI"),
+    (0x1F916F, "PLUTO"),   (0x1F91A5, "NEPTUNE"), (0x1F91DB, "URANUS"),
+)
+
 
 def encode_glyph(rows, ink=INK):
     """an 8x16 '#'/'.' glyph -> (top 32-byte tile, bottom 32-byte tile), 4bpp"""
@@ -343,6 +386,64 @@ def build(src_path, out_path, stacked=False):
                  off = cells + (r * 10 + c) * 2
                  data[off], data[off + 1] = w & 0xFF, w >> 8
 
+    # ---- the $DF screens (see the DF_TRANSLATE block above) ----------------
+    packed_df = None
+    if DF_TRANSLATE:
+        big = bytearray(sms_lz.decompress(bytes(data), DF_SHEET_SRC & 0x3FFFFF, 0x8000))
+        if len(big) != DF_SHEET_RAW:
+            raise SystemExit("big text sheet is %#x bytes, expected %#x"
+                             % (len(big), DF_SHEET_RAW))
+        big += bytes((DF_SHEET_TILES - DF_SHEET_RAW // 32) * 32)
+        for ch in letters:
+            # same relative layout as the menu font's $5C0 window; ink 1 — the
+            # colour the kana on these screens use (7 renders near-white here)
+            t = DF_GLYPH_TILE + (placed[ch] - GLYPH_ROWS[0])
+            tt, bb = encode_glyph(glyphs[ch], ink=1)
+            big[t * 32:t * 32 + 32] = tt
+            big[(t + 0x10) * 32:(t + 0x10) * 32 + 32] = bb
+        packed_df = sms_lz.encode(bytes(big))
+        assert sms_lz.decompress(packed_df, 0, len(big)) == bytes(big), \
+            "df sheet round-trip failed"
+        # guards first, so a failed build writes nothing
+        for ref in DF_SCRIPT_REFS:
+            if bytes(data[ref:ref + 3]) != bytes.fromhex("d048c3") or data[ref + 3] == 0:
+                raise SystemExit("script entry at %#x does not reference the "
+                                 "sheet — layout changed" % ref)
+            ln = data[ref + 6] | (data[ref + 7] << 8)
+            if ln != 0x5000:
+                raise SystemExit("script entry at %#x len=$%04X, expected $5000"
+                                 % (ref, ln))
+        for off, text in DF_NAMES:
+            vmadd = data[off] | (data[off + 1] << 8)
+            ln = data[off + 2] | (data[off + 3] << 8)
+            nrows = data[off + 4] | (data[off + 5] << 8)
+            if (vmadd, ln, nrows) != (0, 0x18, 2):
+                raise SystemExit("name block %#x header %04X/%04X/%d unexpected"
+                                 % (off, vmadd, ln, nrows))
+            if len(text) > 12:
+                raise SystemExit("%r exceeds the 12-cell name row" % text)
+        for off, text in DF_NAMES:
+            cells = off + 6
+            attr = 0
+            for i in range(24):
+                w = data[cells + i * 2] | (data[cells + i * 2 + 1] << 8)
+                if w & 0x03FF:
+                    attr = w & 0xFC00
+                    break
+            if not attr:
+                raise SystemExit("name block %#x has no glyph cells" % off)
+            for c in range(12):
+                top = bot = 0
+                if c < len(text) and text[c] != " ":
+                    # sheet at vmadd $2A00, CHR base $200: cell = sheet + $A0,
+                    # which lands on the menu convention (placed - $200)
+                    t = DF_GLYPH_TILE + (placed[text[c]] - GLYPH_ROWS[0]) + 0xA0
+                    top = attr | t
+                    bot = attr | (t + 0x10)
+                for r, w in ((0, top), (1, bot)):
+                    o2 = cells + (r * 12 + c) * 2
+                    data[o2], data[o2 + 1] = w & 0xFF, w >> 8
+
     # Relocation is mandatory even for unchanged data: this project's encoder is
     # weaker than the original's, so the block cannot be written back in place.
     # Both relocated blocks share one appended bank: the font at $0000 and the
@@ -363,7 +464,14 @@ def build(src_path, out_path, stacked=False):
     blob[0:len(packed)] = packed
     blob[STUB_AT:STUB_AT + len(stub)] = stub
     if packed_map:
+        if MAP_AT + len(packed_map) > DF_SHEET_AT:
+            raise SystemExit("packed options map (%#x) overruns the DF sheet slot"
+                             % len(packed_map))
         blob[MAP_AT:MAP_AT + len(packed_map)] = packed_map
+    if packed_df:
+        if DF_SHEET_AT + len(packed_df) > 0x10000:
+            raise SystemExit("packed DF sheet (%#x) overruns the bank" % len(packed_df))
+        blob[DF_SHEET_AT:DF_SHEET_AT + len(packed_df)] = packed_df
     write_bank(data, base, bytes(blob))
     # hook the Options loader's first record load (see OPT_HOOK_FILE block)
     if bytes(data[OPT_HOOK_FILE:OPT_HOOK_FILE + 6]) != OPT_HOOK_OLD:
@@ -383,6 +491,14 @@ def build(src_path, out_path, stacked=False):
         data[orec + 4] = MAP_AT & 0xFF
         data[orec + 5] = MAP_AT >> 8
         data[orec + 6] = bank
+    if packed_df:
+        DF_NEW_LEN = DF_SHEET_TILES * 32
+        for ref in DF_SCRIPT_REFS:
+            data[ref] = DF_SHEET_AT & 0xFF
+            data[ref + 1] = DF_SHEET_AT >> 8
+            data[ref + 2] = bank
+            data[ref + 6] = DF_NEW_LEN & 0xFF
+            data[ref + 7] = DF_NEW_LEN >> 8
 
     fix_checksum(data)
     open(out_path, "wb").write(bytes(data))
@@ -403,6 +519,12 @@ def build(src_path, out_path, stacked=False):
               % (len(OPT_VALUES), ", ".join(sorted(set(t for _, t in OPT_VALUES)))))
     else:
         print("  options screen: labels NOT translated (SMS_P16_OPTIONS=1 to enable)")
+    if DF_TRANSLATE:
+        print("  $DF screens: sheet extended 608 -> %d tiles (%d bytes packed at "
+              "$%02X:%04X), 3 scripts repointed, %d tournament names translated"
+              % (DF_SHEET_TILES, len(packed_df), bank, DF_SHEET_AT, len(DF_NAMES)))
+    else:
+        print("  $DF screens (tournament/report): NOT translated (SMS_P16_DF=1)")
     print("  -> %s  sha1 %s" % (out_path, hashlib.sha1(bytes(data)).hexdigest()))
     json.dump({c: placed[c] for c in sorted(placed)},
               open(os.path.join(REPO, "docs", "halfwidth_tiles.json"), "w"), indent=1)
