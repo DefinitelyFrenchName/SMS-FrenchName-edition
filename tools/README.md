@@ -435,7 +435,6 @@ See HANDOFF.md §4 for the harness.
 - `probe_p13f_desp_cfg.lua`
 - `probe_p17_randompool.lua` — can the RANDOM stage default land on stage 9?
 - `probe_p17_stagelist.lua` — how many stages can the VS config screen reach?
-- `probe_p52_tmpA.lua` — TEMP (#52): does scriptTimeout bound a single Lua entry's execution?
 - `probe_p88_ttlrefresh.lua` — issue #88: does a REPEATED label event refresh its TTL?
 - `probe_p89_padleak.lua` — issue #89: trainer.lua's dummy must force unnamed buttons FALSE.
 - `probe_p8cal.lua` — : calibrate the Venus 6HP mash-escape window. P1 Venus throws P2;
