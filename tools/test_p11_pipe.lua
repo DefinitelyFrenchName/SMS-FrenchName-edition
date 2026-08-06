@@ -4,10 +4,11 @@
 -- Then Start (movelist) -> visible must drop; Start again -> must come back.
 -- Output: traces/p11_pipe.txt (+ p11_pipe.png / p11_pipe_movelist.png)
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local PL = ENV.dofile("probelib.lua")   -- shared emulator-access helpers (#34/#78)
 local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_pipe.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
-local function ram(a) return emu.read(a, emu.memType.snesWorkRam) end
+local ram = PL.ram
 local function vword(w) return emu.read(w * 2, emu.memType.snesVideoRam) + 256 * emu.read(w * 2 + 1, emu.memType.snesVideoRam) end
 local function st7f(off) return emu.read(0x1F000 + off, emu.memType.snesWorkRam) end
 local fails = 0
@@ -27,9 +28,7 @@ end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.sn
 local pulse = {}
 emu.addEventCallback(function()
   for p = 0, 1 do
-    local base = { a=false,b=false,x=false,y=false,l=false,r=false,up=false,down=false,left=false,right=false,start=false,select=false }
-    local b = pulse[p]; if b then for k, v in pairs(b) do base[k] = v end end
-    emu.setInput(base, 0, p)
+    emu.setInput(PL.pad(pulse[p]), 0, p)   -- shared all-false pad + overrides (#78)
   end
 end, emu.eventType.inputPolled)
 

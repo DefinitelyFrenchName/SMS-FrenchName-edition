@@ -1,4 +1,6 @@
 -- demo_truecombo.lua — prove the N=5 patch is a TRUE (unblockable) 1-frame link.
+-- (Deliberately SELF-CONTAINED — no sms_env/probelib — so it runs in the GUI
+-- Script Window with io access off; #78 scope note.)
 --
 -- Same frame-perfect [2LP > 2HP > 66]xN loop as demo_infinite.lua, but P2 now
 -- *tries to block*: it takes the very first hit clean, then holds DOWN-BACK

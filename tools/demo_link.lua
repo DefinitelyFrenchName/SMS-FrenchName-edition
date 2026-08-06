@@ -21,14 +21,14 @@
 -- Keys: R re-run, S stop.
 
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local PL = ENV.dofile("probelib.lua")   -- shared emulator-access helpers (#34/#78)
 local STATE  = LINK_STATE or ENV.TRACE .. "uranus_vs_jupiter_v07.mss"
 local OFFSET = LINK_OFFSET          -- nil => full-sweep report; number => single-offset demo
 local F_LO, F_HI = 108, 122         -- press-frame sweep range
 
 local WRAM = emu.memType.snesWorkRam
 local function r(a) return emu.read(a, WRAM) end
-local FALSE = { a=false,b=false,x=false,y=false,l=false,r=false,
-                up=false,down=false,left=false,right=false,start=false,select=false }
+local FALSE = PL.FALSE_PAD   -- shared all-false pad (#78; read-only here)
 
 -- P1 sequence with the follow-up 2LP at press-frame FV (verified relative timing).
 local function p1btn(t, FV)

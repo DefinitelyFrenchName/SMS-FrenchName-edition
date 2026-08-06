@@ -11,6 +11,7 @@
 -- Config via tools/techfind_cfg.lua (optional): STATE, TFRAME, MASH, MASHGAP, NOMASH
 -- USE: ROM=<rom> tools/run.sh tools/techfind.lua 120
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local PL = ENV.dofile("probelib.lua")   -- shared emulator-access helpers (#34/#78)
 local TRACE = ENV.TRACE
 pcall(dofile, ENV.TOOLS .. "techfind_cfg.lua")
 
@@ -24,8 +25,7 @@ DUMP_HI = DUMP_HI or (TFRAME + 45)
 
 local WRAM = emu.memType.snesWorkRam
 local function r(a) return emu.read(a, WRAM) end
-local FALSE = { a=false,b=false,x=false,y=false,l=false,r=false,
-                up=false,down=false,left=false,right=false,start=false,select=false }
+local FALSE = PL.FALSE_PAD   -- shared all-false pad (#78; read-only here)
 
 local log = assert(io.open(TRACE .. "techfind.txt", "w"), "techfind.lua: cannot open " .. (TRACE .. "techfind.txt"))
 local dump = assert(io.open(TRACE .. "techfind_dump.txt", "w"), "techfind.lua: cannot open " .. (TRACE .. "techfind_dump.txt"))

@@ -5,13 +5,13 @@
 -- fixed-timing rolls (2HP=7, throw=24, tech=12, fireball chip=2).
 -- Output: traces/p13_guts.txt; exit 0 = all pass.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
+local PL = ENV.dofile("probelib.lua")   -- shared emulator-access helpers (#34/#78)
 dofile(ENV.TOOLS .. "test_p13_guts_cfg.lua")
 local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p13_guts.txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
-local WRAM = emu.memType.snesWorkRam
-local function ram(a) return emu.read(a, WRAM) end
-local function wr(a, v) emu.write(a, v, WRAM) end
+local WRAM = PL.WRAM
+local ram, wr = PL.ram, PL.wr
 local function lv(p) return ram(0x1F800 + p) end            -- $7F:F801/F802
 local function setlv(p, v) wr(0x1F800 + p, v) end
 local fails = 0
@@ -37,9 +37,7 @@ end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.sn
 
 emu.addEventCallback(function()
   for p = 0, 1 do
-    local base = { a=false,b=false,x=false,y=false,l=false,r=false,up=false,down=false,left=false,right=false,start=false,select=false }
-    local b = pulse[p]; if b then for k, v in pairs(b) do base[k] = v end end
-    emu.setInput(base, 0, p)
+    emu.setInput(PL.pad(pulse[p]), 0, p)   -- shared all-false pad + overrides (#78)
   end
 end, emu.eventType.inputPolled)
 

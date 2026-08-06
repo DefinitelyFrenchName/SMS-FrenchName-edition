@@ -1,4 +1,5 @@
 -- demo_infinite.lua — scripted playback of the frame-perfect 1-frame-link infinite.
+-- (Deliberately SELF-CONTAINED — no sms_env/probelib — GUI Script Window safe; #78.)
 --
 -- Purpose: SHOW that the patched infinite still works when executed frame-perfectly
 -- (it is a 1-frame link, not removed). Drives BOTH players — a demo to watch, not to

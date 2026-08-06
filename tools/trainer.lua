@@ -1,5 +1,12 @@
 -- trainer.lua — interactive training tool for the SMS Uranus patches (Mesen GUI).
 --
+-- SCOPE (maintainer decision, #78): this file deliberately stays a small
+-- SELF-CONTAINED script — no sms_env/probelib/file access needed, so it runs in
+-- the Script Window with io access off. The maintained, test-covered training
+-- mode is tools/training.lua (the tools/training/ package); this is the
+-- zero-setup quick tool beside it, and its duplication of dummy/advantage
+-- logic is accepted for that reason.
+--
 -- HOW TO USE (Mesen 2, windowed GUI — NOT --testrunner):
 --   1. Load your patched ROM (e.g. build/sms_full4.sfc) and get into a VS match
 --      as Uranus (P1). A 1P-vs-2P match is easiest; you control P1 with your pad.
