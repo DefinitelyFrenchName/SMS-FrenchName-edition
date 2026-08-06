@@ -1235,7 +1235,15 @@ Consequences:
     (`[vmadd][len][rows][cells…]`) copied from a pointer table at
     `$DF:8EAC` (blocks `$DF:9000-$9280`, UNCOMPRESSED — trivially editable)
     into `$7F:8000+n*$80`, row positions from `$DF:8EC0`, drawn by the same
-    renderer as the Options values. The bracket screen is script `DF:9405`.
+    renderer as the Options values. ⚠ Script `DF:9405` is NOT the bracket
+    (that is `DF:A43E`) — it is the STORY PRE-FIGHT PORTRAIT screen, found
+    the hard way: the sheet-extension build bumped its upload length and the
+    maintainer field-reported stray letters on that screen's background
+    plane (blank-but-referenced, third instance). Fixed 2026-08-06: only
+    the select ($DF:8D24) and report ($DF:96CC) entries are repointed; the
+    portrait screen verified clean via the probe's story route. That screen
+    also draws セーラー〜 VS 〜 name cells — same family as the bracket for
+    a future pass.
   - **The `$C3:48D0` sheet has a full-width Latin alphabet (missing Q, S, Z)
     + two digit sets** — S is needed by nearly every planned string (BEST,
     MARS, VENUS, SAILOR…), so glyph authoring is required either way; the
