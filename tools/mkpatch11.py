@@ -1189,6 +1189,44 @@ def _paint_row_block(i, idx, tag):
 
 
 def _upl2_stub(stage, font_addr, font_bank, font_size, idx):
+    def _w(ch):
+        """Glyph tilemap word for ch — interpolated DIRECTLY into the asm text (#77:
+        the old $WORD_x placeholders were patched in by ten unchecked .replace()
+        calls, so a misspelled placeholder silently reached the assembler)."""
+        return f"${0x2C00 | (GLYPH_TILE0 + idx[ch]):04X}"
+
+    def _btn_cells():
+        """The 16 input-display cells, generated from one spec (#77: they were 16
+        hand-copied seven-line blocks where a wrong bit in one copy was invisible).
+        Stream order into VRAM $1264+ via $2118 auto-increment; None = blank spacer.
+        (reg, mask, ch): the cell shows ch's glyph while that pad bit is held —
+        $005D holds B/Y/Select/Start/UDLR, $005C A/X/L/R (post-joy_read held words)."""
+        CELLS = [("$005D", 0x08, "U"), ("$005D", 0x04, "D"), ("$005D", 0x02, "L"),
+                 ("$005D", 0x01, "R"), None,
+                 ("$005D", 0x40, "L"), ("$005D", 0x40, "P"), None,
+                 ("$005D", 0x80, "L"), ("$005D", 0x80, "K"), None,
+                 ("$005C", 0x40, "H"), ("$005C", 0x40, "P"), None,
+                 ("$005C", 0x80, "H"), ("$005C", 0x80, "K")]
+        out = []
+        for n, c in enumerate(CELLS):
+            if c is None:
+                out.append("  lda #$2000\n  sta $2118\n")
+                continue
+            reg, mask, ch = c
+            out.append(f"""  sep #$20
+  lda {reg}
+  and #${mask:02X}
+  rep #$20
+  bne lit{n}
+  lda #$2000
+  bra wr{n}
+lit{n}:
+  lda #{_w(ch)}
+wr{n}:
+  sta $2118
+""")
+        return "".join(out)
+
     dst = BG3_CHR + GLYPH_TILE0 * 8
     if stage == "pipe":
         # (pipe retains the phase-2 smoke behavior: title row while gated)
@@ -1416,147 +1454,7 @@ dinp:
   rep #$20
   lda #$1264
   sta $2116
-  sep #$20
-  lda $005D
-  and #$08
-  rep #$20
-  bne lit0
-  lda #$2000
-  bra wr0
-lit0:
-  lda #$WORD_U
-wr0:
-  sta $2118
-  sep #$20
-  lda $005D
-  and #$04
-  rep #$20
-  bne lit1
-  lda #$2000
-  bra wr1
-lit1:
-  lda #$WORD_D
-wr1:
-  sta $2118
-  sep #$20
-  lda $005D
-  and #$02
-  rep #$20
-  bne lit2
-  lda #$2000
-  bra wr2
-lit2:
-  lda #$WORD_L
-wr2:
-  sta $2118
-  sep #$20
-  lda $005D
-  and #$01
-  rep #$20
-  bne lit3
-  lda #$2000
-  bra wr3
-lit3:
-  lda #$WORD_R
-wr3:
-  sta $2118
-  lda #$2000
-  sta $2118
-  sep #$20
-  lda $005D
-  and #$40
-  rep #$20
-  bne lit5
-  lda #$2000
-  bra wr5
-lit5:
-  lda #$WORD_L
-wr5:
-  sta $2118
-  sep #$20
-  lda $005D
-  and #$40
-  rep #$20
-  bne lit6
-  lda #$2000
-  bra wr6
-lit6:
-  lda #$WORD_P
-wr6:
-  sta $2118
-  lda #$2000
-  sta $2118
-  sep #$20
-  lda $005D
-  and #$80
-  rep #$20
-  bne lit8
-  lda #$2000
-  bra wr8
-lit8:
-  lda #$WORD_L
-wr8:
-  sta $2118
-  sep #$20
-  lda $005D
-  and #$80
-  rep #$20
-  bne lit9
-  lda #$2000
-  bra wr9
-lit9:
-  lda #$WORD_K
-wr9:
-  sta $2118
-  lda #$2000
-  sta $2118
-  sep #$20
-  lda $005C
-  and #$40
-  rep #$20
-  bne lit11
-  lda #$2000
-  bra wr11
-lit11:
-  lda #$WORD_H
-wr11:
-  sta $2118
-  sep #$20
-  lda $005C
-  and #$40
-  rep #$20
-  bne lit12
-  lda #$2000
-  bra wr12
-lit12:
-  lda #$WORD_P
-wr12:
-  sta $2118
-  lda #$2000
-  sta $2118
-  sep #$20
-  lda $005C
-  and #$80
-  rep #$20
-  bne lit14
-  lda #$2000
-  bra wr14
-lit14:
-  lda #$WORD_H
-wr14:
-  sta $2118
-  sep #$20
-  lda $005C
-  and #$80
-  rep #$20
-  bne lit15
-  lda #$2000
-  bra wr15
-lit15:
-  lda #$WORD_K
-wr15:
-  sta $2118
-  sep #$20
+{_btn_cells()}  sep #$20
 dadv:
   lda_l ${ADVDIRTY:06X}
   bne dadv1
@@ -1586,11 +1484,11 @@ advdraw:
   rep #$20
   lda #$1276
   sta $2116
-  lda #$WORD_A
+  lda #{_w('A')}
   sta $2118
-  lda #$WORD_D
+  lda #{_w('D')}
   sta $2118
-  lda #$WORD_V
+  lda #{_w('V')}
   sta $2118
   lda #$2000
   sta $2118
@@ -1601,7 +1499,7 @@ advdraw:
   lda #$2000
   bra sgw
 sgm:
-  lda #$WORD_MINUS
+  lda #{_w('-')}
 sgw:
   sta $2118
   sep #$20
@@ -1643,17 +1541,6 @@ dohp:
   sta $2115
 {_hp_render(0)}{_hp_render(1)}  jmp tmmgmt
 {paint_blocks}"""
-    body = (body
-            .replace("$WORD_A", f"${0x2C00 | (GLYPH_TILE0 + idx['A']):04X}")
-            .replace("$WORD_D", f"${0x2C00 | (GLYPH_TILE0 + idx['D']):04X}")
-            .replace("$WORD_V", f"${0x2C00 | (GLYPH_TILE0 + idx['V']):04X}")
-            .replace("$WORD_L", f"${0x2C00 | (GLYPH_TILE0 + idx['L']):04X}")
-            .replace("$WORD_P", f"${0x2C00 | (GLYPH_TILE0 + idx['P']):04X}")
-            .replace("$WORD_K", f"${0x2C00 | (GLYPH_TILE0 + idx['K']):04X}")
-            .replace("$WORD_H", f"${0x2C00 | (GLYPH_TILE0 + idx['H']):04X}")
-            .replace("$WORD_U", f"${0x2C00 | (GLYPH_TILE0 + idx['U']):04X}")
-            .replace("$WORD_R", f"${0x2C00 | (GLYPH_TILE0 + idx['R']):04X}")
-            .replace("$WORD_MINUS", f"${0x2C00 | (GLYPH_TILE0 + idx['-']):04X}"))
     return _upl2_wrap(body)
 
 
