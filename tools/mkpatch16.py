@@ -268,6 +268,37 @@ CS_STUB_AT = 0x7F60
 CFG_MAP_SRC = 0xC37C00
 CFG_MAP_REF = 0x03BEFC            # the record's src24 field
 CFG_MAP_AT = 0x4000               # relocated packed map's offset in the blob
+# ---- the A.C.S. screen (SMS_P16_ACS=1) -------------------------------------
+# The stat wheel's labels (必殺技/攻撃/?/体力/防御/おちゃめ) are RASTER text
+# inside the screen's art sheet $C23400 (VRAM $300-$3FF via map $C23EB0) —
+# not tile-aligned, so the edit is erase+stamp on pixels: each label's box is
+# cleared to colour 0 and the English stamped in the kana's fill colour, then
+# the sheet is re-encoded, relocated, and record idx3B's src repointed. The
+# boxes were measured off a coordinates-annotated pixel dump; all sit OUTSIDE
+# the wheel circle. DESP replaces the "?" and is wider than it — the extra
+# columns land on blank art cells that exist in the map.
+# ⚠ NO glyph-block hook on this screen: raster labels need no font tiles, and
+# a first attempt that uploaded the block to VRAM $5C0 drew GARBAGE along the
+# bottom bar — the runtime-written prompt area references those tiles through
+# another BG's CHR base (blank-but-referenced; trap 2's VRAM cousin). The name
+# card and the prompt line are runtime-drawn (deferred — docs/menu_text.md);
+# when they're done, their glyph window needs a real census first.
+ACS_TRANSLATE = os.environ.get("SMS_P16_ACS") == "1"
+ACS_SHEET_SRC = 0xC23400
+ACS_SHEET_REF = 0x03BDA8          # record idx3B's src24 field
+ACS_MAP_SRC = 0xC23EB0
+ACS_SHEET_AT = 0x5000             # relocated packed sheet's offset in the blob
+# (erase box x0,y0,x1,y1 in map pixels; stamp text at sx,sy)
+ACS_LABELS = (
+    ((150, 51, 205, 68), "SP", 170, 52),
+    ((104, 75, 142, 93), "ATK", 108, 76),
+    ((212, 74, 232, 93), "DESP", 206, 76),
+    ((104, 123, 142, 140), "HP", 112, 124),
+    ((212, 123, 246, 140), "DEF", 216, 124),
+    ((146, 152, 220, 168), "SILLY", 163, 152),
+)
+ACS_INK = 8                       # the kana fill colour in this sheet
+
 # The マニュアル/オート VALUES are runtime records (bank $C4, same renderer as
 # the option values) that overdraw the baked map columns on entry — found by
 # searching for the マニ cell run: [vmadd $00A1|$00B5][len $14][rows 2].
@@ -346,10 +377,10 @@ def opt_stub(bank):
     # vram/len/src24 at $00/$02/$04-$06 — exactly $C3:82CA's calling convention.
 
 
-def cs_stub(bank):
-    """Char-select cluster hook: DMA the uncompressed half-width block from
-    the patch bank to VRAM $5C0 (via $80:92AD, DP $00-$06), then the displaced
-    first record load. The config screen inherits this VRAM."""
+def cs_stub(bank, arm):
+    """Loader-cluster hook: DMA the uncompressed half-width block from the
+    patch bank to VRAM $5C0 (via $80:92AD, DP $00-$06), then the displaced
+    first record load (arm = the cluster's own first index*2)."""
     return f"""
   rep #$20
   lda #$5C00
@@ -363,7 +394,7 @@ def cs_stub(bank):
   sta_dp $06
   jsl $8092AD
   rep #$30
-  lda #$001A
+  lda #${arm:04X}
   sta_l $7E1C18
   rtl
 """
@@ -736,11 +767,74 @@ def build(src_path, out_path, stacked=False):
             tt, bb = encode_glyph(glyphs.get(ch) or PUNCT[ch], ink=1)
             csblock[(top - 0x5C0) * 32:(top - 0x5C0) * 32 + 32] = tt
             csblock[(top - 0x5C0 + 0x10) * 32:(top - 0x5C0 + 0x10) * 32 + 32] = bb
-        csstub, _ = asm65816.assemble(cs_stub(bank).splitlines(), CS_STUB_AT, bank)
+        csstub, _ = asm65816.assemble(cs_stub(bank, 0x1A).splitlines(), CS_STUB_AT, bank)
         if CS_STUB_AT + len(csstub) > MAP_AT:
             raise SystemExit("cs stub (%#x bytes) overruns the map slot" % len(csstub))
         if STUB_AT + len(stub) > CS_STUB_AT:
             raise SystemExit("options stub overruns the cs stub slot")
+
+    astub = packed_acs = None
+    if ACS_TRANSLATE:
+        if not STAGES_TRANSLATE:
+            raise SystemExit("SMS_P16_ACS needs SMS_P16_STAGES (shares the glyph block)")
+        if bytes(data[ACS_SHEET_REF:ACS_SHEET_REF + 3]) != bytes.fromhex("0034c2"):
+            raise SystemExit("ACS sheet record src reads %s, expected 0034c2"
+                             % bytes(data[ACS_SHEET_REF:ACS_SHEET_REF + 3]).hex())
+        amap = sms_lz.decompress(bytes(data), ACS_MAP_SRC & 0x3FFFFF, 0x4000)
+        asheet = bytearray(sms_lz.decompress(bytes(data), ACS_SHEET_SRC & 0x3FFFFF, 0x8000))
+        if len(asheet) != 0x2000:
+            raise SystemExit("ACS art sheet is %#x bytes, expected 0x2000" % len(asheet))
+
+        def acs_tile(px, py):
+            w = amap[((py // 8) * 32 + px // 8) * 2] \
+                | (amap[((py // 8) * 32 + px // 8) * 2 + 1] << 8)
+            vt = (w & 0x3FF) + 0x200
+            return vt - 0x300 if 0x300 <= vt < 0x400 else None
+
+        def acs_set(px, py, v):
+            t = acs_tile(px, py)
+            if t is None:
+                raise SystemExit("ACS pixel (%d,%d) is not on the art sheet" % (px, py))
+            o = t * 32 + (py % 8) * 2
+            b = 7 - (px % 8)
+            m = 0xFF ^ (1 << b)
+            for plane, off in ((0, o), (1, o + 1), (2, o + 16), (3, o + 17)):
+                asheet[off] = (asheet[off] & m) | (((v >> plane) & 1) << b)
+
+        # tiles must be UNIQUE in the map, or an edit bleeds elsewhere
+        touched = set()
+        for (x0, y0, x1, y1), text, sx, sy in ACS_LABELS:
+            for py in range(y0, y1):
+                for px in range(x0, x1):
+                    touched.add(acs_tile(px, py))
+            for i in range(len(text)):
+                for py in range(sy, sy + 16):
+                    for px in range(sx + i * 8, sx + i * 8 + 8):
+                        touched.add(acs_tile(px, py))
+        counts = {}
+        for k in range(0x400):
+            w = amap[k * 2] | (amap[k * 2 + 1] << 8)
+            vt = (w & 0x3FF) + 0x200
+            if 0x300 <= vt < 0x400:
+                counts[vt - 0x300] = counts.get(vt - 0x300, 0) + 1
+        shared = [t for t in touched if t is not None and counts.get(t, 0) > 1]
+        if shared:
+            raise SystemExit("ACS label tiles are shared in the map: %s"
+                             % ["%02X" % t for t in sorted(shared)])
+        for (x0, y0, x1, y1), text, sx, sy in ACS_LABELS:
+            for py in range(y0, y1):
+                for px in range(x0, x1):
+                    acs_set(px, py, 0)
+            for i, ch in enumerate(text):
+                rows = glyphs.get(ch) or PUNCT[ch]
+                for gy in range(16):
+                    for gx in range(8):
+                        if rows[gy][gx] == "#":
+                            acs_set(sx + i * 8 + gx, sy + gy, ACS_INK)
+        packed_acs = sms_lz.encode(bytes(asheet))
+        assert sms_lz.decompress(packed_acs, 0, len(asheet)) == bytes(asheet), \
+            "ACS sheet round-trip failed"
+        astub = True   # no code on this screen — raster labels need no font
 
     rstub = None
     if DF_TRANSLATE:
@@ -765,13 +859,18 @@ def build(src_path, out_path, stacked=False):
     if csstub:
         blob[CS_STUB_AT:CS_STUB_AT + len(csstub)] = csstub
         blob[CS_BLOCK_AT:CS_BLOCK_AT + len(csblock)] = csblock
-        if CFG_MAP_AT + len(packed_cmap) > STUB_AT:
-            raise SystemExit("packed config map (%#x) overruns the stub slot"
+        if CFG_MAP_AT + len(packed_cmap) > ACS_SHEET_AT:
+            raise SystemExit("packed config map (%#x) overruns the ACS sheet slot"
                              % len(packed_cmap))
         if len(packed) > CFG_MAP_AT:
             raise SystemExit("packed font (%#x) overruns the config map slot"
                              % len(packed))
         blob[CFG_MAP_AT:CFG_MAP_AT + len(packed_cmap)] = packed_cmap
+    if astub:
+        if ACS_SHEET_AT + len(packed_acs) > STUB_AT:
+            raise SystemExit("packed ACS sheet (%#x) overruns the stub slot"
+                             % len(packed_acs))
+        blob[ACS_SHEET_AT:ACS_SHEET_AT + len(packed_acs)] = packed_acs
     if packed_df:
         if DF_SHEET_AT + len(packed_df) > 0x10000:
             raise SystemExit("packed DF sheet (%#x) overruns the bank" % len(packed_df))
@@ -812,6 +911,10 @@ def build(src_path, out_path, stacked=False):
         data[CFG_MAP_REF] = CFG_MAP_AT & 0xFF
         data[CFG_MAP_REF + 1] = CFG_MAP_AT >> 8
         data[CFG_MAP_REF + 2] = bank
+    if astub:
+        data[ACS_SHEET_REF] = ACS_SHEET_AT & 0xFF
+        data[ACS_SHEET_REF + 1] = ACS_SHEET_AT >> 8
+        data[ACS_SHEET_REF + 2] = bank
 
     fix_checksum(data)
     open(out_path, "wb").write(bytes(data))
@@ -848,6 +951,11 @@ def build(src_path, out_path, stacked=False):
               % (len(CFG_LABELS), ", ".join(t for _, _, _, t in CFG_LABELS)))
     else:
         print("  stage names: NOT translated (SMS_P16_STAGES=1 to enable)")
+    if ACS_TRANSLATE:
+        print("  ACS wheel: %d labels raster-edited in the relocated art sheet (%s)"
+              % (len(ACS_LABELS), ", ".join(t for _, t, _, _ in ACS_LABELS)))
+    else:
+        print("  ACS wheel: NOT translated (SMS_P16_ACS=1 to enable)")
     print("  -> %s  sha1 %s" % (out_path, hashlib.sha1(bytes(data)).hexdigest()))
     json.dump({c: placed[c] for c in sorted(placed)},
               open(os.path.join(REPO, "docs", "halfwidth_tiles.json"), "w"), indent=1)
