@@ -518,6 +518,43 @@ tests.T10 = {
   },
 }
 
+-- T11 (#96): framedata cross-frame state must not survive a savestate reload.
+-- Runs T2's 2LP-on-hit scenario so lastMove/lastAdv are populated, reloads, and
+-- asserts the reload boundary cleared them (M.reset is the hooks.reset handler —
+-- #15 was closed claiming this, but pend/lastMove/lastAdv were left stale).
+-- After the reload PLAN1 re-runs from t=0; the assertion fires long before its
+-- jab at t=60, and skips the stray pre-reload frame (T3's caveat).
+tests.T11 = (function()
+  local phase = "A"
+  local T
+  T = {
+    STATE = "uranus_vs_jupiter_tm.mss",
+    POKES = { { t = 5, addr = 0x1021, val = 0xE8 } },
+    PLAN1 = { [10] = { down = true }, [60] = { down = true, y = true }, [63] = { down = true } },
+    DONE = 1e9,
+    CHECKS = {},
+    ONFRAME = function(ctx, log, finish)
+      local t = ctx.t
+      if phase == "A" then
+        if t == 125 then
+          log((ctx.lastMove[1] and ctx.lastAdv) and "PASS: pre-reload lastMove+lastAdv set"
+              or "FAIL: pre-reload state never formed (scenario broke)")
+          phase = "B"
+          ctx.anchor.loadreq = T._state
+        end
+      elseif phase == "B" and t <= 10 then
+        log((ctx.lastMove[1] == nil and ctx.lastMove[2] == nil and ctx.lastAdv == nil)
+            and "PASS: reload cleared lastMove/lastAdv"
+            or string.format("FAIL: stale after reload (lastMove1=%s lastMove2=%s lastAdv=%s)",
+                tostring(ctx.lastMove[1] ~= nil), tostring(ctx.lastMove[2] ~= nil),
+                tostring(ctx.lastAdv ~= nil)))
+        finish()
+      end
+    end,
+  }
+  return T
+end)()
+
 -- ---------- harness ----------
 local T = tests[TEST]
 if not T then error("unknown TEST " .. tostring(TEST)) end

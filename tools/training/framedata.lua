@@ -255,8 +255,14 @@ function M.init(ctx)
   end
 
   function M.reset()
+    -- clear ALL cross-frame state (#96 — #15's fix missed the last three: a
+    -- pending start would backdate against post-reload frames, and a stale
+    -- lastMove/lastAdv could satisfy a later phase's check)
     mv = { newMv(), newMv() }
     inter = nil
+    pend = { nil, nil }
+    ctx.lastMove = { nil, nil }
+    ctx.lastAdv = nil
   end
 
   table.insert(ctx.hooks.frame, step)

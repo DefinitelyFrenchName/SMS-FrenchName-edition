@@ -753,9 +753,10 @@ dummy layers (guard/tech-mash/wakeup/pose), **input piano roll**, event labels
 active frame (Dustloop; toggle to SF6 display in menu), counts exclude hitstop, advantage
 = neutral-frame delta (oracle-validated: 2LP S4 A5 R4 +6, 2HP S8 A12 R7). GUI: open a match,
 run tools/training.lua in the Script Window (enable file access for slot/settings persistence).
-Headless self-tests: `tools/training_test.lua` (T1–T10, see its header) — T1/T2/T2H/T3/
-T5/T6/T7/T10 run on the clean ROM, T4/T8/T9 need a v0.7-family ROM (T10 also passes on
-v0.21). T10 locks the 2026-07-21 fix: projectile specials (body never goes active — the
+Headless self-tests: `tools/training_test.lua` (T1–T11, see its header) — T1/T2/T2H/T3/
+T5/T6/T7/T10/T11 run on the clean ROM, T4/T8/T9 need a v0.7-family ROM (T10 also passes
+on v0.21). T11 pins the #96 fix: a savestate reload must clear framedata's
+lastMove/lastAdv/pend (the reset path #15 was closed on had left them stale). T10 locks the 2026-07-21 fix: projectile specials (body never goes active — the
 hitbox lives on the projectile slot) must still close their framedata move instance at
 neutral, else the attacker sticks in STARTUP, the combo never closes, and HP regen never
 fires ("refill only after a normal hit" field report; fix in framedata.lua classify()). Architecture: modules share a ctx
