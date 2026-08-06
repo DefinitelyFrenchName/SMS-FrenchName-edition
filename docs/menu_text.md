@@ -1157,6 +1157,45 @@ at `$5C0-$5FF` overlap nothing on this screen. Verified: census goes 0/64 →
 the six labels render in English (screenshot-checked); the button-config screen
 re-verifies green on the hooked build (52/64 + the `POKE=1` positive control).
 
+## Screen census — all four priority screens reached and mapped (2026-08-06)
+
+`tools/probe_p16_screens.lua` (routes `win`/`acs`/`tournament`) drives each
+screen and logs its loader (`$1C18` writes with PC — **watch the WRAM memtype,
+not bus `$7E1C18`: the clusters execute from the `$03` mirror**), its uploads,
+and the `$5C0-$5FF` glyph census. Results:
+
+| screen | loader | glyphs `$5C0+` | translatable text |
+|---|---|---|---|
+| main menu | cluster `$C3:B76B` (runs font record B15) | **52/64** | menu items (baked art) |
+| Options | cluster `$C3:A4DD` + patch 16 hook | **52/64** | DONE (labels + values) |
+| vs-COM setup | cluster `$C3:B852` | 0 | — |
+| char select (vs-COM) | cluster `$C3:AF8A` (text sheet `$2A00` + kanji `$5000`) | 0 | names etc. |
+| VS config | no own cluster (keeps char select's VRAM + its compressed tilemap) | 0 | rows: モード/…パンチ/…キック/必殺モード, ステージ names |
+| A.C.S. | cluster `$C3:9CF2` + own small font (`$4000` len `$0E00`) | 0 | stat wheel 必殺技/攻撃/体力/防御/おちゃめ, prompt sentence |
+| Win = REPORT CARD | **bank `$DF` loader** (`$DF:83CE` writes `$1C18`), no `$80:92D2` uploads | 0 | KOタイム/HITすう/ダメージ/勝ちすう/ベスト (values numeric) |
+| Tournament (select + bracket) | **bank `$DF` loader** (same) | 0 | プレイヤーセレクト, per-line char names, brackets' セーラー〜 VS 〜 |
+
+Consequences:
+* **Win and Tournament share ONE unsolved system** — the bank-`$DF` screen
+  loader, which does not go through the `$C3` clusters or the `$80:92D2`
+  uploader at all. Decoding it is the next work item; nothing about the `$C3`
+  hook pattern transfers as-is.
+* The `$C3`-cluster screens (char select, config, ACS) can each get the font
+  by the same per-cluster hook Options got, when their text edits are ready.
+* ⚠ **Attribution correction:** step 1's "glyphs reach VRAM on the
+  button-config screen" was measured on the MAIN MENU — `probe_menu_vram`'s
+  route ends at mode-select and its `TRIG=$4000` fires on the menu-entry
+  transfer. The verification itself stands (the glyphs do reach VRAM and
+  render); only the screen name was wrong. The config screen has NO glyphs
+  and no font record of its own.
+* Reaching the Win screen headless: vs-COM has **no round clock** (displays
+  00, never ticks) and the COM guards jabs indefinitely; **throw damage is
+  chip-class and chip never kills** (a throw at 1 HP leaves the victim lying
+  at 0 HP forever — an engine state normal play can't produce). What works:
+  pin P2 to 2 HP and fish for counter-hits with the 4f jab while the COM
+  attacks; strikes underflow-kill normally. HP pins must use the per-A.C.S.
+  max (`$104A`), not a constant.
+
 **Values: SOLVED the same day (2026-08-06) — the runtime writer is found and
 the records are plain data.** The draw path is `$80:8C43` (JSL): DP `$74/$76`
 points at a self-describing record `[vmadd16][len16][rows16][cells…]` in bank

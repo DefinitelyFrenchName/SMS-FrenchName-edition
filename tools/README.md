@@ -432,6 +432,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_p13f_desp.lua` — : desperation compendium probe. Config probe_p13f_desp_cfg.lua:
 - `probe_p13f_desp_cfg.lua`
 - `probe_p16_options_buf.lua` — patch 16 step 2 diagnostic, v2.
+- `probe_p16_screens.lua` — patch 16 screen census: reach the Win / ACS /
 - `probe_p17_randompool.lua` — can the RANDOM stage default land on stage 9?
 - `probe_p17_stagelist.lua` — how many stages can the VS config screen reach?
 - `probe_p88_ttlrefresh.lua` — issue #88: does a REPEATED label event refresh its TTL?

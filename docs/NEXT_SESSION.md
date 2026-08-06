@@ -57,15 +57,14 @@ cell edits, verified through both highlight states. Builder A/B today: base
 
 **Screen coverage (maintainer priority: Options ✓, Win, ACS, Tournament; story
 out of scope):**
-* ⚠ The old "Options and Tournament share the extended sheet (record 27)" note
-  predates the loader finding — each screen re-uploads its OWN record list
-  after a full VRAM clear, so Tournament needs its loader cluster checked the
-  same way (candidates from the cluster census in `probe_p16_options_buf`'s
-  session: `$C3:AF8A` and `$C3:B852` both re-use the big text sheet
-  `$C3:48D0`).
-* **Win and ACS are NOT yet probed** — neither is reachable from the title
-  menu (one needs a KO, the other SELECT at char select), so their sheets
-  are unknown.
+* **ALL FOUR screens are now probed** (`tools/probe_p16_screens.lua`, routes
+  win/acs/tournament; full table in `docs/menu_text.md` § Screen census).
+  Short version: ACS = cluster `$C3:9CF2` (+ its own small font at `$4000`);
+  Win (REPORT CARD) and Tournament both run on a **bank `$DF` loader**
+  (`$DF:83CE`) that bypasses the `$C3` clusters and the `$80:92D2` uploader
+  entirely — decoding that system is the next work item. The ACS door is the
+  VS config screen's SELECT (press it once the mode-row handler `$83:A849`
+  executes; it transitions on its own).
 * プレイヤーセレクト on the *illustrated* char-select is OFF-LIMITS (artwork,
   rainbow-animated); the plain-text one on the Tournament screen DOES need
   translating, as do that screen's per-line character names.
