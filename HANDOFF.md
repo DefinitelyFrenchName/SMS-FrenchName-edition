@@ -436,6 +436,8 @@ closed. Key operational changes:
 - STANDALONE HASHES CHANGED: p1 `258ffd4e`, p1b `deefccec`, p2 `14f747a7` (checksum now
   fixed, #14 — chain outputs unaffected since later builders recompute it), p10
   `be072a5e`, p10b `920652df`, p11 `e9ac2205`, p13 `bafb87d4`, p14 `5fadcaca`.
+  (p10b moved again on 2026-08-06 to `4899790a…` when the label pipeline was
+  brought under `--modes` — issue #86. The list above is the 07-30 record.)
   Bundles: v0.22 `3bb9c829…`, REF v.1 `2873f214…`. Canonical v0.7 `24aa6b6d…`
   unchanged (reproduced byte-for-byte with the new builders).
 - Suite-count note: v0.22 full run counts differ slightly from the 07-25 numbers only

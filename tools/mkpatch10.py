@@ -510,6 +510,26 @@ lf{sfx}:
 """
 
 
+def _label_gate(modes):
+    """Emit: if $008D not in `modes`, skip the whole label pipeline (jmp lblskip).
+
+    `_mode_gate`'s excluded path jumps to `dorender`, which blanks the counters —
+    but the label recency/detect/finalize/render chain is concatenated AFTER the
+    render blocks, so it still ran every frame in a mode the user excluded (#86).
+    Default `--modes` is 0,1,2,4,5, so the excluded mode in practice is 3 —
+    TOURNAMENT, which is exactly where you would least want it.
+    """
+    if not modes:
+        return ""
+    checks = "".join(f"  cmp #${mode:02X}\n  beq lok\n" for mode in modes)
+    return f"""
+  lda $008D
+{checks}
+  jmp lblskip
+lok:
+"""
+
+
 def _mode_gate(modes):
     """Emit: if $008D not in `modes`, blank both counters and skip compute (bra dorender)."""
     if not modes:
@@ -568,7 +588,9 @@ glok:
             + "dorender:\n"
             + _render_logic(ST_P2D, STG_L, minhits, "l")   # P2 defender -> LEFT (attacker P1)
             + _render_logic(ST_P1D, STG_R, minhits, "r")   # P1 defender -> RIGHT (attacker P2)
+            + (_label_gate(modes) if (labels and stage == "full") else "")
             + label_compute
+            + ("lblskip:\n" if (labels and stage == "full") else "")
         )
     label_init = ""
     if labels:
