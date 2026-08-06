@@ -122,8 +122,10 @@ emu.addEventCallback(function()
     local hp = r(0x10C9)
     if p2hpPrev and hp < p2hpPrev then
       combo = combo + 1; comboDmg = comboDmg + (p2hpPrev - hp)
+      -- the FIRST hit lands before block is held, so it must not count (#94)
+      local wasBlocking = blocking
       blocking = true                                   -- after the first hit, start blocking
-      if blocking then hitsWhileBlocking = hitsWhileBlocking + 1 end
+      if wasBlocking then hitsWhileBlocking = hitsWhileBlocking + 1 end
     end
     p2hpPrev = hp
     if p2act == 0x0C or p2act == 0x0D or p2act == 0x0E or p2act == 0x0F then
