@@ -12,7 +12,7 @@ local function st(off) return ram(0x1F000 + off) end
 local function stw(off, v) wr(0x1F000 + off, v) end
 local function vword(w) return emu.read(w * 2, emu.memType.snesVideoRam) + 256 * emu.read(w * 2 + 1, emu.memType.snesVideoRam) end
 local fails, checks = 0, 0
-local EXPECTED_CHECKS = 62  -- issue #7: a check that never runs must fail the suite
+local EXPECTED_CHECKS = 65  -- issue #7: a check that never runs must fail the suite
 local function check(name, ok, detail)
   checks = checks + 1
   log((ok and "PASS " or "FAIL ") .. name .. (detail and (" " .. detail) or ""))
@@ -165,6 +165,34 @@ local PHASES = {
       check("reset-p1x", p1x == 0xC8, string.format("%04X", p1x))
       check("reset-p2x", p2x == 0x110, string.format("%04X", p2x))
       check("reset-acts", ram(0x1001) == 0 and ram(0x1081) == 0)
+    end },
+  -- #90: a reset requested DURING hitstop must land on the first actionable
+  -- frame, not be silently swallowed (the request byte used to be consumed
+  -- before the guards ran). The reset is detected by its teleport (a one-frame
+  -- P2 x jump), not by exact coordinates — after the players have moved, the
+  -- engine re-derives camera/positions, so ==0x110 only holds from spawn.
+  { name = "reset-hitstop", dur = 120,
+    tick = function(pt)
+      if pt == 10 then p2close() end
+      if pt >= 24 and pt <= 25 then pulse[0] = { down = true, y = true } elseif pt == 26 then pulse[0] = nil end
+      if ram(0x104D) ~= 0 and not saw.hsReq then
+        saw.hsReq = pt; stw(0x13, 1)
+      end
+      if saw.hsReq and pt == saw.hsReq + 3 then saw.hsPending = st(0x13) end
+      local p2x = ram(0x10A1) + 256 * ram(0x10A2)
+      if saw.hsReq and saw.hsPrev and not saw.hsResetAt then
+        local d = p2x - saw.hsPrev
+        if d < 0 then d = -d end
+        if d >= 0x40 then saw.hsResetAt = pt end
+      end
+      saw.hsPrev = p2x
+    end,
+    fin = function()
+      check("hsreset-hitstop-seen", saw.hsReq ~= nil, "jab never connected?")
+      check("hsreset-pending", saw.hsPending == 1,
+        string.format("req+3=%s (0 = request was swallowed in hitstop)", tostring(saw.hsPending)))
+      check("hsreset-lands", saw.hsResetAt ~= nil,
+        string.format("req@%s reset@%s", tostring(saw.hsReq), tostring(saw.hsResetAt)))
     end },
   { name = "recplay", dur = 320,
     tick = function(pt)

@@ -585,14 +585,17 @@ def _actionable(ok_label, fail_label):
 
 
 def _reset():
-    """Position reset: guarded on both players actionable + no hitstop; Lua write set."""
+    """Position reset: guarded on both players actionable + no hitstop; Lua write set.
+
+    The request byte is consumed only when the reset actually executes (#90) — a
+    press during hitstop / a non-actionable state stays pending and lands on the
+    first frame the guards pass, instead of being silently swallowed. (The menu
+    off/recording paths still zero RESETREQ, which bounds a stale request.)"""
     return f"""
   lda_l ${RESETREQ:06X}
   bne rs0
   jmp rsdone
 rs0:
-  lda #$00
-  sta_l ${RESETREQ:06X}
   lda $104D
   bne rsfail
   lda $10CD
@@ -603,6 +606,8 @@ rsp2:
   lda $1081
 {_actionable("rsgo", "rsdone")}
 rsgo:
+  lda #$00
+  sta_l ${RESETREQ:06X}
   stz $1001
   stz $1002
   stz $1004

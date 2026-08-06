@@ -47,7 +47,7 @@ ROM.
 | 9 | Neptune Deep Submerge hitbox tracks the ball | `tools/mkpatch9.py` | `build/sms_neptune_ds.bps` | `7dd54816…` |
 | 10 | In-match combo counter | `tools/mkpatch10.py` | `build/sms_combocounter.bps` | `6d6d1c49…` |
 | 10b | Combo counter + status labels | `tools/mkpatch10.py --events labels` | `build/sms_combolabels.bps` | `66f405ab…` |
-| 11 | In-ROM training mode (L+R menu) | `tools/mkpatch11.py` | `build/sms_trainingplus.bps` | `8cfdfbf3…` |
+| 11 | In-ROM training mode (L+R menu) | `tools/mkpatch11.py` | `build/sms_trainingplus.bps` | `59a777fd…` |
 | 12 | Taunts on L | `tools/mkpatch12.py` | `build/sms_taunt.bps` | `96fe6166…` |
 | 13 | "Guts" — taunt completion nerfs specials | `tools/mkpatch13.py` | `build/sms_tauntbuff.bps` | `2c9c13d2…` |
 | 14 | "Guts Grip" — same for command grabs (needs 13) | `tools/mkpatch14.py` | `build/sms_gutsgrip.bps` | `1933ee89…` |
