@@ -206,14 +206,22 @@ def extract(rom, outdir):
 
     # ---- ground-truth tripwires (measured 2026-07-30, saturn_notes.md) ----
     pr = rom[POSES_LO:POSES_HI]
-    assert pr[0x6B * 4:0x6B * 4 + 4] == bytes.fromhex("091b5002"), "pose 6B drifted"
-    assert pr[0x20 * 4:0x20 * 4 + 4] == bytes.fromhex("00001700"), "pose 20 drifted"
-    assert pr[0x1D * 4:0x1D * 4 + 4] == bytes.fromhex("00001400"), "pose 1D drifted"
+    if not (pr[0x6B * 4:0x6B * 4 + 4] == bytes.fromhex("091b5002")):
+        raise ValueError("ground-truth tripwire: pose 6B drifted "
+                         f"(got {pr[0x6B * 4:0x6B * 4 + 4].hex()}, want 091b5002)")
+    if not (pr[0x20 * 4:0x20 * 4 + 4] == bytes.fromhex("00001700")):
+        raise ValueError("ground-truth tripwire: pose 20 drifted "
+                         f"(got {pr[0x20 * 4:0x20 * 4 + 4].hex()}, want 00001700)")
+    if not (pr[0x1D * 4:0x1D * 4 + 4] == bytes.fromhex("00001400")):
+        raise ValueError("ground-truth tripwire: pose 1D drifted "
+                         f"(got {pr[0x1D * 4:0x1D * 4 + 4].hex()}, want 00001400)")
     s4c, _ = parse_script(rom, rom[SCRIPTS_LO + 0x98] | rom[SCRIPTS_LO + 0x99] << 8)
-    assert s4c[1:] == [("step", 7, 0x20), ("step", 10, 0x21), ("hold", 0x80, None)], \
-        "act 4C script drifted"
+    if not (s4c[1:] == [("step", 7, 0x20), ("step", 10, 0x21), ("hold", 0x80, None)]):
+        raise ValueError(f"ground-truth tripwire: act 4C script drifted (got {s4c[1:]})")
     hb = rom[BOXES["hit"][0]:BOXES["hit"][0] + 240]
-    assert hb[0x1B * 8 + 1] == 0 and hb[0x1B * 8 + 5] == 0, "marker box 1B not zero-size"
+    if not (hb[0x1B * 8 + 1] == 0 and hb[0x1B * 8 + 5] == 0):
+        raise ValueError("ground-truth tripwire: marker box 1B not zero-size "
+                         f"(w={hb[0x1B * 8 + 1]}, h={hb[0x1B * 8 + 5]})")
     return comps, notes
 
 

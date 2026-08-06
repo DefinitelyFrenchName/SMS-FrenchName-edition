@@ -85,9 +85,12 @@ def resolve_jsl_map(sup, sms):
       re-pointed to the $EF:DB50 translator (see SND_MAP in mksaturn_smoke.py),
       with her own voice added in v0.13.0. The remaining id->sfx mapping is
       approximate — parked, not open: docs/saturn/PROJECT.md "Parked"."""
-    assert sup[0xC115:0xC115 + 11] == sms[0xBFBB:0xBFBB + 11], "C115/BFBB drift"
-    assert sup[0xC494:0xC494 + 11] == sms[0xC352:0xC352 + 11], "C494/C352 drift"
-    assert sms[0x9FB7] == 0x6B, "$80:9FB7 is not RTL"
+    if not (sup[0xC115:0xC115 + 11] == sms[0xBFBB:0xBFBB + 11]):
+        raise ValueError("C115/BFBB drift")
+    if not (sup[0xC494:0xC494 + 11] == sms[0xC352:0xC352 + 11]):
+        raise ValueError("C494/C352 drift")
+    if not (sms[0x9FB7] == 0x6B):
+        raise ValueError(f"$80:9FB7 is not RTL (got {sms[0x9FB7]:#04x})")
     return {0x80C115: 0x80BFBB, 0x80FBB0: 0x809FB7,
             0x80C494: 0x80C352}   # projectile-flavor box helper (verified twin)
 

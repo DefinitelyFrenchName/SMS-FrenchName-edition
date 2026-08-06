@@ -147,7 +147,9 @@ def write_stage_name(data, stage, name):
                 words[lead + 2 * i] = ((t + bias) & 0x3FF) | pal
                 words[lead + 2 * i + 1] = ((t + bias + 1) & 0x3FF) | pal
             buf = b"".join(w.to_bytes(2, "little") for w in words)
-            assert row_off + len(buf) <= NAME_REC_LEN, "name write escapes the record"
+            if not (row_off + len(buf) <= NAME_REC_LEN):
+                raise SystemExit("name write escapes the record "
+                                 f"({row_off + len(buf)} > {NAME_REC_LEN})")
             data[o + row_off:o + row_off + len(buf)] = buf
     return glyphs
 
@@ -394,7 +396,8 @@ def build(src_path, out_path):
     # in ROM and hangs the load right after the third stage asset.
     st += bytes((0x5C, 0x6B, 0x91, 0x80))             # jml $80916B (decompress)
     st += bytes((0x5C, 0x68, 0x85, 0x80))             # jml $808568 (raw-to-WRAM)
-    assert len(st) == 20, len(st)   # `raw` starts here; keep the beq in sync
+    if not (len(st) == 20):   # `raw` starts here; keep the beq in sync
+        raise ValueError(f"loader stub prologue is {len(st)} bytes, expected 20")
     # The raw path does its OWN DMA rather than jumping into $C0:9287, because
     # that helper takes its source from DP $30-$36 — shared state whose bank
     # byte ($36) the vanilla path never re-sets (it is $7F for the whole load).

@@ -829,8 +829,8 @@ def main():
     # REF-stackable — on the REF v.1 bundle the first free bank is $F0) ----
     nb = 0xC0 + len(data) // 0x10000
     nbanks = 10 if SATURN_VOICE else 9
-    assert nb + nbanks - 1 <= 0xFF, \
-        f"no room: first free bank ${nb:02X} (+{nbanks} banks needed)"
+    if not (nb + nbanks - 1 <= 0xFF):
+        raise SystemExit(f"no room: first free bank ${nb:02X} (+{nbanks} banks needed)")
     B_SCR = nb          # scripts        (clean-base: $E8)
     B_POSE = nb + 1     # pose records   ($E9)
     B_CELT = nb + 2     # cel tables     ($EA)
@@ -863,7 +863,8 @@ def main():
 
     # ---- bank $E8: scripts ----
     bankbase, bank = next_bank(data)
-    assert bank == B_SCR, f"bank layout drift: ${bank:02X}"
+    if not (bank == B_SCR):
+        raise ValueError(f"bank layout drift: ${bank:02X}")
     e8 = bytearray(data[0x00000:0x02800])            # FULL $C0 script region copy
     # recognizer stub (M=0 at hook): id != Saturn -> skip the 7 data bytes
     # (surgery +7) and emulate the original head; id == Saturn -> skip the whole
@@ -875,7 +876,9 @@ def main():
             # sat:
             + bytes.fromhex("A3011869260083 01".replace(" ", ""))  # skip remainder
             + bytes((0x22, EF_TRAMP & 0xFF, EF_TRAMP >> 8, B_C1, 0x6B)))
-    assert len(stub) <= E8_BTNSTUB - E8_STUB, "recognizer stub overruns button stub"
+    if not (len(stub) <= E8_BTNSTUB - E8_STUB):
+        raise SystemExit(f"recognizer stub overruns button stub "
+                         f"({len(stub)} > {E8_BTNSTUB - E8_STUB})")
     e8 += stub
     e8 += bytes(E8_STUB + (E8_BTNSTUB - E8_STUB) - len(e8))
     # button stub: skip the 7 data bytes; Saturn -> Y = her record (in the
@@ -1071,12 +1074,15 @@ def main():
     orig = len(d)
     def _rel8(pos, target, what):
         off = target - (pos + 1)
-        assert -128 <= off <= 127, f"{what}: 8-bit branch out of range ({off})"
+        if not (-128 <= off <= 127):
+            raise ValueError(f"{what}: 8-bit branch out of range ({off})")
         d[pos] = off & 0xFF
     def _rel16(pos, target, what):
-        assert d[pos - 1] == 0x82, f"{what}: not a brl operand slot"
+        if not (d[pos - 1] == 0x82):
+            raise ValueError(f"{what}: not a brl operand slot")
         off = target - (pos + 2)                          # brl: PC after operand
-        assert -32768 <= off <= 32767, f"{what}: brl out of range"
+        if not (-32768 <= off <= 32767):
+            raise ValueError(f"{what}: brl out of range ({off})")
         d[pos] = off & 0xFF
         d[pos + 1] = (off >> 8) & 0xFF
     _rel8(fp1, p1eff, "fp1")
@@ -1090,11 +1096,14 @@ def main():
     d += bytes((0xA0, 0x01, 0x8C, 0x00, 0x43, 0x8C, 0x0B, 0x42))
     d += bytes((0x6B,))
     e8 += bytes(d)
-    assert len(e8) <= E8_SATURN_ACTTBL, f"stubs overrun Saturn act table: {len(e8):#x}"
+    if not (len(e8) <= E8_SATURN_ACTTBL):
+        raise SystemExit(f"stubs overrun Saturn act table: {len(e8):#x}")
     e8 += bytes(E8_SATURN_ACTTBL - len(e8))
     sat_tbl, nscripts = build_saturn_scripts(sup, E8_SATURN_ACTTBL)
     e8 += sat_tbl
-    assert len(e8) <= PROJ_SCRIPTS_NEW, "Saturn scripts overrun the projectile region"
+    if not (len(e8) <= PROJ_SCRIPTS_NEW):
+        raise SystemExit(f"Saturn scripts overrun the projectile region "
+                         f"({len(e8):#x} > {PROJ_SCRIPTS_NEW:#x})")
     e8 += bytes(PROJ_SCRIPTS_NEW - len(e8))
     # projectile blob, relocated. The act tables are irregular word arrays with
     # script bytes interleaved, so ONLY the verified pointer spans rebase:
@@ -1105,8 +1114,8 @@ def main():
         for i in range(n):
             off = base - PROJ_SCRIPTS_LO + 2 * i
             w = proj[off] | proj[off + 1] << 8
-            assert PROJ_SCRIPTS_LO <= w < PROJ_SCRIPTS_HI, \
-                f"proj act table {base:#x}[{i}] not in-blob: {w:#x}"
+            if not (PROJ_SCRIPTS_LO <= w < PROJ_SCRIPTS_HI):
+                raise ValueError(f"proj act table {base:#x}[{i}] not in-blob: {w:#x}")
             w += PROJ_DELTA
             proj[off], proj[off + 1] = w & 0xFF, w >> 8
     e8 += proj
@@ -1130,7 +1139,9 @@ def main():
         sup[PROJ_POSES_LO:PROJ_POSES_LO + PROJ_POSES_N]
     poses = bytearray(sup[X.POSES_LO:X.POSES_HI])
     for off, _pose, van, fix in X.GUARDFIX:           # ships-fixed policy
-        assert poses[off] == van
+        if not (poses[off] == van):
+            raise ValueError(f"GUARDFIX: pose byte at {off:#x} is "
+                             f"{poses[off]:#04x}, expected vanilla {van:#04x}")
         poses[off] = fix
     e9[E9_RECORDS:E9_RECORDS + len(poses)] = poses
     write_bank(data, bankbase, bytes(e9))
@@ -1171,7 +1182,8 @@ def main():
     # ---- banks $EB/$EC/$ED: cel blobs at preserved in-bank offsets ----
     for tag, (srcbank, lo, hi) in X.CEL_SPANS.items():
         bankbase, bank = next_bank(data)
-        assert bank == bankmap[srcbank], f"bank layout drift: ${bank:02X}"
+        if not (bank == bankmap[srcbank]):
+            raise ValueError(f"bank layout drift: ${bank:02X}")
         blob = bytes(lo) + sup[(srcbank & 0x3F) << 16 | lo:(srcbank & 0x3F) << 16 | hi]
         write_bank(data, bankbase, blob)
         if len(blob) < 0x10000:                       # pad the bank
@@ -1180,7 +1192,8 @@ def main():
 
     # ---- bank $EE: OAM sprite-layout blob at 0x8000 + her palettes at 0xC000 ----
     bankbase, bank = next_bank(data)
-    assert bank == B_MISC, f"bank layout drift: ${bank:02X}"
+    if not (bank == B_MISC):
+        raise ValueError(f"bank layout drift: ${bank:02X}")
     ee = bytearray(0x10000)
     ee[0x8000:0x8000 + (OAM_BLOB_HI - OAM_BLOB_LO)] = sup[OAM_BLOB_LO:OAM_BLOB_HI]
     # pal1 ($E0:B0C8) + pal2 ($E0:B0A8), 32 B each — consumed by the tester/probes
@@ -1223,18 +1236,24 @@ def main():
 
     pal_canon_a = sup[0x20B0C8:0x20B0C8 + 32]
     pal_canon_b = sup[0x20B0A8:0x20B0A8 + 32]
-    assert pal_canon_a != pal_canon_b, "her two canon palettes are identical — wrong pointers"
+    if not (pal_canon_a != pal_canon_b):
+        raise ValueError("her two canon palettes are identical — wrong pointers")
     sat_pals = [pal_canon_a, pal_canon_b] + \
                [_recolour(pal_canon_a, **spec) for spec in SAT_PAL_AUTHORED]
-    assert len(sat_pals) == SAT_PAL_SLOTS
-    assert SAT_PAL_SLOTS and not (SAT_PAL_SLOTS & (SAT_PAL_SLOTS - 1)), \
-        "the stub masks the slot with SAT_PAL_SLOTS-1, so it must be a power of 2"
-    assert len({bytes(p) for p in sat_pals}) == SAT_PAL_SLOTS, \
-        "two of her palette slots are identical — a player could not tell them apart"
+    if not (len(sat_pals) == SAT_PAL_SLOTS):
+        raise ValueError(f"palette table has {len(sat_pals)} entries, "
+                         f"expected SAT_PAL_SLOTS={SAT_PAL_SLOTS}")
+    if not (SAT_PAL_SLOTS and not (SAT_PAL_SLOTS & (SAT_PAL_SLOTS - 1))):
+        raise ValueError("the stub masks the slot with SAT_PAL_SLOTS-1, "
+                         f"so it must be a power of 2 (got {SAT_PAL_SLOTS})")
+    if not (len({bytes(p) for p in sat_pals}) == SAT_PAL_SLOTS):
+        raise ValueError("two of her palette slots are identical — "
+                         "a player could not tell them apart")
     # the stub adds slot*0x20 to the LOW byte only, so the table must not straddle
     # a page boundary
-    assert (EE_FIGHTPALS & 0xFF) + (SAT_PAL_SLOTS - 1) * 0x20 <= 0xFF, \
-        "fighter-palette table straddles a page: the stub's 8-bit index would wrap"
+    if not ((EE_FIGHTPALS & 0xFF) + (SAT_PAL_SLOTS - 1) * 0x20 <= 0xFF):
+        raise ValueError("fighter-palette table straddles a page: "
+                         "the stub's 8-bit index would wrap")
     for _i, _p in enumerate(sat_pals):
         ee[EE_FIGHTPALS + _i * 0x20:EE_FIGHTPALS + (_i + 1) * 0x20] = _p
     ver = ("SATURN v" + VARIANT_STR).encode()
@@ -1322,7 +1341,8 @@ finish:
   rtl
 """
     c, _ = A.assemble(confirm_asm.splitlines(), 0, 0)
-    assert len(c) <= 0x100, f"confirm stub too big: {len(c)}"
+    if not (len(c) <= 0x100):
+        raise SystemExit(f"confirm stub too big: {len(c)}")
     ee[EE_CONFIRM:EE_CONFIRM + len(c)] = c
 
     # transform palette copier (see EE_PALCOPY): fighter row + effects row.
@@ -1394,7 +1414,8 @@ finish:
     for i in range(1, SAT_PAL_SLOTS):                    # beq -> loop i
         pos = (i - 1) * 4 + 3
         off = len(disp) - (pos + 1) + ends[i]
-        assert 0 <= off <= 127, "palette dispatch branch out of range"
+        if not (0 <= off <= 127):
+            raise ValueError(f"palette dispatch branch out of range ({off})")
         disp[pos] = off
     for i in range(SAT_PAL_SLOTS):                       # brl -> fx
         pos = ends[i] + len(loops[i]) + 1
@@ -1405,7 +1426,9 @@ finish:
     pc_ += bytes((0xA9, SAT_PROJ_PAL * 0x20, 0x85, 0x0C))         # -> her proj row
     pc_ += _copy_loop(0xC060)                                      # effects row
     pc_ += bytes((0xFA, 0x6B))                           # plx / rtl
-    assert len(pc_) <= EE_WINSTUB_NP - EE_PALCOPY, "palcopy overruns the next stub"
+    if not (len(pc_) <= EE_WINSTUB_NP - EE_PALCOPY):
+        raise SystemExit(f"palcopy overruns the next stub "
+                         f"({len(pc_)} > {EE_WINSTUB_NP - EE_PALCOPY})")
     ee[EE_PALCOPY:EE_PALCOPY + len(pc_)] = pc_
 
     # -- thrown-pose substitution (v0.14.7, see SITE_THROWPOSE) --
@@ -1416,10 +1439,11 @@ finish:
     sup_tbl = SUP_THROWTBL + 10 * 2                 # Super S idx 10 = Saturn
     sat_list_ptr = sup[sup_tbl] | (sup[sup_tbl + 1] << 8)
     sat_list = sup[0x10000 + sat_list_ptr:0x10000 + sat_list_ptr + THROWLIST_LEN]
-    assert len(sat_list) == THROWLIST_LEN and sat_list[:7] == bytes((0, 1, 2, 3, 5, 6, 7)), \
-        f"Super S Saturn thrown-pose list looks wrong: {sat_list.hex()}"
+    if not (len(sat_list) == THROWLIST_LEN and sat_list[:7] == bytes((0, 1, 2, 3, 5, 6, 7))):
+        raise ValueError(f"Super S Saturn thrown-pose list looks wrong: {sat_list.hex()}")
     # sanity: her poses must be inside her own pose->spritelist table
-    assert max(sat_list) <= 0x83, f"thrown pose out of her table: {max(sat_list):#04x}"
+    if not (max(sat_list) <= 0x83):
+        raise ValueError(f"thrown pose out of her table: {max(sat_list):#04x}")
     # and the nine shared lists must be identical across the games, or the step
     # semantics differ and lifting hers is not justified
     for i in range(1, 10):
@@ -1427,9 +1451,10 @@ finish:
         p_ = sup[s_] | (sup[s_ + 1] << 8)
         m_ = 0x10881 + i * 2
         q_ = data[m_] | (data[m_ + 1] << 8)
-        assert sup[0x10000 + p_:0x10000 + p_ + THROWLIST_LEN] == \
-            data[0x10000 + q_:0x10000 + q_ + THROWLIST_LEN], \
-            f"thrown-pose list {i} differs between the games — do not lift Saturn's"
+        if not (sup[0x10000 + p_:0x10000 + p_ + THROWLIST_LEN] ==
+                data[0x10000 + q_:0x10000 + q_ + THROWLIST_LEN]):
+            raise ValueError(f"thrown-pose list {i} differs between the games "
+                             "— do not lift Saturn's")
     # The stub must NOT do the `plb` itself. The vanilla `plb` at +2 pops the DB
     # that `phb` pushed back at $C1:0715 — but inside a JSL'd stub the return
     # address sits on top of it, so a `plb` there pops a return byte and the rtl
@@ -1456,8 +1481,11 @@ finish:
     ts += bytes((0xBF, EE_THROWLIST & 0xFF, EE_THROWLIST >> 8, B_MISC))   # lda long,x
     ts += bytes((0xFA,))                             # plx
     ts += bytes((0xE2, 0x20, 0x6B))                  # done: sep #$20 / rtl
-    assert ee[EE_THROWSTUB:EE_THROWSTUB + len(ts)] == bytes(len(ts)), "throw stub slot busy"
-    assert EE_THROWSTUB + len(ts) <= EE_THROWLIST, "throw stub overruns her list"
+    if not (ee[EE_THROWSTUB:EE_THROWSTUB + len(ts)] == bytes(len(ts))):
+        raise SystemExit("throw stub slot busy")
+    if not (EE_THROWSTUB + len(ts) <= EE_THROWLIST):
+        raise SystemExit(f"throw stub overruns her list "
+                         f"({EE_THROWSTUB + len(ts):#x} > {EE_THROWLIST:#x})")
     ee[EE_THROWSTUB:EE_THROWSTUB + len(ts)] = ts
 
     # nameplate: return A = index*4, blanking the plate when this player is
@@ -1481,21 +1509,23 @@ finish:
 
     for _off, _pl in ((EE_NPHOOK1, 0), (EE_NPHOOK2, 1)):
         _st = _np_stub(_pl)
-        assert ee[_off:_off + len(_st)] == bytes(len(_st)), \
-            f"nameplate stub slot {_off:#06x} is not free"
+        if not (ee[_off:_off + len(_st)] == bytes(len(_st))):
+            raise SystemExit(f"nameplate stub slot {_off:#06x} is not free")
         ee[_off:_off + len(_st)] = _st
-    assert ee[EE_THROWLIST:EE_THROWLIST + THROWLIST_LEN] == bytes(THROWLIST_LEN), \
-        "throw list slot busy"
+    if not (ee[EE_THROWLIST:EE_THROWLIST + THROWLIST_LEN] == bytes(THROWLIST_LEN)):
+        raise SystemExit("throw list slot busy")
     ee[EE_THROWLIST:EE_THROWLIST + THROWLIST_LEN] = sat_list
 
     # -- win-screen records + stubs (v0.11.3, see WIN_* constants) --
     def _win_rec(p_):
         h_ = sup[0x020000 + p_:0x020000 + p_ + 6]
         rl_, rows_ = h_[2] | h_[3] << 8, h_[4] | h_[5] << 8
-        assert 0 < rl_ <= 0x40 and 0 < rows_ <= 8, f"win rec {p_:#x} shape {rl_}x{rows_}"
+        if not (0 < rl_ <= 0x40 and 0 < rows_ <= 8):
+            raise ValueError(f"win rec {p_:#x} shape {rl_}x{rows_}")
         return bytes(sup[0x020000 + p_:0x020000 + p_ + 6 + rl_ * rows_])
     np_ = _win_rec(SUP_WIN_NP)
-    assert len(np_) == 126
+    if not (len(np_) == 126):
+        raise ValueError(f"win nameplate record is {len(np_)} bytes, expected 126")
     ee[EE_WIN_NP:EE_WIN_NP + len(np_)] = np_
     qcur = EE_WIN_QREC
     qarr = bytearray()
@@ -1508,7 +1538,8 @@ finish:
         ee[qcur:qcur + len(r)] = r
         qarr += bytes((qcur & 0xFF, qcur >> 8))
         qcur += len(r)
-    assert qcur <= 0xC800, f"quote records overrun: {qcur:#x}"
+    if not (qcur <= 0xC800):
+        raise SystemExit(f"quote records overrun: {qcur:#x}")
     ee[EE_WIN_QARR:EE_WIN_QARR + 14] = qarr
 
     # name-plate stub (M=16, X=8 at entry; X = winner id*2)
@@ -1528,7 +1559,9 @@ orig:
   sty_dp $76
   rtl
 """.splitlines(), 0, 0)
-    assert len(w1) <= EE_WINSTUB_QT - EE_WINSTUB_NP
+    if not (len(w1) <= EE_WINSTUB_QT - EE_WINSTUB_NP):
+        raise SystemExit(f"win nameplate stub too big: {len(w1)} > "
+                         f"{EE_WINSTUB_QT - EE_WINSTUB_NP}")
     ee[EE_WINSTUB_NP:EE_WINSTUB_NP + len(w1)] = w1
 
     # quote stub: replicates table+variant-select+deref through the bank store
@@ -1564,7 +1597,9 @@ orig:
   sty_dp $76
   rtl
 """.splitlines(), 0, 0)
-    assert len(w2) <= EE_WIN_NP - EE_WINSTUB_QT
+    if not (len(w2) <= EE_WIN_NP - EE_WINSTUB_QT):
+        raise SystemExit(f"win quote stub too big: {len(w2)} > "
+                         f"{EE_WIN_NP - EE_WINSTUB_QT}")
     ee[EE_WINSTUB_QT:EE_WINSTUB_QT + len(w2)] = w2
 
     # v0.11.4: effect tiles decompressed straight from the Super S ROM — no
@@ -1575,12 +1610,14 @@ orig:
     # both -> stream $E3:FA09.
     import supers_lz
     tb = supers_lz.lz_decompress(sup, supers_lz.SATURN_FX_SRC)
-    assert len(tb) == FX_SHEET_LEN, f"effect sheet size drift: {len(tb):#x}"
+    if not (len(tb) == FX_SHEET_LEN):
+        raise ValueError(f"effect sheet size drift: {len(tb):#x}")
     src_chk, vram_chk, _fl = supers_lz.job_entry(sup, 57)
-    assert src_chk == supers_lz.SATURN_FX_SRC and vram_chk == 0x6A00, "job table drift"
+    if not (src_chk == supers_lz.SATURN_FX_SRC and vram_chk == 0x6A00):
+        raise ValueError(f"job table drift (src {src_chk:#x}, vram {vram_chk:#x})")
     ee[EE_TILES:EE_TILES + len(tb)] = tb
-    assert ee[EE_BLANKCEL:EE_BLANKCEL + EE_BLANKCEL_SZ] == bytes(EE_BLANKCEL_SZ), \
-        "blank-cel region is not zero-filled"
+    if not (ee[EE_BLANKCEL:EE_BLANKCEL + EE_BLANKCEL_SZ] == bytes(EE_BLANKCEL_SZ)):
+        raise SystemExit("blank-cel region is not zero-filled")
 
     # -- her report-card portrait + the loader wrapper (v0.12.0) --
     # Her card art is CONVERTED from a 1:1 capture of Super S's card by
@@ -1598,8 +1635,8 @@ orig:
                          "--convert mockups/saturn_win.png traces/saturn/oamcard_oam.bin "
                          f"{pfile} {ppal}")
     portrait = pfile.read_bytes() if pfile.is_file() else bytes(0x880)
-    assert ee[EE_PORTRAIT:EE_PORTRAIT + len(portrait)] == bytes(len(portrait)), \
-        "portrait slot is not free"
+    if not (ee[EE_PORTRAIT:EE_PORTRAIT + len(portrait)] == bytes(len(portrait))):
+        raise SystemExit("portrait slot is not free")
     ee[EE_PORTRAIT:EE_PORTRAIT + len(portrait)] = portrait
     PSIZE = len(portrait)
     if ppal.is_file():
@@ -1612,9 +1649,10 @@ orig:
                          f"tools/saturn/mkportrait.py --list {lfile}")
     if lfile.is_file():
         sl = lfile.read_bytes()
-        assert len(sl) == 1 + 6 * sl[0], f"malformed sprite list: {len(sl)} B"
-        assert ee[EE_SPRLIST:EE_SPRLIST + len(sl)] == bytes(len(sl)), \
-            "sprite-list slot is not free"
+        if not (len(sl) == 1 + 6 * sl[0]):
+            raise SystemExit(f"malformed sprite list: {len(sl)} B")
+        if not (ee[EE_SPRLIST:EE_SPRLIST + len(sl)] == bytes(len(sl))):
+            raise SystemExit("sprite-list slot is not free")
         ee[EE_SPRLIST:EE_SPRLIST + len(sl)] = sl
 
     # X = object base, DP = 0 (same convention as the code we displace). We only
@@ -1713,9 +1751,10 @@ lend:
   rtl
 """
     lh, _ = A.assemble(lh_asm.splitlines(), 0, 0)
-    assert len(lh) <= 0xC0, f"list-hook stub too big: {len(lh)}"
-    assert ee[EE_LISTHOOK:EE_LISTHOOK + len(lh)] == bytes(len(lh)), \
-        "list-hook slot is not free"
+    if not (len(lh) <= 0xC0):
+        raise SystemExit(f"list-hook stub too big: {len(lh)}")
+    if not (ee[EE_LISTHOOK:EE_LISTHOOK + len(lh)] == bytes(len(lh))):
+        raise SystemExit("list-hook slot is not free")
     ee[EE_LISTHOOK:EE_LISTHOOK + len(lh)] = lh
 
     # ---- EE_BLIT: upload her card tiles + palette. Callable from BOTH hooks.
@@ -1823,8 +1862,10 @@ keep:
   rtl
 """
     bl, _ = A.assemble(bl_asm.splitlines(), 0, 0)
-    assert len(bl) <= 0xC0, f"blit routine too big: {len(bl)}"
-    assert ee[EE_BLIT:EE_BLIT + len(bl)] == bytes(len(bl)), "blit slot is not free"
+    if not (len(bl) <= 0xC0):
+        raise SystemExit(f"blit routine too big: {len(bl)}")
+    if not (ee[EE_BLIT:EE_BLIT + len(bl)] == bytes(len(bl))):
+        raise SystemExit("blit slot is not free")
     ee[EE_BLIT:EE_BLIT + len(bl)] = bl
 
     # The loader uses DP $00-$0E as workspace, so the destination in $03 must be
@@ -1865,7 +1906,8 @@ keep:
   rtl
 """
     cp, _ = A.assemble(cp_asm.splitlines(), 0, 0)
-    assert len(cp) <= 0xF0, f"card-portrait stub too big: {len(cp)}"
+    if not (len(cp) <= 0xF0):
+        raise SystemExit(f"card-portrait stub too big: {len(cp)}")
     ee[EE_CARDPORT:EE_CARDPORT + len(cp)] = cp
     write_bank(data, bankbase, bytes(ee))
 
@@ -1875,19 +1917,21 @@ keep:
     if rep["unresolved"]:
         raise SystemExit(f"error: proc port has unresolved refs: {rep['unresolved']}")
     bankbase, bank = next_bank(data)
-    assert bank == B_C1, f"bank layout drift: ${bank:02X}"
+    if not (bank == B_C1):
+        raise ValueError(f"bank layout drift: ${bank:02X}")
     ef = bytearray(data[0x10000:0x20000])            # SMS bank $C1 copy (pre-patch)
     ef[PSP.BLOCK_LO:PSP.BLOCK_HI] = blk
     for addr, (old_id, new_id) in SPAWN_ID_FIX.items():
-        assert ef[addr] == old_id, \
-            f"spawn record {addr:#x}: expected id {old_id:#04x}, found {ef[addr]:#04x}"
+        if not (ef[addr] == old_id):
+            raise SystemExit(f"spawn record {addr:#x}: expected id {old_id:#04x}, "
+                             f"found {ef[addr]:#04x}")
         ef[addr] = new_id
     if SATURN_THROWFIX:
         hp, hk = THROW_TBL + 2 * 8, THROW_TBL + 3 * 8
-        assert bytes(ef[hp:hp + 8]) == THROW_HP_OLD, \
-            f"throw record HP @ {hp:#x}: found {bytes(ef[hp:hp+8]).hex()}"
-        assert bytes(ef[hk:hk + 8]) == THROW_HK_OLD, \
-            f"throw record HK @ {hk:#x}: found {bytes(ef[hk:hk+8]).hex()}"
+        if not (bytes(ef[hp:hp + 8]) == THROW_HP_OLD):
+            raise SystemExit(f"throw record HP @ {hp:#x}: found {bytes(ef[hp:hp+8]).hex()}")
+        if not (bytes(ef[hk:hk + 8]) == THROW_HK_OLD):
+            raise SystemExit(f"throw record HK @ {hk:#x}: found {bytes(ef[hk:hk+8]).hex()}")
         ef[hp:hp + 8], ef[hk:hk + 8] = THROW_HK_OLD, THROW_HP_OLD
         # direction: read the input bit inverted for the shoulder throw only.
         # A is 8-bit and X 16-bit here (the caller did sep #$20 at $0619), and
@@ -1905,14 +1949,14 @@ keep:
             "4901"      # eor #$01       ; ...inverted again for this one throw
             "9509"      # sta $09,x
             "60")       # rts
-        assert bytes(ef[SITE_THROWFACE:SITE_THROWFACE + 8]) == THROWFACE_OLD, \
-            f"throw facing site @ {SITE_THROWFACE:#x}: found " \
-            f"{bytes(ef[SITE_THROWFACE:SITE_THROWFACE+8]).hex()}"
+        if not (bytes(ef[SITE_THROWFACE:SITE_THROWFACE + 8]) == THROWFACE_OLD):
+            raise SystemExit(f"throw facing site @ {SITE_THROWFACE:#x}: found "
+                             f"{bytes(ef[SITE_THROWFACE:SITE_THROWFACE+8]).hex()}")
         # "is this slot zero" is not "is this slot free" — but this run is the
         # one v0.11.8 verified and tramp3 ends at $DA8E, so assert against the
         # ASSEMBLED bank rather than trusting the note.
-        assert set(ef[EF_THROWDIR:EF_THROWDIR + len(stub)]) == {0}, \
-            f"throw-direction stub slot {EF_THROWDIR:#x} is not free"
+        if not (set(ef[EF_THROWDIR:EF_THROWDIR + len(stub)]) == {0}):
+            raise SystemExit(f"throw-direction stub slot {EF_THROWDIR:#x} is not free")
         ef[EF_THROWDIR:EF_THROWDIR + len(stub)] = stub
         ef[SITE_THROWFACE:SITE_THROWFACE + 8] = \
             bytes((0x20, EF_THROWDIR & 0xFF, EF_THROWDIR >> 8)) + b"\xEA" * 5
@@ -2024,7 +2068,8 @@ sat:
   rtl
 """
     h, _ = A.assemble(h_asm.splitlines(), 0, 0)
-    assert len(h) <= 0x90, f"helper overflows its DB70-DC00 slot: {len(h)}"
+    if not (len(h) <= 0x90):
+        raise SystemExit(f"helper overflows its DB70-DC00 slot: {len(h)}")
     ef[EF_HELPER:EF_HELPER + len(h)] = h
     # recognizer graft: payload at original offsets; copied-table entry -> her list
     ef[0x1452:0x1452 + (RECOG_PAYLOAD_HI - RECOG_PAYLOAD_LO)] = \
@@ -2064,7 +2109,8 @@ sat:
         ef[_i + 17] = SAT_PROJ_PAL         # slot $1180 base: 3 -> 7
         _n += 1
         _i += len(_pp)
-    assert _n >= 1, "projectile palette-select routine not found in her proc block"
+    if not (_n >= 1):
+        raise ValueError("projectile palette-select routine not found in her proc block")
     # tramp3 @ $EF:DB30: re-dispatch the projectile id to its proc (jsr keeps
     # rts semantics; entered via JSL from the $C1 mini-stub)
     # ldx $88 / lda $00,X / cmp #$20 / beq p20 / cmp #$21 / beq p21
@@ -2103,7 +2149,8 @@ sat:
         "E08010" "F003"   # cpx #$1080 -> run
         "7400" "6B"       # else: stz $00,X (despawn) / rtl
         "20F7C6" "6B")    # run: jsr her dispatch / rtl
-    assert len(tramp3) <= 0x60, f"tramp3 too big: {len(tramp3)}"
+    if not (len(tramp3) <= 0x60):
+        raise SystemExit(f"tramp3 too big: {len(tramp3)}")
     ef[EF_TRAMP3:EF_TRAMP3 + len(tramp3)] = tramp3
     # sound translator: sep #$20 / pha / (cmp #id / beq)* / pla / rtl;
     # per-id tails: lda #sfx / sta $78 / pla?? -> keep A-restoring tails
@@ -2128,12 +2175,14 @@ sat:
         ef[i:i + 4] = new
         cnt += 1
         i = ef.find(old, i + 1)
-    assert cnt >= 6, f"expected 6+ reached sound JSL sites, found {cnt}"
+    if not (cnt >= 6):
+        raise ValueError(f"expected 6+ reached sound JSL sites, found {cnt}")
     write_bank(data, bankbase, bytes(ef))
 
     # ---- bank $F0: bank-$8A copy + widened box ptr tables + Saturn's boxes ----
     bankbase, bank = next_bank(data)
-    assert bank == B_BOX, f"bank layout drift: ${bank:02X}"
+    if not (bank == B_BOX):
+        raise ValueError(f"bank layout drift: ${bank:02X}")
     f0 = bytearray(data[0x0A0000:0x0B0000])
     for src, dst, n in ((0xC1F1, F0_HIT_T, 28), (0xC229, F0_HURT_T, 10), (0xC23D, F0_COLL_T, 10)):
         f0[dst:dst + 0x60] = bytes(0x60)
@@ -2153,10 +2202,12 @@ sat:
                ("projoam", 0xB4A6, PROJ_OAM_HI - PROJ_OAM_LO)]
     for _i, (_n1, _a1, _s1) in enumerate(_blocks):
         for _n2, _a2, _s2 in _blocks[_i + 1:]:
-            assert _a1 + _s1 <= _a2 or _a2 + _s2 <= _a1, \
-                f"bank $F0 layout: {_n1} ({_a1:#06x}+{_s1:#x}) overlaps {_n2} ({_a2:#06x}+{_s2:#x})"
+            if not (_a1 + _s1 <= _a2 or _a2 + _s2 <= _a1):
+                raise SystemExit(f"bank $F0 layout: {_n1} ({_a1:#06x}+{_s1:#x}) "
+                                 f"overlaps {_n2} ({_a2:#06x}+{_s2:#x})")
     for _n, _a, _sz in _blocks:
-        assert _a + _sz <= 0x10000, f"bank $F0: {_n} overruns the bank"
+        if not (_a + _sz <= 0x10000):
+            raise SystemExit(f"bank $F0: {_n} overruns the bank")
     f0[F0_PROJ_HIT_D:F0_PROJ_HIT_D + PROJ_HIT_N] = sup[PROJ_HIT_LO:PROJ_HIT_LO + PROJ_HIT_N]
     for pid in PROJ_SCRIPT_ENTRIES:
         f0[F0_HIT_T + 2 * pid:F0_HIT_T + 2 * pid + 2] = \
@@ -2172,7 +2223,9 @@ sat:
             "extract_saturn_voice", str(REPO / "tools" / "saturn" / "extract_saturn_voice.py"))
         _vx = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_vx)
         vbank, ventries = _vx.build_bank()
-        assert len(vbank) <= 0xDB00 - 0xB700, "voice bank overruns P2's bank at $DB00"
+        if not (len(vbank) <= 0xDB00 - 0xB700):
+            raise SystemExit(f"voice bank overruns P2's bank at $DB00 "
+                             f"({len(vbank):#x} > {0xDB00 - 0xB700:#x})")
 
         def ipl(*blocks):
             """IPL stream: [size16][dest16][payload] per block, then [0000][0800].
@@ -2189,8 +2242,9 @@ sat:
             return bytes(out + bytes((0x00, 0x00, 0x00, 0x08)))
 
         van = bytes(data[VOICE_SRC_ROM:VOICE_SRC_ROM + 32])
-        assert van[0:2] == bytes((0x00, 0xB7)) and van[16:18] == bytes((0x00, 0xDB)), \
-            "char 1's vanilla voice record is not the expected $B700/$DB00 pair"
+        if not (van[0:2] == bytes((0x00, 0xB7)) and van[16:18] == bytes((0x00, 0xDB))):
+            raise SystemExit("char 1's vanilla voice record is not the expected "
+                             "$B700/$DB00 pair")
         # her select line, in exactly the shape the nine vanilla select banks
         # use: a 4-byte directory write, then the sample, both to the same
         # addresses they use (the sample is a one-shot, so `loop` is only ever
@@ -2230,7 +2284,8 @@ sat:
         # the P2 directory streams say $34C0 and are steered to $34D0 by dp $10
         f1 = bytearray(0x10000)
         for off, blob in streams.items():
-            assert not any(f1[off:off + len(blob)]), f"voice bank layout: {off:#06x} overlaps"
+            if not (not any(f1[off:off + len(blob)])):
+                raise SystemExit(f"voice bank layout: {off:#06x} overlaps")
             f1[off:off + len(blob)] = blob
 
         # --- the two load hooks ---------------------------------------------
@@ -2385,8 +2440,8 @@ go:
             "mkmovelist", str(REPO / "tools" / "saturn" / "mkmovelist.py"))
         _mv = _ilu.module_from_spec(_mspec); _mspec.loader.exec_module(_mv)
         mlblob = _mv.sms_lz.encode(_mv.build())
-        assert _mv.sms_lz.decompress(mlblob, 0, 0x800) == _mv.build(), \
-            "movelist round-trip failed"
+        if not (_mv.sms_lz.decompress(mlblob, 0, 0x800) == _mv.build()):
+            raise ValueError("movelist round-trip failed")
 
         def _mlhook(player):
             """Replacement for `lda $E0021C,X`, which the caller stores to $02.
@@ -2414,17 +2469,20 @@ go:
                           (V_MLHOOK1, _mlhook(0)), (V_MLHOOK2, _mlhook(1)),
                           (V_WHO1, _who(0)), (V_WHO2, _who(1)),
                           (V_SELHOOK, selblob)):
-            assert not any(f1[off:off + len(blob)]), f"select stub at {off:#06x} overlaps"
+            if not (not any(f1[off:off + len(blob)])):
+                raise SystemExit(f"select stub at {off:#06x} overlaps")
             f1[off:off + len(blob)] = blob
 
         for off, blob in ((V_HOOK1, p1blob), (V_HOOK2, p2blob)):
-            assert not any(f1[off:off + len(blob)]), f"voice hook at {off:#06x} overlaps"
+            if not (not any(f1[off:off + len(blob)])):
+                raise SystemExit(f"voice hook at {off:#06x} overlaps")
             f1[off:off + len(blob)] = blob
         # keep the full 64K: every other appended bank is a whole bank, and
         # mkstage_port.py (and anything else that stacks after us) requires a
         # bank-aligned image — a short final bank fails its guard outright.
         bankbase, bank = next_bank(data)
-        assert bank == B_VOICE, f"bank layout drift: ${bank:02X}"
+        if not (bank == B_VOICE):
+            raise ValueError(f"bank layout drift: ${bank:02X}")
         write_bank(data, bankbase, bytes(f1))
 
         # table records for our five streams, in the verified zero run
@@ -2480,10 +2538,10 @@ go:
     # can overwrite it (measured: the first slot chosen was quietly clobbered and
     # the hook jumped into data).
     _sb = (B_MISC << 16) & 0x3FFFFF
-    assert bytes(data[_sb + EE_THROWSTUB:_sb + EE_THROWSTUB + len(ts)]) == bytes(ts), \
-        f"throw stub was overwritten in bank ${B_MISC:02X} — pick another slot"
-    assert bytes(data[_sb + EE_THROWLIST:_sb + EE_THROWLIST + THROWLIST_LEN]) == bytes(sat_list), \
-        f"throw list was overwritten in bank ${B_MISC:02X} — pick another slot"
+    if not (bytes(data[_sb + EE_THROWSTUB:_sb + EE_THROWSTUB + len(ts)]) == bytes(ts)):
+        raise SystemExit(f"throw stub was overwritten in bank ${B_MISC:02X} — pick another slot")
+    if not (bytes(data[_sb + EE_THROWLIST:_sb + EE_THROWLIST + THROWLIST_LEN]) == bytes(sat_list)):
+        raise SystemExit(f"throw list was overwritten in bank ${B_MISC:02X} — pick another slot")
     # v0.14.14 — HOOK THE $C1 COPY TOO.
     # The v0.14.7 fix patched the two reads in bank $C1 and stopped there, on the
     # documented basis that the ROM has exactly two of them. That was true of the
@@ -2510,8 +2568,9 @@ go:
     _reads = [i for i in range(len(data) - 3)
               if data[i] == 0xB9 and data[i + 1] == 0x81 and data[i + 2] == 0x08]
     _unhooked = [i for i in _reads if data[i + 0x0B] != 0x22]
-    assert not _unhooked, ("thrown-pose table read left unhooked at "
-                           + ", ".join(f"${0xC0 | (i >> 16):02X}:{i & 0xFFFF:04X}" for i in _unhooked))
+    if not (not _unhooked):
+        raise ValueError("thrown-pose table read left unhooked at "
+                         + ", ".join(f"${0xC0 | (i >> 16):02X}:{i & 0xFFFF:04X}" for i in _unhooked))
     if SATURN_NAME_ON:
         _tiles = bytes(0x70 + (ord(c) - 65) for c in NP_NAME)
         _left = _tiles + bytes(12 - len(_tiles))
@@ -2545,7 +2604,10 @@ go:
         for site, (old, new) in BOX_READS.items():
             data[site + 1:site + 3] = bytes((new & 0xFF, new >> 8))
     # -- v0.10.0 char-select 10th slot / v0.11.0 hidden-code variant --
-    assert bytes(data[CHARSEL_CONFIRM:CHARSEL_CONFIRM + 4]) == conf_head
+    if not (bytes(data[CHARSEL_CONFIRM:CHARSEL_CONFIRM + 4]) == conf_head):
+        raise ValueError(f"confirm head changed under us: "
+                         f"{bytes(data[CHARSEL_CONFIRM:CHARSEL_CONFIRM + 4]).hex()} "
+                         f"!= {conf_head.hex()}")
     data[CHARSEL_CONFIRM:CHARSEL_CONFIRM + 4] = \
         bytes((0x22, EE_CONFIRM & 0xFF, EE_CONFIRM >> 8, B_MISC))
     # -- v0.11.3 win-screen per-id table hooks --
