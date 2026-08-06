@@ -361,7 +361,9 @@ would actually cost). Short version: ROM is not scarce (384 KB spare), ARAM is
 the only hard wall, and the real constraint is per-character tables sized to nine
 and immediately followed by live data.
 
-**Eleven traps this project paid for — they generalise:**
+**Eighteen traps this project paid for — they generalise** (12-18 are the
+2026-08-06 issue-remediation programme's distillate; per-issue evidence in
+the `Fixes #NN` commits):
 
 1. **Per-character fixes must be tested with at least TWO shells.** Saturn can
    be summoned over Uranus, Neptune or Pluto (over any of the nine before
@@ -428,6 +430,57 @@ and immediately followed by live data.
    whether she turns around. When a request names a MECHANISM ("map 6HP to
    4HP"), implement that mechanism; a different mechanism with the same
    measurable outcome is a different feature.
+12. **Anything thrown inside a Mesen memory callback dies WITHOUT A MESSAGE —
+   assert included.** #46's celebrated `assert(io.open(...))` fix never worked:
+   the "fixed" script hung to timeout exactly like the unfixed one, message
+   swallowed (#80, measured). The only reporting form in that context is
+   `print(...); emu.stop(1)`. Corollary of trap 8, now the rule: nothing that
+   can throw belongs in a memory callback without its own escape hatch — and a
+   fix whose effect was never OBSERVED (only reasoned about) is not fixed.
+13. **Before fixing a probe's reported defect, prove the probe does ANYTHING.**
+   inputprobe's filed bug (double-registered callbacks) was real — and
+   unreachable, because the probe had never logged a single line in its life:
+   its range covered bank $00 while this game reads pads from the $80 mirror
+   (#97). Sharpens trap 9: run the tool and demand output BEFORE reading its
+   code for the filed defect, or you will fix dead code correctly.
+14. **Before narrowing a "wasteful" trigger, find out what the waste protects —
+   then move the COST, not the trigger.** The label glyph font re-uploaded
+   every idle vblank (#93); the obvious fix (re-arm on transition instead of
+   every idle frame) would have drawn match 2's first label with a wiped font,
+   because the per-frame re-arm is what survives per-match CHR reloads. The
+   shipped fix kept the re-arm and made the upload lazy instead.
+15. **A builder change invalidates every recorded RECIPE that contains it —
+   check what a builder feeds before touching it.** Batch 2's fixes to
+   patches 10b/11 silently broke `build_v022.sh`'s recorded hash; nothing
+   flagged it until the recipe was re-run for an unrelated reason. Rule: on
+   changing a builder, enumerate the bundles whose recipes chain it, rebuild
+   them, and either re-record as lineage (the maintainer's precedent — v0.22
+   `3bb9c829` → `e6b999b5`) or surface the decision. Published artifacts are
+   still never redefined; recipes drift, artifacts don't.
+16. **Byte-identity is the refactor gate — and it must cover EVERY variant
+   path, not the default.** The whole batch-4 dedup (boxlib, gfxlib, five
+   rounds of assembler conversion, the assert and dead-code sweeps) was safe
+   because every change was gated on unchanged output hashes INCLUDING each
+   env knob that alters emitted bytes (SHELL_GUARD/STORY_GUARD/SATURN_VOICE/
+   …/stacked SATURN_BASE — ten whole-ROM A/Bs for #98 alone). A default-path
+   A/B is trap 1 wearing builder clothes: knob-gated bytes are the shells.
+17. **Counts in filed issues are stale in BOTH directions — re-measure at HEAD
+   before working one.** Bare asserts: filed 66, found 77. Dead CLEAN_SHA1:
+   filed 13, found 16. "Two remaining" assembler sites undercounted twice
+   (parts 4 AND 5 each found more). Conventions accrete violations unless a
+   generated `--check` is wired into the gates — mksigs held for months while
+   hand-counts rotted, and mkindex `--check` caught its first real staleness
+   within an hour of landing. Sweep + enforcement land together or the sweep
+   is a snapshot.
+18. **A documented knob either works or does not exist — and "works" is a
+   measurement.** `reversal_lead` was documented in two user docs and read by
+   nothing (#18, deleted); `--debug.scriptWindow.scriptTimeout` was passed on
+   every run and measured INERT under --testrunner — every Lua entry is capped
+   at a hard 1 s whatever value is given (#52, flag removed). The flip side is
+   equally valid: #35 was closed BY measurement (the whole HUD stack costs
+   ~2.2 µs/frame), because its own bar forbade landing unmeasured
+   optimization. Measure the knob, then keep it, fix it, or delete it —
+   never leave it documented and dead.
 
 ---
 
