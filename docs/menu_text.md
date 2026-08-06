@@ -1254,16 +1254,21 @@ screen:**
 * **VS config rows:** モード → MODE, 弱パンチ/強パンチ → LP / HP,
   弱キック/強キック → LK / HK, 弱必殺モード/強必殺モード → LSP / HSP,
   ステージ → STAGE, マニュアル → MANUAL (オート removed by p15 in refs).
-* **Stage names — revised long forms (2026-08-06), superseding the 12-cell
-  abbreviations:** Crystal Tokyo, evening / Silver Millenium / Space-time
-  Door / Kaioushuu Park / Fountain Park, day / Juuban Shopping Street /
-  Hikawa Shrine / Crystal Tokyo, night / Fountain Park, night / Nakayoshi
-  Editorial Department / Silent Throne of the Messiah.
-  ⚠ Two exceed the 24-column half-width budget (#10 = 30, Saturn = 28) and
-  the mixed case as written needs ~36 distinct glyphs, which is more than
-  the 32-glyph (64-tile) window the config/char-select screens have free —
-  see the case/budget note in the session log; caps-only versions fit
-  everything. Pending the maintainer's call.
+* **Stage names — DONE in CAPS (maintainer's ruling, 2026-08-06;
+  `SMS_P16_STAGES=1`):** CRYSTAL TOKYO, EVENING / SILVER MILLENIUM /
+  SPACE-TIME DOOR / KAIOUSHUU PARK / FOUNTAIN PARK, DAY / JUUBAN SHOPPING
+  STREET / HIKAWA SHRINE / CRYSTAL TOKYO, NIGHT / FOUNTAIN PARK, NIGHT /
+  NAKAYOSHI EDITORIAL DEPT (trimmed to the 24-column budget; the Saturn
+  build's SILENT THRONE OF MESSIAH pending its own builder). Mechanism: the
+  20 records in bank `$C4` (10 stages x normal/highlight, `$66` apart,
+  stride `$CC`, `[vmadd $02E4][len $30][rows 2]`) rewritten centred with
+  per-record attrs; comma/hyphen/apostrophe authored as half-width glyphs
+  (slots `$5EA-$5EC`); the config screen gets the glyph block via a hook on
+  the char-select cluster's first load (`$C3:AF8A` -> stub DMA of an
+  uncompressed 64-tile copy to VRAM `$5C0`, ink 1). Verified in-emulator:
+  the stage row renders CRYSTAL TOKYO, EVENING, cycles to FOUNTAIN PARK,
+  DAY at stage 4, highlight state exercised; regression 45/45.
+  ⚠ The stage-row cursor index `$1800` is a WORD index (stage row = 14).
 
 **Values: SOLVED the same day (2026-08-06) — the runtime writer is found and
 the records are plain data.** The draw path is `$80:8C43` (JSL): DP `$74/$76`

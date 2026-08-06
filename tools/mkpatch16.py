@@ -72,6 +72,16 @@ NEW_LEN = NEW_TILES * 32          # = $4000 BYTES; also the ceiling, since
 GLYPH_ROWS = (0x5C0, 0x5E0)       # two rows of 16, in VRAM tile numbers
 INK = 7                           # flat ink colour; the kana use 1-8
 
+# Half-width punctuation, authored here (mkhalfwidth covers A-Z only). Same
+# 8x16 '#'-art format; slots take the free tops after Z ($5EA+, bottoms +$10).
+PUNCT = {
+    ",": ["........"] * 10 + ["..##....", "..##....", "...#....", "..#....."]
+         + ["........"] * 2,
+    "-": ["........"] * 7 + [".#####..", ".#####.."] + ["........"] * 7,
+    "'": ["...##...", "...##...", "....#...", "...#...."] + ["........"] * 12,
+}
+PUNCT_SLOTS = {",": 0x5EA, "-": 0x5EB, "'": 0x5EC}
+
 # ---- the OPTIONS screen (the first translated screen) ---------------------
 # Its tilemap is asset record 19: src $C3:69F0 -> $7E:2000 -> VRAM $0000, a
 # 0x800-byte 32x32 map. Located by searching every asset block for the exact map
@@ -219,6 +229,36 @@ DF_REPORT_LABELS = (
     (24, 12, 19, 0x1000, "DAMAGE"),
 )
 
+# ---- stage names (SMS_P16_STAGES=1) ----------------------------------------
+# Drawn on the VS config screen's stage row by the $80:8C43 record renderer:
+# 20 records in bank $C4 (10 stages x normal/highlight, $66 apart, stride
+# $CC), each [vmadd $02E4][len $30][rows 2][24x2 cells], name centred.
+# Attrs $0C00 normal / $1000 highlighted, kept per record. The config screen
+# inherits CHAR SELECT's VRAM (no loader of its own), so the half-width block
+# is delivered by hooking the char-select cluster's first load ($C3:AF8A) to
+# DMA an uncompressed 64-tile copy from the patch bank to VRAM $5C0 — the
+# same window every other screen uses, so cell ids stay placed[ch] - $200.
+# Strings: the maintainer's 2026-08-06 long forms, CAPS (his ruling), with
+# the two over-24 names trimmed to exact fits.
+STAGES_TRANSLATE = os.environ.get("SMS_P16_STAGES") == "1"
+STAGE_REC0 = 0x045A98             # stage 0, normal; +$66 highlight; +$CC next
+STAGE_NAMES = (
+    "CRYSTAL TOKYO, EVENING",
+    "SILVER MILLENIUM",
+    "SPACE-TIME DOOR",
+    "KAIOUSHUU PARK",
+    "FOUNTAIN PARK, DAY",
+    "JUUBAN SHOPPING STREET",
+    "HIKAWA SHRINE",
+    "CRYSTAL TOKYO, NIGHT",
+    "FOUNTAIN PARK, NIGHT",
+    "NAKAYOSHI EDITORIAL DEPT",
+)
+CS_HOOK_FILE = 0x03AF8A           # char-select cluster: lda #$001A / sta $1C18
+CS_HOOK_OLD = bytes.fromhex("a91a008d181c")
+CS_BLOCK_AT = 0x8800              # uncompressed 64-tile glyph block in the blob
+CS_STUB_AT = 0x7F60
+
 
 def encode_glyph(rows, ink=INK):
     """an 8x16 '#'/'.' glyph -> (top 32-byte tile, bottom 32-byte tile), 4bpp"""
@@ -272,6 +312,29 @@ def opt_stub(bank):
     # DP layout: decompress src24 at $00-$02, dest24 at $03-$05 (the two word
     # writes at $02/$04 lay down src-bank + dest $7E:C000 in one go); DMA
     # vram/len/src24 at $00/$02/$04-$06 — exactly $C3:82CA's calling convention.
+
+
+def cs_stub(bank):
+    """Char-select cluster hook: DMA the uncompressed half-width block from
+    the patch bank to VRAM $5C0 (via $80:92AD, DP $00-$06), then the displaced
+    first record load. The config screen inherits this VRAM."""
+    return f"""
+  rep #$20
+  lda #$5C00
+  sta_dp $00
+  lda #$0800
+  sta_dp $02
+  lda #${CS_BLOCK_AT:04X}
+  sta_dp $04
+  sep #$20
+  lda #${bank:02X}
+  sta_dp $06
+  jsl $8092AD
+  rep #$30
+  lda #$001A
+  sta_l $7E1C18
+  rtl
+"""
 
 
 def report_stub(placed):
@@ -378,6 +441,16 @@ def build(src_path, out_path, stacked=False):
         sheet[(top - TILE_BASE) * 32:(top - TILE_BASE) * 32 + 32] = tt
         sheet[(bot - TILE_BASE) * 32:(bot - TILE_BASE) * 32 + 32] = bb
         placed[ch] = top
+    for ch, top in PUNCT_SLOTS.items():
+        bot = top + SHEET_W
+        for tile in (top, bot):
+            o = (tile - TILE_BASE) * 32
+            if any(sheet[o:o + 32]):
+                raise SystemExit("tile $%03X is not blank — refusing to overwrite" % tile)
+        tt, bb = encode_glyph(PUNCT[ch])
+        sheet[(top - TILE_BASE) * 32:(top - TILE_BASE) * 32 + 32] = tt
+        sheet[(bot - TILE_BASE) * 32:(bot - TILE_BASE) * 32 + 32] = bb
+        placed[ch] = top
 
     packed = sms_lz.encode(bytes(sheet))
     assert sms_lz.decompress(packed, 0, len(sheet)) == bytes(sheet), "font round-trip failed"
@@ -464,11 +537,11 @@ def build(src_path, out_path, stacked=False):
             raise SystemExit("big text sheet is %#x bytes, expected %#x"
                              % (len(big), DF_SHEET_RAW))
         big += bytes((DF_SHEET_TILES - DF_SHEET_RAW // 32) * 32)
-        for ch in letters:
+        for ch in placed:
             # same relative layout as the menu font's $5C0 window; ink 1 — the
             # colour the kana on these screens use (7 renders near-white here)
             t = DF_GLYPH_TILE + (placed[ch] - GLYPH_ROWS[0])
-            tt, bb = encode_glyph(glyphs[ch], ink=1)
+            tt, bb = encode_glyph(glyphs.get(ch) or PUNCT[ch], ink=1)
             big[t * 32:t * 32 + 32] = tt
             big[(t + 0x10) * 32:(t + 0x10) * 32 + 32] = bb
         packed_df = sms_lz.encode(bytes(big))
@@ -530,6 +603,57 @@ def build(src_path, out_path, stacked=False):
     stub, _ = asm65816.assemble(opt_stub(bank).splitlines(), STUB_AT, bank)
     if STUB_AT + len(stub) > MAP_AT:
         raise SystemExit("stub (%#x bytes) overruns the map slot" % len(stub))
+    csstub = csblock = None
+    if STAGES_TRANSLATE:
+        if bytes(data[CS_HOOK_FILE:CS_HOOK_FILE + 6]) != CS_HOOK_OLD:
+            raise SystemExit("char-select hook site reads %s, expected %s"
+                             % (bytes(data[CS_HOOK_FILE:CS_HOOK_FILE + 6]).hex(),
+                                CS_HOOK_OLD.hex()))
+        for i, name in enumerate(STAGE_NAMES):
+            if len(name) > 24:
+                raise SystemExit("%r is %d chars, the stage row is 24" % (name, len(name)))
+            for v in (0, 1):
+                off = STAGE_REC0 + i * 0xCC + v * 0x66
+                vmadd = data[off] | (data[off + 1] << 8)
+                ln = data[off + 2] | (data[off + 3] << 8)
+                nrows = data[off + 4] | (data[off + 5] << 8)
+                if (vmadd, ln, nrows) != (0x02E4, 0x30, 2):
+                    raise SystemExit("stage record %#x header %04X/%04X/%d unexpected"
+                                     % (off, vmadd, ln, nrows))
+        for i, name in enumerate(STAGE_NAMES):
+            for v in (0, 1):
+                off = STAGE_REC0 + i * 0xCC + v * 0x66
+                cells = off + 6
+                attr = 0
+                for k in range(48):
+                    w = data[cells + k * 2] | (data[cells + k * 2 + 1] << 8)
+                    if w & 0x03FF:
+                        attr = w & 0xFC00
+                        break
+                if not attr:
+                    raise SystemExit("stage record %#x has no glyph cells" % off)
+                start = (24 - len(name)) // 2
+                for c in range(24):
+                    j = c - start
+                    top = bot = 0
+                    if 0 <= j < len(name) and name[j] != " ":
+                        t = placed[name[j]] - 0x200
+                        top, bot = attr | t, attr | (t + 0x10)
+                    for r, w in ((0, top), (1, bot)):
+                        o2 = cells + (r * 24 + c) * 2
+                        data[o2], data[o2 + 1] = w & 0xFF, w >> 8
+        # the uncompressed glyph block the hook uploads (VRAM-order $5C0-$5FF)
+        csblock = bytearray(0x800)
+        for ch, top in placed.items():
+            tt, bb = encode_glyph(glyphs.get(ch) or PUNCT[ch], ink=1)
+            csblock[(top - 0x5C0) * 32:(top - 0x5C0) * 32 + 32] = tt
+            csblock[(top - 0x5C0 + 0x10) * 32:(top - 0x5C0 + 0x10) * 32 + 32] = bb
+        csstub, _ = asm65816.assemble(cs_stub(bank).splitlines(), CS_STUB_AT, bank)
+        if CS_STUB_AT + len(csstub) > MAP_AT:
+            raise SystemExit("cs stub (%#x bytes) overruns the map slot" % len(csstub))
+        if STUB_AT + len(stub) > CS_STUB_AT:
+            raise SystemExit("options stub overruns the cs stub slot")
+
     rstub = None
     if DF_TRANSLATE:
         if bytes(data[DF_REPORT_HOOK:DF_REPORT_HOOK + 7]) != DF_REPORT_OLD:
@@ -550,6 +674,9 @@ def build(src_path, out_path, stacked=False):
         blob[MAP_AT:MAP_AT + len(packed_map)] = packed_map
     if rstub:
         blob[REPORT_AT:REPORT_AT + len(rstub)] = rstub
+    if csstub:
+        blob[CS_STUB_AT:CS_STUB_AT + len(csstub)] = csstub
+        blob[CS_BLOCK_AT:CS_BLOCK_AT + len(csblock)] = csblock
     if packed_df:
         if DF_SHEET_AT + len(packed_df) > 0x10000:
             raise SystemExit("packed DF sheet (%#x) overruns the bank" % len(packed_df))
@@ -584,6 +711,9 @@ def build(src_path, out_path, stacked=False):
         # the report-card hook: 'sep #$10 / ldy #$00 / jsr $84F9' -> JSL stub
         data[DF_REPORT_HOOK:DF_REPORT_HOOK + 7] = bytes(
             [0x22, REPORT_AT & 0xFF, REPORT_AT >> 8, bank, 0xEA, 0xEA, 0xEA])
+    if csstub:
+        data[CS_HOOK_FILE:CS_HOOK_FILE + 6] = bytes(
+            [0x22, CS_STUB_AT & 0xFF, CS_STUB_AT >> 8, bank, 0xEA, 0xEA])
 
     fix_checksum(data)
     open(out_path, "wb").write(bytes(data))
@@ -612,6 +742,12 @@ def build(src_path, out_path, stacked=False):
               % (bank, REPORT_AT, len(rstub), len(DF_REPORT_LABELS)))
     else:
         print("  $DF screens (tournament/report): NOT translated (SMS_P16_DF=1)")
+    if STAGES_TRANSLATE:
+        print("  stage names: 20 records rewritten (10 stages x 2 states); "
+              "char-select hook $C3:AF8A -> $%02X:%04X uploads the glyph block"
+              % (bank, CS_STUB_AT))
+    else:
+        print("  stage names: NOT translated (SMS_P16_STAGES=1 to enable)")
     print("  -> %s  sha1 %s" % (out_path, hashlib.sha1(bytes(data)).hexdigest()))
     json.dump({c: placed[c] for c in sorted(placed)},
               open(os.path.join(REPO, "docs", "halfwidth_tiles.json"), "w"), indent=1)

@@ -284,7 +284,15 @@ local ROUTES = {
     function() pulse[0] = beat({ a = true }); return sf > 150 end,
     -- wait for the config screen PROVEN up (its mode-row handler executing —
     -- probe_acs_select's precondition), then SELECT transitions by itself
-    function() pulse[0] = {}; return moderow > 0 and sf > 30 end,
+    function()
+      pulse[0] = {}
+      if moderow > 0 and sf > 30 then
+        local f = io.open(ENV.TRACE .. "p16scr_acs_config.png", "wb")
+        if f then f:write(emu.takeScreenshot()); f:close() end
+        return true
+      end
+      return false
+    end,
     function() pulse[0] = beat({ select = true }); return sf > 40 end,
     function() pulse[0] = {}; return sf > 180 end,
     function()
@@ -294,6 +302,52 @@ local ROUTES = {
         if f then f:write(emu.takeScreenshot()); f:close() end
       end
       return sf > 500
+    end,
+  },
+  stagerow = {  -- config screen, cursor to the stage row, cycle a few stages
+    function() return frames >= 900 end,
+    function() pulse[0] = beat({ down = true }); return ram(0x1B10) == 2 end,
+    function() pulse[0] = beat({ start = true }); return sf > 40 end,
+    function() pulse[0] = {}; return sf > 240 end,
+    function() pulse[0] = beat({ a = true }); return ram(0x1B42) == 1 or sf > 150 end,
+    function() pulse[0] = {}; return sf > 20 end,
+    function() pulse[0] = beat({ a = true }); return sf > 150 end,
+    function() pulse[0] = {}; return moderow > 0 and sf > 30 end,
+    function()
+      local row = ram(0x1800) | (ram(0x1801) << 8)
+      if sf % 60 == 0 then log(string.format("f%d stagerow $1800=%d", frames, row)) end
+      if row == 14 then return true end   -- word index: stage row = 7*2
+      pulse[0] = (sf % 12 < 3) and { down = true } or {}
+      if sf > 400 then log("NEVER REACHED THE STAGE ROW — $1800=" .. row); return true end
+      return false
+    end,
+    function()
+      pulse[0] = {}
+      if sf == 40 then
+        local f = io.open(ENV.TRACE .. "p16scr_stage_hl.png", "wb")
+        if f then f:write(emu.takeScreenshot()); f:close() end
+      end
+      return sf > 50
+    end,
+    function() pulse[0] = (sf < 4) and { right = true } or {}; return sf > 60 end,
+    function()
+      pulse[0] = {}
+      if sf == 10 then
+        local f = io.open(ENV.TRACE .. "p16scr_stage_next.png", "wb")
+        if f then f:write(emu.takeScreenshot()); f:close() end
+      end
+      return sf > 20
+    end,
+    function() pulse[0] = (sf < 4) and { right = true } or {}; return sf > 60 end,
+    function() pulse[0] = (sf < 4) and { right = true } or {}; return sf > 60 end,
+    function() pulse[0] = (sf < 4) and { right = true } or {}; return sf > 60 end,
+    function()
+      pulse[0] = {}
+      if sf == 10 then
+        local f = io.open(ENV.TRACE .. "p16scr_stage_5.png", "wb")
+        if f then f:write(emu.takeScreenshot()); f:close() end
+      end
+      return sf > 20
     end,
   },
   tournament = {
