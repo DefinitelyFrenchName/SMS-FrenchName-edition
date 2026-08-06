@@ -1187,7 +1187,7 @@ prompt, and the bracket VS names. PLAYER SELECT shipped (queued 19th row
 record); Saturn stage name shipped behind `SMS_P16_SATURN=1` (default off).
 **Bracket VS names, state of knowledge (2026-08-06):** the line is MAP
 CELLS at rows 4-5 of the bracket's `$7000` map, in the SMALL font (attr
-`$14xx`), баked as Moon-vs-Moon inside the codec-2 blob `$C7:3BBD` (a
+`$14xx`), baked as Moon-vs-Moon inside the codec-2 blob `$C7:3BBD` (a
 plain byte search cannot find them — the blob is compressed) and rewritten
 per entrant by an unfound runtime builder. A VRAM write-watch on the map
 rows caught nothing at screen entry — codec 2 flushes via DMA, which the
