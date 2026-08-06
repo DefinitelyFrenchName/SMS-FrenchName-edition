@@ -1,10 +1,6 @@
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE=ENV.TRACE
 pcall(dofile,ENV.TOOLS .. "probe_chr_cfg.lua")
-pcall(dofile,ENV.TOOLS .. "probe_chr_cfg.lua")
-pcall(dofile,ENV.TOOLS .. "probe_chr_cfg.lua")
-pcall(dofile,ENV.TOOLS .. "probe_chr_cfg.lua")
-pcall(dofile,ENV.TOOLS .. "probe_chr_cfg.lua")
 local ST=CHRSTATE or "venus_vs_jupiter_clean.mss"
 local t,needLoad=-1,true
 emu.addMemoryCallback(function()

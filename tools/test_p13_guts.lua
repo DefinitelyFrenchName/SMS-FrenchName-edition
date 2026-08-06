@@ -53,7 +53,7 @@ local function dmgphase(name, level, expect)
   -- 2HP (a NORMAL) at fixed timing: base roll 5 -- v3: normals must be IMMUNE at any level
   return { name = name, state = "training_p11.mss", dur = 140,
     tick = function(pt)
-      if pt == 5 then wr(0x8D, 5); stwlv = true end
+      if pt == 5 then wr(0x8D, 5) end
       if pt == 6 then setlv(1, 0); setlv(2, level) end
       if pt == 80 then p2close() end
       if pt >= 84 and pt <= 85 then pulse[0] = { down = true, x = true } elseif pt == 86 then pulse[0] = nil end
