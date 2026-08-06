@@ -26,11 +26,14 @@ Batch 4 outcomes that changed how things work (per-issue detail in the commits):
 * **New shared modules**: `tools/boxlib.py` (extractor core ×3 → 1),
   `tools/saturn/gfxlib.py` (renderer primitives ×4-5 → 1, gated on a
   full-domain property test).
-* **mksaturn_smoke's three ad-hoc assemblers are gone** — asm65816 grew
-  jsl/DP forms/absolute-X/jsr and a jmp cross-bank raise; every conversion
-  byte-identity-gated incl. all env-variant paths. Two assembler-class
-  sites REMAIN, recorded on #98: the round-load `_flagblock` (_rel8/_rel16)
-  and the SND_MAP dispatch loop.
+* **mksaturn_smoke's runtime-fixup assembler class is EMPTY** (parts 1-5;
+  the "two remaining" note undercounted twice) — every stub with label
+  fixups now assembles through asm65816, which grew jsl/DP forms/
+  absolute-X/jsr/brl/mvn/(dp),Y/stack-relative and a jmp cross-bank raise.
+  Every conversion byte-identity-gated incl. ten env-variant whole-ROM
+  A/Bs (and a stacked SATURN_BASE pair). What remains is a different,
+  fixup-free class: straight-line hex blobs with constant offsets in
+  comments (recognizer/btnstub/ts/throw-direction/_np_stub/_who/_mlhook).
 * **Hitstun is 0x10-0x18 everywhere** (flame/electric included) — twelve
   hand-rolled 0x16 copies widened by hand, suites proved no site meant the
   narrow range.
