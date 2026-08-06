@@ -14,6 +14,7 @@ See HANDOFF.md §4 for the harness.
 - `saturn/extract_saturn_unit.py` — Extract Sailor Saturn's complete data unit from Super S — the Route A port bundle.
 - `saturn/extract_saturn_voice.py` — Extract Saturn's voice samples from the Super S ROM, trimmed to fit SMS.
 - `saturn/extract_supers_boxes.py` — Extract hitbox/hurtbox/collision tables from Sailor Moon SUPER S (Zenin Sanka!!).
+- `saturn/gfxlib.py` — the Saturn image tools' shared graphics primitives (#95).
 - `saturn/mkkanji.py` — author 16x16 menu-font glyphs for characters SMS lacks.
 - `saturn/mkmovelist.py` — build Saturn's movelist tilemap and compress it.
 - `saturn/mkportrait.py` — convert a 1:1 screen capture into SMS report-card portrait tiles.

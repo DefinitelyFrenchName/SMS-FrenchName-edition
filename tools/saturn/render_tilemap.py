@@ -20,27 +20,7 @@ import zlib
 from pathlib import Path
 
 
-def decode_tile(data, off, bpp=2):
-    px = [[0] * 8 for _ in range(8)]
-    for plane in range(0, bpp, 2):
-        base = off + plane * 8
-        for y in range(8):
-            lo, hi = data[base + y * 2], data[base + y * 2 + 1]
-            for x in range(8):
-                b = 7 - x
-                px[y][x] |= (((lo >> b) & 1) | (((hi >> b) & 1) << 1)) << plane
-    return px
-
-
-def write_png(path, w, h, rgb):
-    raw = b"".join(b"\x00" + bytes(rgb[y * w * 3:(y + 1) * w * 3]) for y in range(h))
-
-    def chunk(tag, data):
-        c = tag + data
-        return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c))
-    Path(path).write_bytes(b"\x89PNG\r\n\x1a\n"
-                          + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
-                          + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
+from gfxlib import decode_tile, write_png  # noqa: E402  (#95)
 
 
 # one flat colour ramp per palette, so palette differences are visible

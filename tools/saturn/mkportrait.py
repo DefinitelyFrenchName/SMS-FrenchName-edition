@@ -24,6 +24,10 @@ Usage:
 import sys
 from pathlib import Path
 
+import sys as _sys
+from pathlib import Path as _GfxP
+_sys.path.insert(0, str(_GfxP(__file__).resolve().parent))
+from gfxlib import decode_tile, snes_to_rgb, rgb_to_snes  # noqa: E402  (#95)
 TILE_MAX = 0x43          # portrait occupies OBJ tiles $00-$43
 OBJ_ROW = 16             # OBJ tiles are addressed in a 16-wide grid
 
@@ -43,16 +47,7 @@ def read_oam(path):
 
 def tile_pixels(vram, tile):
     """4bpp SNES tile -> 8x8 palette indices."""
-    base = tile * 32
-    px = [[0] * 8 for _ in range(8)]
-    for row in range(8):
-        p0, p1 = vram[base + row * 2], vram[base + row * 2 + 1]
-        p2, p3 = vram[base + 16 + row * 2], vram[base + 16 + row * 2 + 1]
-        for col in range(8):
-            bit = 7 - col
-            px[row][col] = (((p0 >> bit) & 1) | (((p1 >> bit) & 1) << 1)
-                            | (((p2 >> bit) & 1) << 2) | (((p3 >> bit) & 1) << 3))
-    return px
+    return decode_tile(vram, tile * 32, 4)
 
 
 def pack_tile(px):
@@ -79,14 +74,6 @@ def sprite_tiles(t, is16):
     return [(0, 0, t), (8, 0, t + 1), (0, 8, t + OBJ_ROW), (8, 8, t + OBJ_ROW + 1)]
 
 
-def snes_to_rgb(w):
-    r, g, b = w & 0x1F, (w >> 5) & 0x1F, (w >> 10) & 0x1F
-    return (r * 255 // 31, g * 255 // 31, b * 255 // 31)
-
-
-def rgb_to_snes(c):
-    r, g, b = (min(255, max(0, v)) * 31 // 255 for v in c[:3])
-    return r | (g << 5) | (b << 10)
 
 
 def cmd_render(vram_path, oam_path, cg_path, out_path):

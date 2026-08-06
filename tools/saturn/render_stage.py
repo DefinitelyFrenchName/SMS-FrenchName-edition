@@ -15,24 +15,17 @@ import sys
 from pathlib import Path
 
 
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+from gfxlib import decode_tile, snes_to_rgb, tm_entry  # noqa: E402  (#95)
+
+
 def tile_pixels(data, idx):
-    """4bpp SNES tile -> 8x8 of palette indices."""
+    """4bpp SNES tile -> 8x8 of palette indices (blank when out of range)."""
     o = idx * 32
     if idx < 0 or o + 32 > len(data):
         return [[0] * 8 for _ in range(8)]
-    rows = []
-    for y in range(8):
-        b0, b1 = data[o + y * 2], data[o + y * 2 + 1]
-        b2, b3 = data[o + 16 + y * 2], data[o + 16 + y * 2 + 1]
-        rows.append([((b0 >> (7 - x)) & 1) | (((b1 >> (7 - x)) & 1) << 1)
-                     | (((b2 >> (7 - x)) & 1) << 2) | (((b3 >> (7 - x)) & 1) << 3)
-                     for x in range(8)])
-    return rows
-
-
-def snes_to_rgb(w):
-    return (((w & 0x1F) * 255) // 31, (((w >> 5) & 0x1F) * 255) // 31,
-            (((w >> 10) & 0x1F) * 255) // 31)
+    return decode_tile(data, o, 4)
 
 
 def render(tiles, tmap, pal=None, tilebase=0x2000, cols=64, rows=32):
@@ -48,8 +41,7 @@ def render(tiles, tmap, pal=None, tilebase=0x2000, cols=64, rows=32):
             if e * 2 + 1 >= len(tmap):
                 continue
             v = tmap[e * 2] | (tmap[e * 2 + 1] << 8)
-            t, p = v & 0x3FF, (v >> 10) & 7
-            hf, vf = bool(v & 0x4000), bool(v & 0x8000)
+            t, p, hf, vf = tm_entry(v)
             grid = tile_pixels(tiles, t - first)
             for y in range(8):
                 for x in range(8):
