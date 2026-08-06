@@ -118,7 +118,7 @@ EMPTY_LIST = 0x0AFD           # $C1:0AFD..0B04 = 8x FF (verified)
 SITE_PROC_HOOK = 0x1007C      # $C1:007C: sep #$30 / asl / tax / jsr ($00A6,X)
 PROC_HOOK_OLD = bytes.fromhex("E2300AAAFCA600")
 STUB2 = 0x0B01                # $C1:0B01 (last 4 FF of the 0AFD run)
-EF_HELPER = 0xDB70            # in-bank, clear of tramp(DB20)/tramp3(DB30)/snd(DB50)
+EF_HELPER = 0xDB70            # in-bank, clear of tramp(DB20)/tramp3(DA60)/snd(DB50)
 # Her specials spawn projectile OBJECTS with Super S ids — all in SMS's free id
 # range 0x1D-0x2F. The three she actually uses are PORTED (0x20 qcf LP/HP,
 # 0x21 j.632K, 0x22 qcb), dispatched through tramp3. Every OTHER free-id proc
@@ -532,16 +532,16 @@ CARDLOAD_OLD = bytes.fromhex("22EC8D80")
 # entrance and Saturn popped in as control was handed over. EARLY_TRANSFORM drops
 # the $1E04 (intro-sequencer) gate and accepts act $22, keeping the latch and the
 # live-round gate, which are what actually prove this is a real fight load.
-EARLY_TRANSFORM = __import__("os").environ.get("EARLY_TRANSFORM", "1") == "1"
+EARLY_TRANSFORM = os.environ.get("EARLY_TRANSFORM", "1") == "1"
 # Keep the entrance act across the transform. Off: the field showed her act-$22
 # script never completes, which wedges the intro sequencer (no animation, no
 # inputs until she is hit). Off means she simply stands at neutral through the
 # entrance — visible from the first frame, which is the must-have.
-EARLY_KEEP_ACT = __import__("os").environ.get("EARLY_KEEP_ACT", "0") == "1"
+EARLY_KEEP_ACT = os.environ.get("EARLY_KEEP_ACT", "0") == "1"
 # Maintainer's call (2026-08-03): "we can just prevent Saturn from being
 # selectable [in story], which anyway no one would expect to work, all the more
 # so since already Uranus, Neptune and Pluto are not selectable in story mode."
-STORY_GUARD = __import__("os").environ.get("STORY_GUARD", "1") == "1"
+STORY_GUARD = os.environ.get("STORY_GUARD", "1") == "1"
 # Only transform Uranus/Neptune/Pluto shells (charID 6/7/8) — the three the game
 # already keeps out of story mode, so this locks story WITHOUT depending on when
 # the mode byte is valid. It must live in the helper, not the DMA stub: at the
@@ -565,7 +565,7 @@ STORY_GUARD = __import__("os").environ.get("STORY_GUARD", "1") == "1"
 # ($8D == 0, story — 1 is 2P VS): it covers the one residual the shell test cannot,
 # a story fight whose P1 has been FORCED to charID 6 (poked $1B40; the story nav
 # table cannot reach 6/7/8, and forcing the cursor there crashes VANILLA too).
-SHELL_GUARD = __import__("os").environ.get("SHELL_GUARD", "1") == "1"
+SHELL_GUARD = os.environ.get("SHELL_GUARD", "1") == "1"
 SATURN_LATCH = 0xF102     # P1 armed-this-round latch
 SATURN_MARK = 0xF105   # "her card tiles are uploaded" marker
 SATURN_INIDISP = 0xF106  # INIDISP saved across the blit's forced blank
@@ -963,95 +963,99 @@ def main():
     e8 += bytes(stub)
     e8 += bytes(E8_DMASTUB - len(e8))
     # DMA-kick stub: P1 ($6A00) and P2 ($7300) effects transfers; per-player
-    # flags from the respective autopoll pads; staging override when flagged
-    def _flagblock(pad_lo, pad_hi, flag, latch, shell):
+    # flags from the respective autopoll pads; staging override when flagged.
+    # ONE contiguous blob — prologue dispatch, both flag blocks, the staging
+    # copy and the epilogue — so every cross-block jump is a plain label.
+    def _flagblock(pad_lo, pad_hi, flag, latch, shell, p):
         """Per-player: L+R sets flag=MAGIC, SELECT clears it, then latch mirrors
-        it for this round. Returns (bytes, [(pos, kind)]) where each entry is a
-        jump-to-`orig` needing fixup — kind 'brl' = 3-byte relative-long (the
-        stub outgrew 8-bit branch range in v0.11.7; brl removes the class of
-        bug entirely)."""
-        b = bytearray()
-        fix = []
-        b += bytes((0xE2, 0x20))                             # sep #$20
-        if STORY_GUARD:
-            # Story mode never arms. The game itself keeps the outer senshi out of
-            # story (they are its bosses), so a hidden tenth character has no
-            # business there either — and it removes the one risk the early
-            # transform carries, since the $1E04 gate it drops existed to protect
-            # the story sequencer. The latch is FORCED TO 0 rather than merely
-            # skipped, so a stale arm from a previous VS round cannot survive into
-            # a story fight.
-            # v0.14.6 — THE MODE VALUE WAS WRONG, and that single constant caused
-            # BOTH field bugs 2 and 3. Story is `$7E:008D == 0`, not 1; **1 is 2P
-            # VS**. So this guard was blocking 2P VS (bug 2: "the shell is not
-            # replaced although her sfx play" — the flag is set by the char-select
-            # confirm hook, which is what the sound remap keys off, but the latch
-            # was forced to 0 so the helper never ran) while leaving story wide
-            # open (bug 3). Measured from the game with probe_sms_menurows.lua:
-            #   row 0 -> $8D=00  ONE cursor, roster 1-5 only          = STORY
-            #   row 1 -> $8D=01  TWO independent cursors, full roster = 2P VS
-            #   row 2 -> $8D=02  one cursor + fixed opponent          = 1P vs COM
-            # docs/annotations.md carried both readings ("0=VS, 1=Story" and "VS
-            # 1P-vs-2P = 01"); the first was wrong and is now corrected there.
-            b += bytes((0xA5, 0x8D, 0xC9, 0x00, 0xD0, 0x09))     # lda $8D/cmp #0/bne
-            b += bytes((0xA9, 0x00, 0x8F, latch & 0xFF, latch >> 8, SATURN_BANK))
-            b += bytes((0x82, 0x00, 0x00)); fix.append(len(b) - 2)
-        if SHELL_GUARD:
-            # The OTHER arming route: L+R held as the round loads, which never
-            # goes through the confirm stub. The player struct is not populated
-            # at the effects transfer and the cursor is long gone, so the test
-            # uses the charID the confirm stub recorded for this player. A stale
-            # or never-written value fails closed, which is the right default.
-            b += bytes((0xAF, shell & 0xFF, shell >> 8, SATURN_BANK))
-            b += bytes((0xC9, 0x06, 0x90, 0x04))             # < 6 -> reject
-            b += bytes((0xC9, 0x09, 0x90, 0x0D))             # < 9 -> ok
-            b += bytes((0xA9, 0x00))                         # reject: clear BOTH
-            b += bytes((0x8F, flag & 0xFF, flag >> 8, SATURN_BANK))
-            b += bytes((0x8F, latch & 0xFF, latch >> 8, SATURN_BANK))
-            b += bytes((0x82, 0x00, 0x00)); fix.append(len(b) - 2)
-        b += bytes((0xA5, 0x36, 0xC9, 0x7F, 0xF0, 0x03))     # ==7F: skip the brl
-        b += bytes((0x82, 0x00, 0x00)); fix.append(len(b) - 2)   # operand idx
+        it for this round. `p` suffixes the block-local labels; every early exit
+        is a `brl orig` (the stub outgrew 8-bit branch range in v0.11.7; brl
+        removes the class of bug entirely)."""
+        # Story mode never arms. The game itself keeps the outer senshi out of
+        # story (they are its bosses), so a hidden tenth character has no
+        # business there either — and it removes the one risk the early
+        # transform carries, since the $1E04 gate it drops existed to protect
+        # the story sequencer. The latch is FORCED TO 0 rather than merely
+        # skipped, so a stale arm from a previous VS round cannot survive into
+        # a story fight.
+        # v0.14.6 — THE MODE VALUE WAS WRONG, and that single constant caused
+        # BOTH field bugs 2 and 3. Story is `$7E:008D == 0`, not 1; **1 is 2P
+        # VS**. So this guard was blocking 2P VS (bug 2: "the shell is not
+        # replaced although her sfx play" — the flag is set by the char-select
+        # confirm hook, which is what the sound remap keys off, but the latch
+        # was forced to 0 so the helper never ran) while leaving story wide
+        # open (bug 3). Measured from the game with probe_sms_menurows.lua:
+        #   row 0 -> $8D=00  ONE cursor, roster 1-5 only          = STORY
+        #   row 1 -> $8D=01  TWO independent cursors, full roster = 2P VS
+        #   row 2 -> $8D=02  one cursor + fixed opponent          = 1P vs COM
+        # docs/annotations.md carried both readings ("0=VS, 1=Story" and "VS
+        # 1P-vs-2P = 01"); the first was wrong and is now corrected there.
+        story = f"""
+  lda_dp $8D
+  cmp #$00
+  bne notstory{p}
+  lda #$00             ; story: force the latch to 0
+  sta_l ${SATURN_BANK:02X}{latch:04X}
+  brl orig
+notstory{p}:""" if STORY_GUARD else ""
+        # The OTHER arming route: L+R held as the round loads, which never
+        # goes through the confirm stub. The player struct is not populated
+        # at the effects transfer and the cursor is long gone, so the test
+        # uses the charID the confirm stub recorded for this player. A stale
+        # or never-written value fails closed, which is the right default.
+        shellg = f"""
+  lda_l ${SATURN_BANK:02X}{shell:04X}
+  cmp #$06
+  bcc reject{p}        ; < 6 -> reject
+  cmp #$09
+  bcc shellok{p}       ; < 9 -> ok
+reject{p}:
+  lda #$00             ; reject: clear BOTH
+  sta_l ${SATURN_BANK:02X}{flag:04X}
+  sta_l ${SATURN_BANK:02X}{latch:04X}
+  brl orig
+shellok{p}:""" if SHELL_GUARD else ""
         # LONG reads (v0.11.7): these were DB-relative `lda $4218` — the stub is
         # JSL'd with the caller's DB, so it sampled WRAM garbage instead of the
         # pad, and the L+R arming NEVER actually worked. It only appeared to
         # because the game's own menu code wrote 1 to the old latch address
         # ($C3:B9F5 -> $1F62); moving the flags off that address exposed it.
-        b += bytes((0xAF, pad_lo & 0xFF, pad_lo >> 8, 0x00, 0x29, 0x30, 0xC9, 0x30, 0xD0, 0x06))
-        b += bytes((0xA9, SATURN_MAGIC, 0x8F, flag & 0xFF, flag >> 8, SATURN_BANK))
-        b += bytes((0xAF, pad_hi & 0xFF, pad_hi >> 8, 0x00, 0x29, 0x20, 0xF0, 0x06))
-        b += bytes((0xA9, 0x00, 0x8F, flag & 0xFF, flag >> 8, SATURN_BANK))
-        # latch = MAGIC iff flag == MAGIC, else 0 (never leaves a stale latch)
-        b += bytes((0xAF, flag & 0xFF, flag >> 8, SATURN_BANK))
-        b += bytes((0xC9, SATURN_MAGIC, 0xF0, 0x04))         # beq armed
-        b += bytes((0xA9, 0x00, 0x80, 0x02))                 # lda #0 / bra store
-        b += bytes((0xA9, SATURN_MAGIC))                     # armed:
-        b += bytes((0x8F, latch & 0xFF, latch >> 8, SATURN_BANK))   # store:
-        b += bytes((0xC9, SATURN_MAGIC, 0xF0, 0x03))         # armed: skip the brl
-        b += bytes((0x82, 0x00, 0x00)); fix.append(len(b) - 2)   # operand idx
-        return b, fix
-    d = bytearray()
-    d += bytes((0x08, 0xC2, 0x30))                       # php / rep #$30
-    d += bytes((0x48, 0xDA, 0x5A))                       # pha / phx / phy
-    d += bytes((0xA5, 0x30, 0xC9, 0x00, 0x6A, 0xF0, 0x00))   # ==$6A00 -> p1eff
-    fp1 = len(d) - 1
-    d += bytes((0xC9, 0x00, 0x73, 0xF0, 0x00))               # ==$7300 -> p2eff
-    fp2 = len(d) - 1
-    d += bytes((0x82, 0x00, 0x00))                           # brl orig
-    forig = [len(d) - 2]
-    p1eff = len(d)
-    b1, f1 = _flagblock(0x4218, 0x4219, SATURN_FLAG, SATURN_LATCH, SATURN_SHELL)
-    d += b1
-    d += bytes((0x82, 0x00, 0x00))                           # brl copy
-    fcopy = len(d) - 2
-    p2eff = len(d)
-    b2, f2 = _flagblock(0x421A, 0x421B, SATURN_FLAG2, SATURN_LATCH2, SATURN_SHELL2)
-    d += b2
-    copy = len(d)
-    d += bytes((0xC2, 0x30))                             # rep #$30
-    d += bytes((0xA2, 0x00, EE_TILES >> 8, 0xA0, 0x00, 0x00,
-                0xA9, (FX_SHEET_LEN - 1) & 0xFF, (FX_SHEET_LEN - 1) >> 8,
-                0x8B, 0x54, 0x7F, B_MISC, 0xAB))          # mvn count = len-1
-    # v0.14.11 — FORCE THE TRANSFER LENGTH TO HER SHEET'S SIZE.
+        return f"""
+  sep #$20{story}{shellg}
+  lda_dp $36
+  cmp #$7F             ; ==7F: staging override live, arm/copy allowed
+  beq staged{p}
+  brl orig
+staged{p}:
+  lda_l $00{pad_lo:04X}
+  and #$30
+  cmp #$30             ; L+R held -> set the flag
+  bne noset{p}
+  lda #${SATURN_MAGIC:02X}
+  sta_l ${SATURN_BANK:02X}{flag:04X}
+noset{p}:
+  lda_l $00{pad_hi:04X}
+  and #$20             ; SELECT -> clear it
+  beq noclr{p}
+  lda #$00
+  sta_l ${SATURN_BANK:02X}{flag:04X}
+noclr{p}:
+; latch = MAGIC iff flag == MAGIC, else 0 (never leaves a stale latch)
+  lda_l ${SATURN_BANK:02X}{flag:04X}
+  cmp #${SATURN_MAGIC:02X}
+  beq armed{p}
+  lda #$00
+  bra store{p}
+armed{p}:
+  lda #${SATURN_MAGIC:02X}
+store{p}:
+  sta_l ${SATURN_BANK:02X}{latch:04X}
+  cmp #${SATURN_MAGIC:02X}
+  beq arm_ok{p}        ; armed: on to the staging copy
+  brl orig
+arm_ok{p}:"""
+    # v0.14.11 — FORCE THE TRANSFER LENGTH TO HER SHEET'S SIZE (the `lda/sta_l
+    # $004305` pair just before `orig:` below).
     # Overriding the $7F:0000 staging buffer is only half the job: the DMA that
     # follows was sized from the SHELL character's own effect sheet, and the
     # shells are not the same size. Measured at this very site (dp+$32, D=$0000,
@@ -1069,32 +1073,44 @@ def main():
     # transfer trailing the shell's leftover art into tiles past hers.
     # The store is long: DB here is the caller's, not necessarily a bank that
     # sees the $43xx registers.
-    d += bytes((0xA9, FX_SHEET_LEN & 0xFF, FX_SHEET_LEN >> 8))   # lda #$1040
-    d += bytes((0x8F, 0x05, 0x43, 0x00))                 # sta $004305 (DMA0 size)
-    orig = len(d)
-    def _rel8(pos, target, what):
-        off = target - (pos + 1)
-        if not (-128 <= off <= 127):
-            raise ValueError(f"{what}: 8-bit branch out of range ({off})")
-        d[pos] = off & 0xFF
-    def _rel16(pos, target, what):
-        if not (d[pos - 1] == 0x82):
-            raise ValueError(f"{what}: not a brl operand slot")
-        off = target - (pos + 2)                          # brl: PC after operand
-        if not (-32768 <= off <= 32767):
-            raise ValueError(f"{what}: brl out of range ({off})")
-        d[pos] = off & 0xFF
-        d[pos + 1] = (off >> 8) & 0xFF
-    _rel8(fp1, p1eff, "fp1")
-    _rel8(fp2, p2eff, "fp2")
-    _rel16(forig[0], orig, "bra orig")
-    _rel16(fcopy, copy, "bra copy")
-    for base_, fixes in ((p1eff, f1), (p2eff, f2)):
-        for off_ in fixes:
-            _rel16(base_ + off_, orig, "flagblock -> orig")
-    d += bytes((0xC2, 0x30, 0x7A, 0xFA, 0x68, 0x28))     # rep #$30/ply/plx/pla/plp
-    d += bytes((0xA0, 0x01, 0x8C, 0x00, 0x43, 0x8C, 0x0B, 0x42))
-    d += bytes((0x6B,))
+    d_asm = f"""
+  php
+  rep #$30
+  pha
+  phx
+  phy
+  lda_dp $30
+  cmp #$6A00           ; ==$6A00 -> p1eff
+  beq p1eff
+  cmp #$7300           ; ==$7300 -> p2eff
+  beq p2eff
+  brl orig
+p1eff:{_flagblock(0x4218, 0x4219, SATURN_FLAG, SATURN_LATCH, SATURN_SHELL, "1")}
+  brl copy
+p2eff:{_flagblock(0x421A, 0x421B, SATURN_FLAG2, SATURN_LATCH2, SATURN_SHELL2, "2")}
+copy:
+  rep #$30
+  ldx #${EE_TILES:04X}
+  ldy #$0000
+  lda #${FX_SHEET_LEN - 1:04X}   ; mvn count = len-1
+  phb
+  mvn $7F,${B_MISC:02X}
+  plb
+  lda #${FX_SHEET_LEN:04X}       ; v0.14.11 forced length (comment above)
+  sta_l $004305        ; DMA0 size
+orig:
+  rep #$30
+  ply
+  plx
+  pla
+  plp
+  assume x=1           ; the caller's width at the JSL site: 8-bit X
+  ldy #$01
+  sty $4300
+  sty $420B
+  rtl
+"""
+    d, _ = A.assemble(d_asm.splitlines(), 0, 0)
     e8 += bytes(d)
     if not (len(e8) <= E8_SATURN_ACTTBL):
         raise SystemExit(f"stubs overrun Saturn act table: {len(e8):#x}")
@@ -2111,10 +2127,10 @@ sat:
         _i += len(_pp)
     if not (_n >= 1):
         raise ValueError("projectile palette-select routine not found in her proc block")
-    # tramp3 @ $EF:DB30: re-dispatch the projectile id to its proc (jsr keeps
-    # rts semantics; entered via JSL from the $C1 mini-stub)
-    # ldx $88 / lda $00,X / cmp #$20 / beq p20 / cmp #$21 / beq p21
-    # / jsr $29A6 / rtl / p20: jsr $280B / rtl / p21: jsr $28D3 / rtl
+    # tramp3 @ $EF:DA60 (EF_TRAMP3; the site comment used to say DB30, its old
+    # pre-v0.11.8 slot — the constant's own comment has the move story):
+    # re-dispatch the projectile id to its proc (jsr keeps rts semantics;
+    # entered via JSL from the $C1 mini-stub)
     # v0.11.8: the engine has MORE THAN ONE proc dispatcher — `jsr ($00A6,X)`
     # also lives at $C1:1708 (projectiles) and $C1:259E (the KO/round-end
     # path), plus sites in other banks. The main-loop hook at $C1:007C only
@@ -2134,38 +2150,52 @@ sat:
     # (the maintainer's "5LK shows LP and LK at once") and her per-frame cel
     # streaming DMAing from garbage addresses (screen-wide tile corruption).
     # Non-player slots now self-clear, exactly like the projectile placeholder.
-    tramp3 = bytes.fromhex(
-        "C210"            # rep #$10
-        "A688"            # ldx $88
-        "B500"            # lda $00,X      (object id)
-        "C91C" "F014"     # id == 0x1C -> saturn-gate
-        "C920" "F008"     # 0x20
-        "C921" "F008"     # 0x21
-        "20A629" "6B"     # else 0x22 proc
-        "200B28" "6B"     # 0x20 proc
-        "20D328" "6B"     # 0x21 proc
-        # saturn-gate: only $1000 / $1080 are real players
-        "E00010" "F008"   # cpx #$1000 -> run
-        "E08010" "F003"   # cpx #$1080 -> run
-        "7400" "6B"       # else: stz $00,X (despawn) / rtl
-        "20F7C6" "6B")    # run: jsr her dispatch / rtl
+    tramp3_asm = """
+  rep #$10
+  ldx_dp $88
+  lda_dpx $00          ; object id
+  cmp #$1C
+  beq satgate
+  cmp #$20
+  beq p20
+  cmp #$21
+  beq p21
+  jsr $29A6            ; else: the 0x22 proc
+  rtl
+p20:
+  jsr $280B
+  rtl
+p21:
+  jsr $28D3
+  rtl
+satgate:               ; only $1000 / $1080 are real players
+  cpx #$1000
+  beq run
+  cpx #$1080
+  beq run
+  stz_dpx $00          ; else: despawn
+  rtl
+run:
+  jsr $C6F7            ; her dispatch
+  rtl
+"""
+    tramp3, _ = A.assemble(tramp3_asm.splitlines(), 0, 0)
     if not (len(tramp3) <= 0x60):
         raise SystemExit(f"tramp3 too big: {len(tramp3)}")
     ef[EF_TRAMP3:EF_TRAMP3 + len(tramp3)] = tramp3
     # sound translator: sep #$20 / pha / (cmp #id / beq)* / pla / rtl;
     # per-id tails: lda #sfx / sta $78 / pla?? -> keep A-restoring tails
-    snd = bytearray(bytes.fromhex("E22048"))
-    tails = bytearray()
-    fixups = []
-    for cid, sfx in SND_MAP.items():
-        snd += bytes((0xC9, cid, 0xF0, 0x00))       # beq -> patched below
-        fixups.append((len(snd) - 1, len(tails)))
-        tails += bytes((0xA9, sfx, 0x85, 0x78, 0x68, 0x6B))
-    snd += bytes((0x68, 0x6B))                      # default: pla / rtl
-    base_tails = len(snd)
-    for off, tpos in fixups:
-        snd[off] = base_tails + tpos - (off + 1)    # rel8 from after the beq operand
-    snd += tails
+    snd_cases = "".join(f"\n  cmp #${cid:02X}\n  beq snd{i}"
+                        for i, cid in enumerate(SND_MAP))
+    snd_tails = "".join(f"\nsnd{i}:\n  lda #${sfx:02X}\n  sta_dp $78\n  pla\n  rtl"
+                        for i, sfx in enumerate(SND_MAP.values()))
+    snd_asm = f"""
+  sep #$20
+  pha{snd_cases}
+  pla                  ; default: unmapped ids stay silent
+  rtl{snd_tails}
+"""
+    snd, _ = A.assemble(snd_asm.splitlines(), 0, 0)
     ef[EF_SND:EF_SND + len(snd)] = snd
     # re-point all silenced sound JSLs (JSL $80:9FB7 stub) to the translator
     old, new = bytes((0x22, 0xB7, 0x9F, 0x80)), bytes((0x22, EF_SND & 0xFF, EF_SND >> 8, B_C1))

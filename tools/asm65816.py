@@ -32,6 +32,8 @@ def assemble(lines, org, bank):
             return 2
         if mn in ("bra","bcc","bcs","beq","bne","bpl","bmi"):
             return 2
+        if mn in ("brl","mvn"):
+            return 3
         if mn in ("inc","dec","stz","lda","sta","cmp","ldx","stx","ldy","sty","adc","sbc","and","ora","eor","asl","lsr","cpx","cpy","bit"):
             if op.startswith("#"):
                 if mn not in A_IMM and mn not in X_IMM:
@@ -154,6 +156,27 @@ def assemble(lines, org, bank):
             if not (-128 <= rel <= 127):
                 raise ValueError(f"branch out of range: {op} ({rel})")
             out += bytes([BR[mn], rel & 0xFF]); pc += 2
+        elif mn == "brl":
+            # relative-long branch: label-based like BR, but a 16-bit offset
+            if op not in labels:
+                raise ValueError(f"branch to undefined label: {mn} {op}")
+            rel = labels[op] - (pc + 3)
+            if not (-32768 <= rel <= 32767):
+                raise ValueError(f"branch out of range: {op} ({rel})")
+            out += bytes([0x82, rel & 0xFF, (rel >> 8) & 0xFF]); pc += 3
+        elif mn == "mvn":
+            # block move: `mvn $dd,$ss` — OPERAND ORDER MATCHES THE ENCODING
+            # (0x54, dest bank, src bank). Note most assemblers write src,dest,
+            # the reverse of the byte order; here what you write is what you get.
+            try:
+                dd, ss = (p.strip() for p in op.split(","))
+                dv, sv = int(dd.replace("$",""), 16), int(ss.replace("$",""), 16)
+            except ValueError:
+                raise ValueError(f"mvn wants two banks `mvn $dd,$ss`: {op!r}")
+            if dv > 0xFF or sv > 0xFF:
+                raise ValueError(f"mvn bank out of range: {op} — banks are one byte "
+                                 f"(dest {dv:#x}, src {sv:#x})")
+            out += bytes([0x54, dv, sv]); pc += 3
         elif mn in ("jml","jmp","jsl","jsr"):
             if op in labels:
                 addr = labels[op]; bk = bank
