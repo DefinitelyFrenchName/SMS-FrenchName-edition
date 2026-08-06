@@ -20,7 +20,7 @@ ported from Super S and is playable in the **Rev. SS** builds only (§0).
 
 ---
 
-## 0. Current state (2026-08-05) — SMS + Saturn = PATCH 100
+## 0. Current state (2026-08-06) — SMS + Saturn = PATCH 100, and the issue backlog
 
 **Numbering (2026-08-04, maintainer):** the whole Super S body of work is
 **patch 100**, and the voice-pitch correction is **patch 101**. The gap from 16
@@ -206,7 +206,38 @@ reference, `SATURN_ALLSTAGES=1` on the Saturn step is the whole change.
 strip is **168 px** and "FrenchName Rev. SS-99" renders **146 px**, so the
 naming has 22 px to spare — two digits is nowhere near the limit.
 
-**Open work — ONE item, full detail in `docs/NEXT_SESSION.md`:**
+**GITHUB ISSUE REMEDIATION — the live workstream (started 2026-08-06).** 63
+open issues from two adversarial cross-model reviews (#2-#58 in 2026-07-28,
+#59-#105 in 2026-08-04) were triaged against HEAD: 6 already fixed, 8 partial,
+47 valid. Maintainer's calls: **address everything warranted**, and Claude
+comments + closes what is already fixed or wrongly premised. Batch plan and
+per-issue verdicts: `~/.claude/plans/i-ll-look-into-all-purrfect-blum.md`;
+running state: `docs/NEXT_SESSION.md`.
+
+Done so far: **batch 1** (integrity — #79 #81 #82 #83 #59 #60 #65 #66 #13),
+**batch 1b** (#24 #61 #62 #3, #63 rescoped), and the start of **batch 2**
+(#87 #92 #91 #86; #84 refuted by measurement). Convention from here: **one commit
+per issue** (`Fixes #NN`) — the two batch commits are deliberate exceptions the
+maintainer chose to keep rather than split verified history.
+
+Two findings from batch 1 that changed how this repo is verified:
+* **The published verification procedure could report a run that never
+  happened.** `mkrelease.py` writes "run the regression suite, then
+  `verify_saturn.sh`" into the release notes; the suite APPENDED to
+  `traces/regression.txt` and the gate discarded the emulator's exit status and
+  read `tail -1` of it. Both halves are fixed — the log truncates and names its
+  ROM, and `run()` in the gate deletes each trace and records the exit status.
+* **A gate check had been passing on a trace no run produced.** The stress check
+  read `stress_1m.txt` while the run writes `stress_7m.txt` (the probe names its
+  log by seed). It had been green on a leftover from an old experiment.
+
+⚠ **A "cross-model verified" issue can still be false** — #84 was confirmed by
+both models against the cited lines and does not reproduce; the fix was written,
+disproved by its own test, and reverted (detail in `docs/NEXT_SESSION.md`). For
+the remaining batches: build the failing case BEFORE the fix, and prove the
+working path is unchanged after.
+
+**Open work — full detail in `docs/NEXT_SESSION.md`:**
 
 **Patch 16 — menu translation. Step 1 DONE, step 2 blocked on one screen.**
 The half-width A-Z now *reaches VRAM* (tiles `$5C0-$5FF`, read back out of VRAM,
@@ -313,7 +344,7 @@ would actually cost). Short version: ROM is not scarce (384 KB spare), ARAM is
 the only hard wall, and the real constraint is per-character tables sized to nine
 and immediately followed by live data.
 
-**Ten traps this project paid for — they generalise:**
+**Eleven traps this project paid for — they generalise:**
 
 1. **Per-character fixes must be tested with at least TWO shells.** Saturn can
    be summoned over Uranus, Neptune or Pluto (over any of the nine before
@@ -365,6 +396,13 @@ and immediately followed by live data.
    never survived the load; one exec hook reading the byte the guard reads
    settled it. Assert the precondition (here: `$1000` == the shell you asked
    for) before trusting the verdict.
+11. **A verified issue report can still be false, and the evidence can be
+   accurate.** #84 was filed by one model, confirmed by another against the cited
+   lines, and does not reproduce: every quoted line says what it is quoted as
+   saying, but the failure needs a frame ordering BETWEEN two files that neither
+   file shows. The fix was written first and disproved by its own test on the
+   UNFIXED build. Build the failing case before the fix; if it passes without
+   the fix, you have learned something better than a patch.
 10. **Matching the measurement is not the same as matching the request.** The
    throw-direction fix (v0.16.0) made the victim land on the correct side and
    passed every check written for it — and was wrong, because the maintainer had

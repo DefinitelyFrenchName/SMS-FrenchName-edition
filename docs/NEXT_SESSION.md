@@ -1,6 +1,81 @@
-# Next-session handoff — 2026-08-05
+# Next-session handoff — 2026-08-06
 
-## Start here: ONE open item — patch 16, step 2. Patch 17 and Saturn are done.
+## Start here
+
+**Two workstreams are open. The issue-remediation programme is the live one.**
+
+### 1. GitHub issue remediation — IN PROGRESS (started 2026-08-06)
+
+Plan (batches, per-issue verdicts, ordering constraints):
+`~/.claude/plans/i-ll-look-into-all-purrfect-blum.md`.
+
+63 open issues from two adversarial cross-model reviews were triaged against
+HEAD: **6 already fixed**, 8 partial, 47 valid, 0 fully invalid. Maintainer's
+calls: address everything warranted, and Claude comments + closes what is
+already fixed or wrongly premised.
+
+| Batch | What | State |
+|---|---|---|
+| 1 — integrity ("results that can lie") | #79 #81 #82 #83 #59 #60 #65 #66 #13 | **DONE** (`87a5b5a`) |
+| 1b — health command + fresh clone | #24 #61 #62 #3, rescoped #63 | **DONE** (`f3b6e68`) |
+| 2 — correctness in shipped code | #87 #92 #91 #86 done; #84 refuted | **IN PROGRESS** |
+| 2 remaining | #88 #90 #96 #94 #89 #80 #97 #69 #76 #71 #18 | not started |
+| 3 — docs/registry drift | #67 #68 #74 #103 #52 #75 | not started |
+| 4 — duplication, dead code, conventions | #73 #85 #95 #98 #100 #101 #70 #77 #99 #102 #105 #104 #78 #35 #32 #44 #64 #72 | not started |
+
+⚠ **Ordering constraints that still apply:** #87 before #98 (same functions);
+#99 must not be swept with `sed` — four of its twelve sites sit inside gating
+suites; #85/#95/#98/#100 quote stale acceptance hashes, re-baseline first.
+
+**Convention from here: ONE COMMIT PER ISSUE** (`Fixes #NN`). The first two
+batches are multi-issue commits — the maintainer chose to leave them rather than
+split history that was verified as a whole.
+
+### 2. Patch 16, step 2 — menu translation, unchanged since 2026-08-05
+
+Still blocked on one screen; the next action is still a single WRAM dump. See
+item 2 below.
+
+## What a new session must know first
+
+* **`tools/health.sh`** is the one consistency command — generated artifacts in
+  sync, syntax, release folder, release `.bps` round-trip. It **SKIPS** anything
+  needing the ROM/donor/emulator and says so. CI runs it
+  (`.github/workflows/health.yml`); a green tick there is **not** a verified
+  build. Acquisition for the four external pieces: `docs/toolchain.md`.
+* **Suite counts moved** (patches 15/17/18 are now inside the gates, and two
+  config-screen tests were added): clean **45**, Rev. S-02 / Rev. SS-02 **60**,
+  Saturn gate **53 checks**.
+* **`traces/regression.txt` is truncated per run** and its header names the ROM.
+  Reading `tail -1` is finally safe — it was not before #81.
+* **The release artifacts have not moved a byte** through all of this: Rev. S-02
+  `41d93a53…`, Rev. SS-02 `b96f3fe8…`, both still reproducing from
+  `tools/build_rev.sh both`. Reverting to the released state is always a clean
+  escape hatch.
+* **One artifact did change:** patch 10b (`sms_combolabels.bps`), ROM
+  `920652df…` -> `4899790a…`, when its label pipeline was brought under
+  `--modes` (#86). Patch 10 proper is byte-identical.
+
+## The lesson from the remediation so far
+
+**A "cross-model verified" issue can still be false.** #84 (training HP toggle
+wipes both players' Guts levels) was confirmed by both review models against the
+cited lines — and does not reproduce. I wrote the fix first, then built the test
+to prove it was needed; the test passed on the UNFIXED build. Instrumenting the
+decisive frames showed why, twice over: patch 11 hooks ahead of patch 13, so
+patch 13 latches `PREVHP` in the same frame the HP changes (`p1hp 17->60` and
+`prev0 17->60` together), and `rsig` additionally needs both action IDs at 0
+while P1 sits in act `$21` with the menu open. **The evidence in that issue is
+accurate line by line; what it missed is the frame ordering BETWEEN two files.**
+The fix was reverted and the test kept as a pin.
+
+So: for every issue in the remaining batches, **build the failing case before
+the fix**, and prove the working path is unchanged after (byte-identical
+rebuild, or the suite's counts and verdicts unmoved). One fix has already been
+withdrawn on that basis, and one gate check (#66's structural floor) was caught
+breaking a working chain within minutes of landing.
+
+## Everything below is the 2026-08-05 state, still accurate for patch 16 / Saturn
 
 **1. Saturn's 214P projectile — FIXED (v0.14.11, 2026-08-05).** It was a
 **per-shell truncation of her effect sheet**, not a bad sprite list. Her
@@ -211,7 +286,8 @@ distracting.) She is summoned by holding **L+R** while confirming a **Uranus, Ne
 Pluto** slot — the only char-select variant now; the visible slot-10 build was
 retired 2026-08-04 and deleted. Gates: `tools/saturn/verify_saturn.sh` (53
 checks, ALL PASS; `QUICK=1` for a ~4-min subset) and `tools/test_regression.lua`
-(57/57). Maintainer's verdict on the current build: "perfectly acceptable for
+(**60/60** since patches 15/17/18 came under the gates and the two config-screen
+tests were added; it was 57/57 before 2026-08-06). Maintainer's verdict on the current build: "perfectly acceptable for
 playing".
 
 ## Everything below this line is SUPERSEDED — kept for its technical detail
@@ -374,10 +450,12 @@ is input-free work.
 ```bash
 tools/build_ref_v2.sh                                   # REF v.2 = v.1 + patch 15
 SATURN_HIDDEN=1 bash tools/saturn/build_refsaturn.sh    # Saturn on REF v.2
-bash tools/saturn/build_saturn_stage.sh --ref           # + the stage port <- v0.14.15
+bash tools/saturn/build_saturn_stage.sh --ref           # + the stage port <- v0.16.1
+tools/build_rev.sh both                                 # the two RELEASE builds
 tools/saturn/verify_saturn.sh                           # 53 checks, the gate
 QUICK=1 tools/saturn/verify_saturn.sh                   # ~4 min subset
-ROM=<rom> tools/run.sh tools/test_regression.lua 900    # 57/57
+ROM=<rom> tools/run.sh tools/test_regression.lua 900    # 60/60 (45 on clean)
+tools/health.sh                                         # no ROM/emulator needed
 python3 tools/mkpatch16.py <out.sfc>                     # patch 16 (font install)
 ```
 
