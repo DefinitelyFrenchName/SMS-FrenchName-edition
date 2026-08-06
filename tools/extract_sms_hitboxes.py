@@ -29,12 +29,21 @@ def parse_box(e):
             "y_off": s8(e[4]), "h": e[5], "flags": e[6]}
 
 def main():
-    rom = open(sys.argv[1], "rb").read()
+    # argparse (#72): the old hand-parse read argv[1] positionally (a leading flag
+    # was consumed as the ROM path) and read --json's value by index (a trailing
+    # --json died with a bare IndexError after the whole extraction had run)
+    import argparse
+    ap = argparse.ArgumentParser(description="Extract SMS hit/hurt/coll box tables.")
+    ap.add_argument("rom", help="clean ROM path")
+    ap.add_argument("--json", metavar="OUT", default=None, help="write JSON here instead of stdout")
+    ap.add_argument("--force", action="store_true", help="extract even if the SHA-1 does not match the clean ROM")
+    a = ap.parse_args()
+    rom = open(a.rom, "rb").read()
     if len(rom) % 0x8000 == 0x200:
         rom = rom[0x200:]  # strip copier header (issue #38: was % 0x100000, never matched)
     h = hashlib.sha1(rom).hexdigest()
     print("SHA-1:", h, file=sys.stderr)
-    if h != CLEAN_SHA1 and "--force" not in sys.argv:
+    if h != CLEAN_SHA1 and not a.force:
         raise SystemExit(f"error: not the clean ROM (expected {CLEAN_SHA1}); "
                          "pass --force to extract anyway")
     rw = lambda fo: struct.unpack("<H", rom[fo:fo + 2])[0]
@@ -68,7 +77,7 @@ def main():
                        "count": n, "boxes": boxes}
         out[NAMES[cid]] = char
 
-    dst = sys.argv[sys.argv.index("--json") + 1] if "--json" in sys.argv else None
+    dst = a.json
     text = json.dumps(out, indent=1)
     if dst:
         open(dst, "w").write(text)
