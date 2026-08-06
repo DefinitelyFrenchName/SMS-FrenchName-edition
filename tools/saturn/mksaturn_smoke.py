@@ -889,11 +889,18 @@ def main():
     e8 += btnstub
     e8 += bytes(E8_CMDSTUB - len(e8))
     # cmd stub: A=raw ctrl byte, Y=arg cursor, DB=$E8, M=1; stack: [A][PCL PCH][PB]
-    def _setret(target):                 # rep/lda #target-1/sta $02,S/sep/pla/rtl
+    def _setret(target):
+        """rep / lda #target-1 / sta $02,S / sep / pla / rtl — return-address
+        surgery: the RTL then lands the interpreter at `target`."""
         t = target - 1
-        return bytes((0xC2, 0x20, 0xA9, t & 0xFF, t >> 8, 0x83, 0x02,
-                      0xE2, 0x20, 0x68, 0x6B))
-    # each entry: cmp #cid / bne +4 / lda #sfx / bra store — a match jumps
+        return f"""
+  rep #$20
+  lda #${t:04X}
+  sta_sr $02
+  sep #$20
+  pla
+  rtl"""
+    # each entry: cmp #cid / bne next / lda #sfx / bra store — a match jumps
     # PAST the remaining compares (v0.11.1: the old fallthrough left A=sfx in
     # the later compares; harmless for the original 4-entry map, but the
     # movement sfx values collide with cids in the 8-entry map)
@@ -903,7 +910,6 @@ def main():
     # 0x16 — the engine already plays those sounds) was written to $78 RAW and
     # played as whatever sfx that id happens to be. Unmapped args are silent
     # again: matches branch to the store, the fallthrough skips it.
-    cmd_tail = bytearray()
     # v0.13.0 — VOICE args go somewhere else entirely. 0x22-0x25 are her laugh
     # and her three specials, which in Super S are voice samples; SMS voices a
     # fighter through the PER-PLAYER slot at struct +0x78 (the NMI at $C0:D4F2
@@ -920,46 +926,48 @@ def main():
     # out of P2's slot while she was P1. Clobbering X was the whole bug;
     # probe_sms_cmdwho.lua is the measurement.
     snd_map = dict(CMD_SND_MAP)
+    voice_block = ""
     if SATURN_VOICE:
         for a in (0x23, 0x24, 0x25):
             snd_map.pop(a, None)         # were the placeholder heavy whoosh
-        cmd_tail += bytes((0xC9, VOICE_ARG_LO, 0x90, 0x00))          # bcc -> sfx
-        fx_lo = len(cmd_tail) - 1
-        cmd_tail += bytes((0xC9, VOICE_ARG_LO + 4, 0xB0, 0x00))      # bcs -> sfx
-        fx_hi = len(cmd_tail) - 1
-        cmd_tail += bytes((0x18, 0x69, VOICE_ID_BASE - VOICE_ARG_LO))  # clc/adc
-        cmd_tail += bytes((0x95, 0x78))                              # sta $78,X
-        cmd_tail += bytes((0x80, 0x00))                              # bra -> ret
-        fx_voice_done = len(cmd_tail) - 1
-        cmd_tail[fx_lo] = len(cmd_tail) - (fx_lo + 1)
-        cmd_tail[fx_hi] = len(cmd_tail) - (fx_hi + 1)
-    fx_store = []
-    for cid, sfx in snd_map.items():
-        cmd_tail += bytes((0xC9, cid, 0xD0, 0x04, 0xA9, sfx, 0x80, 0x00))
-        fx_store.append(len(cmd_tail) - 1)
-    cmd_tail += bytes((0x80, 0x02))      # no match -> skip the store (silent)
-    for pos in fx_store:
-        cmd_tail[pos] = len(cmd_tail) - (pos + 1)
-    cmd_tail += bytes((0x85, 0x78))      # store: sta $78
-    if SATURN_VOICE:
-        cmd_tail[fx_voice_done] = len(cmd_tail) - (fx_voice_done + 1)
-    cmd_tail += _setret(0xA076)          # reprocess next step
-    stub = bytearray()
-    stub += bytes((0x48,))                               # pha
-    stub += bytes((0x29, 0xC0, 0xC9, 0xC0, 0xF0, 0x00))  # and/cmp #$C0/beq cmd
-    fx_cmd = len(stub) - 1
-    stub += bytes((0xC9, 0x80, 0xF0, 0x00))              # cmp #$80/beq hold
-    fx_hold = len(stub) - 1
-    stub += bytes((0xC9, 0x40, 0xF0, 0x00))              # cmp #$40/beq loop
-    fx_loop = len(stub) - 1
-    stub += _setret(0xA0BD)                              # plain
-    stub[fx_hold] = len(stub) - (fx_hold + 1)
-    stub += _setret(0xA0B7)                              # hold
-    stub[fx_loop] = len(stub) - (fx_loop + 1)
-    stub += _setret(0xA0B2)                              # loop
-    stub[fx_cmd] = len(stub) - (fx_cmd + 1)
-    stub += bytes((0xB1, 0x10))                          # cmd: lda ($10),Y = arg
-    stub += cmd_tail
+        voice_block = f"""
+  cmp #${VOICE_ARG_LO:02X}
+  bcc sfxmap           ; below the voice args -> the sfx map
+  cmp #${VOICE_ARG_LO + 4:02X}
+  bcs sfxmap           ; at/above their end -> the sfx map
+  clc
+  adc #${VOICE_ID_BASE - VOICE_ARG_LO:02X}
+  sta_dpx $78          ; sta $78,X = the RUNNING object's voice slot (see above)
+  bra cmdret"""
+    map_cases = "".join(f"""
+  cmp #${cid:02X}
+  bne cnext{i}
+  lda #${sfx:02X}
+  bra cmdstore
+cnext{i}:""" for i, (cid, sfx) in enumerate(snd_map.items()))
+    cmd_asm = f"""
+  assume m=1, x=0      ; M=1 at the hook; X is the interpreter's 16-bit object base
+  pha
+  and #$C0
+  cmp #$C0
+  beq cmd
+  cmp #$80
+  beq hold
+  cmp #$40
+  beq loop
+; plain:{_setret(0xA0BD)}
+hold:{_setret(0xA0B7)}
+loop:{_setret(0xA0B2)}
+cmd:
+  lda_idpy $10         ; lda ($10),Y = the CMD arg{voice_block}
+sfxmap:{map_cases}
+  bra cmdret           ; no match -> skip the store (silent)
+cmdstore:
+  sta_dp $78
+; reprocess next step:
+cmdret:{_setret(0xA076)}
+"""
+    stub, _ = A.assemble(cmd_asm.splitlines(), 0, 0)
     e8 += bytes(stub)
     e8 += bytes(E8_DMASTUB - len(e8))
     # DMA-kick stub: P1 ($6A00) and P2 ($7300) effects transfers; per-player
@@ -1402,46 +1410,48 @@ finish:
     # This is a deliberate one-variable change, not a fix with a known mechanism.
     # If the field still shows the corruption, the palette work is exonerated and
     # the cause is elsewhere.
-    def _copy_loop(src_off):
-        # ldy #$001F / tyx / lda long,X / sta ($0C),Y / dey / bpl -10
-        return bytes((0xA0, 0x1F, 0x00, 0xBB,
-                      0xBF, src_off & 0xFF, src_off >> 8, B_MISC,
-                      0x91, 0x0C, 0x88, 0x10, 0xF6))
+    def _copy_loop(tag, src_off):
+        # ldy #$001F / tyx / lda long,X / sta ($0C),Y / dey / bpl (the tyx):
+        # the index must ride in X for `lda long,X`, so it is re-copied from Y
+        # every iteration. `tag` suffixes the loop label.
+        return f"""
+  ldy #$001F
+cl{tag}:
+  tyx
+  lda_lx ${B_MISC:02X}{src_off:04X}
+  sta_idpy $0C
+  dey
+  bpl cl{tag}"""
 
-    pc_ = bytearray()
-    pc_ += bytes((0xA5, 0x0E, 0x85, 0x0C, 0xA9, 0x06, 0x85, 0x0D))  # $0C/0D = $06:row
-    pc_ += bytes((0xA5, 0x0E, 0xD0, 0x05))               # lda $0E / bne p2
-    pc_ += bytes((0xAD, 0x02, 0x1D, 0x80, 0x03))         # lda $1D02 / bra got
-    pc_ += bytes((0xAD, 0x05, 0x1D))                     # p2: lda $1D05
-    pc_ += bytes((0x29, SAT_PAL_SLOTS - 1))              # and #(n-1) — MASK, see above
-    pc_ += bytes((0xDA,))                                # phx
     # dispatch: cmp/beq per slot, then the slot-0 loop falls through
-    loops = [_copy_loop(EE_FIGHTPALS + i * 0x20) for i in range(SAT_PAL_SLOTS)]
-    disp = bytearray()
-    for i in range(1, SAT_PAL_SLOTS):
-        disp += bytes((0xC9, i, 0xF0, 0x00))             # cmp #i / beq (patched)
-    body = bytearray()
-    ends = []
-    for i, lp in enumerate(loops):
-        ends.append(len(body))
-        body += lp
-        body += bytes((0x82, 0x00, 0x00))                # brl fx (patched)
-    fx = len(body)
-    for i in range(1, SAT_PAL_SLOTS):                    # beq -> loop i
-        pos = (i - 1) * 4 + 3
-        off = len(disp) - (pos + 1) + ends[i]
-        if not (0 <= off <= 127):
-            raise ValueError(f"palette dispatch branch out of range ({off})")
-        disp[pos] = off
-    for i in range(SAT_PAL_SLOTS):                       # brl -> fx
-        pos = ends[i] + len(loops[i]) + 1
-        off = fx - (pos + 2)
-        body[pos] = off & 0xFF
-        body[pos + 1] = (off >> 8) & 0xFF
-    pc_ += disp + body
-    pc_ += bytes((0xA9, SAT_PROJ_PAL * 0x20, 0x85, 0x0C))         # -> her proj row
-    pc_ += _copy_loop(0xC060)                                      # effects row
-    pc_ += bytes((0xFA, 0x6B))                           # plx / rtl
+    slot_cases = "".join(f"""
+  cmp #${i:02X}
+  beq slot{i}""" for i in range(1, SAT_PAL_SLOTS))
+    slot_loops = "".join(f"""
+slot{i}:{_copy_loop(str(i), EE_FIGHTPALS + i * 0x20)}
+  brl palfx""" for i in range(SAT_PAL_SLOTS))
+    pc_asm = f"""
+  assume m=1, x=0      ; entered with A 8-bit and X/Y 16-bit (see above)
+  lda_dp $0E
+  sta_dp $0C
+  lda #$06
+  sta_dp $0D           ; $0C/0D = $06:row
+  lda_dp $0E
+  bne palp2
+  lda $1D02            ; P1's slot for the round
+  bra palgot
+palp2:
+  lda $1D05
+palgot:
+  and #${SAT_PAL_SLOTS - 1:02X}          ; and #(n-1) — MASK, see above
+  phx{slot_cases}{slot_loops}
+palfx:
+  lda #${SAT_PROJ_PAL * 0x20:02X}
+  sta_dp $0C           ; -> her proj row{_copy_loop("fx", 0xC060)}
+  plx
+  rtl
+"""
+    pc_, _ = A.assemble(pc_asm.splitlines(), 0, 0)
     if not (len(pc_) <= EE_WINSTUB_NP - EE_PALCOPY):
         raise SystemExit(f"palcopy overruns the next stub "
                          f"({len(pc_)} > {EE_WINSTUB_NP - EE_PALCOPY})")

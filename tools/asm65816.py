@@ -49,8 +49,9 @@ def assemble(lines, org, bank):
         if mn in ("lda_l","sta_l","cmp_l","sbc_l","adc_l","lda_lx","sta_lx"):
             return 4  # long addressing: opcode + 24-bit address (_lx = long,X)
         if mn in ("lda_dp","sta_dp","sty_dp","adc_dp","lda_dpx","lda_ildp",
-                  "ldx_dp","sta_dpx","stz_dpx"):
-            return 2  # direct page (_dpx = dp,X; _ildp = [dp] indirect long)
+                  "ldx_dp","sta_dpx","stz_dpx","lda_idpy","sta_idpy","sta_sr"):
+            return 2  # direct page (_dpx = dp,X; _ildp = [dp] indirect long;
+                      # _idpy = (dp),Y; _sr = $off,S stack-relative)
         if mn in ("lda_y","sta_y","adc_y","cmp_y"):
             return 3  # absolute,Y
         if mn in ("lda_x",):
@@ -124,7 +125,9 @@ def assemble(lines, org, bank):
             "lda_lx":0xBF,"sta_lx":0x9F}   # absolute-long (_lx = long,X)
     DP = {"lda_dp":0xA5,"sta_dp":0x85,"sty_dp":0x84,"adc_dp":0x65,
           "lda_dpx":0xB5,"lda_ildp":0xA7,
-          "ldx_dp":0xA6,"sta_dpx":0x95,"stz_dpx":0x74}  # direct page (_dpx = dp,X; _ildp = [dp])
+          "ldx_dp":0xA6,"sta_dpx":0x95,"stz_dpx":0x74,  # direct page (_dpx = dp,X; _ildp = [dp])
+          "lda_idpy":0xB1,"sta_idpy":0x91,              # (dp),Y indirect indexed
+          "sta_sr":0x83}                                # $off,S stack-relative
     ABSY = {"lda_y":0xB9,"sta_y":0x99,"adc_y":0x79,"cmp_y":0xD9}                  # absolute,Y
     ABSX = {"lda_x":0xBD}                                                         # absolute,X
     # absolute opcodes: (imm, abs)
@@ -199,7 +202,7 @@ def assemble(lines, org, bank):
         elif mn in DP:
             v = int(op.replace("$",""), 16)
             if v > 0xFF:
-                raise ValueError(f"direct-page address out of range: {mn} {op} "
+                raise ValueError(f"one-byte operand out of range: {mn} {op} "
                                  f"({v:#x} > 0xff) — a 16-bit address needs the absolute form")
             out += bytes([DP[mn], v]); pc += 2
         elif mn in LONG:
