@@ -63,35 +63,50 @@ function M.init(ctx)
                   function(d) ctx.ui.labelMode = cyc({ "both", "combo", "meter", "off" }, ctx.ui.labelMode, d) end },
   }
 
+  -- Persistence (#32): save AND load both derive from this one table, so a
+  -- setting cannot be persisted one-way — the drift that silently dropped
+  -- dummy-enabled, the recording slot and the meter mode. One entry per
+  -- menu-visible setting; key names kept compatible with old settings files.
+  local PERSIST = {
+    { "enabled",     function() return dm().enabled end,             function(v) dm().enabled = v end },
+    { "pose",        function() return dm().pose end,                function(v) dm().pose = v end },
+    { "guard",       function() return dm().guard end,               function(v) dm().guard = v end },
+    { "tech",        function() return dm().tech end,                function(v) dm().tech = v end },
+    { "wakeup",      function() return dm().wakeup end,              function(v) dm().wakeup = v end },
+    { "recSlot",     function() return rec().cur end,                function(v) rec().cur = ((math.floor(v) - 1) % 4) + 1 end },
+    { "trigger",     function() return rec().trigger end,            function(v) rec().trigger = v end },
+    { "hudMode",     function() return ctx.ui.hudMode end,           function(v) ctx.ui.hudMode = v end },
+    { "hudScale",    function() return ctx.cfg.hudScale end,         function(v) ctx.cfg.hudScale = math.max(1, math.min(4, v)) end },
+    { "hitboxes",    function() return ctx.ui.hitboxes end,          function(v) ctx.ui.hitboxes = v end },
+    { "sConvSF6",    function() return ctx.ui.sConvSF6 end,          function(v) ctx.ui.sConvSF6 = v end },
+    { "meterMode",   function() return ctx.ui.meterMode end,         function(v) ctx.ui.meterMode = v end },
+    { "timerFreeze", function() return ctx.mod.regen.timerFreeze end, function(v) ctx.mod.regen.timerFreeze = v end },
+    { "hpRegen",     function() return ctx.mod.regen.hpRegen end,    function(v) ctx.mod.regen.hpRegen = v end },
+    { "koReset",     function() return ctx.mod.regen.koReset end,    function(v) ctx.mod.regen.koReset = v end },
+    { "labelMode",   function() return ctx.ui.labelMode end,         function(v) ctx.ui.labelMode = v end },
+    { "gcChance",    function() return rec().gcChance end,           function(v) rec().gcChance = v end },
+  }
+  local function serialize(v)
+    if type(v) == "string" then return string.format("%q", v) end
+    return tostring(v)
+  end
   local function saveSettings()
     pcall(function()
       local f = assert(io.open(SETTINGS, "w"))
-      f:write(string.format(
-        "return { pose=%q, guard=%q, tech=%s, wakeup=%q, trigger=%q, hudMode=%d, " ..
-        "hudScale=%d, hitboxes=%s, sConvSF6=%s, timerFreeze=%s, hpRegen=%s, koReset=%s, labelMode=%q, gcChance=%d }\n",
-        dm().pose, dm().guard, tostring(dm().tech), dm().wakeup, rec().trigger,
-        ctx.ui.hudMode, ctx.cfg.hudScale, tostring(ctx.ui.hitboxes), tostring(ctx.ui.sConvSF6),
-        tostring(ctx.mod.regen.timerFreeze), tostring(ctx.mod.regen.hpRegen),
-        tostring(ctx.mod.regen.koReset), ctx.ui.labelMode, rec().gcChance))
+      local parts = {}
+      for _, e in ipairs(PERSIST) do
+        parts[#parts + 1] = e[1] .. "=" .. serialize(e[2]())
+      end
+      f:write("return { " .. table.concat(parts, ", ") .. " }\n")
       f:close()
     end)
   end
   local function loadSettings()
     local ok, s = pcall(dofile, SETTINGS)
     if ok and type(s) == "table" then
-      dm().pose = s.pose or dm().pose; dm().guard = s.guard or dm().guard
-      if s.tech ~= nil then dm().tech = s.tech end
-      dm().wakeup = s.wakeup or dm().wakeup
-      rec().trigger = s.trigger or rec().trigger
-      ctx.ui.hudMode = s.hudMode or ctx.ui.hudMode
-      ctx.cfg.hudScale = s.hudScale or ctx.cfg.hudScale
-      if s.hitboxes ~= nil then ctx.ui.hitboxes = s.hitboxes end
-      if s.sConvSF6 ~= nil then ctx.ui.sConvSF6 = s.sConvSF6 end
-      if s.timerFreeze ~= nil then ctx.mod.regen.timerFreeze = s.timerFreeze end
-      if s.hpRegen ~= nil then ctx.mod.regen.hpRegen = s.hpRegen end
-      if s.koReset ~= nil then ctx.mod.regen.koReset = s.koReset end
-      ctx.ui.labelMode = s.labelMode or ctx.ui.labelMode
-      rec().gcChance = s.gcChance or rec().gcChance
+      for _, e in ipairs(PERSIST) do
+        if s[e[1]] ~= nil then pcall(e[3], s[e[1]]) end
+      end
     end
   end
   loadSettings()
