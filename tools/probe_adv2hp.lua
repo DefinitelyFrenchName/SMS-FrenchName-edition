@@ -35,7 +35,7 @@ emu.addEventCallback(function()
   -- undercounts P1's advantage by the uncrouch animation.
   local function actionable(a) return a <= 0x04 or a == 0x0C or a == 0x0D or a == 0x21 end
   if t > 65 then
-    if not p2hit and a2 >= 0x10 and a2 <= 0x16 then p2hit = t end
+    if not p2hit and a2 >= 0x10 and a2 <= 0x18 then p2hit = t end  -- 0x10..0x18 = ALL stun incl. flame 0x17/electric 0x18 (#99; authority: training/const.lua)
     if p2hit and not p1free and a1 ~= 0x55 and a1 ~= 0x56 and actionable(a1) then p1free = t end
     if p2hit and not p2free and actionable(a2) then p2free = t end
   end

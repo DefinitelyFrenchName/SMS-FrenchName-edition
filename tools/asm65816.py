@@ -26,7 +26,7 @@ def assemble(lines, org, bank):
         mn = mn.lower()
         if mn == "assume":
             return 0   # width directive, no bytes (e.g. `assume m=1` after plp)
-        if mn in ("php","plp","phb","plb","pha","pla","phx","plx","phy","ply","rtl","rts","inc_a","dec_a","tax","txa","tay","tya","xba","clc","sec","inx","dex","iny","dey","nop"):
+        if mn in ("php","plp","phb","plb","pha","pla","phx","plx","phy","ply","rtl","rts","inc_a","dec_a","tax","txa","tay","tya","tyx","xba","clc","sec","inx","dex","iny","dey","nop"):
             return 1
         if mn in ("sep","rep"):
             return 2
@@ -42,10 +42,12 @@ def assemble(lines, org, bank):
                 if x is None: raise ValueError(f"immediate width unknown after plp — sep/rep before `{mn} {op}`")
                 return 2 if x else 3
             return 3  # absolute
-        if mn in ("jml","jmp"):
-            return 4 if mn == "jml" else 3
-        if mn in ("lda_l","sta_l","cmp_l","sbc_l","adc_l","lda_lx"):
-            return 4  # long addressing: opcode + 24-bit address (lda_lx = long,X)
+        if mn in ("jml","jmp","jsl"):
+            return 3 if mn == "jmp" else 4
+        if mn in ("lda_l","sta_l","cmp_l","sbc_l","adc_l","lda_lx","sta_lx"):
+            return 4  # long addressing: opcode + 24-bit address (_lx = long,X)
+        if mn in ("lda_dp","sta_dp","sty_dp","adc_dp","lda_dpx","lda_ildp"):
+            return 2  # direct page (_dpx = dp,X; _ildp = [dp] indirect long)
         if mn in ("lda_y","sta_y","adc_y","cmp_y"):
             return 3  # absolute,Y
         if mn == "lsr_a":
@@ -110,10 +112,13 @@ def assemble(lines, org, bank):
         return [v & 0xFF, (v >> 8) & 0xFF]
     SIMPLE = {"php":0x08,"plp":0x28,"phb":0x8B,"plb":0xAB,"pha":0x48,"pla":0x68,"lsr_a":0x4A,
               "phx":0xDA,"plx":0xFA,"phy":0x5A,"ply":0x7A,"rtl":0x6B,"rts":0x60,
-              "tax":0xAA,"txa":0x8A,"tay":0xA8,"tya":0x98,"xba":0xEB,"clc":0x18,"sec":0x38,
+              "tax":0xAA,"txa":0x8A,"tay":0xA8,"tya":0x98,"tyx":0xBB,"xba":0xEB,"clc":0x18,"sec":0x38,
               "inc_a":0x1A,"dec_a":0x3A,"inx":0xE8,"dex":0xCA,"iny":0xC8,"dey":0x88,"nop":0xEA}
     BR = {"bra":0x80,"bcc":0x90,"bcs":0xB0,"beq":0xF0,"bne":0xD0,"bpl":0x10,"bmi":0x30}
-    LONG = {"lda_l":0xAF,"sta_l":0x8F,"cmp_l":0xCF,"sbc_l":0xEF,"adc_l":0x6F,"lda_lx":0xBF}   # absolute-long (lda_lx = long,X)
+    LONG = {"lda_l":0xAF,"sta_l":0x8F,"cmp_l":0xCF,"sbc_l":0xEF,"adc_l":0x6F,
+            "lda_lx":0xBF,"sta_lx":0x9F}   # absolute-long (_lx = long,X)
+    DP = {"lda_dp":0xA5,"sta_dp":0x85,"sty_dp":0x84,"adc_dp":0x65,
+          "lda_dpx":0xB5,"lda_ildp":0xA7}  # direct page (_dpx = dp,X; _ildp = [dp])
     ABSY = {"lda_y":0xB9,"sta_y":0x99,"adc_y":0x79,"cmp_y":0xD9}                  # absolute,Y
     # absolute opcodes: (imm, abs)
     OPS = {"lda":(0xA9,0xAD),"sta":(None,0x8D),"cmp":(0xC9,0xCD),"ldx":(0xA2,0xAE),
@@ -144,16 +149,26 @@ def assemble(lines, org, bank):
             if not (-128 <= rel <= 127):
                 raise ValueError(f"branch out of range: {op} ({rel})")
             out += bytes([BR[mn], rel & 0xFF]); pc += 2
-        elif mn in ("jml","jmp"):
+        elif mn in ("jml","jmp","jsl"):
             if op in labels:
                 addr = labels[op]; bk = bank
             else:
                 v = int(op.replace("$",""), 16)
+                if v > 0xFFFFFF:
+                    raise ValueError(f"long address out of range: {mn} {op} ({v:#x} > 0xffffff)")
                 addr = v & 0xFFFF; bk = (v >> 16) & 0xFF
             if mn == "jml":
                 out += bytes([0x5C, addr & 0xFF, (addr >> 8) & 0xFF, bk]); pc += 4
+            elif mn == "jsl":
+                out += bytes([0x22, addr & 0xFF, (addr >> 8) & 0xFF, bk]); pc += 4
             else:
                 out += bytes([0x4C, addr & 0xFF, (addr >> 8) & 0xFF]); pc += 3
+        elif mn in DP:
+            v = int(op.replace("$",""), 16)
+            if v > 0xFF:
+                raise ValueError(f"direct-page address out of range: {mn} {op} "
+                                 f"({v:#x} > 0xff) — a 16-bit address needs the absolute form")
+            out += bytes([DP[mn], v]); pc += 2
         elif mn in LONG:
             v = int(op.replace("$",""), 16)
             if v > 0xFFFFFF:

@@ -52,7 +52,7 @@ end
 -- classify one completed attempt
 local function classify(seen53, hitP2, sawBlock)
   if not seen53 then return "DROP" end
-  if hitP2 and hitP2>=0x10 and hitP2<=0x16 then return "COMBO" end
+  if hitP2 and hitP2>=0x10 and hitP2<=0x18 then return "COMBO" end  -- 0x10..0x18 = ALL stun incl. flame 0x17/electric 0x18 (#99; authority: training/const.lua)
   if hitP2 then return "MEATY" end        -- hp dropped but P2 not in hitstun => recovered
   if sawBlock then return "BLOCK" end
   return "WHIFF"

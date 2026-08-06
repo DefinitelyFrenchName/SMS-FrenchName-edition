@@ -341,7 +341,7 @@ local function cgFrame(late)
     for _, e in ipairs(kf) do if e[1] <= api.pt then best = e[2] end end
     pulse[0] = best
     local a1, a2 = ram(0x1001), ram(0x1081)
-    if api.pt > 78 and not m.hit and a2 >= 0x10 and a2 <= 0x16 then m.hit = api.pt end
+    if api.pt > 78 and not m.hit and a2 >= 0x10 and a2 <= 0x18 then m.hit = api.pt end  -- 0x10..0x18 = ALL stun incl. flame 0x17/electric 0x18 (#99; authority: training/const.lua)
     if m.hit and not m.dash and a1 == 0x60 then m.dash = api.pt end
   end
 end

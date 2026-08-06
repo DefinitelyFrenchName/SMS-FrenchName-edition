@@ -95,7 +95,7 @@ local SOLO = {
       if pt >= 40 and pt <= 42 then pulse[1] = { down = true, y = true } elseif pt == 43 then pulse[1] = nil end
       local a = ram(0x1001)
       if a == 0x65 then saw.taunt = true end
-      if saw.taunt and a >= 0x10 and a <= 0x16 then saw.hit = true end
+      if saw.taunt and a >= 0x10 and a <= 0x18 then saw.hit = true end  -- 0x10..0x18 = ALL stun incl. flame 0x17/electric 0x18 (#99; authority: training/const.lua)
     end,
     fin = function()
       check("vuln-taunted", saw.taunt)

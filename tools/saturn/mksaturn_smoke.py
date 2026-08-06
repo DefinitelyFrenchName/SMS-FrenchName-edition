@@ -39,6 +39,7 @@ from smspaths import clean_rom, supers_bytes, require_source, \
     fix_checksum, next_bank, write_bank  # noqa: E402
 import hashlib  # noqa: E402
 import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser)
+import asm65816 as A  # noqa: E402  (two-pass assembler for the char-select/win/card stubs)
 import mkpatch17  # noqa: E402  (patch 17, folded in — see SATURN_ALLSTAGES)
 
 # Build version (semver). Bump MINOR per feature batch, PATCH per fix; registry
@@ -1257,9 +1258,10 @@ def main():
     # displaced JSL instead of replicating the head, preserving both hooks.
     conf_head = bytes(data[CHARSEL_CONFIRM:CHARSEL_CONFIRM + 4])
     if conf_head == CHARSEL_CONFIRM_OLD:
-        confirm_tail = bytes((0xC2, 0x30, 0xA7, 0xFE))
+        confirm_tail = "  rep #$30\n  lda_ildp $FE"   # the displaced original head
     elif conf_head[0] == 0x22:
-        confirm_tail = conf_head                      # chain the displaced JSL
+        _cj = conf_head[1] | conf_head[2] << 8 | conf_head[3] << 16
+        confirm_tail = f"  jsl ${_cj:06X}"            # chain the displaced JSL
     else:
         raise SystemExit(f"error: unrecognized confirm head {conf_head.hex()}")
 
@@ -1272,48 +1274,65 @@ def main():
     # autopoll regs; the physical pad follows the handler's own [$FE]
     # pointer low byte ($60 = P1 pad, $62 = P2 pad) so the practice dummy
     # (P1-driven, Y=$1B80) reads P1's pad.
-    c, lbl, br, fix = _asm()
-    c += bytes((0xC2, 0x30))                   # rep #$30
-    c += bytes((0xC0, 0x40, 0x1B)); br(0xF0, "known")   # cpy #$1B40
-    c += bytes((0xC0, 0x80, 0x1B)); br(0xD0, "finish")  # cpy #$1B80
-    lbl("known")
-    c += bytes((0xB9, 0x02, 0x00)); br(0xD0, "finish")  # already confirmed
-    c += bytes((0xA7, 0xFE, 0x29, 0xC0, 0xD0)); br(0xF0, "finish")  # press?
-    c += bytes((0xE2, 0x20))                   # sep #$20
-    c += bytes((0xA5, 0xFE, 0xC9, 0x62)); br(0xF0, "p2pad")  # pad ptr low
-    c += bytes((0xAF, 0x18, 0x42, 0x00)); br(0x80, "got")    # JOY1L
-    lbl("p2pad")
-    c += bytes((0xAF, 0x1A, 0x42, 0x00))                     # JOY2L
-    lbl("got")
-    c += bytes((0x29, 0x30, 0xC9, 0x30)); br(0xD0, "noflag") # L+R held?
-    if SHELL_GUARD:
-        # v0.14.8: the code only counts on a shell she is allowed to wear.
-        # Applied HERE, at the confirm, rather than only in the helper —
-        # everything downstream (select voice, in-match sound remap, the
-        # effect-tile/palette override) keys off the FLAG, so an illegal
-        # shell used to keep Saturn's confirm sfx, palette and sfx while
-        # playing as itself. The cursor's charID is `$0000,y`, exactly where
-        # the visible variant reads it.
-        c += bytes((0xB9, 0x00, 0x00, 0xC9, 0x06)); br(0x90, "noflag")
-        c += bytes((0xC9, 0x09)); br(0xB0, "noflag")
-    c += bytes((0xA9, SATURN_MAGIC)); br(0x80, "store")
-    lbl("noflag")
-    c += bytes((0xA9, 0x00))
-    lbl("store")
-    c += bytes((0xC0, 0x40, 0x1B)); br(0xD0, "p2f")
-    c += bytes((0x8F, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK))
-    # remember WHICH character this player confirmed, for the round-load
-    # arming route (L+R held as the round loads), where the cursor is gone
-    c += bytes((0xB9, 0x00, 0x00,
-                0x8F, SATURN_SHELL & 0xFF, SATURN_SHELL >> 8, SATURN_BANK))
-    br(0x80, "finish")
-    lbl("p2f")
-    c += bytes((0x8F, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK))
-    c += bytes((0xB9, 0x00, 0x00,
-                0x8F, SATURN_SHELL2 & 0xFF, SATURN_SHELL2 >> 8, SATURN_BANK))
-    lbl("finish")
-    c += confirm_tail + bytes((0x6B,))   # original head or chained JSL / rtl
-    fix()
+    # v0.14.8 SHELL_GUARD: the code only counts on a shell she is allowed to
+    # wear. Applied HERE, at the confirm, rather than only in the helper —
+    # everything downstream (select voice, in-match sound remap, the
+    # effect-tile/palette override) keys off the FLAG, so an illegal
+    # shell used to keep Saturn's confirm sfx, palette and sfx while
+    # playing as itself. The cursor's charID is `$0000,y`, exactly where
+    # the visible variant reads it.
+    guard = f"""
+  lda_y $0000        ; the cursor's charID
+  cmp #$06
+  bcc noflag
+  cmp #$09
+  bcs noflag""" if SHELL_GUARD else ""
+    confirm_asm = f"""
+  rep #$30
+  cpy #$1B40
+  beq known
+  cpy #$1B80
+  bne finish
+known:
+  lda_y $0002        ; already confirmed
+  bne finish
+  lda_ildp $FE       ; press?
+  and #$D0C0
+  beq finish
+  sep #$20
+  lda_dp $FE         ; pad ptr low
+  cmp #$62
+  beq p2pad
+  lda_l $004218      ; JOY1L
+  bra got
+p2pad:
+  lda_l $00421A      ; JOY2L
+got:
+  and #$30           ; L+R held?
+  cmp #$30
+  bne noflag{guard}
+  lda #${SATURN_MAGIC:02X}
+  bra store
+noflag:
+  lda #$00
+store:
+  cpy #$1B40
+  bne p2f
+  sta_l ${SATURN_BANK:02X}{SATURN_FLAG:04X}
+; remember WHICH character this player confirmed, for the round-load
+; arming route (L+R held as the round loads), where the cursor is gone
+  lda_y $0000
+  sta_l ${SATURN_BANK:02X}{SATURN_SHELL:04X}
+  bra finish
+p2f:
+  sta_l ${SATURN_BANK:02X}{SATURN_FLAG2:04X}
+  lda_y $0000
+  sta_l ${SATURN_BANK:02X}{SATURN_SHELL2:04X}
+finish:
+{confirm_tail}
+  rtl
+"""
+    c, _ = A.assemble(confirm_asm.splitlines(), 0, 0)
     assert len(c) <= 0x100, f"confirm stub too big: {len(c)}"
     ee[EE_CONFIRM:EE_CONFIRM + len(c)] = c
 
@@ -1504,30 +1523,58 @@ def main():
     ee[EE_WIN_QARR:EE_WIN_QARR + 14] = qarr
 
     # name-plate stub (M=16, X=8 at entry; X = winner id*2)
-    w1, lbl, br, fix = _asm()
-    w1 += bytes((0xE0, 0x38)); br(0xD0, "orig")          # cpx #$38
-    w1 += bytes((0xA9, EE_WIN_NP & 0xFF, EE_WIN_NP >> 8, 0x85, 0x74))
-    w1 += bytes((0xA0, B_MISC, 0x84, 0x76, 0x6B))
-    lbl("orig")
-    w1 += bytes((0xBF, 0x08, 0xE0, 0x82, 0x85, 0x74))
-    w1 += bytes((0xA0, 0x82, 0x84, 0x76, 0x6B))
-    fix()
+    w1, _ = A.assemble(f"""
+  assume m=0,x=1
+  cpx #$38
+  bne orig
+  lda #${EE_WIN_NP:04X}
+  sta_dp $74
+  ldy #${B_MISC:02X}
+  sty_dp $76
+  rtl
+orig:
+  lda_lx $82E008
+  sta_dp $74
+  ldy #$82
+  sty_dp $76
+  rtl
+""".splitlines(), 0, 0)
     assert len(w1) <= EE_WINSTUB_QT - EE_WINSTUB_NP
     ee[EE_WINSTUB_NP:EE_WINSTUB_NP + len(w1)] = w1
 
     # quote stub: replicates table+variant-select+deref through the bank store
-    w2, lbl, br, fix = _asm()
-    w2 += bytes((0xE0, 0x38)); br(0xD0, "orig")
-    w2 += bytes((0xAD, 0x09, 0x1E, 0x29, 0xFE, 0x00, 0x18))   # lda $1E09/and/clc
-    w2 += bytes((0x69, EE_WIN_QARR & 0xFF, EE_WIN_QARR >> 8, 0x85, 0x10))
-    w2 += bytes((0xA9, B_MISC, 0x00, 0x85, 0x12))
-    w2 += bytes((0xA7, 0x10, 0x85, 0x74, 0xA0, B_MISC, 0x84, 0x76, 0x6B))
-    lbl("orig")
-    w2 += bytes((0xBF, 0x1C, 0xE0, 0x82, 0x85, 0x10))
-    w2 += bytes((0xAD, 0x09, 0x1E, 0x29, 0xFE, 0x00, 0x18, 0x65, 0x10, 0x85, 0x10))
-    w2 += bytes((0xA9, 0x82, 0x00, 0x85, 0x12))
-    w2 += bytes((0xA7, 0x10, 0x85, 0x74, 0xA0, 0x82, 0x84, 0x76, 0x6B))
-    fix()
+    w2, _ = A.assemble(f"""
+  assume m=0,x=1
+  cpx #$38
+  bne orig
+  lda $1E09          ; variant select
+  and #$00FE
+  clc
+  adc #${EE_WIN_QARR:04X}
+  sta_dp $10
+  lda #${B_MISC:04X}
+  sta_dp $12
+  lda_ildp $10
+  sta_dp $74
+  ldy #${B_MISC:02X}
+  sty_dp $76
+  rtl
+orig:
+  lda_lx $82E01C
+  sta_dp $10
+  lda $1E09
+  and #$00FE
+  clc
+  adc_dp $10
+  sta_dp $10
+  lda #$0082
+  sta_dp $12
+  lda_ildp $10
+  sta_dp $74
+  ldy #$82
+  sty_dp $76
+  rtl
+""".splitlines(), 0, 0)
     assert len(w2) <= EE_WIN_NP - EE_WINSTUB_QT
     ee[EE_WINSTUB_QT:EE_WINSTUB_QT + len(w2)] = w2
 
@@ -1585,9 +1632,14 @@ def main():
     # substitute when the pointer being loaded IS the card's portrait list
     # ($9F:CBEC) — that identifies the report card unambiguously, so nothing
     # in-match can trip it — AND the slot's Saturn flag is set.
-    lh, llbl, lbr, lfix = _asm()
-    lh += bytes((0x08, 0xC2, 0x30))                     # php / rep #$30
-    lh += bytes((0xB5, 0x64, 0x85, 0x12, 0xB5, 0x66, 0x85, 0x14))   # displaced
+    lh_asm = """
+  php
+  rep #$30
+  lda_dpx $64        ; displaced
+  sta_dp $12
+  lda_dpx $66        ; displaced
+  sta_dp $14
+"""
     # Bank $9F alone identifies the report card. Do NOT also compare the pointer
     # against one character's list: Saturn can be summoned over ANY of the nine
     # (L+R on any slot), and the card then draws THAT character's list, so a
@@ -1595,28 +1647,42 @@ def main():
     # every other shell — the field saw each shell's own untouched portrait.
     # Measured safe: across a full boot-to-card run this renderer loads exactly
     # one pointer, the card's; nothing in-match reaches it.
-    lh += bytes((0xC9, 0x9F, 0x00)); lbr(0xD0, "lend")  # bank must be $9F
+    lh_asm += """
+  cmp #$009F         ; bank must be $9F
+  bne lend
+"""
     if not SATURN_PORTRAIT_FORCE:
-        lh += bytes((0xE2, 0x20))                       # sep #$20
-        lh += bytes((0xAF, SITE_WINNER & 0xFF, SITE_WINNER >> 8, 0x7E))
-        lh += bytes((0xC9, 0x01)); lbr(0xF0, "l1")      # winner == P1?
-        lh += bytes((0xC9, 0x02)); lbr(0xD0, "lend")    # winner == P2?
-        lh += bytes((0xAF, SATURN_FLAG2 & 0xFF, SATURN_FLAG2 >> 8, SATURN_BANK))
-        lbr(0x80, "lchk")
-        llbl("l1")
-        lh += bytes((0xAF, SATURN_FLAG & 0xFF, SATURN_FLAG >> 8, SATURN_BANK))
-        llbl("lchk")
-        lh += bytes((0xC9, SATURN_MAGIC)); lbr(0xD0, "lend")
-        lh += bytes((0xC2, 0x20))                       # rep #$20
-    llbl("lsub")
-    lh += bytes((0xA9, EE_SPRLIST & 0xFF, EE_SPRLIST >> 8, 0x85, 0x12))
+        lh_asm += f"""
+  sep #$20
+  lda_l $7E{SITE_WINNER:04X}
+  cmp #$01           ; winner == P1?
+  beq l1
+  cmp #$02           ; winner == P2?
+  bne lend
+  lda_l ${SATURN_BANK:02X}{SATURN_FLAG2:04X}
+  bra lchk
+l1:
+  lda_l ${SATURN_BANK:02X}{SATURN_FLAG:04X}
+lchk:
+  cmp #${SATURN_MAGIC:02X}
+  bne lend
+  rep #$20
+"""
+    lh_asm += f"""
+lsub:
+  lda #${EE_SPRLIST:04X}
+  sta_dp $12
+"""
     # $14 becomes the emitter's DATA BANK (`lda $14 / pha / plb` at $C0:9EA6), and
     # the emitter also writes the OAM shadow with plain absolute stores — so the
     # bank MUST be a $80-$BF one that carries the WRAM mirror. $EE:8000-$FFFF is
     # the same ROM as $AE:8000-$FFFF, so we hand it the mirror alias. (Vanilla
     # gets this for free: its list lives in $9F.) With $EE the portrait vanished
     # entirely — every `sta $0200,X` went to ROM.
-    lh += bytes((0xA9, B_MISC - 0x40, 0x00, 0x85, 0x14))
+    lh_asm += f"""
+  lda #${B_MISC - 0x40:04X}
+  sta_dp $14
+"""
     # Palette, EVERY frame. A one-shot copy at card build does not stick: the
     # engine re-fills the CGRAM shadow ($7E:0500, DMA'd whole at $80:849F) from
     # its own source afterwards, and that refill is invisible to write callbacks
@@ -1627,27 +1693,37 @@ def main():
     # latched that early — the field hit this in both a 1P-vs-COM loss and a 2P
     # win). This path runs with the card already on screen, so it costs one
     # force-blanked frame, once.
-    lh += bytes((0xE2, 0x20))                           # sep #$20
-    lh += bytes((0xAF, SATURN_MARK & 0xFF, SATURN_MARK >> 8, SATURN_BANK))
-    lh += bytes((0xC9, SATURN_MAGIC)); lbr(0xF0, "haveTiles")
-    lh += bytes((0xA9, SATURN_MAGIC, 0x8F, SATURN_MARK & 0xFF, SATURN_MARK >> 8, SATURN_BANK))
-    lh += bytes((0xC2, 0x30, 0xA9, 0x00, 0x00,
-                 0x8F, 0x04, 0xF1, SATURN_BANK))        # dest = VRAM $0000
-    lh += bytes((0xDA, 0x5A))                           # phx / phy
-    lh += bytes((0x22, EE_BLIT & 0xFF, EE_BLIT >> 8, B_MISC))
-    lh += bytes((0x7A, 0xFA))                           # ply / plx
-    llbl("haveTiles")
-    lh += bytes((0xC2, 0x20))                           # rep #$20
-    lh += bytes((0xDA, 0xA0, 0x1F, 0x00))               # phx / ldy #$001F
-    llbl("pcopy")
-    lh += bytes((0xBB,))                                # tyx
-    lh += bytes((0xBF, EE_PORTPAL & 0xFF, EE_PORTPAL >> 8, B_MISC))
-    lh += bytes((0x9F, 0x00, 0x06, 0x7E))               # sta $7E0600,X
-    lh += bytes((0x88, 0x10, (0x100 - 12) & 0xFF))      # dey / bpl pcopy
-    lh += bytes((0xFA,))                                # plx (the caller needs X)
-    llbl("lend")
-    lh += bytes((0x28, 0x6B))                           # plp / rtl
-    lfix()
+    lh_asm += f"""
+  sep #$20
+  lda_l ${SATURN_BANK:02X}{SATURN_MARK:04X}
+  cmp #${SATURN_MAGIC:02X}
+  beq haveTiles
+  lda #${SATURN_MAGIC:02X}
+  sta_l ${SATURN_BANK:02X}{SATURN_MARK:04X}
+  rep #$30
+  lda #$0000         ; dest = VRAM $0000
+  sta_l ${SATURN_BANK:02X}F104
+  phx
+  phy
+  jsl ${B_MISC:02X}{EE_BLIT:04X}
+  ply
+  plx
+haveTiles:
+  rep #$20
+  phx
+  ldy #$001F
+pcopy:
+  tyx
+  lda_lx ${B_MISC:02X}{EE_PORTPAL:04X}
+  sta_lx $7E0600
+  dey
+  bpl pcopy
+  plx                ; the caller needs X
+lend:
+  plp
+  rtl
+"""
+    lh, _ = A.assemble(lh_asm.splitlines(), 0, 0)
     assert len(lh) <= 0xC0, f"list-hook stub too big: {len(lh)}"
     assert ee[EE_LISTHOOK:EE_LISTHOOK + len(lh)] == bytes(len(lh)), \
         "list-hook slot is not free"
@@ -1665,40 +1741,74 @@ def main():
     # the card always builds the winner's portrait at VRAM $0000). Scratch lives
     # in $7F, never in direct page, because the per-frame caller is inside the
     # sprite renderer and DP there belongs to it.
-    bl, blbl, bbr, bfix = _asm()
-    bl += bytes((0x08, 0xC2, 0x30, 0x48, 0xDA, 0x5A))   # php/rep #$30/pha/phx/phy
-    bl += bytes((0xAF, 0x04, 0xF1, SATURN_BANK))        # A = VRAM word address
-    bl += bytes((0x48,))                            # save dest
-    bl += bytes((0xE2, 0x20, 0xAF, 0x00, 0x21, 0x00,
-                 0x8F, SATURN_INIDISP & 0xFF, SATURN_INIDISP >> 8, SATURN_BANK))
-    bl += bytes((0xA9, 0x8F, 0x8D, 0x00, 0x21))     # force blank (brightness 15)
-    bl += bytes((0xC2, 0x20, 0x68))                 # restore dest
-    bl += bytes((0x8D, 0x16, 0x21))                 # sta $2116
-    bl += bytes((0xE2, 0x20, 0xA9, 0x80, 0x8D, 0x15, 0x21))   # sep/VMAIN=$80
-    bl += bytes((0xA9, 0x01, 0x8D, 0x00, 0x43))     # DMA mode 1 (2 regs)
-    bl += bytes((0xA9, 0x18, 0x8D, 0x01, 0x43))     # B-bus $2118
-    bl += bytes((0xC2, 0x20))
-    bl += bytes((0xA9, EE_PORTRAIT & 0xFF, EE_PORTRAIT >> 8, 0x8D, 0x02, 0x43))
-    bl += bytes((0xE2, 0x20, 0xA9, B_MISC, 0x8D, 0x04, 0x43))
-    bl += bytes((0xC2, 0x20, 0xA9, PSIZE & 0xFF, PSIZE >> 8, 0x8D, 0x05, 0x43))
-    bl += bytes((0xE2, 0x20, 0xA9, 0x01, 0x8D, 0x0B, 0x42))   # kick channel 0
-    # palette -> CGRAM row 8
-    bl += bytes((0xA9, 0x80, 0x8D, 0x21, 0x21))               # CGADD = 128
-    bl += bytes((0xA9, 0x00, 0x8D, 0x00, 0x43))               # DMA mode 0
-    bl += bytes((0xA9, 0x22, 0x8D, 0x01, 0x43))               # B-bus $2122
-    bl += bytes((0xC2, 0x20, 0xA9, EE_PORTPAL & 0xFF, EE_PORTPAL >> 8, 0x8D, 0x02, 0x43))
-    bl += bytes((0xE2, 0x20, 0xA9, B_MISC, 0x8D, 0x04, 0x43))
-    bl += bytes((0xC2, 0x20, 0xA9, 0x20, 0x00, 0x8D, 0x05, 0x43))
-    bl += bytes((0xE2, 0x20, 0xA9, 0x01, 0x8D, 0x0B, 0x42))
+    bl_asm = f"""
+  php
+  rep #$30
+  pha
+  phx
+  phy
+  lda_l ${SATURN_BANK:02X}F104   ; A = VRAM word address
+  pha                ; save dest
+  sep #$20
+  lda_l $002100
+  sta_l ${SATURN_BANK:02X}{SATURN_INIDISP:04X}
+  lda #$8F           ; force blank (brightness 15)
+  sta $2100
+  rep #$20
+  pla                ; restore dest
+  sta $2116
+  sep #$20
+  lda #$80           ; VMAIN = $80
+  sta $2115
+  lda #$01           ; DMA mode 1 (2 regs)
+  sta $4300
+  lda #$18           ; B-bus $2118
+  sta $4301
+  rep #$20
+  lda #${EE_PORTRAIT:04X}
+  sta $4302
+  sep #$20
+  lda #${B_MISC:02X}
+  sta $4304
+  rep #$20
+  lda #${PSIZE:04X}
+  sta $4305
+  sep #$20
+  lda #$01           ; kick channel 0
+  sta $420B
+; palette -> CGRAM row 8
+  lda #$80           ; CGADD = 128
+  sta $2121
+  lda #$00           ; DMA mode 0
+  sta $4300
+  lda #$22           ; B-bus $2122
+  sta $4301
+  rep #$20
+  lda #${EE_PORTPAL:04X}
+  sta $4302
+  sep #$20
+  lda #${B_MISC:02X}
+  sta $4304
+  rep #$20
+  lda #$0020
+  sta $4305
+  sep #$20
+  lda #$01
+  sta $420B
+"""
     # ALSO seed the engine's CGRAM shadow for OBJ palette 0 ($7E:0600) — the
     # card re-uploads CGRAM from that shadow, which is what overwrote the direct
     # write above (the portrait palette is CGRAM row 8, measured).
-    bl += bytes((0xC2, 0x30, 0xA0, 0x1F, 0x00))         # rep #$30 / ldy #$001F
-    blbl("palcopy")
-    bl += bytes((0xBB,))                                # tyx
-    bl += bytes((0xBF, EE_PORTPAL & 0xFF, EE_PORTPAL >> 8, B_MISC))
-    bl += bytes((0x9F, 0x00, 0x06, 0x7E))               # sta $7E0600,X
-    bl += bytes((0x88, 0x10, (0x100 - 12) & 0xFF))      # dey / bpl palcopy
+    bl_asm += f"""
+  rep #$30
+  ldy #$001F
+palcopy:
+  tyx
+  lda_lx ${B_MISC:02X}{EE_PORTPAL:04X}
+  sta_lx $7E0600
+  dey
+  bpl palcopy
+"""
     # Restore INIDISP — but never restore a BLANK one. The blit force-blanks to
     # do its DMA and puts back what it saved; if it happens to run while the
     # screen is legitimately dark (a fade, brightness 0), it saves 0 and hands
@@ -1708,13 +1818,22 @@ def main():
     # portrait flashing up correctly for a few frames on the way out. If the
     # saved brightness is zero we hand back full brightness instead; a fade in
     # progress overwrites it on its next frame anyway.
-    bl += bytes((0xE2, 0x20, 0xAF, SATURN_INIDISP & 0xFF, SATURN_INIDISP >> 8, SATURN_BANK))
-    bl += bytes((0x29, 0x0F)); bbr(0xD0, "keep")      # brightness bits set?
-    bl += bytes((0xA9, 0x0F))                          # no -> full brightness
-    blbl("keep")
-    bl += bytes((0x8D, 0x00, 0x21))                    # -> INIDISP
-    bl += bytes((0xC2, 0x30, 0x7A, 0xFA, 0x68, 0x28, 0x6B))   # restore / rtl
-    bfix()
+    bl_asm += f"""
+  sep #$20
+  lda_l ${SATURN_BANK:02X}{SATURN_INIDISP:04X}
+  and #$0F           ; brightness bits set?
+  bne keep
+  lda #$0F           ; no -> full brightness
+keep:
+  sta $2100          ; -> INIDISP
+  rep #$30
+  ply
+  plx
+  pla
+  plp
+  rtl
+"""
+    bl, _ = A.assemble(bl_asm.splitlines(), 0, 0)
     assert len(bl) <= 0xC0, f"blit routine too big: {len(bl)}"
     assert ee[EE_BLIT:EE_BLIT + len(bl)] == bytes(len(bl)), "blit slot is not free"
     ee[EE_BLIT:EE_BLIT + len(bl)] = bl

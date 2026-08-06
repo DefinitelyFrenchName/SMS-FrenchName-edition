@@ -108,7 +108,7 @@ local SOLO = {
       if pt == 30 then forceact(0x1000, 0x65) end
       if pt >= 60 and pt <= 61 then pulse[1] = { down = true, y = true } elseif pt == 62 then pulse[1] = nil end
       local a = ram(0x1001)
-      if a >= 0x10 and a <= 0x16 then saw.hit = true end
+      if a >= 0x10 and a <= 0x18 then saw.hit = true end  -- 0x10..0x18 = ALL stun incl. flame 0x17/electric 0x18 (#99; authority: training/const.lua)
     end,
     fin = function()
       check("interrupt-hit-landed", saw.hit)
@@ -281,7 +281,7 @@ local STACK = {
       if pt >= 20 and pt <= 22 then pulse[0] = { l = true } elseif pt == 23 then pulse[0] = nil end
       if pt >= 50 and pt <= 51 then pulse[1] = { down = true, y = true } elseif pt == 52 then pulse[1] = nil end
       local a = ram(0x1001)
-      if a >= 0x10 and a <= 0x16 then saw.hit = true end
+      if a >= 0x10 and a <= 0x18 then saw.hit = true end  -- 0x10..0x18 = ALL stun incl. flame 0x17/electric 0x18 (#99; authority: training/const.lua)
     end,
     fin = function()
       check("stack-interrupted", saw.hit)

@@ -86,6 +86,9 @@ C.CANCELLABLE = {
 -- act predicates
 function C.isNeutralAct(a) return a <= 0x04 or a == 0x0C or a == 0x0D or a == 0x21 end
 function C.isAirAct(a) return a >= 0x05 and a <= 0x08 end
+-- 0x10..0x18: ordinary hit reactions 0x10-0x15, air 0x16, PLUS flame 0x17 and
+-- electric 0x18 — all constrain the defender identically. Twelve hand-rolled
+-- copies used to stop at 0x16 and misclassified flame/electric stun (#99).
 function C.isHitstunAct(a) return a >= 0x10 and a <= 0x18 end
 function C.isBlockstunAct(a) return a == 0x0E or a == 0x0F end
 function C.isBlockHoldAct(a) return a == 0x0C or a == 0x0D end

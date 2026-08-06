@@ -63,7 +63,7 @@ local NAME = {
   [0x59]="2HK",[0x60]="66DASH",
 }
 local function nm(a) return NAME[a] or string.format("$%02X", a) end
-local function inStun(a)   return a>=0x10 and a<=0x16 end            -- hit/juggle stun
+local function inStun(a)   return a>=0x10 and a<=0x18 end            -- all stun incl. flame/electric (#99)
 local function inBlk(a)    return a==0x0E or a==0x0F end             -- blockstun
 local function inDown(a)   return a==0x19 or a==0x1A or a==0x1E or a==0x20 end
 local function canAct(a)   return not (inStun(a) or inBlk(a) or inDown(a)) end

@@ -81,7 +81,7 @@ end
 local function p2StateName(act)
   if act == 0x0C or act == 0x0D then return "BLOCK(guard)", 0xFF4040 end
   if act == 0x0E or act == 0x0F then return "BLOCKSTUN",    0xFF4040 end
-  if act >= 0x10 and act <= 0x16 then return "HITSTUN",     0x00FF00 end
+  if act >= 0x10 and act <= 0x18 then return "HITSTUN",     0x00FF00 end  -- 0x10..0x18 = ALL stun incl. flame 0x17/electric 0x18 (#99; authority: training/const.lua)
   return string.format("act %02X", act), 0xC0C0C0
 end
 

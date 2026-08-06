@@ -61,9 +61,9 @@ local PHASES = {
       if pt >= 90 and pt <= 91 then pulse[0] = { down = true, y = true } elseif pt == 92 then pulse[0] = nil end
       if pt == 85 then p2close() end
       local a = ram(0x1081)
-      if pt < 60 and a >= 0x10 and a <= 0x16 then saw.firsthit = true end
+      if pt < 60 and a >= 0x10 and a <= 0x18 then saw.firsthit = true end  -- 0x10..0x18 = ALL stun incl. flame 0x17/electric 0x18 (#99; authority: training/const.lua)
       if pt > 90 and a == 0x0F then saw.thenblock = true end
-      if pt > 90 and a >= 0x10 and a <= 0x16 then saw.secondhit = true end
+      if pt > 90 and a >= 0x10 and a <= 0x18 then saw.secondhit = true end  -- 0x10..0x18 = ALL stun incl. flame 0x17/electric 0x18 (#99; authority: training/const.lua)
     end,
     fin = function()
       check("afterhit-first-connects", saw.firsthit)

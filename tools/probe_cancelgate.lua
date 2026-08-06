@@ -34,7 +34,7 @@ emu.addEventCallback(function()
   t = t + 1
   if t == 5 then wr(0x1021, 0xE8) end
   local a1, a2 = r(0x1001), r(0x1081)
-  if t > 78 and not hit2hp and a2 >= 0x10 and a2 <= 0x16 then hit2hp = t end
+  if t > 78 and not hit2hp and a2 >= 0x10 and a2 <= 0x18 then hit2hp = t end  -- 0x10..0x18 = ALL stun incl. flame 0x17/electric 0x18 (#99; authority: training/const.lua)
   if hit2hp and not dashAt and a1 == 0x60 then dashAt = t end
   if t >= 82 and t <= 112 then log(string.format("t=%d a1=%02X a2=%02X", t, a1, a2)) end
   if dashAt or t > 160 then
