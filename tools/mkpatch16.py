@@ -241,6 +241,11 @@ DF_REPORT_LABELS = (
 # Strings: the maintainer's 2026-08-06 long forms, CAPS (his ruling), with
 # the two over-24 names trimmed to exact fits.
 STAGES_TRANSLATE = os.environ.get("SMS_P16_STAGES") == "1"
+# SMS_P16_SATURN=1: stage 2's name becomes the Saturn build's SILENT THRONE OF
+# MESSIAH instead of SPACE-TIME DOOR. Default OFF (maintainer, 2026-08-06):
+# the default Saturn build does not carry patch 16, so the flag is only for a
+# future Saturn chain that stacks this patch — never set it elsewhere.
+SATURN_STAGE = os.environ.get("SMS_P16_SATURN") == "1"
 STAGE_REC0 = 0x045A98             # stage 0, normal; +$66 highlight; +$CC next
 STAGE_NAMES = (
     "CRYSTAL TOKYO, EVENING",
@@ -666,13 +671,16 @@ def build(src_path, out_path, stacked=False):
     stub, _ = asm65816.assemble(opt_stub(bank).splitlines(), STUB_AT, bank)
     if STUB_AT + len(stub) > MAP_AT:
         raise SystemExit("stub (%#x bytes) overruns the map slot" % len(stub))
+    stage_names = list(STAGE_NAMES)
+    if SATURN_STAGE:
+        stage_names[2] = "SILENT THRONE OF MESSIAH"
     csstub = csblock = None
     if STAGES_TRANSLATE:
         if bytes(data[CS_HOOK_FILE:CS_HOOK_FILE + 6]) != CS_HOOK_OLD:
             raise SystemExit("char-select hook site reads %s, expected %s"
                              % (bytes(data[CS_HOOK_FILE:CS_HOOK_FILE + 6]).hex(),
                                 CS_HOOK_OLD.hex()))
-        for i, name in enumerate(STAGE_NAMES):
+        for i, name in enumerate(stage_names):
             if len(name) > 24:
                 raise SystemExit("%r is %d chars, the stage row is 24" % (name, len(name)))
             for v in (0, 1):
@@ -683,7 +691,7 @@ def build(src_path, out_path, stacked=False):
                 if (vmadd, ln, nrows) != (0x02E4, 0x30, 2):
                     raise SystemExit("stage record %#x header %04X/%04X/%d unexpected"
                                      % (off, vmadd, ln, nrows))
-        for i, name in enumerate(STAGE_NAMES):
+        for i, name in enumerate(stage_names):
             for v in (0, 1):
                 off = STAGE_REC0 + i * 0xCC + v * 0x66
                 cells = off + 6
