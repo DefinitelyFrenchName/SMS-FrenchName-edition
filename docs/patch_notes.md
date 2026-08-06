@@ -27,7 +27,7 @@ the operational map (current state, deliverables, tooling, findings, gotchas).
 | 8. Venus throw tech **(OPTIONAL)** | Venus 6HP throw mash-escape window 6f → 13f (standard-ish; Jupiter=15f) | `tools/mkpatch8.py` | `build/sms_venustech.bps` | `63ce0748…` |
 | 9. Neptune fireball **(OPTIONAL)** | Deep Submerge fireball hitbox tracks the descending sprite (was stuck at head level) | `tools/mkpatch9.py` | `build/sms_neptune_ds.bps` | `d5ee12a3…` |
 | 10. In-match combo counter **(OPTIONAL)** | Live combo-hit counter rendered by the base game under each attacker's bar (no overlay needed; 2026-07-25 fix: also shows vs the CPU) | `tools/mkpatch10.py` | `build/sms_combocounter.bps` | `be072a5e…` |
-| 10b. + status labels **(variant of 10)** | Counter + GC/REVERSAL/PUNISH/TECH event text (MEATY label removed 2026-07-20) | `tools/mkpatch10.py --events labels` | `build/sms_combolabels.bps` | `920652df…` |
+| 10b. + status labels **(variant of 10)** | Counter + GC/REVERSAL/PUNISH/TECH event text (MEATY label removed 2026-07-20; 2026-08-06: labels respect `--modes` #86, repeated events refresh the TTL #88) | `tools/mkpatch10.py --events labels` | `build/sms_combolabels.bps` | `83defe1e…` |
 | 11. Training+ **(OPTIONAL)** | In-ROM training-mode upgrade: L+R menu, dummy control (pose/guard/wakeup/tech), recording+playback, damage/regen/refill, input+ADV display | `tools/mkpatch11.py` | `build/sms_trainingplus.bps` | `e9ac2205…` |
 | 12. Taunts **(OPTIONAL)** | Taunt on L: each character's native misfire ("ochame") pratfall, fully vulnerable | `tools/mkpatch12.py` | `build/sms_taunt.bps` | `614f318e…` |
 | 13. Guts **(OPTIONAL)** | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py` | `build/sms_tauntbuff.bps` | `bafb87d4…` |
@@ -1101,9 +1101,20 @@ there is **no noticeable lag** — the definitive test is frame-identity, not th
 |---|---|---|---|
 | Status labels | `mkpatch10.py --events` | `off` | `labels` = also show GC/REVERSAL/PUNISH/TECH text |
 
-Standalone `build/sms_combolabels.bps` (SHA-1 `920652df…`), combined
+Standalone `build/sms_combolabels.bps` (ROM SHA-1 `83defe1e…`; was `920652df…`
+until 2026-08-06, then `4899790a…` after #86's `--modes` gate, then this after
+#88's TTL-refresh fix), combined
 `build/sms_full10_combolabels.bps` (ROM `…_v0.7_all5_combolabels.sfc`). Same two hooks as the
 counter (`0x0D56F`, `0x0D5E8`) — byte-disjoint from patches 1–9.
+
+**TTL refresh (#88, 2026-08-06):** a repeated event of the kind already shown now
+refreshes the label's 48-frame lifetime. Detection sets a per-player
+"assigned this frame" flag (`$0911`/`$0912`); `setttl` keys on that flag instead
+of comparing against the SHOWN label, which had silently suppressed the refresh
+on repeats (the code's own comment promised the refresh). Verified by
+`tools/probe_p88_ttlrefresh.lua`: with the TECH detector forced every frame,
+unfixed decays 47→0 and blanks at fire+47; fixed pins the TTL at 47 and never
+blanks. One-shot expiry unchanged (`test_labels.lua` drawn@84 blank@131 PASS).
 
 ---
 

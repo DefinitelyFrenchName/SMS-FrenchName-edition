@@ -61,6 +61,7 @@ R_TOP, R_BOT = 0x10DC, 0x10FC     # right: $10DC/$10DD, $10FC/$10FD
 #   +3 movePhase (0 none/1 startup/2 active-seen)  +4 hpShadow  +5 labelId  +6 labelTTL  +7 shown
 LST = (0x0900, 0x0908)            # P1, P2 label state
 GLYPH_FLAG = 0x0910               # glyphs-uploaded-this-episode flag
+LFLAG = (0x0911, 0x0912)          # per-player "label assigned THIS frame" (TTL refresh, #88)
 LSTG = (0x0920, 0x0940)           # per-side glyph staging: dirty(+0) + 8 tile words(+1,+3,..+F)
 # label row-7 cells (8 wide) under each player, disjoint from the combo counter's cells
 # (counter bottoms at cols 2-3 left / 28-29 right; labels sit between with a gap):
@@ -328,11 +329,13 @@ def _label_detect(p, sfx):
     conRec/movePhase. Runs before shadows/prevAct are finalized."""
     base = 0x1000 if p == 0 else 0x1080
     st = LST[p]
+    lf = LFLAG[p]
     act = base + 0x01
     d = 1 - p
     dbase = 0x1000 if d == 0 else 0x1080
     dhp, dhb, dst = dbase + 0x49, dbase + 0x40, LST[d]
     return f"""
+  stz ${lf:04X}
   ; hit event = defender HP dropped below its (last-frame) shadow
   lda ${dhp:04X}
   cmp ${dst + 4:04X}
@@ -346,6 +349,7 @@ def _label_detect(p, sfx):
   bne nohit{sfx}
   lda #$03
   sta ${st + 5:04X}
+  sta ${lf:04X}
 nohit{sfx}:
   ; REVERSAL (higher): attack act just started <=2 frames after leaving hard constraint
   lda ${act:04X}
@@ -359,6 +363,7 @@ nohit{sfx}:
   bcs chkgc{sfx}
   lda #$02
   sta ${st + 5:04X}
+  sta ${lf:04X}
 chkgc{sfx}:
   ; GC (higher): attack act with prevAct in blockstun {0x0E,0x0F}
   lda ${act:04X}
@@ -372,6 +377,7 @@ chkgc{sfx}:
 sgc{sfx}:
   lda #$01
   sta ${st + 5:04X}
+  sta ${lf:04X}
 chktech{sfx}:
   ; TECH (highest): curAct==0x23, prevAct!=0x23
   lda ${act:04X}
@@ -382,11 +388,11 @@ chktech{sfx}:
   beq setttl{sfx}
   lda #$05
   sta ${st + 5:04X}
+  sta ${lf:04X}
 setttl{sfx}:
-  ; if a label was (re)assigned this frame, refresh TTL (detects change vs shown handled later)
-  lda ${st + 5:04X}
-  beq ldone{sfx}
-  cmp ${st + 7:04X}
+  ; a label was assigned this frame -> refresh TTL, INCLUDING a repeat of the label
+  ; already shown (#88); change-vs-shown is the render phase's job, not this one's
+  lda ${lf:04X}
   beq ldone{sfx}
   lda #${LABEL_TTL:02X}
   sta ${st + 6:04X}
@@ -596,6 +602,7 @@ glok:
     if labels:
         label_init = (
             f"  stz ${GLYPH_FLAG:04X}\n"
+            + f"  stz ${LFLAG[0]:04X}\n  stz ${LFLAG[1]:04X}\n"
             + "".join(f"  stz ${LST[p] + k:04X}\n" for p in (0, 1) for k in range(8))
             + f"  lda $1049\n  sta ${LST[0] + 4:04X}\n"
             + f"  lda $10C9\n  sta ${LST[1] + 4:04X}\n"
