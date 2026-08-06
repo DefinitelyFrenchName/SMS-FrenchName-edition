@@ -1086,7 +1086,7 @@ patched ROMs, because a later, smaller upload has already overwritten it.
 Next: the tilemap edits. The glyph → VRAM tile map is written to
 `docs/halfwidth_tiles.json` by the builder.
 
-## Options screen: budgets measured, translation BLOCKED on a screen-specific gap
+## Options screen: WORKS — labels translated (2026-08-06)
 
 **Strings (maintainer, 2026-08-05)** and the measured fields. Labels start at map
 column 4, values occupy columns 22-27. A half-width glyph is **one map column**
@@ -1113,21 +1113,40 @@ Entry = `attr | tile`, tile is 10 bits; **BG1 CHR base is word `$2000` = tile
 tiles `$3C0-$3E9`, inside the field); a glyph is two map rows with
 `bottom = top + $10`; labels carry attr `$0C00`, values `$1000`.
 
-**BLOCKED, and the builder keeps it OFF by default** (`SMS_P16_OPTIONS=1` to
-build it anyway). The label writes are correct, but **the glyphs do not reach
-VRAM on this screen**, so enabling it clears the Japanese and draws nothing.
-What is established:
+**The old blocker is SOLVED (2026-08-06), and the diagnosis rewrote the record
+of what was happening.** The designated dump (`tools/probe_p16_options_buf.lua`)
+showed the staging buffer `$7E:C000` holds the glyph block both at the transfer
+instant and after Options settles — the stale-buffer/ordering theory is dead.
+The real mechanism, watched with a per-frame VRAM census and an unfiltered DMA
+log:
 
-* the Options screen DOES run the extended transfer — `vram $4000 len $4000
-  src $7E:C000`, confirmed on the built ROM, so the length fix applies here;
-* record 27 is the **only** record staging into `$7E:C000`;
-* yet VRAM tiles `$5C0-$5FF` come back **blank** on Options while the
-  button-config screen has all 52 glyph tiles.
+* the glyphs DID reach VRAM — at **main-menu entry** (the `vram $4000 len $4000
+  src $7E:C000` transfer earlier attributed to Options runs there);
+* the transition into Options **clears all 64KB of VRAM** (fixed-source DMA,
+  `len $0000` = 65536, kicked at `$80:8191`) — census 52/64 → 0/64;
+* Options then runs its own loader — straight-line code at `$C3:A4DD..A50F`,
+  `lda #idx*2 / sta $1C18 / jsr $824E|$825B` per record — whose six records do
+  **not** include the font record. Nothing else touches tiles `$5C0-$5FF`, so
+  they simply stay blank. (Its Japanese text comes from a separate big sheet,
+  `$C3:48D0` → tiles `$2C0-$529`, not from the menu font.)
 
-So it is screen-specific. Most likely the upload runs **before** this screen's
-decompression of that block and carries a stale buffer. **NEXT: dump WRAM
-`$7E:C000+$3800` on the Options screen** — glyphs absent from the BUFFER
-confirms the ordering theory; present means the fault is after the transfer.
+**Asset-record plumbing** (clean ROM, bank `$C3`, executes from the `$03`
+mirror so `$1C18` hits WRAM): pointer tables at `$C3:BCCD` ("A", 25 entries)
+and `$C3:BCFF` ("B", 49 entries) map a record index to a 10-byte record;
+`$1C18` = index×2. The font record `$C3:BF16` (flat-scan "#27") is **B index
+15**. `$C3:82CA` = decompress (`JSL $80:927D`, DP `$00-$05` src24/dest24) then
+DMA (`JSL $80:92AD`, DP `$00-$06` vram/len/src24) — both primitives JSL-able.
+
+**The fix (in `mkpatch16.py`, always on):** the cluster's first load
+(`lda #$003E / sta $1C18`, file `0x03A4DD`) becomes `JSL` to a 60-byte stub in
+the appended bank that replays the two primitives with build-time constants —
+decompress the extended font into `$7E:C000`, DMA it to `$4000` — then re-arms
+idx 31 and returns. Order matters and is preserved: the font runs FIRST, so the
+text-sheet record keeps winning their overlap at tiles `$400-$529`; the glyphs
+at `$5C0-$5FF` overlap nothing on this screen. Verified: census goes 0/64 →
+52/64 at the stub's transfer and stays there settled; with `SMS_P16_OPTIONS=1`
+the six labels render in English (screenshot-checked); the button-config screen
+re-verifies green on the hooked build (52/64 + the `POKE=1` positive control).
 
 **Values are a separate problem:** they change as the player cycles a setting, so
 they are written at runtime from a table the tilemap does not own. Baking English

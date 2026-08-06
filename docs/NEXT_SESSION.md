@@ -28,17 +28,18 @@ hard-won facts behind it:
   VRAM `$5000` happens there, so glyphs placed in it can never show. The
   screen's sheet is `$C4:2590 -> $7E:C000 -> VRAM $400`.
 
-**Step 2 (tilemap edits) is BLOCKED on one screen, with ONE next action.**
-The Options-screen edit is written but **gated OFF** (`SMS_P16_OPTIONS=1`):
-enabling it clears the Japanese and draws nothing, because the glyphs do not
-reach VRAM on that screen even though it runs the extended transfer
-(`vram $4000 len $4000 src $7E:C000`, confirmed on the built ROM) and record
-27 is the only record staging into that buffer. Most likely the upload
-precedes that screen's decompression and carries a stale buffer.
-
-> **NEXT ACTION: dump WRAM `$7E:C000 + $3800` on the Options screen.**
-> Absent from the buffer = ordering (the transfer ran before the glyphs were
-> staged); present = the fault is after the transfer.
+**Step 2: the Options screen WORKS (2026-08-06 — the designated next action
+was run and answered).** The dump showed the buffer staged correctly the whole
+time; the real mechanism was found with a per-frame VRAM census + unfiltered
+DMA log (`tools/probe_p16_options_buf.lua`): the glyphs reach VRAM at
+**main-menu entry**, the Options transition **clears all 64KB of VRAM**
+(fixed-source DMA at `$80:8191`), and the Options loader (`$C3:A4DD`) never
+re-uploads the font — the "Options runs the extended transfer" note was that
+menu-entry transfer, misattributed. Fix (always on in `mkpatch16.py`): the
+loader's first record load is JSL-hooked to a stub that uploads the font
+first. `SMS_P16_OPTIONS=1` now renders the six English labels
+(screenshot-verified); button-config still green on the hooked build.
+Builder A/B today: base `206fee3d…`, with labels `bef8b366…`.
 
 **Everything else for Options is ready:**
 * Its tilemap is **asset record 19** (`$C3:69F0`).
@@ -52,10 +53,14 @@ precedes that screen's decompression and carries a stale buffer.
   into the map is overwritten on first input. That writer is still to be
   found.
 
-**Screen coverage (maintainer priority: Options, Win, ACS, Tournament; story
+**Screen coverage (maintainer priority: Options ✓, Win, ACS, Tournament; story
 out of scope):**
-* Options and Tournament share the extended sheet (record 27) — no second
-  font install needed for them.
+* ⚠ The old "Options and Tournament share the extended sheet (record 27)" note
+  predates the loader finding — each screen re-uploads its OWN record list
+  after a full VRAM clear, so Tournament needs its loader cluster checked the
+  same way (candidates from the cluster census in `probe_p16_options_buf`'s
+  session: `$C3:AF8A` and `$C3:B852` both re-use the big text sheet
+  `$C3:48D0`).
 * **Win and ACS are NOT yet probed** — neither is reachable from the title
   menu (one needs a KO, the other SELECT at char select), so their sheets
   are unknown.

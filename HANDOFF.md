@@ -260,23 +260,33 @@ working path is unchanged after.
 it; full brief in `docs/NEXT_SESSION.md`). Dormant maintainer options, not
 tasks: §8's fold-6/7/8-into-canonical and dash-distance retune.**
 
-**Patch 16 — menu translation. Step 1 DONE, step 2 blocked on one screen.**
-The half-width A-Z now *reaches VRAM* (tiles `$5C0-$5FF`, read back out of VRAM,
-52/64 non-blank vs 0 on clean). Two things had been wrong and both are fixed:
-the asset-record layout is `[vram16][len16][src24][dest24]` — the upload LENGTH
-sits 2 bytes BEFORE the src pointer (field `$C3:BF18`, `$3480` -> `$4000`), and
-the kanji block is not loaded on the screen being translated (that screen's sheet
-is `$C4:2590`). *The old "what feeds that length is not yet found" note is
-answered and gone.*
-⚠ **The first tilemap edit is written but GATED OFF** (`SMS_P16_OPTIONS=1`): the
-glyphs do not reach VRAM on the **Options** screen even though it runs the
-extended transfer, so enabling it clears the Japanese and draws nothing. Next
-diagnostic is one dump: WRAM `$7E:C000+$3800` on that screen.
+**Patch 16 — menu translation. Step 1 DONE; step 2's Options screen WORKS
+(2026-08-06).** The half-width A-Z reaches VRAM (tiles `$5C0-$5FF`, read back
+out of VRAM, 52/64 non-blank vs 0 on clean). Two things had been wrong and both
+are fixed: the asset-record layout is `[vram16][len16][src24][dest24]` — the
+upload LENGTH sits 2 bytes BEFORE the src pointer (field `$C3:BF18`, `$3480` ->
+`$4000`), and the kanji block is not loaded on the screen being translated
+(that screen's sheet is `$C4:2590`).
+**The Options blocker is solved, and the diagnosis rewrote the record:** the
+designated buffer dump showed `$7E:C000` staged correctly the whole time — the
+glyphs DID reach VRAM, at MAIN-MENU entry (the transfer earlier attributed to
+Options), and the Options transition **clears all 64KB of VRAM** (fixed-source
+DMA at `$80:8191`) then runs its own loader (`$C3:A4DD`, straight-line
+`lda #idx*2 / sta $1C18 / jsr` per record) which never re-uploads the font.
+Fix in `mkpatch16.py` (always on): the loader's first load is JSL-hooked to a
+60-byte stub that replays the two JSL-able primitives (`$80:927D` decompress,
+`$80:92AD` DMA) for the font record FIRST — order preserved so the screen's
+text sheet (`$C3:48D0` -> tiles `$2C0-$529`) keeps winning the overlap.
+Verified: VRAM census 0/64 -> 52/64 across the stub's transfer, settled;
+`SMS_P16_OPTIONS=1` renders the six English labels (screenshot-checked);
+button-config re-verifies green on the hooked build. Mechanism + asset-record
+plumbing (pointer tables `$C3:BCCD`/`$BCFF`, font = B index 15):
+`docs/menu_text.md`; probe: `tools/probe_p16_options_buf.lua`.
 ⚠ The option **values** cannot be done in the tilemap at all — rewritten at
-runtime as the player cycles a setting.
-Screens: Options + Tournament share the extended sheet (no second install);
-**win and ACS are not yet probed**. Priority: Options, Win, ACS, Tournament;
-story out of scope.
+runtime as the player cycles a setting; that writer is still to be found.
+**Win and ACS are not yet probed**; Tournament's sheet needs re-checking (the
+"shares the extended sheet" note predates the loader finding). Priority:
+Options ✓, Win, ACS, Tournament; story out of scope.
 
 *(The voice-pitch item that stood here is DONE — patch 101, shipped and on by
 default. The "one routine shared with the music" that blocked it was a misread

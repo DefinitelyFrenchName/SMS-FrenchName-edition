@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """mkpatch16.py — menu translation: install a half-width Latin alphabet.
 
-STATUS: STEP 1 WORKS. The 26 glyphs reach VRAM tiles $5C0-$5FF on the button-
-config screen and render as a legible A-Z (read back out of VRAM, not out of the
-build). The tilemap edits — replacing the Japanese strings — come next and depend
-on this.
+STATUS: STEP 1 WORKS (glyphs in VRAM $5C0-$5FF on the button-config screen,
+read back out of VRAM) and the step-2 blocker is SOLVED: the Options screen
+wipes all of VRAM on entry and its loader never re-uploads the font, so the
+builder now hooks that loader (see the OPT_HOOK block) to run the font record
+first. Tilemap label translation is gated on SMS_P16_OPTIONS=1.
 
 Two things had to be true at once, which is why this took several attempts:
 
@@ -53,6 +54,7 @@ sys.path.insert(0, os.path.join(REPO, "tools"))
 sys.path.insert(0, os.path.join(REPO, "tools", "saturn"))
 
 from smspaths import clean_rom, fix_checksum, next_bank, write_bank, require_source   # noqa: E402
+import asm65816                                                        # noqa: E402
 import sms_lz                                                          # noqa: E402
 import mkhalfwidth                                                     # noqa: E402
 
@@ -83,18 +85,40 @@ INK = 7                           # flat ink colour; the kana use 1-8
 #   labels start at column 4 with attr $0C00; values occupy columns 22-27
 #     right-aligned with attr $1000
 # Budgets that follow: 18 columns for a label, 6 for a value.
-# ⚠ DEFAULT OFF — the label writes are correct but the GLYPHS DO NOT REACH VRAM
-# ON THIS SCREEN, so enabling it clears the Japanese and draws nothing. Measured:
-# the Options screen DOES run the extended transfer (vram $4000 len $4000 src
-# $7E:C000 -- confirmed on the built ROM), record 27 is the ONLY record staging
-# into $7E:C000, and yet VRAM tiles $5C0-$5FF come back blank there while the
-# button-config screen has them. So it is screen-specific -- most likely the
-# upload runs before this screen's decompression of that block, carrying a stale
-# buffer. NEXT: dump WRAM $7E:C000+$3800 on the Options screen; if the glyphs are
-# absent from the BUFFER the ordering theory is right, if present the fault is
-# after the transfer.
-# Set SMS_P16_OPTIONS=1 to build it anyway for debugging.
+# Set SMS_P16_OPTIONS=1 to translate the labels (values are runtime-drawn, see
+# the NOTE below). The delivery problem that used to gate this is SOLVED — see
+# the Options-loader hook.
 OPT_TRANSLATE = os.environ.get("SMS_P16_OPTIONS") == "1"
+
+# ---- the Options-loader hook (2026-08-06 finding; the step-2 unblocking) ----
+# WHY THE GLYPHS "DID NOT REACH VRAM" ON THE OPTIONS SCREEN: the transition into
+# Options CLEARS ALL OF VRAM (fixed-source DMA, len $10000, kicked at $80:8191)
+# and then runs the screen's own loader — straight-line code at $C3:A4DD..A50F
+# ("lda #idx*2 / sta $1C18 / jsr $824E|$825B" per record) whose six records do
+# NOT include the font record. The glyphs seen missing there had been uploaded
+# at MAIN-MENU entry and wiped on the way in. The old notes' "Options runs the
+# extended transfer" was that menu-entry transfer, misattributed; the
+# stale-buffer/ordering theory is DEAD — the designated dump showed $7E:C000
+# holds the glyph block both at the transfer instant and after Options settles
+# (probe_p16_options_buf.lua).
+#
+# Asset-record plumbing this hook rides on (all clean-ROM, bank $C3):
+#   * pointer tables at $C3:BCCD ("A", 25 entries) and $C3:BCFF ("B", 49
+#     entries) map a record INDEX -> 10-byte record; WRAM $1C18 = index*2.
+#     The font record $C3:BF16 (this builder's #27 by flat scan) is B index 15.
+#   * $C3:82CA = decompress record (JSL $80:927D, DP $00-$05 = src24/dest24)
+#     then DMA it (JSL $80:92AD, DP $00-$06 = vram/len/src24). Both primitives
+#     are JSL-able, so the stub replays them with build-time constants instead
+#     of re-entering bank-$C3 code (which executes from the $03 mirror so that
+#     $1C18 hits WRAM — a stub in the appended bank cannot jsr into it).
+# The hook replaces the cluster's first "lda #$003E / sta $1C18" (6 bytes) with
+# JSL stub + 2 nop; the stub uploads the font FIRST, then re-arms idx 31. Order
+# matters: the cluster's big text-sheet record (vram $2C00 len $4D40 = tiles
+# $2C0-$529) must keep winning its overlap with the font sheet at tiles
+# $400-$529; the glyphs at $5C0-$5FF overlap nothing on this screen.
+OPT_HOOK_FILE = 0x03A4DD
+OPT_HOOK_OLD = bytes.fromhex("a93e008d181c")
+STUB_AT = 0x7F00                  # stub offset inside the appended bank
 OPT_SRC = 0xC369F0
 OPT_MAP_W = 32
 OPT_LABEL_COL = 4
@@ -131,6 +155,41 @@ def encode_glyph(rows, ink=INK):
                 t[16 + y * 2 + 1] |= ((ink >> 3) & 1) << b
         out.append(bytes(t))
     return out
+
+
+def opt_stub(bank):
+    """The Options-loader hook stub: upload the (patched) font record, then do
+    the displaced first load of the cluster. Runs via JSL from the $03 mirror;
+    everything bank-sensitive is immediate or long-addressed."""
+    return f"""
+  rep #$20
+  lda #$0000
+  sta_dp $00
+  lda #${bank:04X}
+  sta_dp $02
+  lda #$7EC0
+  sta_dp $04
+  sep #$20
+  jsl $80927D
+  rep #$20
+  lda #$4000
+  sta_dp $00
+  lda #$4000
+  sta_dp $02
+  lda #$C000
+  sta_dp $04
+  sep #$20
+  lda #$7E
+  sta_dp $06
+  jsl $8092AD
+  rep #$30
+  lda #$003E
+  sta_l $7E1C18
+  rtl
+"""
+    # DP layout: decompress src24 at $00-$02, dest24 at $03-$05 (the two word
+    # writes at $02/$04 lay down src-bank + dest $7E:C000 in one go); DMA
+    # vram/len/src24 at $00/$02/$04-$06 — exactly $C3:82CA's calling convention.
 
 
 def find_record(data, want_src):
@@ -245,17 +304,30 @@ def build(src_path, out_path, stacked=False):
     # weaker than the original's, so even unchanged data cannot be written back
     # in place.
     MAP_AT = 0x8000
-    if len(packed) > MAP_AT:
-        raise SystemExit("packed font (%#x) would overlap the map slot at %#x"
-                         % (len(packed), MAP_AT))
+    if len(packed) > STUB_AT:
+        raise SystemExit("packed font (%#x) would overlap the stub slot at %#x"
+                         % (len(packed), STUB_AT))
     if packed_map and len(packed_map) > 0x10000 - MAP_AT:
         raise SystemExit("packed options map (%#x) overruns the bank" % len(packed_map))
+    base, bank = next_bank(data)
+    stub, _ = asm65816.assemble(opt_stub(bank).splitlines(), STUB_AT, bank)
+    if STUB_AT + len(stub) > MAP_AT:
+        raise SystemExit("stub (%#x bytes) overruns the map slot" % len(stub))
     blob = bytearray(0x10000)
     blob[0:len(packed)] = packed
+    blob[STUB_AT:STUB_AT + len(stub)] = stub
     if packed_map:
         blob[MAP_AT:MAP_AT + len(packed_map)] = packed_map
-    base, bank = next_bank(data)
     write_bank(data, base, bytes(blob))
+    # hook the Options loader's first record load (see OPT_HOOK_FILE block)
+    if bytes(data[OPT_HOOK_FILE:OPT_HOOK_FILE + 6]) != OPT_HOOK_OLD:
+        raise SystemExit("Options loader at $C3:%04X reads %s, expected %s — "
+                         "another patch has touched it"
+                         % (OPT_HOOK_FILE & 0xFFFF,
+                            bytes(data[OPT_HOOK_FILE:OPT_HOOK_FILE + 6]).hex(),
+                            OPT_HOOK_OLD.hex()))
+    data[OPT_HOOK_FILE:OPT_HOOK_FILE + 6] = bytes(
+        [0x22, STUB_AT & 0xFF, STUB_AT >> 8, bank, 0xEA, 0xEA])
     data[rec + 4] = 0x00
     data[rec + 5] = 0x00
     data[rec + 6] = bank
@@ -275,12 +347,14 @@ def build(src_path, out_path, stacked=False):
           % (old_len, NEW_LEN, rec - 0x030000 + 2))
     print("  %d glyphs at VRAM tiles $%03X-$%03X / $%03X-$%03X"
           % (len(placed), GLYPH_ROWS[0], GLYPH_ROWS[0] + 15, GLYPH_ROWS[1], GLYPH_ROWS[1] + 9))
+    print("  options loader hooked ($C3:%04X -> $%02X:%04X, %dB stub): font "
+          "re-uploaded after the transition's VRAM clear"
+          % (OPT_HOOK_FILE & 0xFFFF, bank, STUB_AT, len(stub)))
     if OPT_TRANSLATE:
         print("  options screen: record #%d relocated, %d labels translated (%s)"
               % (on, len(OPT_LABELS), ", ".join(t for _, t in OPT_LABELS)))
     else:
-        print("  options screen: NOT translated (SMS_P16_OPTIONS=1 to enable —"
-              " glyphs do not reach VRAM on that screen yet)")
+        print("  options screen: labels NOT translated (SMS_P16_OPTIONS=1 to enable)")
     print("  -> %s  sha1 %s" % (out_path, hashlib.sha1(bytes(data)).hexdigest()))
     json.dump({c: placed[c] for c in sorted(placed)},
               open(os.path.join(REPO, "docs", "halfwidth_tiles.json"), "w"), indent=1)
