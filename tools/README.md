@@ -12,9 +12,13 @@ is the optional knob file `<name>.lua` loads. See HANDOFF.md §4 for the harness
 - `mkpatch12.py` — Patch 12 (OPTIONAL): TAUNTS on the L button.
 - `mkpatch13.py` — Patch 13 v3 (OPTIONAL): "GUTS" — completing a taunt NERFS the opponent's specials.
 - `mkpatch14.py` — Patch 14 (OPTIONAL): "GUTS GRIP" — Guts levels also nerf COMMAND GRABS.
+- `mkpatch15.py` — Patch 15: remove the AUTO option from the VS button-config screen.
+- `mkpatch16.py` — menu translation: install a half-width Latin alphabet.
+- `mkpatch17.py` — Patch 17: every stage selectable, including the hidden one.
+- `mkpatch18.py` — Patch 18: no ACS in 2P VS.
 - `mkpatch2.py` — Dash-fix: add the missing `stz $46,X` to Uranus's forward-dash (act 0x60)
 - `mkpatch3.py` — Patch 3: extended character palettes (extracted from the Big Zam edition) +
-- `mkpatch4.py` — Patch 4: replace the title-screen red subtitle with "FrenchName ver. 0.4",
+- `mkpatch4.py` — Patch 4: replace the title-screen red subtitle with "FrenchName ver. <BUNDLE_VERSION>" (see --text),
 - `mkpatch5.py` — Patch 5: halve Uranus's forward-dash travel distance.
 - `mkpatch6.py` — Patch 6 (OPTIONAL): give Uranus's forward dash a short mid-move invulnerability window.
 - `mkpatch7.py` — Patch 7 (OPTIONAL): extend Sailor Pluto's 5HP hitbox downward so it hits crouchers.
@@ -24,6 +28,8 @@ is the optional knob file `<name>.lua` loads. See HANDOFF.md §4 for the harness
 ## Build/distribution scripts
 
 - `build_ref_v1.sh` — Build the REF v.1 reference bundle: 1b(gate 0x05)+2+3+4+5+7+8+9+12+13+14 — the
+- `build_ref_v2.sh` — Build the REF v.2 reference bundle: REF v.1 + patch 15 (AUTO removal).
+- `build_rev.sh` — the two REFERENCE builds, the things a player is meant to apply.
 - `build_v022.sh` — Build the v0.22 ALL-PATCHES bundle (patches 1-14, 10 as 10b/labels) from the clean ROM.
 - `mkdist.sh` — generate the training-mode distribution zip FROM THE LIVE TREE.
 - `mkindex.py` — Generate tools/README.md — a one-line-per-script index of everything in tools/,
@@ -64,6 +70,7 @@ is the optional knob file `<name>.lua` loads. See HANDOFF.md §4 for the harness
 - `demo_link_headless.lua` — run the demo_link.lua auto-calibrating sweep headless and
 - `demo_link_late.lua` — after auto-calibrating, loop a single attempt ONE FRAME LATER than the
 - `demo_truecombo.lua` — prove the N=5 patch is a TRUE (unblockable) 1-frame link.
+- `demo_truecombo_headless.lua` — run demo_truecombo.lua headless from the v07 state and
 - `ds_clash.lua` — : Neptune mirror. Both players throw Deep Submerge (214LP) at once; the two
 - `ds_hittest.lua` — : Neptune (P1) throws Deep Submerge at P2; P2 holds a pose (POSE:
 - `ds_hurttest.lua`
@@ -106,6 +113,7 @@ is the optional knob file `<name>.lua` loads. See HANDOFF.md §4 for the harness
 - `perf_patch10_cfg.lua`
 - `perf_patch11.lua` — : cycle cost + vblank span of patch 11's two stubs, plus a soak.
 - `perf_patch11_cfg.lua`
+- `probe_acs_select.lua` — does SELECT still open the ACS screen from the VS
 - `probe_adv2hp.lua` — issue #28: measure Uranus 2HP on-hit advantage by frame-advance,
 - `probe_api.lua` — one-shot Mesen 2 Lua API probe for the training-mode build (P-1).
 - `probe_bar.lua`
@@ -123,6 +131,8 @@ is the optional knob file `<name>.lua` loads. See HANDOFF.md §4 for the harness
 - `probe_dsbox.lua`
 - `probe_dshit.lua`
 - `probe_dswave.lua` — whiff (no target), trace BOTH projectile slots for 300 frames; flag if +0x40 ever uses 6/7/8
+- `probe_fontdma.lua` — find the code that uploads the menu FONT to VRAM.
+- `probe_fontdma2.lua` — read the DMA parameters from DIRECT PAGE at the trigger.
 - `probe_gate.lua`
 - `probe_gc_shot.lua`
 - `probe_hitzone.lua` — : normals damage vs contact zone / defender activity.
@@ -134,11 +144,15 @@ is the optional knob file `<name>.lua` loads. See HANDOFF.md §4 for the harness
 - `probe_input.lua` — does emu.getInput (called BEFORE setInput in inputPolled) return the
 - `probe_luaenv.lua` — one-shot probe of Mesen's Lua sandbox for path-discovery options.
 - `probe_meaty_shot.lua`
+- `probe_menu_font.lua` — where does the MENU FONT come from?
+- `probe_menu_survey.lua` — enumerate the game's MENU SCREENS and the text on
+- `probe_menu_vram.lua` — dump the menu screen's font VRAM region so the tiles the
 - `probe_mode.lua`
 - `probe_mode_cfg.lua`
 - `probe_ni_cfg.lua`
 - `probe_noninterf.lua` — dump gameplay WRAM ($1000-$1FFF) hash each frame during the infinite rep; also timer.
 - `probe_oracle.lua` — Oracle test: ROM combo counter ($08B0 = combo-on-P2) vs Lua combo module, infinite rep.
+- `probe_p10_modegate.lua` — does patch 10b's LABEL pipeline respect --modes?
 - `probe_p10_practice.lua` — does patch 10's compute stub run in practice mode?
 - `probe_p10_vs.lua` — patch-10 combo-counter pipeline diagnosis in 2P VS mode.
 - `probe_p11_7f.lua` — (patch 11, P10b): bank $7F usage census across boot -> title ->
@@ -195,26 +209,24 @@ is the optional knob file `<name>.lua` loads. See HANDOFF.md §4 for the harness
 - `probe_p13e_trace_cfg.lua`
 - `probe_p13f_desp.lua` — : desperation compendium probe. Config probe_p13f_desp_cfg.lua:
 - `probe_p13f_desp_cfg.lua`
+- `probe_p17_randompool.lua` — can the RANDOM stage default land on stage 9?
+- `probe_p17_stagelist.lua` — how many stages can the VS config screen reach?
+- `probe_p88_ttlrefresh.lua` — issue #88: does a REPEATED label event refresh its TTL?
+- `probe_p89_padleak.lua` — issue #89: trainer.lua's dummy must force unnamed buttons FALSE.
 - `probe_p8cal.lua` — : calibrate the Venus 6HP mash-escape window. P1 Venus throws P2;
+- `probe_p93_glyphdma.lua` — issue #93: the label glyph font must NOT re-upload every vblank.
 - `probe_peak.lua`
 - `probe_perf.lua` — measure compute-stub + flush-stub cycle cost via masterClock deltas; also full-frame cycles.
 - `probe_perf_cfg.lua`
 - `probe_ppu.lua`
 - `probe_regen.lua`
 - `probe_regen_special.lua` — repro for "HP regen doesn't fire after special-move damage".
-- `probe_saturn_moves.lua` — first Saturn frame data (Super S). Reloads the
-- `probe_saturn_unblockable.lua` — verify Super S Saturn's notorious property: her FAR
 - `probe_shot.lua`
 - `probe_shot_cfg.lua`
 - `probe_smsenv.lua` — self-test for sms_env.lua discovery.
 - `probe_soak.lua`
 - `probe_soak_cfg.lua`
-- `probe_supers_animload.lua` — locate Super S's per-character animation payload.
-- `probe_supers_animload2.lua` — anim-payload hunt, take 2. The $6A00 fill is invisible
-- `probe_supers_animload3.lua` — anim/sprite hunt, take 3 (method inverted):
-- `probe_supers_dmacensus.lua` — in-match DMA traffic census on the Saturn fixture:
-- `probe_supers_saturn.lua` — Super S recon: reach a VS match with P1 = SATURN (charID
-- `probe_supers_streamer.lua` — identify the sprite-cel streamer: log the PC that
+- `probe_stagepick.lua` — which stages can the VS config screen actually reach?
 - `probe_title.lua`
 - `probe_title_ppu.lua` — dump PPU state (bg mode, tilemap/CHR bases) at the title screen.
 - `probe_title_shot.lua` — boot to the title screen and save screenshots.
@@ -225,6 +237,7 @@ is the optional knob file `<name>.lua` loads. See HANDOFF.md §4 for the harness
 - `probe_viewer.lua` — run the REAL training hitbox viewer on the Neptune fireball; screenshot at the transition
 - `probe_viewer_cfg.lua`
 - `probe_vram.lua` — patch-10 R4: dump in-match VRAM + CGRAM + the HUD tilemap region.
+- `probe_vram_free.lua` — prove that a VRAM tile range is genuinely unused, rather
 - `probe_wfree.lua` — watch reads+writes to 0x0900-0x09FF over a match with action; report any access
 - `wramdump.lua` — : load a savestate, dump a WRAM range to traces/<OUT>. Cfg: wramdump_cfg.lua
 - `wramdump_cfg.lua`
@@ -233,13 +246,22 @@ is the optional knob file `<name>.lua` loads. See HANDOFF.md §4 for the harness
 
 - `extract_proj_boxes.py` — Dump the PROJECTILE / object box tables from Sailor Moon S (SFC, HiROM, headerless).
 - `extract_sms_hitboxes.py` — Extract hitbox/hurtbox/collision tables from Sailor Moon S (SFC, HiROM, headerless).
-- `extract_supers_boxes.py` — Extract hitbox/hurtbox/collision tables from Sailor Moon SUPER S (Zenin Sanka!!).
 
 ## Other
 
-- `gen_plan.py` — Generate tools/trace_plan.lua for a re-press experiment.
+- `findfont.py` — locate a Latin font inside an arbitrary SNES ROM.
+- `gen_plan.py` — Generate a trace_plan for a re-press experiment.
+- `halfwidth_render.py` — render the half-width alphabet to a PNG for eyeballing.
+- `health.sh` — the single command that answers "is this tree consistent?" (#24)
+- `menufont.py` — the menu font, as data: compose its 16x16 glyphs and render a
+- `menufont_table.py` — the menu font's glyph-code -> character table.
+- `menuscreen_probe.lua` — for a given menu screen: which FONT SHEET it uploads to
+- `menutext_check.py` — validate proposed menu/stage strings against the font and
+- `mkhalfwidth.py` — build a half-width (8x16) Latin alphabet for patch 16 from
+- `mkrelease.py` — render release/RELEASE_NOTES.md from the files that exist.
 - `mksigs.py` — keep test_regression.lua's detection SIGS in sync with the builders.
 - `probelib.lua` — shared emulator-access helpers for the standalone suites/probes
 - `smoke.lua` — smoke test: boot ROM, run 120 frames, read some WRAM, exit with code 42
+- `te_halfwidth.py` — harvest the Tournament Edition's HALF-WIDTH Latin font.
 - `trap_dash.lua` — : run the rep (2LP>2HP>66); log every write to P1 act ($1001)
 

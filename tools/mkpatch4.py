@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Patch 4: replace the title-screen red subtitle with "FrenchName ver. 0.4",
+"""Patch 4: replace the title-screen red subtitle with "FrenchName ver. <BUNDLE_VERSION>" (see --text),
 and swap the first copyright line to the Big Zam edition's "(C)MOONLIGHT FIGHT SOCIETY"
 (second line "(C)ANGEL 1994" untouched — it shares tiles/palette with the original).
 

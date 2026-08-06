@@ -50,7 +50,9 @@ Deliverable = a BPS/IPS patch against the clean ROM + a writeup of what bytes ch
 ## Environment & conventions
 - Emulator: build Mesen2 headless (preferred) or BizHawk/mono for Lua write-callbacks
   and frame advance. Scripts in tools/, traces in traces/, keep them out of git if huge.
-- Disassembler: pelrun/Dispel (plain `make`) or tools/disasm65816.py.
+- Disassembler: pelrun/Dispel — vendored at tools/Dispel/, build once with
+  `cc -O2 -o dispel main.c 65816.c`. (An earlier tools/disasm65816.py no longer exists;
+  tools/asm65816.py is the assembler, not a disassembler.)
 - Maintain docs/annotations.md (address → label/comment). Commit after each finding.
 - Never patch the ROM in place; generate patches via flips (BPS) from build/.
 - All timing claims must be validated by frame-advance in emulator, not inferred.
