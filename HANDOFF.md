@@ -206,14 +206,15 @@ reference, `SATURN_ALLSTAGES=1` on the Saturn step is the whole change.
 strip is **168 px** and "FrenchName Rev. SS-99" renders **146 px**, so the
 naming has 22 px to spare — two digits is nowhere near the limit.
 
-**GITHUB ISSUE REMEDIATION — the live workstream (started 2026-08-06).** 63
-open issues from two adversarial cross-model reviews (#2-#58 in 2026-07-28,
-#59-#105 in 2026-08-04) were triaged against HEAD: 6 already fixed, 8 partial,
-47 valid. Maintainer's calls: **address everything warranted**, and Claude
-comments + closes what is already fixed or wrongly premised. Batch plan and
-per-issue verdicts: recorded in the per-issue commits (`Fixes #NN`) and on
-tracking issues #57/#106 — the working plan was a session-local file, not in
-the repo; running state: `docs/NEXT_SESSION.md`.
+**GITHUB ISSUE REMEDIATION — COMPLETE (2026-08-06, single day).** 63 open
+issues from two adversarial cross-model reviews (#2-#58 in 2026-07-28,
+#59-#105 in 2026-08-04) were triaged against HEAD (6 already fixed, 8
+partial, 47 valid), then all 61 real issues resolved across four batches;
+the maintainer closed the two tracking meta-issues (#57/#106) and the
+tracker is EMPTY. Per-issue verdicts live in the `Fixes #NN` commits and on
+the closed issues; the generalisable lessons are traps 12-18 below. The
+tree-wide machine-specific-path sweep that followed found and fixed three
+stragglers (17cefe6).
 
 **THE PROGRAMME IS COMPLETE (2026-08-06):** all 61 real issues from both
 adversarial reviews are resolved; only the two tracking meta-issues (#57,
@@ -250,11 +251,14 @@ Two findings from batch 1 that changed how this repo is verified:
 
 ⚠ **A "cross-model verified" issue can still be false** — #84 was confirmed by
 both models against the cited lines and does not reproduce; the fix was written,
-disproved by its own test, and reverted (detail in `docs/NEXT_SESSION.md`). For
+disproved by its own test, and reverted (detail: trap 11 below and the #84
+issue thread). For
 the remaining batches: build the failing case BEFORE the fix, and prove the
 working path is unchanged after.
 
-**Open work — full detail in `docs/NEXT_SESSION.md`:**
+**Open work — patch 16 is the ONLY active item (next session is dedicated to
+it; full brief in `docs/NEXT_SESSION.md`). Dormant maintainer options, not
+tasks: §8's fold-6/7/8-into-canonical and dash-distance retune.**
 
 **Patch 16 — menu translation. Step 1 DONE, step 2 blocked on one screen.**
 The half-width A-Z now *reaches VRAM* (tiles `$5C0-$5FF`, read back out of VRAM,
