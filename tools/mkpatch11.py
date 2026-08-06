@@ -1855,10 +1855,19 @@ def build(src, out, stage="tier1"):
         raise ValueError(f"input hook bytes: {data[INP:INP+4].hex()}")
     if not (data[UPL2:UPL2 + 5] == UPL2_OLD):
         raise ValueError(f"upl2 hook bytes: {data[UPL2:UPL2+5].hex()}")
+    # Patch 10's hook sites, which this patch chains through. Two shapes are
+    # legitimate: the clean base, or a JML ($5C) because patch 10 is already
+    # applied. Anything else means the base is not one we recognise, and writing
+    # hooks over it is how you get a build that looks fine and jumps into the
+    # middle of someone else's stub. This used to print a WARNING and continue,
+    # while this file's OWN two sites four lines above raise — same condition,
+    # opposite consequence (#92).
     for site, old, name in ((P10_PROD, P10_PROD_OLD, "p10-producer"),
                             (P10_UPL, P10_UPL_OLD, "p10-uploader")):
         if data[site:site + len(old)] != old and data[site] != 0x5C:
-            print(f"WARNING: unexpected bytes at {name} ({data[site:site+len(old)].hex()})")
+            raise ValueError(
+                f"{name} hook bytes at {site:#08x}: found {data[site:site+len(old)].hex()}, "
+                f"expected the clean base ({old.hex()}) or a patch-10 JML ($5C)")
 
     bankbase, bank = next_bank(data)
 
