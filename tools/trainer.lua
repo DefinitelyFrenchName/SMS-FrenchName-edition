@@ -117,7 +117,12 @@ local function merge(a, b)
   return t
 end
 
--- P2 input for the current dummy mode
+-- P2 input for the current dummy mode.
+-- Every unnamed button is forced FALSE at the setInput below (#89): a sparse table
+-- leaves unspecified buttons at the physical/stale port state, so a second pad
+-- (or leftover input) would leak into the dummy — mode 1 "Off" most of all.
+local FALSE_PAD = { a=false,b=false,x=false,y=false,l=false,r=false,
+                    up=false,down=false,left=false,right=false,start=false,select=false }
 local p2mashPhase = 0
 local function driveP2()
   local a2 = r(0x1081)
@@ -164,7 +169,7 @@ local function driveP2()
     elseif ph <= 9 then btn = merge(fwd, { b = true })   -- 6 + LK (B)
     end                                                  -- 10-23: neutral (gap)
   end
-  emu.setInput(btn, 0, 1)   -- port 1 = P2 (Mesen: port is the 3rd arg)
+  emu.setInput(merge(FALSE_PAD, btn), 0, 1)   -- port 1 = P2 (Mesen: port is the 3rd arg)
 end
 
 --------------------------------------------------------------------------------
