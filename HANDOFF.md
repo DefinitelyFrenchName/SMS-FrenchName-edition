@@ -215,10 +215,14 @@ per-issue verdicts: `~/.claude/plans/i-ll-look-into-all-purrfect-blum.md`;
 running state: `docs/NEXT_SESSION.md`.
 
 Done so far: **batch 1** (integrity — #79 #81 #82 #83 #59 #60 #65 #66 #13),
-**batch 1b** (#24 #61 #62 #3, #63 rescoped), and the start of **batch 2**
-(#87 #92 #91 #86; #84 refuted by measurement). Convention from here: **one commit
-per issue** (`Fixes #NN`) — the two batch commits are deliberate exceptions the
-maintainer chose to keep rather than split verified history.
+**batch 1b** (#24 #61 #62 #3, #63 rescoped), and **batch 2 complete**
+(2026-08-06: #87 #92 #91 #86, then one commit per issue for #88 #90 #96 #94
+#89 #80 #97 #69 #76 #71 #18 #93; #84 refuted by measurement). Convention:
+**one commit per issue** (`Fixes #NN`) — the two batch commits are deliberate
+exceptions the maintainer chose to keep rather than split verified history.
+Batch-2 artifacts that moved: p10b `745ea0bc…` (#86/#88/#93 chain), p11
+`a3aba30d…` (#90); suite growth: tier1 65 checks (reset-hitstop), training
+T11 (reload clears framedata), plus probes p88/p89/p93.
 
 Two findings from batch 1 that changed how this repo is verified:
 * **The published verification procedure could report a run that never

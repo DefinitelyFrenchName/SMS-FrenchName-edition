@@ -18,10 +18,23 @@ already fixed or wrongly premised.
 |---|---|---|
 | 1 — integrity ("results that can lie") | #79 #81 #82 #83 #59 #60 #65 #66 #13 | **DONE** (`87a5b5a`) |
 | 1b — health command + fresh clone | #24 #61 #62 #3, rescoped #63 | **DONE** (`f3b6e68`) |
-| 2 — correctness in shipped code | #87 #92 #91 #86 done; #84 refuted | **IN PROGRESS** |
-| 2 remaining | #88 #90 #96 #94 #89 #80 #97 #69 #76 #71 #18 | not started |
+| 2 — correctness in shipped code | #87 #92 #91 #86 #88 #90 #96 #94 #89 #80 #97 #69 #76 #71 #18 #93; #84 refuted | **DONE** (2026-08-06, one commit per issue from #88 on) |
 | 3 — docs/registry drift | #67 #68 #74 #103 #52 #75 | not started |
 | 4 — duplication, dead code, conventions | #73 #85 #95 #98 #100 #101 #70 #77 #99 #102 #105 #104 #78 #35 #32 #44 #64 #72 | not started |
+
+Batch 2 findings that generalise (detail in the per-issue commits):
+* **The #46 "fixed" pattern never worked** — an error (assert included) thrown
+  inside a Mesen memory callback is swallowed with no message, so
+  react_test.lua's assert hung to timeout exactly like the unfixed sibling.
+  The only reporting form is print + emu.stop(1) (probe_chr.lua's). More
+  assert(io.open…) sites inside callbacks remain for the #105 sweep.
+* **inputprobe.lua had never logged anything** — its range covered bank $00
+  while this game reads pads from the $80 FastROM mirror. The filed
+  double-registration was real but unreachable. Hook both bank images.
+* **A "both labels idle" re-arm is load-bearing for per-match CHR reloads**
+  (#93): the fix had to move the cost to a lazy uploader, not narrow the
+  re-arm to a transition — that would draw match 2's first label with a
+  wiped font.
 
 ⚠ **Ordering constraints that still apply:** #87 before #98 (same functions);
 #99 must not be swept with `sed` — four of its twelve sites sit inside gating
