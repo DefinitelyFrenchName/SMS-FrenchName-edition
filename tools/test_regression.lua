@@ -921,7 +921,6 @@ add{ name = "full-chip-mars-full32", group = "full", need = fullmode, state = "p
   frame = function(api)
     if api.pt == 5 then wr(0x10C9, 0x10); wr(0x801, 0x10); park(2, 60) end
     if api.pt >= 6 then
-      local p = {}
       if onLeft(2) then pulse[0] = { right = true } else pulse[0] = { left = true } end
     end
     motion(api, 2, "6321412", "a", 10, false)
@@ -1021,8 +1020,7 @@ add{ name = "base-desp-mercury-crouch62", group = "base", state = "pluto_vs_2.ms
 add{ name = "base-desp-chibi-crouch24", group = "base", state = "pluto_vs_chibi_v07.mss", dur = 220,
   frame = function(api)
     if api.pt == 5 then wr(0x10C9, 0x10); wr(0x801, 0x10); park(2, 50) end
-    if api.pt >= 6 and api.pt > 13 then pulse[0] = { down = true } end
-    if api.pt >= 6 and api.pt <= 13 then pulse[0] = { down = true } end
+    if api.pt >= 6 then pulse[0] = { down = true } end
     if api.pt >= 10 and api.pt <= 12 then pulse[1] = { up = true } elseif api.pt == 13 then pulse[1] = nil end
     if api.pt >= 22 then motion(api, 2, "63214", "x", 22, false) end
   end,

@@ -155,7 +155,7 @@ tests.T3 = (function()
           local ok2 = pad.right and not pad.left
           log((ok1 and ok2) and "PASS: direction mirror round-trip"
               or string.format("FAIL: mirror m=%X right=%s", m, tostring(pad.right)))
-          phase = "B"; applied = nil; cur = {}
+          phase = "B"
           ctx.anchor.loadreq = T._state
         end
       elseif phase == "B" then
@@ -165,7 +165,7 @@ tests.T3 = (function()
           local n = #rec.slots[rec.cur]
           log(n > 10 and ("PASS: recorded " .. n .. " frames")
               or ("FAIL: recorded only " .. n .. " frames"))
-          phase = "C"; applied = nil; cur = {}
+          phase = "C"
           ctx.anchor.loadreq = T._state
         end
       elseif phase == "C" then
@@ -561,7 +561,7 @@ if not T then error("unknown TEST " .. tostring(TEST)) end
 local log = io.open(TRACE .. "training_test_" .. TEST .. ".txt", "w")
 local fails, ran = 0, 0
 
-local function planPad(plan, which, t)
+local function planPad(plan, t)
   if not plan then return FALSE end
   local bestK, best = -1, {}
   for k, v in pairs(plan) do
@@ -582,7 +582,7 @@ ctxRef = main.run(ROOT, {
     if T.padSource then return T.padSource(ctxRef, port) end
     local t = ctxRef.t
     if t < 0 then return FALSE end
-    return planPad(port == 0 and T.PLAN1 or T.PLAN2, port + 1, t)
+    return planPad(port == 0 and T.PLAN1 or T.PLAN2, t)
   end,
 })
 

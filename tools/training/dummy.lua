@@ -94,8 +94,12 @@ function M.init(ctx)
       backdashPhase = backdashPhase - 1
     end
 
-    -- 2. throw-tech mash (fresh press every other frame; +0x50 latches at 30Hz)
-    if not m and M.tech and (d.act == 0x1C or d.hurt >= 0x80 and d.act == 0x1C) then
+    -- 2. throw-tech mash (fresh press every other frame; +0x50 latches at 30Hz).
+    -- (#44: the original `(act == 0x1C or hurt >= 0x80 and act == 0x1C)` was a
+    -- tautology — `and` binds tighter than `or`, so the hurt term had no effect.
+    -- Simplified to what it always computed; if an invulnerable-frame exclusion
+    -- was ever intended, that is a new feature, not a restoration.)
+    if not m and M.tech and d.act == 0x1C then
       m = (ctx.t % 2 == 0) and mask(C.M_HK) or 0
     end
 

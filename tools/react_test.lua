@@ -112,7 +112,7 @@ emu.addEventCallback(function()
     if t==5 then emu.write(0x1021,0xE8,WRAM) end
     local p1a, p2a, hp = r(0x1001), r(0x1081), r(0x10C9)
     if t==100 then hpStart=hp end
-    if t>=118 and t<=128 and p2a~=0x00 and (p2a<0x0C or p2a>0x16) and p2a~=0x13 then moveSeen=moveSeen or p2a end
+    if t>=118 and t<=128 and p2a~=0x00 and (p2a<0x0C or p2a>0x16) then moveSeen=moveSeen or p2a end
     if hpStart and hp<hpStart and hitFrame==nil then hitFrame=t; p2AtHit=p2a end   -- P2 got hit
     if t>=120 and t<=128 and p2a>=0x0C and p2a<=0x0F then sawBlock=true end          -- P2 in a guard state
     -- Uranus hurt? whole hurt range 0x10-0x20: hitstun/flame/electric/knockdown/thrown/held/down

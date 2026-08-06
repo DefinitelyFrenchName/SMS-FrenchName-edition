@@ -94,7 +94,7 @@ function M.init(ctx)
     -- segment counts (non-frozen frames), printed at run starts
     for i = 1, 2 do
       local runCls, runStart, runCount = nil, nil, 0
-      local function flush(endK)
+      local function flush()
         if runCls and COUNTED[runCls] and runCount > 0 then
           local x = x0 + (runStart - 1) * pitch
           local y = (i == 1) and (y1 - 11) or (y2 + 12)
@@ -106,12 +106,12 @@ function M.init(ctx)
         local cls = pe.cls or CLS.OTHER
         local merged = (cls == CLS.RECOVERY_C) and CLS.RECOVERY or cls
         if merged ~= runCls then
-          flush(k - 1)
+          flush()
           runCls, runStart, runCount = merged, k, 0
         end
         if not pe.frz then runCount = runCount + 1 end
       end
-      flush(n)
+      flush()
     end
   end
 
