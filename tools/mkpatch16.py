@@ -259,6 +259,38 @@ CS_HOOK_OLD = bytes.fromhex("a91a008d181c")
 CS_BLOCK_AT = 0x8800              # uncompressed 64-tile glyph block in the blob
 CS_STUB_AT = 0x7F60
 
+# The config screen's ROW LABELS live in the $C3:7C00 tilemap (record A idx
+# 12, rec $C3:BEF8, loaded by the char-select cluster to VRAM $0000). One
+# relocated tilemap edit covers everything: both マニュアル columns, the row
+# labels, and ステージ. The baked stage NAME at rows 23-24 is left alone —
+# the stage records overdraw it. (top_row, start_col, last_col, text); attr
+# read from the map.
+CFG_MAP_SRC = 0xC37C00
+CFG_MAP_REF = 0x03BEFC            # the record's src24 field
+CFG_MAP_AT = 0x4000               # relocated packed map's offset in the blob
+# The マニュアル/オート VALUES are runtime records (bank $C4, same renderer as
+# the option values) that overdraw the baked map columns on entry — found by
+# searching for the マニ cell run: [vmadd $00A1|$00B5][len $14][rows 2].
+# both highlight sets (pointer tables $C3:B58D = attr $0C00, $C3:B581 = $1000)
+CFG_VALUES = (
+    (0x0458CC, "MANUAL"), (0x045956, "MANUAL"),
+    (0x0458FA, "AUTO"),   (0x045984, "AUTO"),
+    (0x0459E0, "MANUAL"), (0x045A3C, "MANUAL"),
+    (0x045A0E, "AUTO"),   (0x045A6A, "AUTO"),
+)
+CFG_LABELS = (
+    (5,  1,  10, "MANUAL"),
+    (5,  21, 30, "MANUAL"),
+    (5,  13, 18, "MODE"),
+    (7,  12, 19, "LP"),
+    (9,  12, 19, "HP"),
+    (11, 12, 19, "LK"),
+    (13, 12, 19, "HK"),
+    (15, 10, 21, "LSP"),
+    (17, 10, 21, "HSP"),
+    (21, 12, 19, "STAGE"),
+)
+
 
 def encode_glyph(rows, ink=INK):
     """an 8x16 '#'/'.' glyph -> (top 32-byte tile, bottom 32-byte tile), 4bpp"""
@@ -642,6 +674,62 @@ def build(src_path, out_path, stacked=False):
                     for r, w in ((0, top), (1, bot)):
                         o2 = cells + (r * 24 + c) * 2
                         data[o2], data[o2 + 1] = w & 0xFF, w >> 8
+        # the config-row labels: relocated tilemap edit (see CFG_LABELS)
+        if bytes(data[CFG_MAP_REF:CFG_MAP_REF + 3]) != bytes.fromhex("007cc3"):
+            raise SystemExit("config map record src reads %s, expected 007cc3"
+                             % bytes(data[CFG_MAP_REF:CFG_MAP_REF + 3]).hex())
+        cmap = bytearray(sms_lz.decompress(bytes(data), CFG_MAP_SRC & 0x3FFFFF, 0x4000))
+        if len(cmap) != 0x800:
+            raise SystemExit("config map is %#x bytes, expected 0x800" % len(cmap))
+        for row, start, last, text in CFG_LABELS:
+            attr = 0
+            for c in range(start, last + 1):
+                w = cmap[(row * 32 + c) * 2] | (cmap[(row * 32 + c) * 2 + 1] << 8)
+                if w & 0x03FF:
+                    attr = w & 0xFC00
+                    break
+            if not attr:
+                raise SystemExit("config label at row %d has no glyph cells" % row)
+            tstart = start + (last - start + 1 - len(text)) // 2
+            for c in range(start, last + 1):
+                j = c - tstart
+                top = bot = 0
+                if 0 <= j < len(text) and text[j] != " ":
+                    t = placed[text[j]] - 0x200
+                    top, bot = attr | t, attr | (t + 0x10)
+                for r, w in ((row, top), (row + 1, bot)):
+                    o2 = (r * 32 + c) * 2
+                    cmap[o2], cmap[o2 + 1] = w & 0xFF, w >> 8
+        packed_cmap = sms_lz.encode(bytes(cmap))
+        assert sms_lz.decompress(packed_cmap, 0, len(cmap)) == bytes(cmap), \
+            "config map round-trip failed"
+        # the MANUAL/AUTO value records (overdraw the map columns on entry)
+        for off, text in CFG_VALUES:
+            vmadd = data[off] | (data[off + 1] << 8)
+            ln = data[off + 2] | (data[off + 3] << 8)
+            nrows = data[off + 4] | (data[off + 5] << 8)
+            if vmadd not in (0x00A1, 0x00B5) or (ln, nrows) != (0x14, 2):
+                raise SystemExit("config value record %#x header %04X/%02X/%d "
+                                 "unexpected" % (off, vmadd, ln, nrows))
+            cells = off + 6
+            attr = 0
+            for k in range(20):
+                w = data[cells + k * 2] | (data[cells + k * 2 + 1] << 8)
+                if w & 0x03FF:
+                    attr = w & 0xFC00
+                    break
+            if not attr:
+                raise SystemExit("config value record %#x has no glyph cells" % off)
+            start = (10 - len(text)) // 2
+            for c in range(10):
+                j = c - start
+                top = bot = 0
+                if 0 <= j < len(text):
+                    t = placed[text[j]] - 0x200
+                    top, bot = attr | t, attr | (t + 0x10)
+                for r, w in ((0, top), (1, bot)):
+                    o2 = cells + (r * 10 + c) * 2
+                    data[o2], data[o2 + 1] = w & 0xFF, w >> 8
         # the uncompressed glyph block the hook uploads (VRAM-order $5C0-$5FF)
         csblock = bytearray(0x800)
         for ch, top in placed.items():
@@ -677,6 +765,13 @@ def build(src_path, out_path, stacked=False):
     if csstub:
         blob[CS_STUB_AT:CS_STUB_AT + len(csstub)] = csstub
         blob[CS_BLOCK_AT:CS_BLOCK_AT + len(csblock)] = csblock
+        if CFG_MAP_AT + len(packed_cmap) > STUB_AT:
+            raise SystemExit("packed config map (%#x) overruns the stub slot"
+                             % len(packed_cmap))
+        if len(packed) > CFG_MAP_AT:
+            raise SystemExit("packed font (%#x) overruns the config map slot"
+                             % len(packed))
+        blob[CFG_MAP_AT:CFG_MAP_AT + len(packed_cmap)] = packed_cmap
     if packed_df:
         if DF_SHEET_AT + len(packed_df) > 0x10000:
             raise SystemExit("packed DF sheet (%#x) overruns the bank" % len(packed_df))
@@ -714,6 +809,9 @@ def build(src_path, out_path, stacked=False):
     if csstub:
         data[CS_HOOK_FILE:CS_HOOK_FILE + 6] = bytes(
             [0x22, CS_STUB_AT & 0xFF, CS_STUB_AT >> 8, bank, 0xEA, 0xEA])
+        data[CFG_MAP_REF] = CFG_MAP_AT & 0xFF
+        data[CFG_MAP_REF + 1] = CFG_MAP_AT >> 8
+        data[CFG_MAP_REF + 2] = bank
 
     fix_checksum(data)
     open(out_path, "wb").write(bytes(data))
@@ -746,6 +844,8 @@ def build(src_path, out_path, stacked=False):
         print("  stage names: 20 records rewritten (10 stages x 2 states); "
               "char-select hook $C3:AF8A -> $%02X:%04X uploads the glyph block"
               % (bank, CS_STUB_AT))
+        print("  config rows: %d labels in the relocated $C3:7C00 map (%s)"
+              % (len(CFG_LABELS), ", ".join(t for _, _, _, t in CFG_LABELS)))
     else:
         print("  stage names: NOT translated (SMS_P16_STAGES=1 to enable)")
     print("  -> %s  sha1 %s" % (out_path, hashlib.sha1(bytes(data)).hexdigest()))
