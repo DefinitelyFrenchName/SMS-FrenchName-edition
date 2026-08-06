@@ -105,6 +105,41 @@ for b = 0x00, 0xBF do
   end
 end
 
+-- GLYPHWATCH=1: who fills the text engine's glyph staging area ($7F:DC00+,
+-- uploaded $20 bytes at a time to BG3 CHR $5800+ by $80:95B0)?
+if os.getenv("GLYPHWATCH") == "1" then
+  local seen, n = {}, 0
+  emu.addMemoryCallback(function(addr, v)
+    if n >= 120 then return end
+    local s = st()
+    local pc = s and (((s["cpu.k"] or 0) << 16) | (s["cpu.pc"] or 0)) or -1
+    seen[pc] = (seen[pc] or 0) + 1
+    if seen[pc] <= 4 then
+      n = n + 1
+      msgs[#msgs + 1] = string.format("f%d GL $%06X=%02X pc=$%06X",
+        frames, addr or 0, v or 0, pc)
+    end
+  end, emu.callbackType.write, 0x7FDC00, 0x7FDFFF, emu.cpuType.snes, MEM)
+end
+
+-- PROMPTWATCH=1: the ACS prompt bar is a WRAM-resident map ($7E:1000-$17FF,
+-- re-uploaded to VRAM $5000 every frame) — log its writers + dump the buffer
+if os.getenv("PROMPTWATCH") == "1" then
+  local seen, n = {}, 0
+  emu.addMemoryCallback(function(addr, v)
+    if n >= 200 then return end
+    local s = st()
+    local pc = s and (((s["cpu.k"] or 0) << 16) | (s["cpu.pc"] or 0)) or -1
+    seen[pc] = (seen[pc] or 0) + 1
+    if seen[pc] <= 6 then
+      n = n + 1
+      msgs[#msgs + 1] = string.format("f%d PB $%04X=%02X pc=$%06X",
+        frames, addr or 0, v or 0, pc)
+    end
+  end, emu.callbackType.write, 0x1000, 0x17FF, emu.cpuType.snes,
+     emu.memType.snesWorkRam)
+end
+
 -- VSWATCH=1: log VRAM writes to the bracket's VS-line rows (map words
 -- $7040-$70DF) with writer PC — the bracket names are port-written (no DMA
 -- trace), so this names the writer directly
@@ -318,6 +353,37 @@ local ROUTES = {
       if sf % 120 == 0 then
         local f = io.open(string.format("%sp16scr_%s_post_f%d.png", ENV.TRACE, ROUTE, frames), "wb")
         if f then f:write(emu.takeScreenshot()); f:close() end
+      end
+      if sf == 480 and os.getenv("PROMPTWATCH") == "1" then
+        local f = assert(io.open(ENV.TRACE .. "p16_promptbar.bin", "wb"))
+        local chunk = {}
+        for i = 0x1000, 0x17FF do
+          chunk[#chunk + 1] = string.char(emu.read(i, emu.memType.snesWorkRam) or 0)
+        end
+        f:write(table.concat(chunk)); f:close()
+        local s = st()
+        if s then
+          for i = 0, 3 do
+            log(string.format("BG%d map=$%04X chr=$%04X", i + 1,
+              s[string.format("ppu.layers[%d].tilemapAddress", i)] or -1,
+              s[string.format("ppu.layers[%d].chrAddress", i)] or -1))
+          end
+        end
+        f = assert(io.open(ENV.TRACE .. "p16_acsmaps.bin", "wb"))
+        chunk = {}
+        for a = 0x0000, 0x1FFF do
+          chunk[#chunk + 1] = string.char(emu.read(a, VRAM) or 0)
+          if #chunk == 4096 then f:write(table.concat(chunk)); chunk = {} end
+        end
+        f:write(table.concat(chunk)); f:close()
+        f = assert(io.open(ENV.TRACE .. "p16_acsvram.bin", "wb"))
+        chunk = {}
+        for a = 0xA000, 0xDFFF do
+          chunk[#chunk + 1] = string.char(emu.read(a, VRAM) or 0)
+          if #chunk == 4096 then f:write(table.concat(chunk)); chunk = {} end
+        end
+        f:write(table.concat(chunk)); f:close()
+        log(string.format("f%d PROMPTBAR + VRAM $A000-$DFFF dumped", frames))
       end
       return sf > 500
     end,

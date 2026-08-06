@@ -1266,6 +1266,34 @@ Consequences:
   attacks; strikes underflow-kill normally. HP pins must use the per-A.C.S.
   max (`$104A`), not a constant.
 
+### The ACS prompt bar — attempted, mechanism found, NOT a tilemap job
+
+Attempted 2026-08-06 at the maintainer's "if you feel like it". It is not
+map data at all, and two plausible-looking leads were disproved by
+measurement before the real one appeared:
+
+* the every-frame DMA `vmadd $5000 len $0800 src $80:1000` is **not** the
+  prompt — `$7E:1000` is a 2bpp *drawing buffer* for the stat hexagon, and
+  its writers (`$C3:8489` clear, `$C3:85E7`/`$85F8` OR/AND plot) are a
+  **Bresenham line renderer** (`$C3:8500-85A5`). That is the wheel graph.
+* the prompt is not in BG1's or BG2's live maps either (dumped both).
+
+What it actually is: **a dynamic glyph blitter** — single glyphs uploaded
+`$20` bytes at a time to BG3 CHR (`vmadd $5800+`) by the queue-driven
+routine at `$80:9583` (WRAM `$1C80` src / `$1C82` bank / `$1C8E` vmadd,
+dispatched via `$1C90`), with BG3 map cells pointing at the uploaded tiles.
+The glyph bytes come from a staging area at `$7F:DC00+`, which a per-byte
+write watch never sees — so it is filled by `mvn` or a WRAM-to-WRAM DMA.
+This is the game's variable-text engine (the same class of machinery the
+story dialogue would use), which is why the name can be substituted.
+
+**NEXT (a session of its own):** find the filler of `$7F:DC00+` (exec-watch
+`$80:9583`'s caller and walk back, or watch `$420B` with a WRAM B-bus
+target), which yields the FONT source; then the string encoding and the
+name-substitution site. Only then is an English prompt authorable — and it
+would want proportional glyphs, since this engine is not tile-grid bound.
+Until then the Japanese prompt stays, which the maintainer has accepted.
+
 **Maintainer-supplied strings (2026-08-06) — the full set for every censused
 screen:**
 
