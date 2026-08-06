@@ -1239,19 +1239,8 @@ def main():
         ee[EE_FIGHTPALS + _i * 0x20:EE_FIGHTPALS + (_i + 1) * 0x20] = _p
     ver = ("SATURN v" + VARIANT_STR).encode()
     ee[0xC040:0xC040 + len(ver) + 1] = ver + b"\x00"
-    # -- char-select 10th-slot stubs (consumed by the v0.10.0 hooks below) --
-    def _asm():
-        code, fixups, labels = bytearray(), [], {}
-        def lbl(name): labels[name] = len(code)
-        def br(op, name):
-            code.extend((op, 0x00)); fixups.append((len(code) - 1, name))
-        def fix():
-            for pos, name in fixups:
-                d = labels[name] - (pos + 1)
-                assert -128 <= d <= 127, f"branch too far: {name}"
-                code[pos] = d & 0xFF
-        return code, lbl, br, fix
-
+    # -- char-select 10th-slot stubs (consumed by the v0.10.0 hooks below;
+    #    assembled as text by tools/asm65816.py) --
     # confirm-site chaining (v0.11.5): on a REF base the site holds patch 5's
     # 4-byte JSL (alt-palette/default-stage hook), which itself replicates the
     # displaced head (rep #$30 / lda [$FE]). Our stub's tail then CALLS that
@@ -1838,14 +1827,19 @@ keep:
     assert ee[EE_BLIT:EE_BLIT + len(bl)] == bytes(len(bl)), "blit slot is not free"
     ee[EE_BLIT:EE_BLIT + len(bl)] = bl
 
-    cp, lbl, br, fix = _asm()
     # The loader uses DP $00-$0E as workspace, so the destination in $03 must be
     # stashed BEFORE calling it (v0.12.0 bring-up bug: reading $03 afterwards
     # gave garbage and the blit never ran). Entry A/flags belong to the loader.
-    cp += bytes((0x08, 0xC2, 0x30, 0x48))          # php / rep #$30 / pha
-    cp += bytes((0xA5, 0x03, 0x8F, 0x04, 0xF1, SATURN_BANK))   # stash dest
-    cp += bytes((0x68, 0x28))                      # pla / plp
-    cp += bytes((0x22, 0xEC, 0x8D, 0x80))          # the vanilla upload we wrap
+    cp_asm = f"""
+  php
+  rep #$30
+  pha
+  lda_dp $03         ; stash dest
+  sta_l ${SATURN_BANK:02X}F104
+  pla
+  plp
+  jsl $808DEC        ; the vanilla upload we wrap
+"""
     # The card-build wrapper now ONLY resets the marker. It used to blit here
     # too, but the portrait loader is called FIVE times per card and this site
     # does not always get the portrait window: a destination of $7800 was
@@ -1854,11 +1848,23 @@ keep:
     # the SHELL's tiles under her layout — which is exactly what the field saw
     # ("a garbled mess, but a few tiles are definitely Uranus"). The per-frame
     # path always targets VRAM $0000, so it cannot make that mistake.
-    cp += bytes((0x08, 0xC2, 0x30, 0x48, 0xDA, 0x5A))   # php/rep #$30/pha/phx/phy
-    cp += bytes((0xE2, 0x20))                           # sep #$20
-    cp += bytes((0xA9, 0x00, 0x8F, SATURN_MARK & 0xFF, SATURN_MARK >> 8, SATURN_BANK))
-    cp += bytes((0xC2, 0x30, 0x7A, 0xFA, 0x68, 0x28, 0x6B))   # restore / rtl
-    fix()
+    cp_asm += f"""
+  php
+  rep #$30
+  pha
+  phx
+  phy
+  sep #$20
+  lda #$00
+  sta_l ${SATURN_BANK:02X}{SATURN_MARK:04X}
+  rep #$30
+  ply
+  plx
+  pla
+  plp
+  rtl
+"""
+    cp, _ = A.assemble(cp_asm.splitlines(), 0, 0)
     assert len(cp) <= 0xF0, f"card-portrait stub too big: {len(cp)}"
     ee[EE_CARDPORT:EE_CARDPORT + len(cp)] = cp
     write_bank(data, bankbase, bytes(ee))
