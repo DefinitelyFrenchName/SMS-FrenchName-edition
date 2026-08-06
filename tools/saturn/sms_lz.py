@@ -94,6 +94,10 @@ def decompress_ex(data, src, limit=0x10000):
         p = len(out) + dist
         if p < 0:
             raise ValueError(f"back-reference before start at out+{len(out)}")
+        if len(out) + count > limit:
+            raise ValueError(
+                f"back-reference overruns declared size at out+{len(out)} "
+                f"(+{count} > limit {limit:#x})")
         for i in range(count):
             out.append(out[p + i])
     return bytes(out), src - start

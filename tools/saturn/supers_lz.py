@@ -53,6 +53,10 @@ def lz_decompress(rom, src):
             w = rom[src] | rom[src + 1] << 8
             src += 2
             start = len(out) - (w >> 4) - 1
+            if start < 0:
+                # without this, Python's negative indexing silently copies from
+                # the TAIL of the buffer — plausible-looking wrong bytes
+                raise ValueError(f"back-reference before start at out+{len(out)}")
             for i in range((w & 0xF) + 3):
                 out.append(out[start + i])
             count -= 1
