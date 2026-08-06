@@ -195,6 +195,30 @@ DF_NAMES = (
     (0x1F916F, "PLUTO"),   (0x1F91A5, "NEPTUNE"), (0x1F91DB, "URANUS"),
 )
 
+# ---- the REPORT CARD (Win screen) labels -----------------------------------
+# The screen's text is a tilemap blob ($C8:703C, the second, unreversed codec)
+# decompressed to $7F:0000; the match numbers are inserted by $DF:9732 and the
+# map is uploaded ONCE by 'sep #$10 / ldy #$00 / jsr $84F9' at $DF:9679. The
+# labels are translated by hooking those 7 bytes with a JSL to a generated
+# straight-line stub that rewrites the label cells in $7F:0000 AFTER the
+# numbers went in, then replays $84F9's Y=0 upload (src $7F:0000, vmadd
+# $7000, len $0800) inline — codec 2 never needs decoding. Spans/attrs read
+# off the live map dump (docs/menu_text.md § screen census).
+# (top_map_row, start_col, old_span_last_col, attr, text)
+DF_REPORT_HOOK = 0x1F9679
+DF_REPORT_OLD = bytes.fromhex("e210a00020f984")
+REPORT_AT = 0x9000                # stub offset in the blob
+DF_REPORT_LABELS = (
+    (9,  12, 21, 0x0C00, "KO TIME"),
+    (11, 12, 21, 0x0C00, "HIT COUNT"),
+    (13, 13, 20, 0x0C00, "DAMAGE"),
+    (16, 13, 18, 0x0C00, "BEST"),
+    (18, 12, 19, 0x0C00, "WIN COUNT"),
+    (20, 11, 20, 0x1000, "KO TIME"),
+    (22, 11, 20, 0x1000, "HIT COUNT"),
+    (24, 12, 19, 0x1000, "DAMAGE"),
+)
+
 
 def encode_glyph(rows, ink=INK):
     """an 8x16 '#'/'.' glyph -> (top 32-byte tile, bottom 32-byte tile), 4bpp"""
@@ -248,6 +272,52 @@ def opt_stub(bank):
     # DP layout: decompress src24 at $00-$02, dest24 at $03-$05 (the two word
     # writes at $02/$04 lay down src-bank + dest $7E:C000 in one go); DMA
     # vram/len/src24 at $00/$02/$04-$06 — exactly $C3:82CA's calling convention.
+
+
+def report_stub(placed):
+    """The REPORT CARD hook stub: rewrite the label cells in the staged map at
+    $7F:0000, then replay $84F9's Y=0 upload inline. Straight-line generated
+    code — one lda/sta_l per cell. Ends in $84F9's exit state (sep #$30)."""
+    lines = ["  rep #$20"]
+    for row, start, last, attr, text in DF_REPORT_LABELS:
+        for c in range(start, max(start + len(text), last + 1)):
+            i = c - start
+            if i < len(text) and text[i] != " ":
+                t = attr | (placed[text[i]] - 0x200)
+                top, bot = t, t + 0x10
+            elif i < len(text):
+                top = bot = 0
+            else:
+                top = bot = 0
+            for r, w in ((row, top), (row + 1, bot)):
+                addr = 0x7F0000 + (r * 32 + c) * 2
+                lines.append("  lda #$%04X" % w)
+                lines.append("  sta_l $%06X" % addr)
+    lines += [
+        "  sep #$30",          # $84F9's own entry width
+        "  lda #$01",
+        "  sta $4300",
+        "  lda #$00",
+        "  sta $2116",
+        "  lda #$70",
+        "  sta $2117",
+        "  lda #$18",
+        "  sta $4301",
+        "  lda #$00",
+        "  sta $4302",
+        "  lda #$00",
+        "  sta $4303",
+        "  lda #$7F",
+        "  sta $4304",
+        "  lda #$00",
+        "  sta $4305",
+        "  lda #$08",
+        "  sta $4306",
+        "  lda #$01",
+        "  sta $420B",
+        "  rtl",
+    ]
+    return "\n".join(lines)
 
 
 def find_record(data, want_src):
@@ -460,14 +530,26 @@ def build(src_path, out_path, stacked=False):
     stub, _ = asm65816.assemble(opt_stub(bank).splitlines(), STUB_AT, bank)
     if STUB_AT + len(stub) > MAP_AT:
         raise SystemExit("stub (%#x bytes) overruns the map slot" % len(stub))
+    rstub = None
+    if DF_TRANSLATE:
+        if bytes(data[DF_REPORT_HOOK:DF_REPORT_HOOK + 7]) != DF_REPORT_OLD:
+            raise SystemExit("report-card hook site reads %s, expected %s"
+                             % (bytes(data[DF_REPORT_HOOK:DF_REPORT_HOOK + 7]).hex(),
+                                DF_REPORT_OLD.hex()))
+        rstub, _ = asm65816.assemble(report_stub(placed).splitlines(), REPORT_AT, bank)
+        if REPORT_AT + len(rstub) > DF_SHEET_AT:
+            raise SystemExit("report stub (%#x bytes) overruns the DF sheet slot"
+                             % len(rstub))
     blob = bytearray(0x10000)
     blob[0:len(packed)] = packed
     blob[STUB_AT:STUB_AT + len(stub)] = stub
     if packed_map:
-        if MAP_AT + len(packed_map) > DF_SHEET_AT:
-            raise SystemExit("packed options map (%#x) overruns the DF sheet slot"
+        if MAP_AT + len(packed_map) > REPORT_AT:
+            raise SystemExit("packed options map (%#x) overruns the report stub slot"
                              % len(packed_map))
         blob[MAP_AT:MAP_AT + len(packed_map)] = packed_map
+    if rstub:
+        blob[REPORT_AT:REPORT_AT + len(rstub)] = rstub
     if packed_df:
         if DF_SHEET_AT + len(packed_df) > 0x10000:
             raise SystemExit("packed DF sheet (%#x) overruns the bank" % len(packed_df))
@@ -499,6 +581,9 @@ def build(src_path, out_path, stacked=False):
             data[ref + 2] = bank
             data[ref + 6] = DF_NEW_LEN & 0xFF
             data[ref + 7] = DF_NEW_LEN >> 8
+        # the report-card hook: 'sep #$10 / ldy #$00 / jsr $84F9' -> JSL stub
+        data[DF_REPORT_HOOK:DF_REPORT_HOOK + 7] = bytes(
+            [0x22, REPORT_AT & 0xFF, REPORT_AT >> 8, bank, 0xEA, 0xEA, 0xEA])
 
     fix_checksum(data)
     open(out_path, "wb").write(bytes(data))
@@ -523,6 +608,8 @@ def build(src_path, out_path, stacked=False):
         print("  $DF screens: sheet extended 608 -> %d tiles (%d bytes packed at "
               "$%02X:%04X), 3 scripts repointed, %d tournament names translated"
               % (DF_SHEET_TILES, len(packed_df), bank, DF_SHEET_AT, len(DF_NAMES)))
+        print("  report card: hook $DF:9679 -> $%02X:%04X (%dB stub), %d labels"
+              % (bank, REPORT_AT, len(rstub), len(DF_REPORT_LABELS)))
     else:
         print("  $DF screens (tournament/report): NOT translated (SMS_P16_DF=1)")
     print("  -> %s  sha1 %s" % (out_path, hashlib.sha1(bytes(data)).hexdigest()))
