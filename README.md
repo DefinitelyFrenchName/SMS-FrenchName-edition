@@ -85,8 +85,11 @@ no ROM can end up in a commit.
 Combined builds (each applies to the clean ROM): `build/sms_allpatches_v0.22.bps` — all 14
 patches (10 as 10b), ROM SHA-1 `3bb9c829…`, title tell "v.0.22"; `build/sms_reference_v1.bps`
 — the **REF v.1** reference combination 1b+2+3+4+5+7+8+9+12+13+14 (true-combo gate, no
-counter/training patches), ROM SHA-1 `2873f214…`, title tell "FrenchName REF v.1".
-Both rebuilt 2026-07-30 with the patch-4 "©MOONLIGHT FIGHT SOCIETY" credit line (the
-visible tell vs the pre-credit builds `52bc7e38…` / `bd1104ee…`).
+counter/training patches), ROM SHA-1 `2873f214…`, title tell "FrenchName REF v.1";
+`build/sms_reference_v2.bps` — **REF v.2** = REF v.1 + patch 15 (No AUTO), ROM SHA-1
+`6d79fb5f…`, title tell "FrenchName REF v.2", recipe `tools/build_ref_v2.sh` — this is the
+default base for the Saturn build (`tools/saturn/build_refsaturn.sh`).
+v0.22 and REF v.1 rebuilt 2026-07-30 with the patch-4 "©MOONLIGHT FIGHT SOCIETY" credit line
+(the visible tell vs the pre-credit builds `52bc7e38…` / `bd1104ee…`).
 `build/sms_reference_v2.bps` = REF v.1 + patch 15, ROM SHA-1 `6d79fb5f…`;
 `build/sms_ref_v2_allstages.bps` = REF v.2 + patch 17, ROM SHA-1 `e8fc6045…`.

@@ -458,7 +458,8 @@ GitHub tracker for per-issue evidence; every fix commented and auto-verifiable o
 closed. Key operational changes:
 - **`--stacked` is now REQUIRED on every chained builder step** (unconditional SHA gate,
   #12); `src == out` is rejected (#56); the §2 chain examples and the new committed
-  bundle recipes `tools/build_v022.sh` / `tools/build_ref_v1.sh` (#10) reflect this.
+  bundle recipes `tools/build_v022.sh` / `tools/build_ref_v1.sh` /
+  `tools/build_ref_v2.sh` (#10) reflect this.
 - **Dedup policy (maintainer ruling, 2026-07-30):** common tooling that no patch alters
   is CENTRALIZED (smspaths.py: ROM paths, SHA gates, `fix_checksum`, `trim_banks`,
   `next_bank`/`write_bank`; probelib.lua: emulator-access helpers for the standalone
@@ -657,7 +658,7 @@ python3 tools/mkpatch4.py --stacked /tmp/s3.sfc     /tmp/s4.sfc --text "FrenchNa
 python3 tools/mkpatch5.py --stacked /tmp/s4.sfc     /tmp/s5.sfc   # (patch 6/7 optional: mkpatch6/7.py)
 ./tools/Flips/flips --create --bps "$CLEAN" /tmp/s5.sfc build/out.bps
 # current bundles have committed one-command recipes:
-#   tools/build_v022.sh  /  tools/build_ref_v1.sh
+#   tools/build_v022.sh  /  tools/build_ref_v1.sh  /  tools/build_ref_v2.sh
 ```
 
 ### Tunable knobs (all builder flags — no hex editing; full table in patch_notes.md)
@@ -922,6 +923,7 @@ ROM="build/SailorMoonS_FrenchName_REF_v2_allstages.sfc" TAG=pool RNG=9 \
 # or rebuild either bundle from source (the committed recipes):
 tools/build_v022.sh    # -> 3bb9c829…
 tools/build_ref_v1.sh  # -> 2873f214…
+tools/build_ref_v2.sh  # -> 6d79fb5f…  (REF v.1 + patch 15; base for the Saturn build)
 ```
 
 ---
