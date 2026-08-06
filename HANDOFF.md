@@ -476,9 +476,10 @@ closed. Key operational changes:
   `be072a5e`, p10b `920652df`, p11 `e9ac2205`, p13 `bafb87d4`, p14 `5fadcaca`.
   (Moved again on 2026-08-06: p10b to `4899790a…` when the label pipeline was
   brought under `--modes` — issue #86 — then to `83defe1e…` when repeated
-  events were made to refresh the label TTL — issue #88; p11 to `a3aba30d…`
-  when a reset requested during hitstop stopped being swallowed — issue #90.
-  The list above is the 07-30 record.)
+  events were made to refresh the label TTL — issue #88 — then to `745ea0bc…`
+  when the glyph font became a lazy upload instead of one DMA per idle vblank
+  — issue #93; p11 to `a3aba30d…` when a reset requested during hitstop
+  stopped being swallowed — issue #90. The list above is the 07-30 record.)
   Bundles: v0.22 `3bb9c829…`, REF v.1 `2873f214…`. Canonical v0.7 `24aa6b6d…`
   unchanged (reproduced byte-for-byte with the new builders).
 - Suite-count note: v0.22 full run counts differ slightly from the 07-25 numbers only

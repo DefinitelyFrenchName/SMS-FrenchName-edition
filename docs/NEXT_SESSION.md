@@ -55,7 +55,8 @@ item 2 below.
 * **One artifact did change:** patch 10b (`sms_combolabels.bps`), ROM
   `920652df…` -> `4899790a…` when its label pipeline was brought under
   `--modes` (#86), then -> `83defe1e…` when repeated events were made to
-  refresh the label TTL (#88). Patch 10 proper is byte-identical.
+  refresh the label TTL (#88), then -> `745ea0bc…` when the glyph font
+  became a lazy upload (#93). Patch 10 proper is byte-identical.
 
 ## The lesson from the remediation so far
 

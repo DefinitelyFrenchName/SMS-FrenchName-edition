@@ -466,12 +466,23 @@ rdone{sfx}:
 
 
 def _glyph_upload(font_addr, font_bank, font_size):
-    """Flush-stub prologue: one-time-per-episode DMA of the glyph font to BG3 CHR (vblank)."""
+    """Flush-stub prologue: one-time-per-episode DMA of the glyph font to BG3 CHR (vblank).
+
+    Lazy (#93): with the flag disarmed, the DMA fires only when label cells are about
+    to be flushed this vblank (a staging row dirty, or a label shown). The producer
+    re-arms the flag on every idle frame — which is what survives per-match CHR
+    reloads — but on an idle frame nothing is pending, so no upload happens; the
+    unconditioned version re-DMA'd the font every single idle vblank."""
     dst = BG3_CHR + GLYPH_TILE0 * 8
     return f"""
   sep #$20
   lda ${GLYPH_FLAG:04X}
   bne skipup
+  lda ${LSTG[0]:04X}
+  ora ${LSTG[1]:04X}
+  ora ${LST[0] + 7:04X}
+  ora ${LST[1] + 7:04X}
+  beq skipup
   lda #$80
   sta $2115
   lda #$01
