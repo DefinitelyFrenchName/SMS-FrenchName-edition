@@ -1,6 +1,7 @@
 
--- probe_sms_desp3.lua — desperation CONNECT test: poke req=0x0B at several
--- P2 distances; watch her acts (78/79?), hitboxes, P2 reaction and damage.
+-- probe_desp3_supers.lua — desperation CONNECT test on the Super S
+-- saturn_vs_uranus_supers savestate: poke req=0x0B at near/mid/far P2 distances;
+-- watch her acts, hitboxes, P2 reaction and damage.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/desp3_supers.txt", "w"))

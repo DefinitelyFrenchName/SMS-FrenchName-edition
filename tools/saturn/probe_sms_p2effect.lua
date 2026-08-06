@@ -1,9 +1,8 @@
--- probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
--- load, is the manifest "anim payload" decompressed (via ~$C0:916B) to a WRAM
--- staging buffer and DMA'd to VRAM $6A00? Boots to Uranus-vs-Jupiter (SMS
--- charselect flow from coltest.lua), watches: DMA to VRAM $6800-7100 (source),
--- nonzero writes to $7E:6A00+ (writer PC), and reads of the manifest ptr region.
--- ROM=<clean SMS> tools/run.sh tools/saturn/probe_sms_effectload.lua 300
+-- probe_sms_p2effect.lua — where would P2's effect tiles go? P1-only L+R
+-- Saturn load (Uranus-vs-Jupiter poked at charselect) with the DMA watch
+-- widened to VRAM $6800-7A00 (source + PC per transfer); once in-match, dumps
+-- the pad/effect vars $5C/$5E/$1050/$01FA and exits.
+-- ROM=build/saturn/<rom> tools/run.sh tools/saturn/probe_sms_p2effect.lua 300
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/p2effect.txt", "w"))

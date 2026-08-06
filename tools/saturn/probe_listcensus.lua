@@ -1,7 +1,8 @@
 
--- probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
--- twice, dump VRAM + screenshot at the report card. Run with two CHARs and
--- diff to locate the portrait tiles.
+-- probe_listcensus.lua — census of every sprite-list pointer the renderer loads
+-- at $80:9E86, tagged in-match vs report card: is "bank $9F" a safe stand-in for
+-- "this is the report card"? Runs the VS/KO-twice flow with the full card
+-- instrumentation + VRAM/CGRAM/WRAM/OAM dumps.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "6")

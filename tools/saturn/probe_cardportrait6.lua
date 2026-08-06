@@ -1,7 +1,8 @@
 
--- probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
--- twice, dump VRAM + screenshot at the report card. Run with two CHARs and
--- diff to locate the portrait tiles.
+-- probe_cardportrait6.lua — VS flow (P1 CHAR poked at select), KO P2 twice, then
+-- trace the bank-$9F portrait decoder at the report card: lookup A at $9F:9487,
+-- first-exec census of bank $9F, DEC $9F:84E8 DP snapshots, $9F ROM reads after
+-- portrait writes begin; dumps VRAM + screenshot.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "6")

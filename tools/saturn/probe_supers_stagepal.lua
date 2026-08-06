@@ -1,8 +1,8 @@
--- probe_supers_saturn.lua — Super S recon: reach a VS match with P1 = SATURN (charID
--- 10, poked at char select) vs P2 = Uranus (6); verify the WRAM-identity claims
--- (player structs / mode vars, per docs/saturn/supers_map.md); dump a savestate
--- fixture + screenshot. ROM=<Super S> tools/run.sh tools/saturn/probe_supers_saturn.lua 120
--- Output: traces/saturn/supers_saturn.txt, traces/saturn/saturn_vs_uranus_supers.{mss,png}
+-- probe_supers_stagepal.lua — grab a Super S stage's palette: force the scene id
+-- ($8E at $80:8530, STAGE env) to summon any stage, reach a Saturn-vs-Uranus VS
+-- match, then log the WRAM report and dump that stage's CGRAM + a screenshot.
+-- STAGE=<n> TAG=<t> ROM=<Super S> tools/run.sh tools/saturn/probe_supers_stagepal.lua 120
+-- Output: traces/saturn/supers_stage_<TAG>.{txt,png}, supers_cg_<TAG>.bin
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local TAG = os.getenv("TAG") or "x"

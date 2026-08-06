@@ -1,7 +1,7 @@
 
--- probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
--- twice, dump VRAM + screenshot at the report card. Run with two CHARs and
--- diff to locate the portrait tiles.
+-- probe_saturn_push.lua — push-box test: select Saturn (SAT=1 holds L+R) vs
+-- Uranus, drop P1 and P2 on the SAME x and log the gap as the engine separates
+-- them (is her collision box live?); screenshot at the end.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "6")

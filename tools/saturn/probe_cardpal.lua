@@ -1,7 +1,8 @@
 
--- probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
--- twice, dump VRAM + screenshot at the report card. Run with two CHARs and
--- diff to locate the portrait tiles.
+-- probe_cardpal.lua — cardsat flow (P1=CHAR, SAT=1 confirms with L+R held; KO P2
+-- twice) focused on the card PALETTE: logs who writes CGRAM shadow row 8 ($7E:0600),
+-- CGRAM DMAs (B-bus $22) and direct CGDATA writes, plus sprite-emitter callers/calls
+-- and OAM tile writes; dumps VRAM/CGRAM/shadow/WRAM/OAM + screenshot at the report card.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "6")

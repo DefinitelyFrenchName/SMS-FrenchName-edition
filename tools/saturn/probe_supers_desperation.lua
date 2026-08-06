@@ -1,6 +1,7 @@
--- probe_sms_desperation.lua — trigger her DESPERATION with the decoded motion
--- (spec5 = dirs back,db,down,df,fwd,back + button = 412364+P per Fighter S).
--- Pokes low HP early, waits out the dizzy/danger act, then performs the motion.
+-- probe_supers_desperation.lua — trigger the desperation on the SUPER S fixture
+-- (saturn_vs_uranus_supers.mss) with the decoded motion (spec5 = dirs
+-- back,db,down,df,fwd,back + button = 412364+P per Fighter S). Pokes P1's id
+-- and low HP early, waits, performs the motion, then logs the set of acts seen.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/supers_desperation.txt", "w"))

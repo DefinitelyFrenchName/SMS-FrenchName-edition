@@ -1,4 +1,7 @@
--- probe_sms_saturn_p2.lua — verify SATURN AS P2: poke $1080=0x1C, drive P2 pad
+-- probe_sms_saturn_p2b.lua — SATURN AS P2, projectile focus: poke $1080=0x1C,
+-- drive P2's pad (5LP, 5HK, then qcb+P — her forward is LEFT), and log the
+-- projectile slot $1180 (id/act/pose/tile/x) plus its effect OAM entries,
+-- ending with the set of P2 acts seen.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/saturn_p2.txt", "w"))

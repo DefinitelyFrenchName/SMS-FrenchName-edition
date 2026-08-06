@@ -1,7 +1,8 @@
 
--- probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
--- twice, dump VRAM + screenshot at the report card. Run with two CHARs and
--- diff to locate the portrait tiles.
+-- probe_cardportrait2.lua — cardportrait flow (P1 selects CHAR poked at select, KO
+-- P2 twice, dump VRAM + screenshot at the report card), plus a hook on the
+-- decompressor entry $9F:84E8 logging its DP work block ($00-$07/$30-$36) and stack
+-- return address for the first 24 entries.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "6")

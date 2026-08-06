@@ -1,15 +1,15 @@
--- probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
+-- probe_sms_lrboth.lua — L+R Saturn summon on BOTH pads at once: 2P VS with
+-- Uranus-vs-Neptune poked at charselect, L+R held on both controllers through
+-- the load; watches effect-tile staging writes ($7E:6A00 / $7F:0000) and DMA
+-- into VRAM $6800-7100, then verifies in-match that BOTH players became Saturn
+-- (id 0x1C) with tiles/palettes loaded: LR-BOTH PASS/FAIL.
 -- NOTE (v0.14.6): the row this probe navigates to is $8D == 1, which is **2P VS**,
 -- NOT story — story is $8D == 0 (measured, probe_sms_menurows.lua). The v0.14.2
 -- note here claimed the opposite and that mislabel is exactly what hid field bug
 -- 2: the story guard was testing 1 and so blocked 2P VS. On v0.14.2-v0.14.5 this
 -- probe therefore reported "LR-BOTH FAIL" for a real bug while the note excused
 -- it as the guard working. From v0.14.6 it should PASS on a guarded build.
--- load, is the manifest "anim payload" decompressed (via ~$C0:916B) to a WRAM
--- staging buffer and DMA'd to VRAM $6A00? Boots to Uranus-vs-Jupiter (SMS
--- charselect flow from coltest.lua), watches: DMA to VRAM $6800-7100 (source),
--- nonzero writes to $7E:6A00+ (writer PC), and reads of the manifest ptr region.
--- ROM=<clean SMS> tools/run.sh tools/saturn/probe_sms_effectload.lua 300
+-- ROM=build/saturn/<rom> tools/run.sh tools/saturn/probe_sms_lrboth.lua 300
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/lrboth.txt", "w"))

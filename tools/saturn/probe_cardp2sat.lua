@@ -1,7 +1,7 @@
 
--- probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
--- twice, dump VRAM + screenshot at the report card. Run with two CHARs and
--- diff to locate the portrait tiles.
+-- probe_cardp2sat.lua — cardsat flow with P2 as SATURN and the winner: P2 confirms
+-- with L+R held (P1=CHAR, P2 slot poked to 6); P1's HP is pinned to 1 and P2 mashes
+-- Y to KO P1 twice, then dump VRAM/CGRAM/WRAM/OAM + screenshot at the report card.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "6")

@@ -1,7 +1,8 @@
 
--- probe_sms_wramfree.lua — empirical free-WRAM census: watch writes across
--- $7F:F000-$7F:F0FF (patch 11's proven block) during a FULL vanilla session
--- (boot -> charselect -> config -> match -> KO -> win screen).
+-- probe_sms_wramfree2.lua — wider free-WRAM census: watch writes across
+-- $7F:F000-$7F:F1FF (512 bytes) during a FULL vanilla session
+-- (boot -> charselect -> config -> match -> KO -> win screen); log the first
+-- write to each byte and total how many were ever touched.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/wramfree2.txt", "w"))

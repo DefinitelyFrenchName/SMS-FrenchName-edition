@@ -1,9 +1,10 @@
--- probe_p12_rec.lua (patch 12): harvest special-move records (and their +6 misfire acts).
--- The special dispatcher $C1:0B49 runs for EVERY recognized special (roll or not) with
--- Y = the 8-byte record in bank $C1. Config probe_p12_rec_cfg.lua:
+-- probe_p13c_desp2.lua (patch 13c): desperation variant of probe_p12_rec — attacker
+-- HP pinned low (0x10) and defender restored every 60f while a fixed motion list
+-- (qcf/qcb/hcf/hcb/dp/dd/charge-back/charge-down x LP/LK/HP) is played; logs every
+-- distinct 8-byte record hit at the special dispatcher $C1:0B49, plus each new act
+-- >= 0x2B with its +0x44. Config probe_p12_rec_cfg.lua:
 --   STATE = savestate; PLAYER = 1|2 (who performs; directions auto-mirrored by side)
--- Tries a fixed motion list (qcf/qcb/hcf x LP/LK/HP) and logs every distinct record hit.
--- Output: appends traces/p12_rec.txt
+-- Output: appends traces/p13c_desp2.txt
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 dofile(ENV.TOOLS .. "probe_p12_rec_cfg.lua")
 -- DESPERATION VARIANT: attacker hp pinned low, defender hp restored; logs acts+a44

@@ -1,6 +1,7 @@
 
--- probe_sms_btncfg3.lua — config screen, fully live: arrow presses with
--- full-WRAM snapshot diffs + screenshots.
+-- probe_sms_btncfg5.lua — config screen: btncfg4 (arrow-press WRAM diffs,
+-- screenshots, $1840-4F/$18C0-CF write watches) plus capped READ logging of
+-- $1846 (both $7E1846 and $001846 bus views) to catch its consumer's PC.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/btncfg5.txt", "w"))

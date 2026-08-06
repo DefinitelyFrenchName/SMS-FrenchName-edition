@@ -1,6 +1,8 @@
 
--- probe_sms_btncfg3.lua — config screen, fully live: arrow presses with
--- full-WRAM snapshot diffs + screenshots.
+-- probe_sms_btncfg6.lua — config screen: btncfg5 retry — watch $1846
+-- reads/writes through the snesWorkRam address space (offset 0x1846) instead
+-- of bus addresses; keeps the arrow-press WRAM diffs + screenshots and the
+-- $1840-4F/$18C0-CF write watches.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/btncfg6.txt", "w"))

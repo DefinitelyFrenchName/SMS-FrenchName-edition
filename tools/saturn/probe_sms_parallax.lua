@@ -1,11 +1,13 @@
--- probe_sms_stageload.lua — census of the MATCH-LOAD transfers in SMS, to find
--- the per-stage asset table (task #36, stage PoC).
---   STAGE=<n>  poke the stage id (once found) before the match loads
---   TAG=<name> trace/screenshot suffix
--- Logs every DMA whose B-bus is a VRAM/CGRAM port from char-select confirm
--- until the match has been running a moment, with source bank:addr, length,
--- destination and the PC that kicked it. Also dumps VRAM + a screenshot so the
--- stage art can be identified by eye.
+-- probe_sms_parallax.lua — diagnose the stage's scroll/parallax: once in the
+-- match, jump P1 repeatedly and log BG1/BG2 H+V scroll (shadowed from the
+-- write-twice registers) against P1's Y every 8f; PC-attributes writes to the
+-- BG scroll shadow ($7E:0A10-17), colour-math/window regs ($2130-33) and BG
+-- tilemap bases ($2107/$2108). Keeps stageload's match-load census: every DMA
+-- to a VRAM/CGRAM port with source+length+PC, decompressor calls, $1C18
+-- asset-group index writes, manifest-table reads, $E8 stage-stub hits and the
+-- $C0:FFAE trap loop.
+--   STAGE=<n>  force the scene id at $C0:8586 before the loader reads it
+--   TAG=<name> trace/screenshot suffix; DUMP=1 also dumps VRAM + CGRAM
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local TAG = os.getenv("TAG") or "x"

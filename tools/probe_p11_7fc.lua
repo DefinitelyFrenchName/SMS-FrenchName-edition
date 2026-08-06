@@ -1,7 +1,8 @@
--- probe_p11_7f.lua (patch 11, P10b): bank $7F usage census across boot -> title ->
--- practice nav -> char select -> training match (+ VS-mode detour would be separate).
--- Watches reads+writes to $7F0000-$7FFFFF (WRAM offs 0x10000-0x1FFFF), reporting
--- touched 256-byte pages per phase. Output: traces/p11_7fc.txt
+-- probe_p11_7fc.lua (patch 11, P10b): bank $7F usage census across boot -> title ->
+-- practice nav -> char select -> training match. Watches reads+writes to
+-- $7F0000-$7FFFFF (WRAM offs 0x10000-0x1FFFF), reporting touched 256-byte pages per
+-- phase — full page lists (probe_p11_7f caps at 40) plus per-10-frame access-count
+-- deltas once in-match. Output: traces/p11_7fc.txt
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local TRACE = ENV.TRACE
 local LOG = assert(io.open(TRACE .. "p11_7fc.txt", "w"))

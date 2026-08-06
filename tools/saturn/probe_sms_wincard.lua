@@ -1,6 +1,8 @@
 
--- probe_sms_winpose.lua — KO P2 with Saturn P1; log her acts/poses through the
--- win sequence; verify poses resolve to valid cels; screenshot the win pose.
+-- probe_sms_wincard.lua — KO P2 in BOTH rounds with Saturn P1 (poked over the
+-- Uranus-vs-Jupiter savestate) to reach the post-match WIN CARD; log LZ jobs,
+-- CEL DMAs, act writers and the sequencer vars ($1E05/$1E06/$1E01/$8D/$70)
+-- through it, with screenshots; also keeps the round-1 win-pose act/pose log.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/wincard_" .. (os.getenv("TAG") or "van") .. ".txt", "w"))

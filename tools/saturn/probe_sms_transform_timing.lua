@@ -1,9 +1,11 @@
--- probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
--- load, is the manifest "anim payload" decompressed (via ~$C0:916B) to a WRAM
--- staging buffer and DMA'd to VRAM $6A00? Boots to Uranus-vs-Jupiter (SMS
--- charselect flow from coltest.lua), watches: DMA to VRAM $6800-7100 (source),
--- nonzero writes to $7E:6A00+ (writer PC), and reads of the manifest ptr region.
--- ROM=<clean SMS> tools/run.sh tools/saturn/probe_sms_effectload.lua 300
+-- probe_sms_transform_timing.lua — measure WHEN the L+R shell becomes Saturn:
+-- boots to Uranus-vs-Jupiter with L+R held on both pads, then logs the frame the
+-- helper latch ($7F:F102 == $A5) arms vs the frame $1000 becomes $1C, with the
+-- gate variables ($1E04 / $01FA / $70) every frame and entrance screenshots —
+-- the question is which gate could move her transform earlier, before control.
+-- Also retains the effectload watchers (writes to $7E:6A00/$7F:0000, DMA to
+-- VRAM $6800-7100) in case the swap streams tiles.
+-- ROW=<mode row> ROM=build/saturn/<rom> tools/run.sh tools/saturn/probe_sms_transform_timing.lua 300
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/lrboth.txt", "w"))

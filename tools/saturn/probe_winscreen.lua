@@ -1,7 +1,10 @@
 
--- probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
--- twice, dump VRAM + screenshot at the report card. Run with two CHARs and
--- diff to locate the portrait tiles.
+-- probe_winscreen.lua — watch the WIN SCREEN between the second KO and the report
+-- card: VS flow with P1 = CHAR (SAT=1 holds L+R at confirm for Saturn), two KOs,
+-- periodic win-screen screenshots with INIDISP/$1E05/$70, and instrumentation
+-- proving the $EE cardportrait hook stays quiet there (list hook at $80:9E86,
+-- stub hits, our-DMA counter); at the card it dumps VRAM/CGRAM/shadow/WRAM/OAM
+-- plus the emitter-caller / CGRAM-writer / palette-shadow logs.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "6")

@@ -1,7 +1,8 @@
 
--- probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
--- twice, dump VRAM + screenshot at the report card. Run with two CHARs and
--- diff to locate the portrait tiles.
+-- probe_cardloader.lua — cardsat flow (P1=CHAR, SAT=1 confirms with L+R held; KO P2
+-- twice, dump VRAM/CGRAM/WRAM/OAM + screenshot at the report card), plus a hook on
+-- every portrait-loader call ($80:8DEC) logging its dst (dp $03/$04) and caller
+-- return address ("PORTRAIT LOADER:" lines in the log).
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "6")

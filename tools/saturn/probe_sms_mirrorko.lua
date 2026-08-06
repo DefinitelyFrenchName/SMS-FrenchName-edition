@@ -1,9 +1,10 @@
--- probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
--- load, is the manifest "anim payload" decompressed (via ~$C0:916B) to a WRAM
--- staging buffer and DMA'd to VRAM $6A00? Boots to Uranus-vs-Jupiter (SMS
--- charselect flow from coltest.lua), watches: DMA to VRAM $6800-7100 (source),
--- nonzero writes to $7E:6A00+ (writer PC), and reads of the manifest ptr region.
--- ROM=<clean SMS> tools/run.sh tools/saturn/probe_sms_effectload.lua 300
+-- probe_sms_mirrorko.lua — KO behaviour in a Saturn MIRROR: L+R held on both
+-- pads to reach Saturn-vs-Saturn (LR-BOTH check on the way in), then P2 poked
+-- to 1 HP adjacent and P1 mashes Y to KO her. Logs P2's act/state/pose/y/vy
+-- every 15f through the KO, PC-attributes writes to her y/vy bytes
+-- ($10A5/$10B2), counts execs of the Saturn dispatch/act handlers, and takes a
+-- screenshot at ko+600.
+-- ROM=build/saturn/<rom> tools/run.sh tools/saturn/probe_sms_mirrorko.lua 300
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/mirrorko.txt", "w"))

@@ -1,8 +1,10 @@
--- probe_sms_lrmodes.lua — diagnose L+R Saturn-select in non-VS modes.
--- MODE env (via lrmode_cfg written by the runner): "practice" (menu row 4) or
--- "vscpu" (menu row 0). Holds L+R from charselect on; logs $8D/$0070/clock/
--- $1E04/flag/p1 id+act through the load and match.
--- ROM=build/saturn/SailorMoonS_saturn_v0.8.0.sfc tools/run.sh tools/saturn/probe_sms_lrmodes.lua 300
+-- probe_sms_throwbug.lua — reproduce the FIELD BUG where a thrown Saturn turns to
+-- random tiles: P1 Jupiter walks into the L+R Saturn dummy and throws her
+-- (forward+HP). Logs the CEL-DMA transfers around the throw, her pose bytes
+-- (flagging any past her table's end $83), and a before/after VRAM fingerprint
+-- of the stage-tile region; screenshots before/during. MODE (via lrmode_cfg):
+-- "practice" (menu row 4) or "vscpu" (row 0); the dummy holds L+R to arm Saturn.
+-- ROM=build/saturn/<rom> tools/run.sh tools/saturn/probe_sms_throwbug.lua 300
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local MODE = "practice"

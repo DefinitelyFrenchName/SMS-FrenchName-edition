@@ -1,9 +1,8 @@
--- probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
--- load, is the manifest "anim payload" decompressed (via ~$C0:916B) to a WRAM
--- staging buffer and DMA'd to VRAM $6A00? Boots to Uranus-vs-Jupiter (SMS
--- charselect flow from coltest.lua), watches: DMA to VRAM $6800-7100 (source),
--- nonzero writes to $7E:6A00+ (writer PC), and reads of the manifest ptr region.
--- ROM=<clean SMS> tools/run.sh tools/saturn/probe_sms_effectload.lua 300
+-- probe_sms_bootcheck.lua — boot check with NO L+R code input: run the
+-- Uranus-vs-Jupiter VS flow to a match, watch effect-tile staging writes and DMA
+-- to VRAM $6800-7100, compare tiles at $6A00 vs the Super S reference, and log
+-- whether P1 ended up as Saturn (LR-SELECT PASS/FAIL verdict).
+-- ROM=<Saturn build> tools/run.sh tools/saturn/probe_sms_bootcheck.lua 300
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/bootcheck.txt", "w"))

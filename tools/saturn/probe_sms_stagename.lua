@@ -1,30 +1,21 @@
--- probe_sms_stagejump.lua — reproduce and MEASURE the ported stage's vertical
--- slide (task #43).
---
--- Field report: on the ported stage only, during a jump the shadows and the
--- opponent slide toward the bottom of the screen and return on landing. Two
--- earlier probe attempts never got the character to jump at all (p1y never left
--- $00C0), so nothing about the vertical behaviour has ever been measured — the
--- first job is simply to make a jump happen and watch.
---
--- Logs, per frame across a jump: P1's Y, and all four BG layers' scroll
--- registers (write-only, so they are shadowed from writes). Run it on the stage
--- build and on a vanilla stage and diff: whatever tracks the camera on one and
--- not the other is the fault.
+-- probe_sms_stagename.lua — capture the stage-name line on the button-config
+-- screen. The maintainer's captures show it as the screen's last line
+-- (ステージ / 時空の扉) and ONLY in 2P VS — the 1P-vs-COM version prints
+-- nothing below the button rows, and every earlier attempt mashed Start and
+-- blew straight past it. So: boot to 2P VS (ROW env picks the menu row), poke
+-- CHAR/CHAR2 at charselect, then SIT on the config screen pressing nothing,
+-- taking a screenshot + full VRAM dump every 15f
+-- (stagename_<TAG>_<sf>.png / _vram<sf>.bin).
 --
 -- STAGE forces the scene id at $7E:008E just before the loader reads it
 -- ($C0:8586), which is the documented way to summon a specific stage — stage
--- choice is NOT simply P1's character, and the first run of this probe measured
--- scene $00 while believing it had the ported one. STAGE=2 = Pluto's slot = the
--- ported stage on a stage build. The header line records the scene actually
--- loaded; check it before trusting anything below.
+-- choice is NOT simply P1's character. STAGE=2 = Pluto's slot = the ported
+-- stage on a stage build.
 --
--- Also logs each layer's TILEMAP ADDRESS, because the question for #43 is which
--- PLANE holds the ground after the port's re-cut, not merely that some plane
--- fails to track.
+-- Also watches who writes the per-stage sprite-attribute byte $7E:008F.
 --
 -- usage: STAGE=2 CHAR=8 ROM=build/saturn/<rom> tools/run.sh \
---            tools/saturn/probe_sms_stagejump.lua 500
+--            tools/saturn/probe_sms_stagename.lua 500
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "8")

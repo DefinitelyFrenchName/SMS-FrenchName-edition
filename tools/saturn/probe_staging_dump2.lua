@@ -1,9 +1,9 @@
--- probe_supers_effectload.lua — find where Saturn's EFFECT TILES (VRAM $6A00+,
--- OBJ tiles 0xA0-0xFF) come from at match load. Boots to Saturn-vs-Uranus like
--- probe_supers_saturn.lua; from char-select-confirm onward, every $420B (MDMAEN)
--- write logs channels whose B-bus is $2118/$2119 with VRAM addr in $6800-$7000:
--- source A-bus address = the (decompressed?) buffer to trace next.
--- ROM=<Super S> tools/run.sh tools/saturn/probe_supers_effectload.lua 200
+-- probe_staging_dump2.lua — capture Saturn's effect tiles IN FLIGHT on Super S:
+-- boots to Saturn-vs-Uranus; logs every decompressor call (LZJOB src/dst/count),
+-- writer PCs on the $7F:0000 buffer head, and effect-tile DMAs (B-bus
+-- $2118/$2119, VRAM $6800-$7100); at the first DMA sourced from $7F:0000 it
+-- dumps the staging buffer ($14A0 bytes) to traces/saturn/staging_7f.bin.
+-- ROM=<Super S> tools/run.sh tools/saturn/probe_staging_dump2.lua 200
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/effectload.txt", "w"))

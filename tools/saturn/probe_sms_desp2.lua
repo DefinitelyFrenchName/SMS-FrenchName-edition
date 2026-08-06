@@ -1,7 +1,9 @@
 
--- probe_supers_desp2.lua — desperation deep-dive on Super S ground truth:
+-- probe_sms_desp2.lua — desperation deep-dive on the SMS side, P1 poked to
+-- Saturn (charID 0x1C):
 -- (a) feed 412364+P with clean 8f-per-direction steps, watching all 5 rec
---     states (+0x5B..+0x64), +0x51 and act every frame;
+--     states (+0x5B..+0x64), +0x51 and act every frame — first with P2 far,
+--     then repeated with P2 close as a connect test;
 -- (b) then poke +0x51=0x0A (the computed desperation request nibble) at
 --     normal HP and at low HP to validate the act side.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")

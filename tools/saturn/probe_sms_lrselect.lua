@@ -1,9 +1,9 @@
--- probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
--- load, is the manifest "anim payload" decompressed (via ~$C0:916B) to a WRAM
--- staging buffer and DMA'd to VRAM $6A00? Boots to Uranus-vs-Jupiter (SMS
--- charselect flow from coltest.lua), watches: DMA to VRAM $6800-7100 (source),
--- nonzero writes to $7E:6A00+ (writer PC), and reads of the manifest ptr region.
--- ROM=<clean SMS> tools/run.sh tools/saturn/probe_sms_effectload.lua 300
+-- probe_sms_lrselect.lua — L+R Saturn summon via the pad, P1 only: 2P VS with
+-- Uranus-vs-Jupiter poked at charselect, L+R held on pad 1 through the load;
+-- watches effect-tile staging writes ($7E:6A00 / $7F:0000) and DMA into VRAM
+-- $6800-7100, then verifies in-match that P1 became Saturn IN ROM (id 0x1C,
+-- no pokes) with tiles/palette loaded: LR-SELECT PASS/FAIL.
+-- ROM=build/saturn/<rom> tools/run.sh tools/saturn/probe_sms_lrselect.lua 300
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/lrselect.txt", "w"))

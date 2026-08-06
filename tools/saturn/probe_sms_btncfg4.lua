@@ -1,6 +1,7 @@
 
--- probe_sms_btncfg3.lua — config screen, fully live: arrow presses with
--- full-WRAM snapshot diffs + screenshots.
+-- probe_sms_btncfg4.lua — config screen, fully live: btncfg3's arrow presses
+-- with WRAM snapshot diffs + screenshots, plus PC-attributed write watches on
+-- $1840-4F (WRAM and DP-mirror views) and on the P2 block $18C0-CF.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/btncfg4.txt", "w"))

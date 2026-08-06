@@ -1,16 +1,11 @@
--- probe_sms_stagejump.lua — reproduce and MEASURE the ported stage's vertical
--- slide (task #43).
+-- probe_sms_stagepick.lua — answer WHO CHOOSES THE STAGE: log every write to the
+-- scene-id byte $7E:008E through a round load with the writer's PC/registers. If
+-- it comes from a table keyed to something we control, an ELEVENTH stage could
+-- be added rather than swapped.
 --
--- Field report: on the ported stage only, during a jump the shadows and the
--- opponent slide toward the bottom of the screen and return on landing. Two
--- earlier probe attempts never got the character to jump at all (p1y never left
--- $00C0), so nothing about the vertical behaviour has ever been measured — the
--- first job is simply to make a jump happen and watch.
---
--- Logs, per frame across a jump: P1's Y, and all four BG layers' scroll
--- registers (write-only, so they are shadowed from writes). Run it on the stage
--- build and on a vanilla stage and diff: whatever tracks the camera on one and
--- not the other is the fault.
+-- Everything else is the stagejump probe unchanged (it rides the same round
+-- load): per-frame P1 Y + BG scrolls across a jump/walk window, $008F writer
+-- logging, and the WRAM/VRAM/OAM/CGRAM dumps.
 --
 -- STAGE forces the scene id at $7E:008E just before the loader reads it
 -- ($C0:8586), which is the documented way to summon a specific stage — stage
@@ -24,7 +19,7 @@
 -- fails to track.
 --
 -- usage: STAGE=2 CHAR=8 ROM=build/saturn/<rom> tools/run.sh \
---            tools/saturn/probe_sms_stagejump.lua 500
+--            tools/saturn/probe_sms_stagepick.lua 500
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "8")

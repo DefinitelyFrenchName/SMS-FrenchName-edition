@@ -1,7 +1,9 @@
 
--- probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
--- twice, dump VRAM + screenshot at the report card. Run with two CHARs and
--- diff to locate the portrait tiles.
+-- probe_cardheal.lua — cardsat flow (P1=CHAR, SAT=1 confirms with L+R held; KO P2
+-- twice, dump VRAM/CGRAM/WRAM/OAM + screenshot at the report card) with HEAL=1:
+-- zeroes the winner latch $7E:1E14 at the card-build hook ($EE:C900) and re-sets it
+-- per-frame once the card is on screen — reproduces "winner not latched at
+-- card-build time" so only the per-frame path can rescue the portrait.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "6")

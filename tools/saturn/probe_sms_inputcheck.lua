@@ -1,8 +1,11 @@
--- probe_sms_lrmodes.lua — diagnose L+R Saturn-select in non-VS modes.
--- MODE env (via lrmode_cfg written by the runner): "practice" (menu row 4) or
--- "vscpu" (menu row 0). Holds L+R from charselect on; logs $8D/$0070/clock/
--- $1E04/flag/p1 id+act through the load and match.
--- ROM=build/saturn/SailorMoonS_saturn_v0.8.0.sfc tools/run.sh tools/saturn/probe_sms_lrmodes.lua 300
+-- probe_sms_inputcheck.lua — after an L+R Saturn select, does she RESPOND to
+-- inputs? (field bug: in 2P VS / 1P-vs-COM she appeared but inputs did nothing
+-- until she was hit). MODE env (via lrmode_cfg written by the runner):
+-- "practice" (menu row 4) or "vscpu" (menu row 0). Holds L+R from charselect
+-- on; logs $8D/$0070/clock/$1E04/flag/p1 id+act through the load; then waits
+-- for the round to go live, holds RIGHT 90f and verdicts INPUT OK / INPUT DEAD
+-- plus LR PASS/FAIL on p1's id.
+-- ROM=build/saturn/SailorMoonS_saturn_v0.8.0.sfc tools/run.sh tools/saturn/probe_sms_inputcheck.lua 300
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local MODE = "practice"

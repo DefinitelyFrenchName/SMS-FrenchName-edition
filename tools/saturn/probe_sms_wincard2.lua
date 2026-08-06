@@ -1,6 +1,8 @@
 
--- probe_sms_winpose.lua — KO P2 with Saturn P1; log her acts/poses through the
--- win sequence; verify poses resolve to valid cels; screenshot the win pose.
+-- probe_sms_wincard2.lua — wincard probe with CHAR (hex env) selecting P1's id
+-- (default Saturn $1C): two-round KO to the WIN CARD, same LZ/DMA/sequencer
+-- logging and screenshots, plus a full VRAM dump at the card (vram_card_<TAG>)
+-- so runs with different CHARs can be diffed.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/wincard_" .. (os.getenv("TAG") or "van") .. ".txt", "w"))

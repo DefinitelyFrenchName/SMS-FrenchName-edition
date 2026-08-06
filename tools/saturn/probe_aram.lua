@@ -1,7 +1,8 @@
 
--- probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
--- twice, dump VRAM + screenshot at the report card. Run with two CHARs and
--- diff to locate the portrait tiles.
+-- probe_aram.lua — VS flow into a match (P1=CHAR, P2=CHAR2 poked at select; no KOs),
+-- then dumps the full 64KB of APU RAM mid-match to traces/saturn/aram_<TAG>.bin.
+-- STAGE=<n> forces the stage byte ($8E at $80:8586) — different stage => different
+-- music => different echo content in the dump.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "6")

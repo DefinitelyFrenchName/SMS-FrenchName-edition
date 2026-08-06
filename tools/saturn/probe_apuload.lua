@@ -1,7 +1,8 @@
 
--- probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
--- twice, dump VRAM + screenshot at the report card. Run with two CHARs and
--- diff to locate the portrait tiles.
+-- probe_apuload.lua — VS flow into a match (P1=CHAR, P2=CHAR2 poked at select; no
+-- KOs); logs every APU block-load call ($C0:EC5E, A = bank id) and the source
+-- pointer it actually uses ($C0:EC78, DP $00 long) — how a character's voice bank
+-- gets chosen — then dumps ARAM mid-match to traces/saturn/aram_<TAG>.bin.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "6")

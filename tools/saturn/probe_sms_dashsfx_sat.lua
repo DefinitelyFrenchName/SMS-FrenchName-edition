@@ -1,6 +1,6 @@
 
--- probe_sms_dashsfx.lua — measure SMS's native $78 sfx values for jump,
--- forward dash (66) and backdash (44) with an untransformed character.
+-- probe_sms_dashsfx_sat.lua — measure the $78 sfx values for jump, forward
+-- dash (66) and backdash (44) with P1 poked to Saturn (charID 0x1C).
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/dashsfx_sat.txt", "w"))

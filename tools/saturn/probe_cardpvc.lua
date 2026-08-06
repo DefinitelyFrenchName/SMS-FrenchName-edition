@@ -1,7 +1,8 @@
 
--- probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
--- twice, dump VRAM + screenshot at the report card. Run with two CHARs and
--- diff to locate the portrait tiles.
+-- probe_cardpvc.lua — report-card instrumentation with mode switches: PVC=1 skips
+-- the VS-mode pick (1P-vs-COM flow), SAT=1 holds L+R at select to pick Saturn.
+-- Traces the $EE:C900 card stub, sprite-emitter callers, CGRAM/CGDATA/OAM/list
+-- writers; dumps VRAM/CGRAM/CG-shadow/WRAM/OAM + screenshot at the card.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local CHAR = tonumber(os.getenv("CHAR") or "6")

@@ -1,9 +1,8 @@
--- probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
--- load, is the manifest "anim payload" decompressed (via ~$C0:916B) to a WRAM
--- staging buffer and DMA'd to VRAM $6A00? Boots to Uranus-vs-Jupiter (SMS
--- charselect flow from coltest.lua), watches: DMA to VRAM $6800-7100 (source),
--- nonzero writes to $7E:6A00+ (writer PC), and reads of the manifest ptr region.
--- ROM=<clean SMS> tools/run.sh tools/saturn/probe_sms_effectload.lua 300
+-- probe_lrboth_dbg.lua — L+R held on BOTH pads through Uranus-vs-Jupiter select:
+-- debug the $E8:2980 DMA stub (entry regs, in-stub step probes, $80:92A4 kicks,
+-- $7F:F100-F103 flag writes) plus effect-tile staging/DMA watchers; verdict
+-- LR-BOTH PASS/FAIL (both players become Saturn, id 0x1C).
+-- ROM=<Saturn build> tools/run.sh tools/saturn/probe_lrboth_dbg.lua 300
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/lrboth_dbg.txt", "w"))

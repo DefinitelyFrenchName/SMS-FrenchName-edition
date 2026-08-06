@@ -1,6 +1,7 @@
 
--- probe_sms_winpose.lua — KO P2 with Saturn P1; log her acts/poses through the
--- win sequence; verify poses resolve to valid cels; screenshot the win pose.
+-- probe_sms_winpose_ctrl.lua — CONTROL for the winpose probe: same savestate and
+-- KO flow but with NO Saturn poke (P1 stays the savestate's Uranus); log
+-- acts/poses through the win sequence and screenshot, for A/B against Saturn.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("no tools")) .. "/../sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
 local LOG = assert(io.open(ENV.TRACE .. "saturn/winposec_ctrl.txt", "w"))

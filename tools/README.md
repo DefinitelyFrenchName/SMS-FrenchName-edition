@@ -20,35 +20,35 @@ See HANDOFF.md §4 for the harness.
 - `saturn/mksaturn_smoke.py` — Saturn-in-SMS SMOKE-TEST ROM (Route A scaffold, NOT a patch).
 - `saturn/mkstage_port.py` — Stage port PoC: put a Super S stage into SMS, over Sailor Pluto's slot.
 - `saturn/port_saturn_proc.py` — port Sailor Saturn's per-char proc block (Super S
-- `saturn/probe_apuload.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
-- `saturn/probe_aram.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
+- `saturn/probe_apuload.lua` — VS flow into a match (P1=CHAR, P2=CHAR2 poked at select; no
+- `saturn/probe_aram.lua` — VS flow into a match (P1=CHAR, P2=CHAR2 poked at select; no KOs),
 - `saturn/probe_aramdump.lua` — dump the APU's 64 KB ARAM once Saturn is in a match, so
 - `saturn/probe_attackid.lua` — what attackIDs (+0x44) does she set, and do they stay
 - `saturn/probe_buttonmap.lua` — which BUTTON selects which byte of the per-character
-- `saturn/probe_cardheal.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
-- `saturn/probe_cardloader.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
-- `saturn/probe_cardp2.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
-- `saturn/probe_cardp2sat.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
-- `saturn/probe_cardpal.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
+- `saturn/probe_cardheal.lua` — cardsat flow (P1=CHAR, SAT=1 confirms with L+R held; KO P2
+- `saturn/probe_cardloader.lua` — cardsat flow (P1=CHAR, SAT=1 confirms with L+R held; KO P2
+- `saturn/probe_cardp2.lua` — cardsat flow with P2 as the WINNER: P1=CHAR, P2=6 (poked at
+- `saturn/probe_cardp2sat.lua` — cardsat flow with P2 as SATURN and the winner: P2 confirms
+- `saturn/probe_cardpal.lua` — cardsat flow (P1=CHAR, SAT=1 confirms with L+R held; KO P2
 - `saturn/probe_cardportrait.lua` — VS flow, P1 selects CHAR (poked at select), KO P2
-- `saturn/probe_cardportrait2.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
-- `saturn/probe_cardportrait3.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
-- `saturn/probe_cardportrait4.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
-- `saturn/probe_cardportrait5.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
-- `saturn/probe_cardportrait6.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
-- `saturn/probe_cardpvc.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
-- `saturn/probe_cardsaturn.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
+- `saturn/probe_cardportrait2.lua` — cardportrait flow (P1 selects CHAR poked at select, KO
+- `saturn/probe_cardportrait3.lua` — cardportrait flow + the $9F:84E8 decompressor hook; also
+- `saturn/probe_cardportrait4.lua` — cardportrait flow + the $9F:84E8 decompressor hook;
+- `saturn/probe_cardportrait5.lua` — cardportrait flow + the $9F:84E8 decompressor hook and
+- `saturn/probe_cardportrait6.lua` — VS flow (P1 CHAR poked at select), KO P2 twice, then
+- `saturn/probe_cardpvc.lua` — report-card instrumentation with mode switches: PVC=1 skips
+- `saturn/probe_cardsaturn.lua` — VS flow to the report card with SAT=1 holding L+R at
 - `saturn/probe_celparity.lua` — force each act and compare the CEL the engine resolves
 - `saturn/probe_cg_sms.lua` — probe_CGRAMDUMP — dump CGRAM OBJ palette rows during a fireball
-- `saturn/probe_desp3_supers.lua` — probe_sms_desp3.lua — desperation CONNECT test: poke req=0x0B at several
+- `saturn/probe_desp3_supers.lua` — desperation CONNECT test on the Super S
 - `saturn/probe_hitsfx.lua` — Saturn-vs-Saturn (or vanilla) hit: log every sfx write
 - `saturn/probe_hitspark.lua` — which effect-object id spawns when a character GETS HIT?
-- `saturn/probe_iplwho.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
+- `saturn/probe_iplwho.lua` — boot a VS match (CHAR/CHAR2 poked at select) and log each
 - `saturn/probe_ko_forceact.lua` — force the victim into a KO act and watch the chain.
 - `saturn/probe_ko_victim.lua` — KO sequence for a SATURN VICTIM. GAME env: supers|sms.
-- `saturn/probe_listcensus.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
-- `saturn/probe_lrboth_dbg.lua` — probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
-- `saturn/probe_lrboth_vram.lua` — probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
+- `saturn/probe_listcensus.lua` — census of every sprite-list pointer the renderer loads
+- `saturn/probe_lrboth_dbg.lua` — L+R held on BOTH pads through Uranus-vs-Jupiter select:
+- `saturn/probe_lrboth_vram.lua` — L+R held on BOTH pads through Uranus-vs-Jupiter select:
 - `saturn/probe_nameplate.lua` — find the code that draws the in-match NAMEPLATE (the
 - `saturn/probe_portraitstage.lua` — at MATCH LOAD, is the VRAM $0000 transfer the
 - `saturn/probe_poseparity.lua` — POSE PARITY vs Super S: drive the same inputs in both
@@ -57,35 +57,35 @@ See HANDOFF.md §4 for the harness.
 - `saturn/probe_saturn_fxdma.lua` — log the PARAMETERS of every VRAM DMA kicked through
 - `saturn/probe_saturn_fxsheet.lua` — assert that Saturn's effect sheet reaches VRAM in
 - `saturn/probe_saturn_fxvram.lua` — dump the RAW state behind Saturn's 214P projectile
-- `saturn/probe_saturn_kickshot.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
+- `saturn/probe_saturn_kickshot.lua` — select Saturn (SAT=1 holds L+R) vs Uranus, then
 - `saturn/probe_saturn_moves.lua` — first Saturn frame data (Super S). Reloads the
 - `saturn/probe_saturn_palshot.lua` — screenshot Saturn in a real match on a chosen
 - `saturn/probe_saturn_palslot.lua` — does Saturn's fighter palette follow the button the
 - `saturn/probe_saturn_projoam.lua` — IDENTIFY which OAM entries belong to Saturn's 214P
 - `saturn/probe_saturn_projtiles.lua` — capture Saturn's 214P projectile as SPRITES, to
-- `saturn/probe_saturn_push.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
+- `saturn/probe_saturn_push.lua` — push-box test: select Saturn (SAT=1 holds L+R) vs
 - `saturn/probe_saturn_throwdiff.lua` — frame-by-frame fingerprint of Saturn being
 - `saturn/probe_saturn_throwidx.lua` — log the INDEX the thrown-pose stub is handed.
 - `saturn/probe_saturn_throwshot.lua` — capture Saturn MID-THROW as raw VRAM + OAM +
 - `saturn/probe_saturn_unblockable.lua` — verify Super S Saturn's notorious property: her FAR
-- `saturn/probe_saturn_variant.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
+- `saturn/probe_saturn_variant.lua` — map Saturn's close/far normals: press HK or HP
 - `saturn/probe_sms_5lk.lua` — 5LK regression: does an id-0x1C object appear in the
 - `saturn/probe_sms_airspecial.lua` — repro the field-reported j.632K crash: transform
 - `saturn/probe_sms_animtables.lua` — live-verify SMS's three animation-layer tables
-- `saturn/probe_sms_bootcheck.lua` — probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
+- `saturn/probe_sms_bootcheck.lua` — boot check with NO L+R code input: run the
 - `saturn/probe_sms_btncfg2.lua` — config-screen RE, synced to the screen init
 - `saturn/probe_sms_btncfg3.lua` — config screen, fully live: arrow presses with
-- `saturn/probe_sms_btncfg4.lua` — probe_sms_btncfg3.lua — config screen, fully live: arrow presses with
-- `saturn/probe_sms_btncfg5.lua` — probe_sms_btncfg3.lua — config screen, fully live: arrow presses with
-- `saturn/probe_sms_btncfg6.lua` — probe_sms_btncfg3.lua — config screen, fully live: arrow presses with
+- `saturn/probe_sms_btncfg4.lua` — config screen, fully live: btncfg3's arrow presses
+- `saturn/probe_sms_btncfg5.lua` — config screen: btncfg4 (arrow-press WRAM diffs,
+- `saturn/probe_sms_btncfg6.lua` — config screen: btncfg5 retry — watch $1846
 - `saturn/probe_sms_btnconfig.lua` — map the VS-config button-mapping screen: reach it
 - `saturn/probe_sms_charsel.lua` — map the char-select engine on vanilla SMS:
 - `saturn/probe_sms_charsel10.lua` — validate the v0.10.0 char-select 10th slot on the
 - `saturn/probe_sms_charsel2.lua` — map the char-select engine on vanilla SMS:
 - `saturn/probe_sms_charselhidden.lua` — validate the v0.11.0 HIDDEN variant (Gouki-
 - `saturn/probe_sms_cmdwho.lua` — which player is running the script when a CMD step
-- `saturn/probe_sms_dashsfx_sat.lua` — probe_sms_dashsfx.lua — measure SMS's native $78 sfx values for jump,
-- `saturn/probe_sms_desp2.lua` — probe_supers_desp2.lua — desperation deep-dive on Super S ground truth:
+- `saturn/probe_sms_dashsfx_sat.lua` — measure the $78 sfx values for jump, forward
+- `saturn/probe_sms_desp2.lua` — desperation deep-dive on the SMS side, P1 poked to
 - `saturn/probe_sms_desp3.lua` — desperation CONNECT test: poke req=0x0B at several
 - `saturn/probe_sms_despcrash.lua` — diagnose the low-HP desperation crash
 - `saturn/probe_sms_desperation.lua` — trigger her DESPERATION with the decoded motion
@@ -94,14 +94,14 @@ See HANDOFF.md §4 for the harness.
 - `saturn/probe_sms_fireball.lua` — verify Saturn's PORTED PROJECTILE in SMS: qcf+LP spawns
 - `saturn/probe_sms_fireballdbg.lua` — why doesn't the spawned fireball's proc run?
 - `saturn/probe_sms_freetable.lua` — is the tail of the audio-bank table at $C0:EDD7
-- `saturn/probe_sms_inputcheck.lua` — probe_sms_lrmodes.lua — diagnose L+R Saturn-select in non-VS modes.
-- `saturn/probe_sms_lrboth.lua` — probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
+- `saturn/probe_sms_inputcheck.lua` — after an L+R Saturn select, does she RESPOND to
+- `saturn/probe_sms_lrboth.lua` — L+R Saturn summon on BOTH pads at once: 2P VS with
 - `saturn/probe_sms_lrmodes.lua` — diagnose L+R Saturn-select, per game mode.
-- `saturn/probe_sms_lrselect.lua` — probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
+- `saturn/probe_sms_lrselect.lua` — L+R Saturn summon via the pad, P1 only: 2P VS with
 - `saturn/probe_sms_lztrace.lua` — single-step SMS's movelist decompressor ($C0:919F)
 - `saturn/probe_sms_menurows.lua` — establish the title-menu row -> game-mode ($7E:008D)
 - `saturn/probe_sms_mirror.lua` — mirror-match wedge: both players Saturn, P2 throws P1
-- `saturn/probe_sms_mirrorko.lua` — probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
+- `saturn/probe_sms_mirrorko.lua` — KO behaviour in a Saturn MIRROR: L+R held on both
 - `saturn/probe_sms_mlcheck.lua` — acceptance test for Saturn's movelist (task #41).
 - `saturn/probe_sms_mlppu.lua` — read the PPU's real layer configuration while the
 - `saturn/probe_sms_mlwriter.lua` — WHO writes the per-character movelist text?
@@ -112,15 +112,15 @@ See HANDOFF.md §4 for the harness.
 - `saturn/probe_sms_oamdump.lua` — smoke ROM: dump P1 Saturn's live OAM entries vs the
 - `saturn/probe_sms_oamread.lua` — smoke ROM: which $84:8000-table entry does the OAM
 - `saturn/probe_sms_objpal.lua` — field report (2026-08-04): fighting AGAINST Saturn, the
-- `saturn/probe_sms_p2effect.lua` — probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
+- `saturn/probe_sms_p2effect.lua` — where would P2's effect tiles go? P1-only L+R
 - `saturn/probe_sms_p2proj.lua` — is the projectile wedge P2-specific (slot B) rather
-- `saturn/probe_sms_parallax.lua` — probe_sms_stageload.lua — census of the MATCH-LOAD transfers in SMS, to find
+- `saturn/probe_sms_parallax.lua` — diagnose the stage's scroll/parallax: once in the
 - `saturn/probe_sms_projgfx.lua` — how do PROJECTILES get their graphics in SMS?
 - `saturn/probe_sms_projhit.lua` — does a projectile despawn after HITTING? Compare
 - `saturn/probe_sms_saturn_attacks.lua` — drive Saturn's REAL proc block in SMS: for each
 - `saturn/probe_sms_saturn_flow.lua` — verify the UNVERIFIED mechanics on the Saturn build:
 - `saturn/probe_sms_saturn_p2.lua` — verify SATURN AS P2: poke $1080=0x1C, drive P2 pad
-- `saturn/probe_sms_saturn_p2b.lua` — probe_sms_saturn_p2.lua — verify SATURN AS P2: poke $1080=0x1C, drive P2 pad
+- `saturn/probe_sms_saturn_p2b.lua` — SATURN AS P2, projectile focus: poke $1080=0x1C,
 - `saturn/probe_sms_saturn_pad.lua` — PAD-INPUT test for Saturn in SMS: real buttons through
 - `saturn/probe_sms_saturn_smoke.lua` — SMOKE TEST: Saturn animates in SMS.
 - `saturn/probe_sms_selectcheck.lua` — acceptance test for Saturn's character-select
@@ -133,12 +133,12 @@ See HANDOFF.md §4 for the harness.
 - `saturn/probe_sms_stagebgm.lua` — is the BGM chosen by STAGE?
 - `saturn/probe_sms_stagejump.lua` — reproduce and MEASURE the ported stage's vertical
 - `saturn/probe_sms_stageload.lua` — census of the MATCH-LOAD transfers in SMS, to find
-- `saturn/probe_sms_stagename.lua` — probe_sms_stagejump.lua — reproduce and MEASURE the ported stage's vertical
-- `saturn/probe_sms_stagepick.lua` — probe_sms_stagejump.lua — reproduce and MEASURE the ported stage's vertical
+- `saturn/probe_sms_stagename.lua` — capture the stage-name line on the button-config
+- `saturn/probe_sms_stagepick.lua` — answer WHO CHOOSES THE STAGE: log every write to the
 - `saturn/probe_sms_stress.lua` — CRASH HUNT: Saturn vs an opponent, thousands of
-- `saturn/probe_sms_throwbug.lua` — probe_sms_lrmodes.lua — diagnose L+R Saturn-select in non-VS modes.
+- `saturn/probe_sms_throwbug.lua` — reproduce the FIELD BUG where a thrown Saturn turns to
 - `saturn/probe_sms_throwoam.lua` — field bug 1 (throw corruption), the A/B that the
-- `saturn/probe_sms_transform_timing.lua` — probe_sms_effectload.lua — verify the SMS-side effect-tile hypothesis: at match
+- `saturn/probe_sms_transform_timing.lua` — measure WHEN the L+R shell becomes Saturn:
 - `saturn/probe_sms_voicechan.lua` — settle the "voices 1/2/6" finding by watching the
 - `saturn/probe_sms_voicecheck.lua` — does Saturn's voice actually land in the APU?
 - `saturn/probe_sms_voicefire.lua` — does SHE actually ask for her voice in play?
@@ -149,22 +149,22 @@ See HANDOFF.md §4 for the harness.
 - `saturn/probe_sms_voicetrace.lua` — per-frame DSP trace of a single forced voice
 - `saturn/probe_sms_voicetranspose.lua` — test the PROPOSED voice-pitch fix before
 - `saturn/probe_sms_vs2p.lua` — field bug 2: in 2P VS the shell is NOT replaced, although
-- `saturn/probe_sms_wincard.lua` — probe_sms_winpose.lua — KO P2 with Saturn P1; log her acts/poses through the
-- `saturn/probe_sms_wincard2.lua` — probe_sms_winpose.lua — KO P2 with Saturn P1; log her acts/poses through the
+- `saturn/probe_sms_wincard.lua` — KO P2 in BOTH rounds with Saturn P1 (poked over the
+- `saturn/probe_sms_wincard2.lua` — wincard probe with CHAR (hex env) selecting P1's id
 - `saturn/probe_sms_winpose.lua` — KO P2 with Saturn P1; log her acts/poses through the
-- `saturn/probe_sms_winpose_ctrl.lua` — probe_sms_winpose.lua — KO P2 with Saturn P1; log her acts/poses through the
+- `saturn/probe_sms_winpose_ctrl.lua` — CONTROL for the winpose probe: same savestate and
 - `saturn/probe_sms_wramcensus.lua` — POST-BOOT free-WRAM census over $7F:E000-$7F:FFFF:
 - `saturn/probe_sms_wramfree.lua` — empirical free-WRAM census: watch writes across
-- `saturn/probe_sms_wramfree2.lua` — probe_sms_wramfree.lua — empirical free-WRAM census: watch writes across
+- `saturn/probe_sms_wramfree2.lua` — wider free-WRAM census: watch writes across
 - `saturn/probe_staging_dump.lua`
-- `saturn/probe_staging_dump2.lua` — probe_supers_effectload.lua — find where Saturn's EFFECT TILES (VRAM $6A00+,
+- `saturn/probe_staging_dump2.lua` — capture Saturn's effect tiles IN FLIGHT on Super S:
 - `saturn/probe_supers_animload.lua` — locate Super S's per-character animation payload.
 - `saturn/probe_supers_animload2.lua` — anim-payload hunt, take 2. The $6A00 fill is invisible
 - `saturn/probe_supers_animload3.lua` — anim/sprite hunt, take 3 (method inverted):
-- `saturn/probe_supers_aram.lua` — probe_supers_saturn.lua — Super S recon: reach a VS match with P1 = SATURN (charID
+- `saturn/probe_supers_aram.lua` — dump Super S's full 64KB ARAM once in-match: reach a VS
 - `saturn/probe_supers_coverage.lua` — measure Saturn-exclusive CODE in Super S bank $C1.
 - `saturn/probe_supers_desp2.lua` — desperation deep-dive on Super S ground truth:
-- `saturn/probe_supers_desperation.lua` — probe_sms_desperation.lua — trigger her DESPERATION with the decoded motion
+- `saturn/probe_supers_desperation.lua` — trigger the desperation on the SUPER S fixture
 - `saturn/probe_supers_dmacensus.lua` — in-match DMA traffic census on the Saturn fixture:
 - `saturn/probe_supers_effectload.lua` — find where Saturn's EFFECT TILES (VRAM $6A00+,
 - `saturn/probe_supers_effecttiles.lua` — dump the OBJ effects VRAM region (tiles 0xA0-0xFF,
@@ -179,7 +179,7 @@ See HANDOFF.md §4 for the harness.
 - `saturn/probe_supers_selectsweep.lua` — walk Super S's character-select cursor across
 - `saturn/probe_supers_selectvoice.lua` — find Saturn's character-select voice
 - `saturn/probe_supers_stagejump.lua` — what does SUPER S do to this stage's layers
-- `saturn/probe_supers_stagepal.lua` — probe_supers_saturn.lua — Super S recon: reach a VS match with P1 = SATURN (charID
+- `saturn/probe_supers_stagepal.lua` — grab a Super S stage's palette: force the scene id
 - `saturn/probe_supers_streamer.lua` — identify the sprite-cel streamer: log the PC that
 - `saturn/probe_supers_voicehunt.lua` — where, if anywhere, does Super S say Saturn's
 - `saturn/probe_supers_voicepitch.lua` — what pitch does SATURN'S OWN GAME play her voice
@@ -188,7 +188,7 @@ See HANDOFF.md §4 for the harness.
 - `saturn/probe_vramfx.lua`
 - `saturn/probe_vramwatch.lua` — corruption hunt: mirror match, repeated hits, and a
 - `saturn/probe_winportrait.lua` — the report-card screen: which per-WINNER-id tables /
-- `saturn/probe_winscreen.lua` — probe_cardportrait.lua — VS flow, P1 selects CHAR (poked at select), KO P2
+- `saturn/probe_winscreen.lua` — watch the WIN SCREEN between the second KO and the report
 - `saturn/render_chr.py` — render a VRAM CHR region to a PNG sheet, for reading a font.
 - `saturn/render_stage.py` — Render a SNES BG layer (4bpp tiles + tilemap) to a PNG.
 - `saturn/render_tilemap.py` — draw a BG tilemap with a CHR set, as a PNG.
@@ -381,7 +381,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_p10_vs.lua` — patch-10 combo-counter pipeline diagnosis in 2P VS mode.
 - `probe_p11_7f.lua` — (patch 11, P10b): bank $7F usage census across boot -> title ->
 - `probe_p11_7fb.lua` — (patch 11, P10c): exact bank-$7F in-match footprint.
-- `probe_p11_7fc.lua` — probe_p11_7f.lua (patch 11, P10b): bank $7F usage census across boot -> title ->
+- `probe_p11_7fc.lua` — (patch 11, P10b): bank $7F usage census across boot -> title ->
 - `probe_p11_adv.lua` — (patch 11): per-frame act/hitstop timeline for a 2LP on idle dummy,
 - `probe_p11_dbg.lua` — (patch 11): two debug scenarios on the patched ROM.
 - `probe_p11_demo.lua` — (patch 11): grab demo screenshots — SHOW display live (inputs + ADV).
@@ -422,7 +422,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_p13b_throws.lua` — (patch 13 v3, P3, knowledge): per-character throw damage-apply
 - `probe_p13b_throws_cfg.lua`
 - `probe_p13c_desp.lua` — : trigger a REAL desperation (a44 >= 0x12) and verify the nerf
-- `probe_p13c_desp2.lua` — probe_p12_rec.lua (patch 12): harvest special-move records (and their +6 misfire acts).
+- `probe_p13c_desp2.lua` — (patch 13c): desperation variant of probe_p12_rec — attacker
 - `probe_p13c_e2e.lua` — : v0.13 nerf E2E reproduction. Config probe_p13c_e2e_cfg.lua:
 - `probe_p13c_e2e_cfg.lua`
 - `probe_p13d_stats.lua` — : CONTROLLED ACS stat measurements. Each sample reloads the
@@ -435,6 +435,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_p13f_desp_cfg.lua`
 - `probe_p17_randompool.lua` — can the RANDOM stage default land on stage 9?
 - `probe_p17_stagelist.lua` — how many stages can the VS config screen reach?
+- `probe_p52_tmpA.lua` — TEMP (#52): does scriptTimeout bound a single Lua entry's execution?
 - `probe_p88_ttlrefresh.lua` — issue #88: does a REPEATED label event refresh its TTL?
 - `probe_p89_padleak.lua` — issue #89: trainer.lua's dummy must force unnamed buttons FALSE.
 - `probe_p8cal.lua` — : calibrate the Venus 6HP mash-escape window. P1 Venus throws P2;
