@@ -25,7 +25,8 @@ tools/Flips/
 vendor/
 mockups/
 
-# ROMs — copyrighted, never track, under ANY name or extension
+# ROMs — copyrighted, never track (roms/ plus the .sfc/.smc/.fig extensions this
+# project produces; a dump under another name is on the committer to catch)
 roms/
 *.sfc
 *.smc
@@ -55,10 +56,16 @@ roms/
 *.spc
 *aram*.bin
 
-# build/ holds only patch files: ignore everything, allow-list .bps/.ips back in
+# build/ holds only patch files: ignore everything, allow-list .bps/.ips back in.
+# build/saturn/ must be un-ignored FIRST — git does not descend into an excluded
+# directory, so the negations below it never fire for nested paths otherwise (#75).
 build/*
+!build/saturn/
+build/saturn/*
 !build/*.bps
 !build/*.ips
+!build/saturn/*.bps
+!build/saturn/*.ips
 
 # archives (distribution zips are generated; force-add deliberately if ever needed)
 *.zip
