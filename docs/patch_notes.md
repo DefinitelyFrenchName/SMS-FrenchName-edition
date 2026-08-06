@@ -37,8 +37,8 @@ Combined builds:
 
 > **Current bundle:** `build/sms_allpatches_v0.22.bps` — clean → ALL 14 patches (10 as 10b,
 > labels on), title tell "v.0.22", ROM `build/SailorMoonS_FrenchName_v0.22_ALLPATCHES.sfc`
-> (SHA-1 `3bb9c829…`; rebuilt 2026-07-30 with the patch-4 credit line, pre-credit hash
-> `52bc7e38…`). Also current:
+> (SHA-1 `e6b999b5…`; re-recorded 2026-08-06 with the batch-2 fixes to patches 10b/11;
+> 07-30 hash `3bb9c829…`, pre-credit `52bc7e38…`). Also current:
 > `build/sms_reference_v1.bps` — **REF v.1** = 1b+2+3+4+5+7+8+9+12+13+14, title
 > "FrenchName REF v.1", ROM `2873f214…` (pre-credit `bd1104ee…`). **2026-07-19 prune:** the historical cumulative bundles listed below
 > (`sms_both`, `sms_full*`, the v1.x line, all-patches < v0.19) were deleted from `build/`

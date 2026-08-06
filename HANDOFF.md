@@ -489,7 +489,7 @@ closed. Key operational changes:
   when the glyph font became a lazy upload instead of one DMA per idle vblank
   — issue #93; p11 to `a3aba30d…` when a reset requested during hitstop
   stopped being swallowed — issue #90. The list above is the 07-30 record.)
-  Bundles: v0.22 `3bb9c829…`, REF v.1 `2873f214…`. Canonical v0.7 `24aa6b6d…`
+  Bundles: v0.22 `3bb9c829…` (since 08-06: `e6b999b5…`), REF v.1 `2873f214…`. Canonical v0.7 `24aa6b6d…`
   unchanged (reproduced byte-for-byte with the new builders).
 - Suite-count note: v0.22 full run counts differ slightly from the 07-25 numbers only
   via EXPECT cfg (58 + static-expect-all = 59) — see §4.
@@ -616,7 +616,7 @@ after projectile-special damage (framedata move machine stuck; see §4 and
 - `SailorMoonS_FrenchName_v0.7_all5_neptuneds.sfc` — `b1c3163f…` — canonical + patch 9 (experimental).
 - `SailorMoonS_FrenchName_v0.7_all5_trainingplus.sfc` — `09106a07…` — canonical + patch 11 (BPS `build/sms_full11_trainingplus.bps`).
 - `SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` — `be2cb752…` — patches 1-11 (BPS `build/sms_allpatches_v1.1.bps`).
-- **`SailorMoonS_FrenchName_v0.22_ALLPATCHES.sfc`** — `3bb9c829…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.22.bps`, title v.0.22; built by `tools/build_v022.sh`; lineage: `52bc7e38…` 07-25 fixes → `19a7fc0d…` 07-30 credit line → `3bb9c829…` 07-30 review-remediation fixes).
+- **`SailorMoonS_FrenchName_v0.22_ALLPATCHES.sfc`** — `e6b999b5…` — **ALL 14 patches, newest test ROM** (BPS `build/sms_allpatches_v0.22.bps`, title v.0.22; built by `tools/build_v022.sh`; lineage: `52bc7e38…` 07-25 fixes → `19a7fc0d…` 07-30 credit line → `3bb9c829…` 07-30 review-remediation fixes → `e6b999b5…` 08-06 batch-2 fixes to patches 10b/11, maintainer-approved re-record).
 - **`SailorMoonS_FrenchName_REF_v1.sfc`** — `2873f214…` — **REF v.1 reference bundle** 1b+2+3+4+5+7+8+9+12+13+14 (BPS `build/sms_reference_v1.bps`, title "FrenchName REF v.1"; built by `tools/build_ref_v1.sh`; lineage: `bd1104ee…` → `7ab26db4…` credit line → `2873f214…` review fixes).
 - `SailorMoonS_FrenchName_v0.21_ALLPATCHES.sfc` — `62ffb174…` — previous build (BPS `build/sms_allpatches_v0.21.bps`, title v.0.21; MEATY status label removed from patch 10b; p10 counter/label bugs present).
 - `SailorMoonS_FrenchName_v0.20_ALLPATCHES.sfc` — `9b0ae040…` — previous build (BPS `build/sms_allpatches_v0.20.bps`; Guts v3.4 = level indicator training-only).
@@ -922,10 +922,10 @@ ROM="build/sms_allstages.sfc" TAG=p17 tools/run.sh tools/probe_p17_stagelist.lua
 ROM="build/SailorMoonS_FrenchName_REF_v2_allstages.sfc" TAG=pool RNG=9 \
   tools/run.sh tools/probe_p17_randompool.lua 400   # -> $8E=18 (stage 9)
 # rebuild any BPS and confirm round-trip (current bundles):
-./tools/Flips/flips --apply build/sms_allpatches_v0.22.bps "$CLEAN" /tmp/rt.sfc  # sha == 3bb9c829…
+./tools/Flips/flips --apply build/sms_allpatches_v0.22.bps "$CLEAN" /tmp/rt.sfc  # sha == e6b999b5…
 ./tools/Flips/flips --apply build/sms_reference_v1.bps     "$CLEAN" /tmp/rt.sfc  # sha == 2873f214…
 # or rebuild either bundle from source (the committed recipes):
-tools/build_v022.sh    # -> 3bb9c829…
+tools/build_v022.sh    # -> e6b999b5…
 tools/build_ref_v1.sh  # -> 2873f214…
 tools/build_ref_v2.sh  # -> 6d79fb5f…  (REF v.1 + patch 15; base for the Saturn build)
 ```

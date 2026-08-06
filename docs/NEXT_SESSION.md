@@ -22,13 +22,12 @@ already fixed or wrongly premised.
 | 3 — docs/registry drift | #67 #68 #74 #103 #52 #75 | **DONE** (2026-08-06, one commit per issue) |
 | 4 — duplication, dead code, conventions | #73 #85 #95 #98 #100 #101 #70 #77 #99 #102 #105 #104 #78 #35 #32 #44 #64 #72 | not started |
 
-⚠ **PENDING REGISTRY DECISION (maintainer): the v0.22 recipe has drifted.**
-`tools/build_v022.sh` now produces `e6b999b5…`, not the recorded `3bb9c829…`,
-because batch 2 moved patches 10b and 11. The tracked
-`build/sms_allpatches_v0.22.bps` is untouched (still applies to `3bb9c829…`).
-REF v.1/v.2 and both releases are unaffected (they carry neither patch).
-Options: re-record v0.22 as a new lineage step (the 07-25/07-30 precedent),
-leave frozen and annotate, or retire the bundle.
+**RESOLVED (maintainer, 2026-08-06): v0.22 re-recorded as a lineage step.**
+Batch 2 moved patches 10b/11, so the recipe drifted from the recorded hash;
+the maintainer chose the 07-25/07-30 precedent — rebuild and extend the
+lineage. v0.22 is now `e6b999b5…` (`52bc7e38…` → `19a7fc0d…` → `3bb9c829…` →
+`e6b999b5…`), BPS re-diffed, regression on it ALL PASS (63). REF v.1/v.2 and
+both releases were never affected (they carry neither patch).
 
 Batch 3 findings that generalise:
 * **`--debug.scriptWindow.scriptTimeout` is INERT under --testrunner**
