@@ -42,17 +42,18 @@ def assemble(lines, org, bank):
                 if x is None: raise ValueError(f"immediate width unknown after plp — sep/rep before `{mn} {op}`")
                 return 2 if x else 3
             return 3  # absolute
-        if mn in ("jml","jmp","jsl"):
-            return 3 if mn == "jmp" else 4
+        if mn in ("jml","jmp","jsl","jsr"):
+            return 3 if mn in ("jmp","jsr") else 4
         if mn in ("lda_l","sta_l","cmp_l","sbc_l","adc_l","lda_lx","sta_lx"):
             return 4  # long addressing: opcode + 24-bit address (_lx = long,X)
-        if mn in ("lda_dp","sta_dp","sty_dp","adc_dp","lda_dpx","lda_ildp"):
+        if mn in ("lda_dp","sta_dp","sty_dp","adc_dp","lda_dpx","lda_ildp",
+                  "ldx_dp","sta_dpx","stz_dpx"):
             return 2  # direct page (_dpx = dp,X; _ildp = [dp] indirect long)
         if mn in ("lda_y","sta_y","adc_y","cmp_y"):
             return 3  # absolute,Y
         if mn in ("lda_x",):
             return 3  # absolute,X
-        if mn == "lsr_a":
+        if mn in ("lsr_a","asl_a"):
             return 1
         raise ValueError(f"size: unknown {mn} {op}")
 
@@ -112,7 +113,7 @@ def assemble(lines, org, bank):
             raise ValueError(f"absolute address out of range: {op} ({v:#x} > 0xffff) — "
                              f"a long address needs a long opcode")
         return [v & 0xFF, (v >> 8) & 0xFF]
-    SIMPLE = {"php":0x08,"plp":0x28,"phb":0x8B,"plb":0xAB,"pha":0x48,"pla":0x68,"lsr_a":0x4A,
+    SIMPLE = {"php":0x08,"plp":0x28,"phb":0x8B,"plb":0xAB,"pha":0x48,"pla":0x68,"lsr_a":0x4A,"asl_a":0x0A,
               "phx":0xDA,"plx":0xFA,"phy":0x5A,"ply":0x7A,"rtl":0x6B,"rts":0x60,
               "tax":0xAA,"txa":0x8A,"tay":0xA8,"tya":0x98,"tyx":0xBB,"xba":0xEB,"clc":0x18,"sec":0x38,
               "inc_a":0x1A,"dec_a":0x3A,"inx":0xE8,"dex":0xCA,"iny":0xC8,"dey":0x88,"nop":0xEA}
@@ -120,7 +121,8 @@ def assemble(lines, org, bank):
     LONG = {"lda_l":0xAF,"sta_l":0x8F,"cmp_l":0xCF,"sbc_l":0xEF,"adc_l":0x6F,
             "lda_lx":0xBF,"sta_lx":0x9F}   # absolute-long (_lx = long,X)
     DP = {"lda_dp":0xA5,"sta_dp":0x85,"sty_dp":0x84,"adc_dp":0x65,
-          "lda_dpx":0xB5,"lda_ildp":0xA7}  # direct page (_dpx = dp,X; _ildp = [dp])
+          "lda_dpx":0xB5,"lda_ildp":0xA7,
+          "ldx_dp":0xA6,"sta_dpx":0x95,"stz_dpx":0x74}  # direct page (_dpx = dp,X; _ildp = [dp])
     ABSY = {"lda_y":0xB9,"sta_y":0x99,"adc_y":0x79,"cmp_y":0xD9}                  # absolute,Y
     ABSX = {"lda_x":0xBD}                                                         # absolute,X
     # absolute opcodes: (imm, abs)
@@ -152,18 +154,23 @@ def assemble(lines, org, bank):
             if not (-128 <= rel <= 127):
                 raise ValueError(f"branch out of range: {op} ({rel})")
             out += bytes([BR[mn], rel & 0xFF]); pc += 2
-        elif mn in ("jml","jmp","jsl"):
+        elif mn in ("jml","jmp","jsl","jsr"):
             if op in labels:
                 addr = labels[op]; bk = bank
             else:
                 v = int(op.replace("$",""), 16)
                 if v > 0xFFFFFF:
                     raise ValueError(f"long address out of range: {mn} {op} ({v:#x} > 0xffffff)")
+                if mn in ("jmp","jsr") and v > 0xFFFF:
+                    raise ValueError(f"{mn} is absolute (16-bit): {op} ({v:#x} > 0xffff) — "
+                                     f"a cross-bank target needs {'jml' if mn == 'jmp' else 'jsl'}")
                 addr = v & 0xFFFF; bk = (v >> 16) & 0xFF
             if mn == "jml":
                 out += bytes([0x5C, addr & 0xFF, (addr >> 8) & 0xFF, bk]); pc += 4
             elif mn == "jsl":
                 out += bytes([0x22, addr & 0xFF, (addr >> 8) & 0xFF, bk]); pc += 4
+            elif mn == "jsr":
+                out += bytes([0x20, addr & 0xFF, (addr >> 8) & 0xFF]); pc += 3
             else:
                 out += bytes([0x4C, addr & 0xFF, (addr >> 8) & 0xFF]); pc += 3
         elif mn in DP:

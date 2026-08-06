@@ -1919,59 +1919,36 @@ keep:
     # helper: sep #$30 / cmp #SAT_ID / beq sat / asl / tax / JSL $C1:stub2 / rtl
     #         sat: jsr $C6F7 / rtl          (entered with 8-bit A=id via the hook)
     # helper v3 (at EF_HELPER): id test + P1/P2 in-ROM transforms
-    h = bytearray()
-    fixups = []          # (pos, labelname)
-    labels = {}
-    def _lbl(name): labels[name] = len(h)
-    def _br(op, name):   # 2-byte branch with fixup
-        h.extend((op, 0x00)); fixups.append((len(h) - 1, name))
-    h += bytes((0xE2, 0x30))                     # sep #$30
-    h += bytes((0xC9, 0x1C)); _br(0xF0, "sat")   # already Saturn
-    h += bytes((0xE0, 0x00)); _br(0xF0, "p1chk")
-    h += bytes((0xE0, 0x80)); _br(0xD0, "normal")
-    # P2 check
-    h += bytes((0x48, 0xAF, SATURN_LATCH2 & 0xFF, SATURN_LATCH2 >> 8, SATURN_BANK,
-                0xC9, SATURN_MAGIC)); _br(0xD0, "popn")
-    h += bytes((0xA9, 0x20)); _br(0x80, "gates") # A=palette-row hint 0x20 -> $0620
-    _lbl("p1chk")
-    h += bytes((0x48, 0xAF, SATURN_LATCH & 0xFF, SATURN_LATCH >> 8, SATURN_BANK,
-                0xC9, SATURN_MAGIC)); _br(0xD0, "popn")
-    h += bytes((0xA9, 0x00))                     # palette row 0x00 -> $0600
-    _lbl("gates")
-    h += bytes((0x85, 0x0E))                     # sta $0E (palette-dest low byte)
-    if not EARLY_TRANSFORM:
-        h += bytes((0xAD, 0x04, 0x1E)); _br(0xD0, "popn")    # intro sequencer busy
-    h += bytes((0xAD, 0xFA, 0x01, 0xC9, 0x80)); _br(0xD0, "popn")  # not-live
-    h += bytes((0xC2, 0x10, 0xA6, 0x88))         # rep #$10 / ldx $88
-    if SHELL_GUARD:
-        # Maintainer (2026-08-03): "make selecting Saturn only possible via L+R
-        # on Uranus, Neptune or Pluto … those three are not selectable in story
-        # mode." A far more robust story lock than the mode byte, which the field
-        # showed still let her in. It must be tested HERE, not in the DMA stub:
-        # at the effects transfer the player struct is not populated yet, so the
-        # id reads as junk and nothing arms at all (measured).
-        # Verified at this exact instruction with an exec hook: D=0, X=$1000/$1080
-        # (reloaded from $88 on the line above — X was truncated to 8 bits by the
-        # entry `sep #$30`), so `$00,x` is the player struct's charID. See the
-        # SHELL_GUARD block near the top for the evidence and the residual.
-        h += bytes((0xB5, 0x00, 0xC9, 0x06)); _br(0x90, "pop8")   # shell < 6
-        h += bytes((0xC9, 0x09)); _br(0xB0, "pop8")               # shell > 8
-    h += bytes((0xB5, 0x01, 0xC9, 0x03))         # act
+    h_intro = "" if EARLY_TRANSFORM else """
+  lda $1E04          ; intro sequencer busy
+  bne popn"""
+    # Maintainer (2026-08-03): "make selecting Saturn only possible via L+R
+    # on Uranus, Neptune or Pluto … those three are not selectable in story
+    # mode." A far more robust story lock than the mode byte, which the field
+    # showed still let her in. It must be tested HERE, not in the DMA stub:
+    # at the effects transfer the player struct is not populated yet, so the
+    # id reads as junk and nothing arms at all (measured).
+    # Verified at the `lda_dpx $00` with an exec hook: D=0, X=$1000/$1080
+    # (reloaded from $88 on the line above — X was truncated to 8 bits by the
+    # entry `sep #$30`), so `$00,x` is the player struct's charID. See the
+    # SHELL_GUARD block near the top for the evidence and the residual.
+    h_shell = """
+  lda_dpx $00        ; the player struct's charID (see the note above)
+  cmp #$06
+  bcc pop8           ; shell < 6
+  cmp #$09
+  bcs pop8           ; shell > 8""" if SHELL_GUARD else ""
     if EARLY_TRANSFORM:
         # act < 3 is the old "standing at neutral" case. ALSO accept the
         # ENTRANCE act ($22): that is what the shell is doing for the ~185
         # frames before the player gets control, and transforming there is the
         # whole point — she walks in as herself instead of popping in at GO.
-        _br(0x90, "doit")                        # bcc doit  (act < 3)
-        h += bytes((0xC9, 0x22)); _br(0xD0, "pop8")          # only the entrance
-        _lbl("doit")
-        h += bytes((0x48,))                      # pha — keep the act
-    else:
-        _br(0xB0, "pop8")                        # bcs pop8  (act >= 3)
-    h += bytes((0xA9, 0x1C, 0x95, 0x00))
-    for o in (0x01, 0x02, 0x04, 0x05, 0x06, 0x07):
-        h += bytes((0x74, o))
-    if EARLY_TRANSFORM:
+        h_act = """
+  bcc doit           ; act < 3
+  cmp #$22
+  bne pop8           ; only the entrance
+doit:
+  pha                ; keep the act"""
         if EARLY_KEEP_ACT:
             # Put the act back so HER script for it runs. FIELD-DISPROVEN in
             # v0.14.2: in 2P VS and 1P-vs-COM she got no entrance animation AND
@@ -1979,23 +1956,74 @@ keep:
             # so the intro sequencer never hands control over, and a hit is what
             # finally forces her out of the state. Training was unaffected only
             # because it has no entrance at all.
-            h += bytes((0x68, 0x95, 0x01))       # pla / sta $01,x
+            h_unact = """
+  pla
+  sta_dpx $01"""
         else:
-            h += bytes((0x68,))                  # pla — discard; act stays 0
-    # palette copy moved to $EE (EE_PALCOPY) — the helper slot is 0x90 bytes
-    h += bytes((0x22, EE_PALCOPY & 0xFF, EE_PALCOPY >> 8, B_MISC))
-    h += bytes((0x68, 0xA9, 0x1C, 0xE2, 0x10)); _br(0x80, "sat")
-    _lbl("pop8")
-    h += bytes((0xE2, 0x10))
-    _lbl("popn")
-    h += bytes((0x68,))
-    _lbl("normal")
-    h += bytes((0x0A, 0xAA))
-    h += bytes((0x22, STUB2 & 0xFF, STUB2 >> 8, 0xC1, 0x6B))
-    _lbl("sat")
-    h += bytes((0x20, 0xF7, 0xC6, 0x6B))
-    for pos, name in fixups:
-        h[pos] = (labels[name] - (pos + 1)) & 0xFF
+            h_unact = """
+  pla                ; discard; act stays 0"""
+    else:
+        h_act = """
+  bcs pop8           ; act >= 3"""
+        h_unact = ""
+    h_asm = f"""
+  sep #$30
+  cmp #${SAT_ID:02X}
+  beq sat            ; already Saturn
+  cpx #$00
+  beq p1chk
+  cpx #$80
+  bne normal
+; P2 check
+  pha
+  lda_l ${SATURN_BANK:02X}{SATURN_LATCH2:04X}
+  cmp #${SATURN_MAGIC:02X}
+  bne popn
+  lda #$20           ; A=palette-row hint 0x20 -> $0620
+  bra gates
+p1chk:
+  pha
+  lda_l ${SATURN_BANK:02X}{SATURN_LATCH:04X}
+  cmp #${SATURN_MAGIC:02X}
+  bne popn
+  lda #$00           ; palette row 0x00 -> $0600
+gates:
+  sta_dp $0E         ; palette-dest low byte{h_intro}
+  lda $01FA
+  cmp #$80
+  bne popn           ; not-live
+  rep #$10
+  ldx_dp $88{h_shell}
+  lda_dpx $01        ; act
+  cmp #$03{h_act}
+  lda #${SAT_ID:02X}
+  sta_dpx $00
+  stz_dpx $01
+  stz_dpx $02
+  stz_dpx $04
+  stz_dpx $05
+  stz_dpx $06
+  stz_dpx $07{h_unact}
+; palette copy moved to $EE (EE_PALCOPY) — the helper slot is 0x90 bytes
+  jsl ${B_MISC:02X}{EE_PALCOPY:04X}
+  pla
+  lda #${SAT_ID:02X}
+  sep #$10
+  bra sat
+pop8:
+  sep #$10
+popn:
+  pla
+normal:
+  asl_a
+  tax
+  jsl $C1{STUB2:04X}
+  rtl
+sat:
+  jsr $C6F7
+  rtl
+"""
+    h, _ = A.assemble(h_asm.splitlines(), 0, 0)
     assert len(h) <= 0x90, f"helper overflows its DB70-DC00 slot: {len(h)}"
     ef[EF_HELPER:EF_HELPER + len(h)] = h
     # recognizer graft: payload at original offsets; copied-table entry -> her list
