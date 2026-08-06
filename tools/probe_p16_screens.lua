@@ -47,7 +47,24 @@ emu.addMemoryCallback(function(_, v)
   msgs[#msgs + 1] = string.format("f%d $1C18=%02X pc=$%06X", frames, v or 0, pc)
 end, emu.callbackType.write, 0x1C18, 0x1C18, emu.cpuType.snes, WRAM)
 
--- uploader DMAs + full-VRAM clears (all banks' $420B)
+-- uploader DMAs + full-VRAM clears (all banks' $420B). FULLDMA=1 decodes
+-- EVERY VRAM-targeting channel from the DMA registers instead (PC-agnostic —
+-- needed for the bank-$DF screen system, which has its own upload path).
+local FULLDMA = os.getenv("FULLDMA") == "1"
+local vmadd = 0
+if FULLDMA then
+  for b = 0x00, 0xBF do
+    if b <= 0x3F or b >= 0x80 then
+      local base = b << 16
+      emu.addMemoryCallback(function(_, v)
+        vmadd = (vmadd & 0xFF00) | (v or 0)
+      end, emu.callbackType.write, base | 0x2116, base | 0x2116, emu.cpuType.snes, MEM)
+      emu.addMemoryCallback(function(_, v)
+        vmadd = (vmadd & 0x00FF) | ((v or 0) << 8)
+      end, emu.callbackType.write, base | 0x2117, base | 0x2117, emu.cpuType.snes, MEM)
+    end
+  end
+end
 for b = 0x00, 0xBF do
   if b <= 0x3F or b >= 0x80 then
     local a = (b << 16) | 0x420B
@@ -55,6 +72,27 @@ for b = 0x00, 0xBF do
       if (v or 0) == 0 then return end
       local s = st(); if not s then return end
       local pc = ((s["cpu.k"] or 0) << 16) | (s["cpu.pc"] or 0)
+      if FULLDMA then
+        -- skip in-match sprite spam, but keep the report card's load, which
+        -- happens inside step 8's tail once $70 leaves the match
+        if ROUTE == "win" and (step < 8 or (step == 8 and ram(0x70) == 4)) then return end
+        for ch = 0, 7 do
+          if (v & (1 << ch)) ~= 0 then
+            local r = 0x004300 | (ch << 4)
+            local bbad = emu.read(r + 1, MEM) or 0
+            if bbad == 0x18 or bbad == 0x19 then
+              local dmap = emu.read(r, MEM) or 0
+              local a1 = (emu.read(r + 2, MEM) or 0) | ((emu.read(r + 3, MEM) or 0) << 8)
+              local ab = emu.read(r + 4, MEM) or 0
+              local das = (emu.read(r + 5, MEM) or 0) | ((emu.read(r + 6, MEM) or 0) << 8)
+              msgs[#msgs + 1] = string.format(
+                "f%d DMA pc=$%06X vmadd=$%04X len=$%04X src=$%02X:%04X%s",
+                frames, pc, vmadd, das, ab, a1, (dmap & 0x08) ~= 0 and " FIXED" or "")
+            end
+          end
+        end
+        return
+      end
       if pc == 0x8092D2 then
         local dp = s["cpu.d"] or 0
         local function w(o) return (emu.read(dp+o,MEM) or 0) | ((emu.read(dp+o+1,MEM) or 0) << 8) end
@@ -65,6 +103,24 @@ for b = 0x00, 0xBF do
       end
     end, emu.callbackType.write, a, a, emu.cpuType.snes, MEM)
   end
+end
+
+-- ROWWATCH=1: log the first writes to the $DF system's staged row records
+-- ($7F:8000-$83FF) with writer PC — names the text-builder code directly
+if os.getenv("ROWWATCH") == "1" then
+  local seen, n = {}, 0
+  emu.addMemoryCallback(function(addr, v)
+    if n >= 400 then return end
+    local s = st()
+    local pc = s and (((s["cpu.k"] or 0) << 16) | (s["cpu.pc"] or 0)) or -1
+    local key = pc
+    seen[key] = (seen[key] or 0) + 1
+    if seen[key] <= 6 then
+      n = n + 1
+      msgs[#msgs + 1] = string.format("f%d ROW $%06X=%02X pc=$%06X",
+        frames, addr or 0, v or 0, pc)
+    end
+  end, emu.callbackType.write, 0x7F8000, 0x7F83FF, emu.cpuType.snes, MEM)
 end
 
 emu.addEventCallback(function()
@@ -79,6 +135,25 @@ local function glyphs()
     end
   end
   return c
+end
+
+-- DUMP7F: write the $DF system's staging areas — the sheet at $7F:0000 and
+-- the row records at $7F:8000 — so text blocks can be rendered offline
+local function dump7f(tag)
+  local f = assert(io.open(string.format("%sp16_7f_%s_%s.bin", ENV.TRACE, ROUTE, tag), "wb"))
+  local chunk = {}
+  for i = 0, 0x5FFF do
+    chunk[#chunk + 1] = string.char(emu.read(0x10000 + i, emu.memType.snesWorkRam) or 0)
+    if #chunk == 4096 then f:write(table.concat(chunk)); chunk = {} end
+  end
+  f:write(table.concat(chunk)); f:close()
+  f = assert(io.open(string.format("%sp16_7frec_%s_%s.bin", ENV.TRACE, ROUTE, tag), "wb"))
+  chunk = {}
+  for i = 0x8000, 0x8BFF do
+    chunk[#chunk + 1] = string.char(emu.read(0x10000 + i, emu.memType.snesWorkRam) or 0)
+  end
+  f:write(table.concat(chunk)); f:close()
+  log(string.format("f%d DUMP7F %s", frames, tag))
 end
 
 -- screen-transition tracker + screenshots
@@ -170,6 +245,7 @@ local ROUTES = {
         local f = io.open(string.format("%sp16scr_%s_post_f%d.png", ENV.TRACE, ROUTE, frames), "wb")
         if f then f:write(emu.takeScreenshot()); f:close() end
       end
+      if sf == 600 then dump7f("report") end
       return sf > 900
     end,
     function()
@@ -216,6 +292,7 @@ local ROUTES = {
         local f = io.open(string.format("%sp16scr_%s_post_f%d.png", ENV.TRACE, ROUTE, frames), "wb")
         if f then f:write(emu.takeScreenshot()); f:close() end
       end
+      if sf == 490 then dump7f("select") end
       return sf > 500
     end,
     function() pulse[0] = beat({ start = true }); return sf > 60 end,
@@ -225,6 +302,7 @@ local ROUTES = {
         local f = io.open(string.format("%sp16scr_%s_post_f%d.png", ENV.TRACE, ROUTE, frames), "wb")
         if f then f:write(emu.takeScreenshot()); f:close() end
       end
+      if sf == 390 then dump7f("bracket") end
       return sf > 400
     end,
   },

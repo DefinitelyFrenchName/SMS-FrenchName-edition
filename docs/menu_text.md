@@ -1176,10 +1176,36 @@ and the `$5C0-$5FF` glyph census. Results:
 | Tournament (select + bracket) | **bank `$DF` loader** (same) | 0 | プレイヤーセレクト, per-line char names, brackets' セーラー〜 VS 〜 |
 
 Consequences:
-* **Win and Tournament share ONE unsolved system** — the bank-`$DF` screen
-  loader, which does not go through the `$C3` clusters or the `$80:92D2`
-  uploader at all. Decoding it is the next work item; nothing about the `$C3`
-  hook pattern transfers as-is.
+* **Win and Tournament share ONE system — the bank-`$DF` screen engine — and
+  it is now DECODED (2026-08-06, same session):**
+  - Nine screens, each a straight-line caller (`lda #script / jsr $DF:83E1`;
+    callers at `$DF:8021/8C41/8CBA/932F/9673/99CB/9C57/A10E/A401`). A script
+    has three phases: (1) asset entries `[src24][flag][dest24]` (decompress
+    only) or `[src24][flag][vmadd16][len16]` (decompress to `$7F:0000` +
+    DMA at `$DF:84C2`); (2) small copies; (3) menu-item descriptors at
+    `$7E:0F00+n*$10`.
+  - **Two codecs**: flag≠0 blobs go through `$80:8DEC` → `jsr $919F` = the
+    familiar `sms_lz` (so the shared big text sheet `$C3:48D0` is
+    re-encodable with existing tools); flag=0 blobs (incl. VRAM-dest
+    tilemaps) use a SECOND decompressor at `$80:8E9A` — not yet reversed.
+  - **Win/REPORT CARD** (script `DF:96BC`): the text lives in a tilemap blob
+    `$C8:703C` (codec 2) decompressed to `$7F:0000`, match numbers inserted
+    at runtime, uploaded once (`$DF:8534`, `vmadd $7000 len $0800`).
+    Rendered from the RAM dump against the `$C3:48D0` sheet (tile = cell&3FF
+    − `$A0`) it reads exactly the screen's text. **Edit path that avoids
+    codec 2: stub between decompress and upload** (same place the numbers go
+    in) rewriting the label cells.
+  - **Tournament select rows** are built per frame: 39-word text blocks
+    (`[vmadd][len][rows][cells…]`) copied from a pointer table at
+    `$DF:8EAC` (blocks `$DF:9000-$9280`, UNCOMPRESSED — trivially editable)
+    into `$7F:8000+n*$80`, row positions from `$DF:8EC0`, drawn by the same
+    renderer as the Options values. The bracket screen is script `DF:9405`.
+  - **The `$C3:48D0` sheet has a full-width Latin alphabet (missing Q, S, Z)
+    + two digit sets** — S is needed by nearly every planned string (BEST,
+    MARS, VENUS, SAILOR…), so glyph authoring is required either way; the
+    plan is to install the half-width A-Z into free tiles of that sheet so
+    every `$DF`/`$C3` text screen shares one font and the maintainer's
+    longer strings fit.
 * The `$C3`-cluster screens (char select, config, ACS) can each get the font
   by the same per-cluster hook Options got, when their text edits are ready.
 * ⚠ **Attribution correction:** step 1's "glyphs reach VRAM on the
@@ -1195,6 +1221,12 @@ Consequences:
   pin P2 to 2 HP and fish for counter-hits with the 4f jab while the COM
   attacks; strikes underflow-kill normally. HP pins must use the per-A.C.S.
   max (`$104A`), not a constant.
+
+**Maintainer-supplied strings, REPORT CARD (2026-08-06):** KOタイム → KO
+TIME, HITすう → HIT COUNT (HITS if short), ダメージ → DAMAGE (DMG if short),
+勝ちすう → WIN COUNT (WINS if short), ベスト → BEST. With the half-width
+font installed on this screen the long forms all fit; the short forms are the
+fallback if the layout forces full-width.
 
 **Values: SOLVED the same day (2026-08-06) — the runtime writer is found and
 the records are plain data.** The draw path is `$80:8C43` (JSL): DP `$74/$76`
