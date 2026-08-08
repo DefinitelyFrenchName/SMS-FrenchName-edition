@@ -5,7 +5,8 @@
 posture/chip values, and patch coverage — measured with the same rig
 (`tools/probe_p13f_desp.lua`, single-roll deterministic, clean ROM, defender at 0x60 HP).
 Move names and inputs from the maintainer / Dustloop community wiki
-(https://www.dustloop.com/w/SMS — Cloudflare-blocked for our fetcher; values below are
+(https://www.dustloop.com/w/SMS — fetched by hand, since the automated fetcher is
+Cloudflare-blocked; values below are
 our own measurements).
 
 **Structural ground truth — the dispatcher is the PROJECTILE system** (resolved
@@ -34,7 +35,7 @@ input rig (blockstun act 0x0C/0x0E → move act = GC):
 | Uranus Shadow Dash 66 (act 0x60) | **cancels blockstun** (verified) | **SPECIAL** |
 | Moon Dash Jump 66 (act 0x60) | **cancels blockstun** (verified) | **SPECIAL** |
 | Ordinary forward dash (Jupiter control) | input eaten, stun runs full | universal movement |
-| Backdash 44 (act 0x26) | not GC-able (Chibi prose: backdash is her escape INSTEAD of GC) | universal movement |
+| Backdash 44 (act 0x26) | **GC-able — VERIFIED** (act 0x26 fires straight out of blockstun; the GC gate accepts it explicitly, see below) | universal movement |
 | Mercury Triangle Jump (wall 7/9) | untested (wall-dependent); her listed GC option is HP Bubble, not this | command movement (presumed) |
 | Chibi Double Jump j.7/8/9 | air-only, GC n/a | command movement |
 | Slides (Uranus/Chibi 2HK), Neptune c.HK etc. | normals | command normals |
@@ -136,7 +137,7 @@ dispatcher-record and act-space evidence instead. This also formalizes the Chibi
 matchup prose ("Uranus purposely taking air hits" — because blocking Luna P airborne
 is not an option).
 
-Status: **ALL NINE CHARACTERS COMPLETE** (Chibi drafted from wiki + measurements ahead of the maintainer's detail pass — corrections welcome).
+Status: **ALL NINE CHARACTERS COMPLETE** (Chibi's draft had the maintainer's detail pass on 2026-07-19, including the confirmed 5LP quirk).
 
 ---
 
@@ -211,7 +212,8 @@ criterion (GC-able ⇔ special), Shadow Dash is a full special move.
   now trace-confirmed frame-by-frame (hurt idx 0 throughout).
 - Shadow Dash is the cancel target of the 2HP infinite — the whole reason this project
   exists. Patch 1 gates the 2HP-recovery→dash cancel; patch 5 shortens the dash to
-  ~89px (−1/3); patch 6 optionally adds dash i-frames. See docs/patch_notes.md.
+  82px (−1/3, from 121px — the builder constant `0x0640` is the source of truth);
+  patch 6 optionally adds dash i-frames. See docs/patch_notes.md.
 - Wiki lists dash startup 1 — consistent (movement begins on the first act frames).
 
 ### 2HK — sliding sweep (command normal, character-specific slide)
@@ -736,7 +738,7 @@ Fire, close Deep Submerge at −30). Low, knockdown, 8 damage (wiki).
 
 ## Chibi Moon (charID 9)
 
-*(Drafted from wiki + emulator ahead of the maintainer's detail session; flag anything off.)*
+*(Drafted from wiki + emulator; the maintainer's detail pass landed 2026-07-19 — flag anything still off.)*
 
 ### Pink Sugar Heart Attack — [4]6LP / [4]6HP (charge; record idx 0x1A)
 
@@ -826,8 +828,9 @@ consistency check of the whole document.
 For each named special: LP/HP variant acts, melee/projectile path, stand/crouch/chip
 damage, misfire acts (cross-check the record tables), Guts coverage, and any recognizer
 quirks. **No characters pending — the compendium is complete.** Remaining open items
-live in the per-character sections (wiki gaps, Mercury/Jupiter/Uranus/Neptune/Pluto
-desperation-record locations, triangle-jump and double-jump rig tests). DPs/command grabs are NOT in the record tables, so
+live in the per-character sections (wiki gaps, triangle-jump and double-jump rig tests).
+The "missing desperation records" question is **closed**: those five pure strike/grab
+desperations fire NO record — verified live; they never existed. DPs/command grabs are NOT in the record tables, so
 each character may also hide a 623/360-style move the tables can't reveal — ask the
 community list per character. (Neptune's "super" turned out to be her DP; there may be
 no true supers besides desperations.)

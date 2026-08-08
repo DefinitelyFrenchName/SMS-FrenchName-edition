@@ -568,8 +568,17 @@ patch 10 transliterates the same logic into 65816 and is validated *against* the
 | Title text | `$C3:B81F` | 3, 4 | `texttiles.py`, `mockup.lua` |
 | In-ROM combo/labels | hooks above + WRAM `$0900+`, CHR 0xC7 | 10 | `mkpatch10.py`, `hudfont.py`, `perf_patch10.lua`, `test_labels.lua` |
 | Practice mode / in-ROM trainer | `$80:8373`, `$80:D574`, `$008D` 4↔5, `$0070`, `$01FA`, `$7F:E000/F000`, TM `$212C` | 11 | `mkpatch11.py`, `probe_p11_*.lua`, `test_p11_tier1.lua`, `perf_patch11.lua` |
+| Taunt / ochame misfire | `$C1:0B49`, RNG `$0090`, roll `$C1:0AB9`, act `0x27` | 12 | `mkpatch12.py`, `test_p12_taunt.lua` |
+| Damage apply + Guts | 8 apply sites in `$C0` (§6), throw sites `$C1:082F/084D`, matrix `$C0:D081`, state `$7F:F800+` | 13, 14 | `mkpatch13/14.py`, `test_p13_guts.lua`, `probe_p13_timeout.lua`, `docs/sms_damage_system.md` |
+| Front-end menus / asset pipeline | job table `$C3:BE08` (`[vram16][len16][src24][dest24]`), uploader `$C0:92D2`, decompress `$80:927D`, clusters `$C3:A4DD`/`AF8A`/`9CF2`, bank-`$DF` screen engine `$DF:83CE`, config dispatcher `$C3:BB60` | 15, 16, 17, 18 | `mkpatch15/16/17/18.py`, `menufont.py`, `probe_p16_*.lua`, `probe_acs_select.lua`, `docs/menu_text.md` |
+| A.C.S. stats | `$1C02`, menu state `$8A`, wheel cluster `$C3:9CF2` | 18 (removal) | `docs/sms_acs_system.md`, `probe_acs_select.lua` |
 
-**Builders** `tools/mkpatch{,2..11}.py` (all take `(src,out)` positionals, stack on any input).
+**Builders** `tools/mkpatch{,2..18}.py` (all take `(src,out)` positionals and stack on any
+input; every stacked step needs `--stacked` since 2026-07-30). The 100-series (Saturn) is
+built by `tools/saturn/` instead.
 **Frame-data engine + training mode** `tools/training/` (Lua; also the patch oracles).
-**The all-patches test ROM** is `build/SailorMoonS_FrenchName_v1.1_ALLPATCHES.sfc` (SHA-1
-`be2cb752…`, BPS `build/sms_allpatches_v1.1.bps`; the v1.0/`f20f2883…` ROM is patches 1-10).
+**What to test against:** the two release builds, `release/Rev.S-02.bps` → ROM `41d93a53…`
+and `release/Rev.SS-02.bps` → `b96f3fe8…` (one recipe, `tools/build_rev.sh both`). The
+newest all-patches *development* ROM is `build/SailorMoonS_FrenchName_v0.22_ALLPATCHES.sfc`
+(SHA-1 `e6b999b5…`, BPS `build/sms_allpatches_v0.22.bps`); the v1.x ROMs named in older
+notes were pruned in 2026-07-19.

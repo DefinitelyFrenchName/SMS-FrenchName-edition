@@ -1175,6 +1175,11 @@ and the `$5C0-$5FF` glyph census. Results:
 | Win = REPORT CARD | **bank `$DF` loader** (`$DF:83CE` writes `$1C18`), no `$80:92D2` uploads | 0 | KOタイム/HITすう/ダメージ/勝ちすう/ベスト (values numeric) |
 | Tournament (select + bracket) | **bank `$DF` loader** (same) | 0 | プレイヤーセレクト, per-line char names, brackets' セーラー〜 VS 〜 |
 
+⚠ **The `52/64` census figures in this file are the 26-letter measurement.** Re-measured
+2026-08-08 the number is **56/64**: the set is now 29 glyphs (A-Z plus comma, hyphen and
+apostrophe, authored for the stage names) and three of them have a blank half. Expect the
+count to move again whenever a glyph is added — it is a census, not a constant.
+
 **STATUS (2026-08-06, late): tournament select names, REPORT CARD labels,
 stage names, the whole VS config screen, AND the ACS wheel are DONE.**
 Build gates: `SMS_P16_OPTIONS` (Options), `SMS_P16_DF` (tournament select +

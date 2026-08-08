@@ -5,8 +5,11 @@ clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`.
 
 Deliverables (built by `tools/mkpatch3.py`):
 - `build/sms_palettes.bps` — clean → palettes + "FrenchName" header (patch 3 alone, for QA)
-- `build/sms_full.bps` — clean → **all three**: 1f-link + dash-fix + palettes + "FrenchName"
-- Output ROMs are 3 MB, SHA-1 palettes `291f6474…`, full `eb7b86f8…`.
+- Output ROM is 3 MB, SHA-1 palettes `291f6474…`.
+
+(`build/sms_full.bps`, the clean→all-three bundle, was pruned on 2026-07-19. Chain the
+builders for a custom combination; the maintained ones are REF v.1/v.2 and the two
+builds in `release/`.)
 
 ## What this patch does
 
@@ -36,7 +39,9 @@ base-region bytes patch 3 changes are these):
   the palette data block from 0x281000. Per character: `0x1000` bytes = 32 slots × `0x80`;
   slot layout `[enable-flag word, pad, icon 4×BGR555 @+0x8, character 16 @+0x10,
   projectile 16 @+0x30]`. Defaults (slots 0–1) copied from each character's manifest
-  ($E0:0238+id*2); extras (slots 2–11) lifted from the Big Zam block at file 0x2A0000.
+  ($E0:0238+id*2); extras lifted from the Big Zam block at file 0x2A0000 — the builder
+  copies **all 30 extra slots (2–31)**, of which Big Zam populates 10 (the enable flag),
+  which is why 12 end up live.
 - **0xFFC0** header title, **0xFFDC/DE** checksum.
 
 ## Selection (character-select screen)
@@ -63,7 +68,9 @@ confirms picks the home stage.
 
 Roster note: the patcher (and thus Big Zam and this patch) covers **Moon…Chibimoon**
 (9 characters). Saturn is not in Sailor Moon S (she is a Super S character), so she has
-no extended palettes — correct and expected.
+no extended palettes here — correct and expected. **Since patch 100 she is playable in
+the Rev. SS builds and carries four palettes of her own**, supplied by the Saturn
+builder and selected by the confirm button; they are not part of this patch.
 
 ## Verification (Mesen2, deterministic RAM, CGRAM/screenshot)
 
@@ -99,5 +106,4 @@ emulators/flashcarts); on-screen text is available as a follow-up if wanted.
 
 ```
 flips --apply build/sms_palettes.bps <clean ROM> <out>   # palettes + header only
-flips --apply build/sms_full.bps     <clean ROM> <out>   # 1f-link + dashfix + palettes + header
 ```

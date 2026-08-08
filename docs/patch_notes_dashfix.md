@@ -3,13 +3,17 @@
 Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),
 clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`.
 Patched (dashfix only) SHA-1 `14f747a7a31b727dd30200d59f1239404fc1ab7b`.
-Stacked (1f-link + dashfix) SHA-1 `5ae720fe0d3b6613555028d1bf33cf8642f85e3a`.
+Stacked (1f-link + dashfix) SHA-1 `273d0b794656…` — **re-measured 2026-08-08**. The
+old value here (`5ae720fe…`) predates issue #14, which made this builder fix the
+header checksum like every other; the pre-#14 hash can no longer be reproduced.
 
 Deliverables (built by `tools/mkpatch2.py`):
 - `build/sms_dashfix.bps` — clean ROM → dash-fix (canonical, checksummed)
 - `build/sms_dashfix.ips` — same change, checksum-free; **stacks onto the 1f-link
   patched ROM** (verified byte-exact against the stacked reference build)
-- `build/sms_both.bps` — clean ROM → both patches, for convenience
+
+(`build/sms_both.bps`, the clean→both bundle, was pruned on 2026-07-19 — build a
+combination by chaining the builders: `mkpatch.py` then `mkpatch2.py --stacked`.)
 
 ## The bug (community: "bugged reversal forward dash")
 
@@ -94,5 +98,4 @@ dash and to every attack — engine-normal behavior.
 ```
 flips --apply build/sms_dashfix.bps  <clean ROM>          <out>   # dash fix only
 flips --apply build/sms_dashfix.ips  <1f-link ROM>        <out>   # stack on 1f-link
-flips --apply build/sms_both.bps     <clean ROM>          <out>   # both fixes
 ```

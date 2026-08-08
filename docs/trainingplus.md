@@ -123,7 +123,7 @@ python3 tools/mkpatch11.py                       # clean -> build/sms_trainingpl
 python3 tools/mkpatch11.py <any-1..10-rom> <out> # stack on anything
 python3 tools/mkpatch11.py --stage pipe          # plumbing smoke-test build
 
-# feature suite (14 phases, 50+ checks, oracle-derived expectations) — expect ALL PASS:
+# feature suite (16 phases, 65 checks, oracle-derived expectations) — expect ALL PASS:
 ROM="build/sms_trainingplus.sfc" tools/run.sh tools/test_p11_tier1.lua 260
 # performance (stub cycle costs, vblank span, or SOAK=true in the cfg for 5000f):
 ROM="build/sms_trainingplus.sfc" tools/run.sh tools/perf_patch11.lua 200

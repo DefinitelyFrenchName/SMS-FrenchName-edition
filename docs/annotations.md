@@ -14,7 +14,7 @@ and findings made in this project (marked NEW, with evidence).
 | $7E:008D | game_mode | **0=Story, 1=VS (2 players), 2=1P-vs-COM, 4=Training (5=training w/ damage & attract demo)** — MEASURED from the game 2026-08-03 (`probe_sms_menurows.lua`); the old "0=VS, 1=Story" reading came from the training Lua and is WRONG. It cost two field bugs: a `$8D == 1` guard blocked 2P VS and never touched story. | probe_sms_menurows.lua (row->mode + cursor count + roster) |
 | $7E:0802 | game_timer_bcd | round timer BCD (training Lua freezes it) | training Lua |
 | $7E:1000 | p1 struct | player struct base P1 (0x80 bytes); P2 $7E:1080; base formula 0x7E0F80+n*0x80 | ground truth |
-| +0x00 | charID | 1=Moon…6=Uranus…9=Chibimoon (10 "Saturn" = Super S carry-over, not in this game) | ground truth |
+| +0x00 | charID | 1=Moon…6=Uranus…9=Chibimoon (10 "Saturn" = Super S carry-over, **not in the clean ROM**; she is content patch 100 ADDS, playable in the Rev. SS builds) | ground truth |
 | +0x01 | actionID | current move/state; universal 0x00–0x2A (list in training Lua mem_player_action) | ground truth |
 | +0x02 | action_started/step | word; training Lua writes 0x0001 when forcing action | training Lua |
 | +0x04 | actionID mirror | written together with +0x01 by training Lua | training Lua |
@@ -239,7 +239,8 @@ Full derivation, changed bytes, and verification matrix in patch_notes.md.
 | $C1:0389 | set_xspeed | rep #$30-safe helper; dash calls it with 0x0B00 (11px/f) |
 | $C1:BE2A | dashfix stub | jsr $0389; sep #$20; stz $46,X; rts (patch 2) |
 Backdash (0x26) invuln is by design via script hurtbox idx 0 — unrelated mechanism.
-Patch 2 = build/sms_dashfix.bps (stacks with patch 1 via .ips or sms_both.bps); see patch_notes_dashfix.md.
+Patch 2 = build/sms_dashfix.bps (stacks with patch 1 via the .ips, or chain the builders — the
+sms_both.bps bundle was pruned 2026-07-19); see patch_notes_dashfix.md.
 
 ## Box-index writer + dash i-frames (patch 6, OPTIONAL)
 | Address | Label | Comment |
@@ -353,14 +354,14 @@ from-scratch graphics hack; deferred. Header-title identification shipped instea
 | $C0:916B / $919F | lzss_decompress | title CHR LZSS; subtitle blob src C41660 -> WRAM $7E:A000 staging (identical clean/BZ) |
 | VRAM CHR base | word 0x2000 | BG1; tile T CHR at VRAM word 0x2000 + T*16 (tile 0x10D -> 0x30D0) |
 | subtitle tiles | 0x10D-0x10F,0x11D-0x11F,0x120-0x12F,0x130-0x13F,0x140-0x141,0x150-0x151 | 42 tiles, rows 13-14, palette 0 (idx1 red / idx2 pink / idx3 white) |
-| appended bank $E8/$E9 | title stub+tiles | 195B DMA stub (calls $808C43 then 6 DMA runs) + 1344B custom tiles |
+| appended bank $E8/$E9 | title stub+tiles | DEFAULT (credit line on, since 2026-07-30): 276B DMA stub + 9 DMA runs + 3072B tiles (42 subtitle + 54 credit). `--no-credit` gives the older 195B stub / 6 runs / 1344B tiles |
 Text "FrenchName ver. 0.4" white-core/red-outline. Build: tools/mkpatch4.py + tools/texttiles.py.
 Mockup-validated (subtitle band pixel-identical). Notes: patch_notes_title.md.
 
 ## Forward-dash distance (patch 5)
 | Address | Label | Comment |
 |---|---|---|
-| $C1:88E9 (file 0x188E9) | dash_xspeed | LDA #$0B00 (11.0px/f) -> patch5 LDA #$0480 (4.5px/f); neutral dash 121px->59px |
+| $C1:88E9 (file 0x188E9) | dash_xspeed | LDA #$0B00 (11.0px/f) -> patch5 LDA #$0640 (6.25px/f); neutral dash 121px->82px (-1/3, the shipped retune). `--speed 0x0480` = 59px (-1/2) |
 Dash duration (14f) is state-driven, not velocity — halving speed halves distance while
 keeping ALL frame timing, so the 2HP>66 infinite is preserved exactly (dash stops on
 contact in the loop). Byte-disjoint from patch 2's reversal hook (0x188ED/EE). Backdash
@@ -485,18 +486,24 @@ sweep was drowned by the damage variance; reload-per-sample methodology shows re
 | +0x73 | buff_special | boosts the owner's **SPECIAL** damage (fireball 8 -> 10/14/16 @1/3/7); no effect on normals; values >7 misbehave |
 | +0x74 | buff_secret | no effect on regular specials (presumed desperation-only; unverified — no scripted desperation trigger yet) |
 | +0x75 | buff_ochame | misfire chance via threshold[$C1:0AF5 + (rand&15)] < ochame |
-| +0x48 | first_hit_defense | from the char manifest; earlier sweep showed nothing above variance (re-test with controlled method pending) |
+| +0x48 | first_hit_defense | from the char manifest; **SOLVED** — worth +1 matrix column until the defender's first hit lands, then cleared at $C1:0E51 (it is what the old "variance" readings were seeing) |
 
 **The damage formula, unified ($C0:D055/D081):** `final = matrix[base_damage_class][8 + modifier & 15]`
-— the 16x16 matrix at $C0:D081 has rows = base damage (row max ≈ 2x base at col 0,
+— the matrix at $C0:D081 has rows = base damage (row max ≈ 2x base at col 0,
 decaying to ≈ base/4 at col 15), **column 8 = neutral**, each column ≈ ±12%. The modifier
-mixes the RNG jitter (the per-hit variance) with stat shifts: attacker's +0x70 (normals)
+is composed from stat shifts: attacker's +0x70 (normals)
 or +0x73 (specials) shift LEFT (stronger), defender's +0x71 shifts RIGHT (weaker).
+⚠ **SUPERSEDED IN TWO PLACES, corrected below and in `docs/sms_damage_system.md` §3:**
+the matrix is **64x16**, not 16x16, and **there is NO RNG in damage** — what looked like
+per-hit jitter is the defender's +0x48 first-hit defense (1 column, once) plus the
+counter-hit shift (-2 columns). Damage is deterministic.
 Stats cannot push damage below the row's column-15 floor or above the column-0 cap.
 
 **Ochame threshold table $C1:0AF5** = `00 01 02 02 03 03 04 04 FF FF FF FF FF FF FF FF`
-(indexed rand&15; entry < ochame -> misfire). Effective ochame range **0-5**: rates
-6.25% / 12.5% / 25% / 25% / 37.5% / **50% (cap — half the slots are 0xFF, never-misfire)**.
+(indexed rand&15; entry < ochame -> misfire). **Ochame 0 = never** (the dispatcher
+short-circuits on it, `lda $75,X / beq $0B8F`); values **1-5** give rates
+6.25% / 12.5% / 25% / 37.5% / **50% (cap — half the slots are 0xFF, never-misfire)**.
+(Counted off the table itself: slots with `entry < ochame` are 1/2/4/6/8 of 16.)
 
 ### Throw-toss apply site (patch 13 v3.2)
 - `$C1:082F` (file 0x1082F) — full-throw toss damage apply: `lda $0049,Y / sec / sbc $05`

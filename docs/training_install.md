@@ -83,13 +83,16 @@ The engine ships with a regression suite validated against measured frame data:
 
 ```bash
 cd <repo or extract dir>
-for T in T1 T2 T2H T3 T5; do
+# T1-T11. These run on the CLEAN ROM:
+for T in T1 T2 T2H T3 T5 T6 T7 T10 T11; do
   echo "TEST = \"$T\"" > tools/training_test_cfg.lua
   ROM="<clean JP ROM>" tools/run.sh tools/training_test.lua 250
 done
-# T4 exercises the v0.7 infinite rep — run it on a v0.7-family ROM:
-echo 'TEST = "T4"' > tools/training_test_cfg.lua
-ROM="<v0.7 build>" tools/run.sh tools/training_test.lua 250
+# T4 (the v0.7 infinite rep), T8 and T9 (GC label / GC trainer) need a v0.7-family ROM:
+for T in T4 T8 T9; do
+  echo "TEST = \"$T\"" > tools/training_test_cfg.lua
+  ROM="<v0.7 build>" tools/run.sh tools/training_test.lua 250
+done
 ```
 
 Each test writes `traces/training_test_<id>.txt` (PASS/FAIL lines) and exits nonzero on

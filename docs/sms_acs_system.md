@@ -47,7 +47,7 @@ Six bytes per fighter inside the 0x80-byte player struct (P1 `$7E:1000`, P2 `$7E
   +0x76 — **solved, not ACS**: the per-entity update-vector selector (read every frame
   at $C1:0010/0026), players get it from $1D01/$1D11. +0x77 action_strength.
 
-## 2. The damage formula — the 16×16 matrix
+## 2. The damage formula — the 64×16 matrix
 
 Every strike/projectile/chip hit computes:
 
@@ -147,11 +147,12 @@ as out-of-range, consistent with 4-bit column wrap.)
 
 - **Ochame** +0x75: read at `$C1:0B69` (inside the special dispatcher, §5). The one
   ACS read with its full code path mapped.
-- The damage-stat reads (+0x70/+0x71/+0x73) happen somewhere between the on-hit table
-  dispatch and the `$D055` lookup — **not yet pinpointed** (find them by read-watching
-  `$1070/$1071/$1073` during a hit; they will fire once per landed hit). The lookup
-  itself and the apply sites are fully mapped. NOTE: the lookup routine EXECUTES from
-  bank $80 ($80:D055; matrix read at $80:D07B) — exec-watch $80:D055, not $C0:D055.
+- The damage-stat reads (+0x70/+0x71/+0x73) are **FOUND** (2026-07-19): they sit in the
+  **11 near-identical modifier-composition handlers at file `0xCAED-0xCD6D`**, between
+  the on-hit table dispatch and the `$D055` lookup — disassembled, with the template and
+  the chip/clamp tails, in `docs/sms_damage_system.md` §3. NOTE: the lookup routine
+  EXECUTES from bank $80 ($80:D055; matrix read at $80:D07B) — exec-watch $80:D055,
+  not $C0:D055.
 
 ## 4b. Where ACS selections LIVE (the screen question, solved 2026-07-19)
 
@@ -226,9 +227,10 @@ grounded state via the standard act write (`+0x01=act, +0x02=1, +0x04=act, +0x06
 +0x07=0`) is proven safe — that IS patch 12's taunt.
 
 **RNG byte `$7E:0090`:** evolves per frame, deterministic from power-on with fixed
-inputs. Only consumer mapped so far: this misfire roll (low nibble) — the damage-modifier
-jitter (§2) presumably also draws from it or its neighbors `$0090-$0098` (a visible
-LFSR-ish cluster in round-transition diffs).
+inputs. The misfire roll (low nibble) is its only mapped consumer in combat code.
+⚠ **Damage does NOT use it** — the "modifier jitter" this paragraph used to guess at
+was the defender's +0x48 first-hit defense; damage is fully deterministic
+(`docs/sms_damage_system.md` §3, and the supersession note in §2 above).
 
 ## 6. Manipulating the system from patches / Lua
 
@@ -392,9 +394,12 @@ so ACS defense and the Guts patch scale it like any matrix hit.
 
 ## 7. Open unknowns (probe before relying on)
 
-1. **Where/how the ACS screen sets the stats** — the customization UI's menu entry, mode
-   value, and its point budget are unmapped (title menu: Story/1Pvs2P/1PvsCom/Tournament/
-   Practice/Options — probably inside 1PvsCom or Tournament setup).
+1. ~~Where the ACS screen lives~~ — **MAPPED by patch 18** (2026-08-05): it is opened
+   with **SELECT on the VS button-config screen**, through the per-mode dispatcher
+   `$C3:BB60` (`jmp ($BB6D,x)` on `$8D`) which sets menu state `$05`; that state has
+   exactly two writers ROM-wide. Reachable in 2P VS, vs-COM and story — patch 18 closes
+   the 2P VS door only. Its wheel labels are translated by patch 16 (`SMS_P16_ACS`).
+   Still uncensused: the screen's **point budget**.
 2. ~~+0x74 buff_secret~~ — **RESOLVED**: boosts desperation damage (strike component
    only). Desperation motions provided by the maintainer (numpad, HP=X HK=A):
    Moon 2363214HK · Mercury 632146HK · Mars 6321412HK · Jupiter 2141236HP ·
@@ -416,12 +421,13 @@ so ACS defense and the Guts patch scale it like any matrix hit.
    sub-question: the <10 s clock trigger path is untested for everyone.
 3. ~~+0x72 buff_health~~ — SOLVED (max-HP formula, §1/§4b). Original text:
    **+0x72 buff_health** — needs testing at character load, not mid-match.
-4. **+0x76** — unknown byte between secret/ochame block and action_strength.
-5. **The exact modifier-composition code** (where RNG + stats merge into `$00` before
-   the `$D055` lookup) and the damage-stat read PCs (§4). Partially resolved: the matrix
-   READ is `$80:D07B` and the routine executes from bank $80 (see sms_damage_system.md
-   §3) — the composition sits just upstream of $80:D055.
-6. **+0x48 first_hit_defense** — retest with the controlled methodology.
+4. ~~+0x76~~ — **SOLVED, and not ACS**: it is the per-entity update-vector selector (§1).
+5. ~~The exact modifier-composition code~~ — **RESOLVED**: 11 handlers at file
+   `0xCAED-0xCD6D`, fully disassembled in `sms_damage_system.md` §3 (and there is no RNG
+   in the composition; the matrix READ is `$80:D07B`).
+6. ~~+0x48 first_hit_defense~~ — **RESOLVED** (§1): manifest-loaded, worth +1 column
+   until the defender's first hit, cleared by the 16-bit `stz $47,X` at `$C1:0E51`. It
+   is the source of every historical "damage variance" reading.
 
 ## 8. Methodology (reuse this)
 

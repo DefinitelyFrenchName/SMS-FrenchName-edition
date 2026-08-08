@@ -1,4 +1,9 @@
-# patch_notes_title.md — Title-screen subtitle → "FrenchName ver. 0.4" + Big Zam credit line
+# patch_notes_title.md — Title-screen subtitle + Big Zam credit line
+
+> The subtitle is a build-time string, so this file uses "FrenchName ver. 0.4" — the
+> original — as its worked example. The builder's DEFAULT today is
+> `FrenchName v.<BUNDLE_VERSION>` (single source `tools/smspaths.py`), and the shipped
+> ROMs read **FrenchName Rev. S-02** / **Rev. SS-02**, set by `tools/build_rev.sh`.
 
 Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),
 clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`.
@@ -8,8 +13,10 @@ subtitle-only build `e5dce7d5130909fc0e125ea621a11a10d2ded04e` byte-for-byte).
 
 Deliverables (built by `tools/mkpatch4.py`):
 - `build/sms_title.bps` — clean → title subtitle + "FrenchName" header only (for QA).
-- `build/sms_full4.bps` — clean → **all four**: 1f-link + dash-fix + palettes + title.
-  (SHA-1 `51c397cb…`, 3 MB.)
+
+(`build/sms_full4.bps`, the clean→all-four bundle, was pruned on 2026-07-19. The
+maintained recipes are `tools/build_rev.sh`, `tools/build_ref_v1.sh`,
+`tools/build_ref_v2.sh` and `tools/build_v022.sh`.)
 
 ## What this patch does
 
@@ -116,27 +123,33 @@ the title CHR loader — not during matches.
 
 ## Bumping the version (one command)
 
-The subtitle text is a CLI flag; the font has the full glyph set for
-`A–Z a–z 0–9 space .`, so a version bump needs no source edit:
+The subtitle text is a CLI flag, so a version bump needs no source edit. ⚠ The font is
+**not** a full alphabet: it is hand-drawn and covers exactly the glyphs the project's
+own build names need — `D E F N R S`, `0-9`, `.`, `-`, space, and the lowercase set of
+"DefinitelyFrenchName" (`a c e f h i l m n r t v y`), 32 in all. Anything else must be
+drawn into `tools/texttiles.py` first, which the builder makes you do by stopping and
+naming the missing character:
 
 ```
 # positionals first (src, out), then --text; then rebuild the BPS
 python3 tools/mkpatch4.py "<clean ROM>" build/sms_title.sfc --text "FrenchName ver. 0.5"
 tools/Flips/flips --create --bps "<clean ROM>" build/sms_title.sfc build/sms_title.bps
 
-# combined build: apply on top of the 3-patch full build
-python3 tools/mkpatch4.py build/sms_full.sfc build/sms_full4.sfc --text "FrenchName ver. 0.5"
-tools/Flips/flips --create --bps "<clean ROM>" build/sms_full4.sfc build/sms_full4.bps
+# combined build: stack onto whatever the previous step produced (--stacked is required)
+python3 tools/mkpatch4.py --stacked <prev>.sfc <out>.sfc --text "FrenchName ver. 0.5"
+# or just cut a release, which does the whole chain and names itself:
+tools/build_rev.sh both
 ```
 
 `--style` picks the treatment (`white_red` default, `red_white`, `red`). If the new text
 uses a character with no glyph, the tool stops and names it (add it to `tools/texttiles.py`).
-Text is capped at 21 cells and auto-centered. Running with no `--text` reproduces the shipped
-v0.4 build byte-for-byte.
+Text is capped at 21 cells and auto-centered. Running with no `--text` uses the default
+`FrenchName v.<BUNDLE_VERSION>` (`0.22` at time of writing); the historical v0.4 build is
+reproduced with `--text "FrenchName ver. 0.4" --no-credit`.
 
 ## Applying
 
 ```
 flips --apply build/sms_title.bps  <clean ROM> <out>   # title subtitle + header only
-flips --apply build/sms_full4.bps  <clean ROM> <out>   # all four patches
+flips --apply release/Rev.S-02.bps <clean ROM> <out>   # what a player actually applies
 ```

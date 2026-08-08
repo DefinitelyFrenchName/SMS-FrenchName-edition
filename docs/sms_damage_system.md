@@ -17,7 +17,7 @@ hit detected ($C0:BFC0 resolution, boxes overlap)
   └─ per-attack on-hit record [dmg, hitstun, level, flags] ($C0:CDD5 + variants CE15…D015)
        └─ variant selected by (attack, defender posture)          [§4]
   └─ modifier accumulation (signed column shift):                 [§3]
-       RNG jitter ($7E:0090)  +  ACS stat shifts  +  counter-hit shift
+       defender +0x48 first-hit defense  +  ACS stat shifts  +  counter-hit shift
   └─ $C0:D055 lookup → final = TABLE[row][(mod+8)&15]
   └─ ONE of the damage-apply sites subtracts from victim HP       [§2]
 ```
@@ -118,8 +118,10 @@ Venus/Neptune c9, Mars c10). Row 48: `72 72 72 72 72 72 72 62 | 48 37 32 28 26 2
 - **Crouching defender = −1 column** on desperations (c8→c7, c9→c8, c10→c9 ✓). For
   normals, crouch hits route through a different apply site / on-hit record, so the
   crouch delta there is per-move record data, not necessarily a pure column shift.
-- Single-hit desperations showed no RNG column jitter across repeated rolls (always
-  the same column), unlike normals — desperation hits appear jitter-exempt.
+- Single-hit desperations always land on the same column across repeated rolls. Read
+  correctly (§3): there is no jitter anywhere — normals' apparent spread was the
+  defender's +0x48 first-hit defense, and desperations show none because that pair does
+  not apply to them.
 
 ## 4. Defender posture selects the on-hit values
 

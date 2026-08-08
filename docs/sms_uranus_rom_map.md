@@ -64,13 +64,30 @@ Box entry: `[x_off_R, width_R, x_off_L, width_L, y_off(signed), height, flags, u
   win-icon ptr, object-palette ptr, then a pointer whose data is copied/expanded to
   WRAM `$7E:6A00` via `$C0:916B` (per-character animation/sprite data).
 
-## What is NOT yet mapped (the remaining "frame data" work)
-Startup/active/recovery timings are driven by per-action animation scripts executed by the
-object update system at `$C1:0000` (called each frame; state processors `$C1:122A`, `$C1:15BD`).
-The scripts set +0x40/41/42 and sprite frames with per-step durations. Their ROM location and
-format (possibly staged via the `$7E:6A00` copy) still need dynamic tracing — see the
-Claude Code spec. Note the FGC-derived frame data already exists on Dustloop (wiki "SMS");
-the ROM-static version is only needed if you want the authoritative byte locations.
+## The animation pipeline — SINCE MAPPED (2026-07-30)
+This section used to read "not yet mapped". It is, and the layers were live-verified
+(`tools/saturn/probe_sms_animtables.lua`, 241/241 ALL PASS):
+
+| Layer | SMS location |
+|---|---|
+| action scripts (per-step durations, box indices) | `$C0:0000` |
+| pose records | `$84:809C` |
+| cel tables | `$CB:0000` |
+| OAM sprite-layout table (the 4th layer, found with the Saturn port) | `$84:8000` |
+
+Per-character **proc blocks** also exist in bank `$C1` (~4.3 KB each) — an earlier
+"the engine is entirely data-driven, no handler block" reading was a
+baseline-contaminated measurement. The object update system at `$C1:0000` (state
+processors `$C1:122A`, `$C1:15BD`) is what runs them each frame.
+
+Timing work in practice is still done by **frame-advance measurement**, not by reading
+these tables — every timing claim in this project was validated in-emulator. Dustloop's
+FGC-derived frame data is the sanity check; the ROM-static version matters only when you
+need the authoritative byte to patch (as patch 1 did).
+
+> **Scope note.** This file describes the **clean ROM**. Saturn (charID 10) has no data
+> here and never will; she is content this project ADDS from Super S in the Rev. SS
+> builds — `docs/saturn/`.
 
 ## Community resources used
 - sprntgd/Bishoujo-Senshi-Sailor-Moon-S-...-Training-Mode (GitHub): training-mode Lua
