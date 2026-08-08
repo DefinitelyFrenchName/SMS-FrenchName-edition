@@ -1,0 +1,69 @@
+# Publish the data-architecture page to GitHub Pages.
+#
+# The page is GENERATED from tools/mkarchpage.py on every push, never committed
+# as a build output — same reason the release notes are generated: a hand-copied
+# artifact goes stale silently, and this repo has already shipped stale hashes
+# more than once.
+#
+# What is published is the standalone form (a complete HTML document with a
+# charset, since the page carries Japanese katakana), which is also what
+# `tools/mkarchpage.py --standalone` gives you locally. The source of truth for
+# the same material as text is docs/game/sms_data_architecture.md.
+#
+# Nothing here needs the ROM, the Super S donor or an emulator — it is pure
+# rendering, so it runs on a hosted runner like the health check does.
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/mkarchpage.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a run finish rather than cancelling it mid-deploy; queue instead.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Render the page
+        run: |
+          mkdir -p site
+          python3 tools/mkarchpage.py --standalone site/index.html
+          # Pages serves the artifact verbatim; no Jekyll pass wanted.
+          touch site/.nojekyll
+      - name: Sanity-check what we are about to publish
+        run: |
+          test -s site/index.html
+          grep -q '<!doctype html>' site/index.html
+          grep -q '<meta charset="utf-8">' site/index.html
+          # the katakana in the cartridge-header table must survive the round trip
+          grep -q 'ｾｰﾗｰﾑｰﾝ' site/index.html
+          echo "rendered $(wc -c < site/index.html) bytes"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
