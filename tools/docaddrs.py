@@ -60,11 +60,17 @@ GENERATED = ("characters/",)
 
 
 def is_rom(snes):
-    """True if the clean image contains this address (HiROM, banks $C0-$E7)."""
+    """True if the clean image contains this address.
+
+    HiROM maps the cartridge three ways and the docs use all three: `$C0-$E7`
+    (the plain window), `$80-$BF` above `$8000` (the FastROM mirror the code
+    executes from — below `$8000` those banks are hardware and WRAM), and
+    `$40-$7D`, which the address-model example uses to show the mask at work.
+    """
     bank, addr = snes >> 16, snes & 0xFFFF
     if 0x80 <= bank <= 0xBF:
-        return addr >= 0x8000          # low half of a $80-$BF bank is hardware
-    return 0xC0 <= bank <= 0xE7
+        return addr >= 0x8000
+    return 0xC0 <= bank <= 0xE7 or 0x40 <= bank <= 0x7D
 
 
 def is_outside(snes):
@@ -328,8 +334,12 @@ def report(covered=None, show_uncovered=False, out=print):
     miss = sorted(a for a in rom if not seen(a))
     out(f"  docs/game/: {len(rom)} distinct ROM addresses in hand-written pages, "
         f"{len(hit)} re-derived from the cartridge")
+    # "RAM" is a statement about DECIDABILITY, not about coverage: those
+    # addresses are claims about a running machine, and while most are exercised
+    # by the emulator suites, this tool has not checked that and must not imply
+    # it. The one thing it can say is that the cartridge cannot settle them.
     out(f"    + {len(game['generated'])} in ROM-generated pages (mkcharmap --check)"
-        f" · {len(game['ram'])} RAM, decided by the emulator suites"
+        f" · {len(game['ram'])} RAM, not decidable from the cartridge"
         f" · {len(game['outside'])} in appended banks")
     out(f"  docs/project/ names {len(proj['rom'])} more — this edition's record, "
         f"which also describes patched images; not gated here")
