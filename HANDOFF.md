@@ -47,7 +47,28 @@ rotted address. The extractors get the same treatment on synthetic lines each
 run, since a family that has stopped matching passes every claim it no longer
 finds.
 
-**The same treatment was then applied to the PATCH documents, which are checked
+**And then the SATURN corpus, which is checked against BOTH cartridges** —
+`tools/saturn/checksaturndocs.py`, 17 checks (8 cross-game), SKIPped without the
+donor. This was the one body of documentation the project *built on*: every
+claim in `supers_map.md` became a line in a builder, and none of it was gated.
+⚠ **Four claims in the identity paragraph the port rests on did not survive.**
+"Universal-act scripts byte-identical" is true only after Super S's `0xC0` CMD
+steps are stripped (raw: ~26/43; stripped: **43/43 for five characters**,
+41-42 for the rest) — the doc asserted the conclusion in one sentence and the
+caveat two paragraphs later. "Cel records same sizes" is **97 of 98** (record 29:
+`0x0500` vs `0x04E0`). The cel banks span `$D4-$D6` / `$D6-$D7`, not one each.
+And the box-index writer row contradicted itself — `0x9FF1` with shift `+0x32C`,
+when `0x9CCD + 0x32C = 0x9FF9`, which is where the identical bytes are. Two
+facts were measured and written down while checking: the OAM char table holds
+**52 entries in SMS and 53 in Super S** (the extra one corroborating the
+object-id shift; the doc said 52 for both), and **Saturn is the only character
+whose two palette pointers are stored in descending order**. Her cel census
+holds to the byte, with one refinement: contiguous apart from **1,216 bytes of
+bank-boundary padding**. Coverage is 25 of the corpus's 244 ROM addresses — the
+rest are prose about routines, or `BUILDS.md`, whose subject is the built
+artifact rather than either cartridge.
+
+**The same treatment was applied to the PATCH documents, which are checked
 against the artifacts rather than the cartridge.** Two more tools, both in
 `health.sh`:
 

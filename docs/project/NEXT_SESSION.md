@@ -71,6 +71,28 @@ pointer tables (`$C3:A44F`), which had only ever existed in the patch log.
 address is not checking the address.** Writing the negative control first is
 what forced every table check to assert a shape instead of a plausibility.
 
+**And the SATURN corpus, checked against BOTH cartridges** —
+`tools/saturn/checksaturndocs.py`, **17 checks, 8 of them cross-game**, SKIPped
+without the donor. It was the one body of documentation this project *built on*
+and the only one gated by nothing.
+
+| Was documented | Actually |
+|---|---|
+| universal-act scripts "byte-identical" | ~26/43 raw; **43/43 for five characters** once Super S's `0xC0` CMD steps are stripped |
+| cel records "same sizes" | **97 of 98** — record 29 is `0x0500` vs `0x04E0` |
+| cel banks "SMS `$D4` vs Super S `$D6`" | spans `$D4-$D6` and `$D6-$D7` |
+| box-index writer `0x9FF1`, shift `+0x32C` | `0x9CCD + 0x32C = 0x9FF9`, and that is where the bytes are |
+| OAM char table "52 entries" (both games) | **52 in SMS, 53 in Super S** — the extra one is the object-id shift's inserted type |
+| her cels "contiguous" | contiguous **apart from 1,216 bytes of bank-boundary padding** |
+
+Also measured and now written down: **Saturn is the only character whose two
+palette pointers are stored in descending order**, and the Saturn tooling's
+"pal1/pal2" are the game docs' "palette 0/1" (same bytes, different base).
+Coverage: **25 of the corpus's 244 ROM addresses**. The rest is prose about
+routines or `BUILDS.md`, whose subject is the built ROM rather than either
+cartridge — so the honest ceiling here is low, and the checks that exist are the
+ones the port actually rests on.
+
 **Then the same treatment for the PATCH documents — checked against the
 artifacts, not the cartridge.** Two more tools, both in `health.sh`:
 
