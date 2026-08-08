@@ -38,8 +38,9 @@ if out="$(python3 tools/mkindex.py --check 2>&1)"; then ok "$out"; else bad "mki
 # hosted runner has none and must SKIP rather than silently pass (#24).
 if python3 -c 'import sys;sys.path.insert(0,"tools");from smspaths import clean_rom;clean_rom()' >/dev/null 2>&1; then
   if out="$(python3 tools/mkcharmap.py --check 2>&1)"; then ok "$out"; else bad "mkcharmap: $out"; fi
+  if out="$(python3 tools/checkdocs.py 2>&1 | grep -aoE 'ALL PASS \(.*\)')"; then ok "doc claims vs cartridge: $out"; else bad "checkdocs: doc claims disagree with the ROM — run python3 tools/checkdocs.py"; fi
 else
-  skip "character maps (needs the clean ROM)"
+  skip "character maps + doc claims (need the clean ROM)"
 fi
 
 echo "== every Python tool parses, and imports cleanly enough to be introspected =="
