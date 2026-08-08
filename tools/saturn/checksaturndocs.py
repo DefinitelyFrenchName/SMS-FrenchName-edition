@@ -327,6 +327,33 @@ def _(sms=SMS, sup=SUP):
     eq("index 0 unused, then 21 + charID", [0] + [21 + cid for cid in range(1, 10)], ids)
 
 
+@check("Saturn's cel census — the port's largest asset, walked record by record",
+       "**Saturn's graphics census complete: 115 cel records (the sentinel + 114 real\n"
+       "   cels), 136.7 KB of data, `$DD:0D40`-`$DF:34E0`.**",
+       "**1,216 bytes of bank-boundary padding**", doc="feasibility.md")
+def _(sms=SMS, sup=SUP):
+    base = f(0xCB0000) + r16(sup, f(0xCB0000) + 10 * 4 + 2)
+    # Record 0 is her "no cel" sentinel — a live address with size 0. It is not a
+    # cel, and it is the reason a DMA of "length 0" (= 65536 on this console) once
+    # wiped VRAM in a shipped build; see BUILDS.md 0.11.11.
+    eq("the sentinel", "40 0d dd 00 00", sup[base:base + 5].hex(" "))
+    recs, k = [], 1
+    while True:
+        src, ln = r24(sup, base + k * 5), r16(sup, base + k * 5 + 3)
+        if not (0xDD0000 <= src <= 0xDF8000 and 0 < ln <= 0x4000):
+            break
+        recs.append((src, ln))
+        k += 1
+    eq("cel records, sentinel included", 115, len(recs) + 1)
+    eq("the span", (0xDD0D40, 0xDF34E0), (min(s for s, _ in recs), max(s + l for s, l in recs)))
+    eq("data size", "136.7 KB", f"{sum(l for _, l in recs) / 1024:.1f} KB")
+    gaps, end = 0, 0xDD0D40
+    for src, ln in sorted(recs):
+        gaps += max(0, src - end)
+        end = max(end, src + ln)
+    eq("bank-boundary padding", 1216, gaps)
+
+
 def negative_controls():
     """Two ways for a check to be worthless, both tested every run.
 
@@ -387,10 +414,27 @@ def main():
     if fails:
         print(f"\n\033[31m{len(fails)} of {len(CHECKS)} checks FAILED\033[0m")
         sys.exit(1)
+    # The same coverage note checkdocs prints, and for the same reason: the
+    # honest weakness of a checker is the claims nobody wrote a check for.
+    import inspect
+    import re
+    import docaddrs
+    lits = set()
+    for _n, _f, fn, _c in CHECKS:
+        for m in re.finditer(r"0x([0-9A-Fa-f]{4,6})", inspect.getsource(fn)):
+            lits.add(int(m.group(1), 16))
+    addrs = {m.snes for m in docaddrs.census()
+             if m.doc.startswith("project/saturn/") and docaddrs.is_rom(m.snes)}
+    seen = sum(1 for a in addrs if a in lits or docaddrs.f(a) in lits)
+
     cross = sum(1 for *_, c in CHECKS if c)
     print(f"\n\033[32mALL PASS\033[0m ({len(CHECKS)} checks against both cartridges — "
           f"{cross} cross-game, each proven to fail when handed one image twice; "
           "all proven to fail on a one-byte shift)")
+    print(f"  docs/project/saturn/: {len(addrs)} distinct ROM addresses, {seen} re-derived. "
+          "The rest are prose about routines, or describe the BUILT ROM rather than\n"
+          "  either cartridge — BUILDS.md alone holds 44 of them, and its subject is an "
+          "artifact, not a donor.")
 
 
 if __name__ == "__main__":

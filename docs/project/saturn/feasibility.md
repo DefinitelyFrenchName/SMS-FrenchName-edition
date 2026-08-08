@@ -118,8 +118,11 @@ enumerate the behavior deltas.
    scripts (interpreter $80:A381, char table $C0:0000, 2-byte [dur,pose] steps),
    pose records ($84:809F, boxes+class), cel resolver ($80:A2DD, $CB:0000 tables,
    5-byte [addr24,size16] cel records) feeding the per-frame DMA kicker $80:A21A.
-   **Saturn's graphics census complete: 115 cels, 136.7 KB, contiguous
-   $DD:0D40–$DF:34E0.** The whole port unit is statically enumerable; remaining
+   **Saturn's graphics census complete: 115 cel records (the sentinel + 114 real
+   cels), 136.7 KB of data, `$DD:0D40`-`$DF:34E0`.** Contiguous apart from
+   **1,216 bytes of bank-boundary padding** — no cel crosses a bank, so the block
+   occupies slightly more address space than it holds data (re-measured
+   2026-08-09; `tools/saturn/checksaturndocs.py` walks it). The whole port unit is statically enumerable; remaining
    Route A graphics work is locating SMS's equivalents of the three layer tables
    (the twin of box-writer $C0:9CCD is already known).
 3. **Guard-proximity: RESOLVED (same day, later session).** The proximity-guard
