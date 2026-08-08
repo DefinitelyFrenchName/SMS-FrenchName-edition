@@ -114,8 +114,24 @@ artifacts, not the cartridge.** Two more tools, both in `health.sh`:
 | patch 4 standalone `f5337f9a…` (4 places) | **`7f9e8c76…`** (`--no-credit`: `1ac091e7…`) |
 | knobs: patch 4 `--text` default `"FrenchName ver. 0.4"` | **`FrenchName v.0.22`** — `f"FrenchName v.{BUNDLE_VERSION}"` |
 
-⚠ **The last two are one story, and it generalises: a recorded hash is a claim
-about a build, and a build includes its DEFAULTS.** Patch 4's builder never
+**And the training docs, read back out of the Lua** —
+`tools/checktrainingdocs.py`, 11 checks, no ROM needed (CI). Hotkeys, menu rows,
+labels, the package inventory and the self-test ids, each verified BOTH ways,
+plus one check with no doc side: every hotkey must be bound to an action
+something registers, since a key wired to a missing action is silently dead.
+
+| Was documented | Actually |
+|---|---|
+| a **MEATY** label | removed 2026-07-20 (noise in live play); `labels.lua` says so, `training_test.lua` asserts it never fires |
+| Lua menu: `gc chance` after `trigger` | the menu paints it after `ko reset` |
+| patch 11 menu: `P1 HP` above `SHOW` | the ROM paints `SHOW` first |
+
+⚠ A menu table in a doc **is** a claim about scroll order — it is what a reader
+counts key presses against, so a row in the wrong place is a wrong instruction,
+not a cosmetic slip.
+
+⚠ **A recorded hash is a claim about a build, and a build includes its
+DEFAULTS.** Patch 4's builder never
 changed behaviour; its default subtitle did, when the bundle version became a
 single source. Everything downstream — the standalone hash in four documents,
 the knobs row — kept the pre-centralisation values. This is trap 15 (a builder

@@ -87,6 +87,15 @@ against the artifacts rather than the cartridge.** Two more tools, both in
   exist, builder options are documented, defaults match. Needs no ROM, so
   unlike almost everything here it runs in CI.
 
+**And the TRAINING docs, checked against the Lua package** —
+`tools/checktrainingdocs.py`, 11 checks, no ROM (so it runs in CI), covering the
+Lua trainer and patch 11's in-ROM menu. ⚠ It found a **MEATY label the usage doc
+still promised**, gone since 2026-07-20 (`labels.lua` says so in its header and
+`training_test.lua` asserts it never fires — only the doc had not been told),
+and **two menu row orders that did not match the menus** (the Lua trainer's
+`gc chance`, patch 11's `SHOW`/`P1 HP`). A menu table in a doc is a claim about
+scroll order, which is what a reader counts key presses against.
+
 ⚠ **They found four more wrong things.** Patch 3 was described as three "hooks"
 when two of them are **~97-byte in-place rewrites**; patch 15 changes **7 bytes,
 not 6**; patches **10/10b stamp the header title** and were not documented as
