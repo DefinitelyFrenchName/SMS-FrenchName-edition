@@ -36,7 +36,11 @@ if out="$(python3 tools/mkrelease.py --check 2>&1)"; then ok "$out"; else bad "m
 if out="$(python3 tools/mkindex.py --check 2>&1)"; then ok "$out"; else bad "mkindex: $out"; fi
 # mkcharmap reads the ROM, so it can only be checked where the ROM exists; a
 # hosted runner has none and must SKIP rather than silently pass (#24).
-if python3 -c 'import sys;sys.path.insert(0,"tools");from smspaths import clean_rom;clean_rom()' >/dev/null 2>&1; then
+# Guard on the ROM FILE EXISTING, not on clean_rom() merely returning: it hands
+# back a path whether or not anything is there, so the old guard passed on a
+# hosted runner and both tools then died on the open(). Same class of mistake
+# this file exists to prevent — a check that cannot run must SKIP, never fail.
+if python3 -c 'import os,sys;sys.path.insert(0,"tools");from smspaths import clean_rom;sys.exit(0 if os.path.exists(clean_rom()) else 1)' >/dev/null 2>&1; then
   if out="$(python3 tools/mkcharmap.py --check 2>&1)"; then ok "$out"; else bad "mkcharmap: $out"; fi
   # match on the count, not on "ALL PASS": the tool colourises, so an ANSI escape
   # sits between the words and the parenthesis and a naive pattern never matches.
