@@ -675,7 +675,9 @@ title-screen copyright line 1 to the Big Zam edition's **"©MOONLIGHT FIGHT SOCI
 (pixel-identical — 54 tiles lifted verbatim from BZ title VRAM, 3 extra DMA runs over
 VRAM tiles 0x0C2–0x0FC; line 2 "©ANGEL 1994" untouched, © glyph shared/skipped).
 Default ON; `--no-credit` reproduces the old subtitle-only build byte-for-byte
-(`e5dce7d5…`). New standalone `sms_title.bps` → ROM `f5337f9a…`, regression ALL PASS
+(`e5dce7d5…`). New standalone `sms_title.bps` → ROM `f5337f9a…` *(both hashes are
+of that date; the default subtitle now carries `BUNDLE_VERSION`, so today's are
+`7f9e8c76…` / `1ac091e7…`)*, regression ALL PASS
 (40). Detail: docs/project/patch_notes_title.md. **Both bundles rebuilt with the credit line
 (2026-07-30, same recipes — pre-rebuild recipes first re-validated byte-for-byte
 against the old hashes):** v0.22 `52bc7e38…` → **`19a7fc0d…`**, REF v.1 `bd1104ee…` →

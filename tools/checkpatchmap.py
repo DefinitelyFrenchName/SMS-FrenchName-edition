@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Verify the edit-region map in docs/project/patch_notes.md against the .bps files.
+"""Verify what the patch documents claim about the patches, against the .bps files.
 
-  python3 tools/checkpatchmap.py         # verify the map
-  python3 tools/checkpatchmap.py -v      # ...and print each patch's measured regions
+  python3 tools/checkpatchmap.py         # verify
+  python3 tools/checkpatchmap.py -v      # ...and print every measured region and hash
 
 WHY THIS EXISTS. The edit-region map is the document a future patch author
 trusts to know what collides with what. It is also the document nobody re-reads:
@@ -25,12 +25,19 @@ WHAT IS CHECKED, and the distinction matters:
     standalone starts its bank at the SAME offset, so applying two of them in
     sequence silently overwrites the first one's code while its hooks still jump
     there. A trap that is only written down is one nobody has re-derived.
+  * every **"this .bps gives this ROM"** hash in the registry documents. This
+    project has shipped four stale hashes already; the fourth (patch 4's, in
+    four places) was found by this check, and it had rotted for an interesting
+    reason — the builder never changed, its DEFAULT SUBTITLE did, when the
+    bundle version became a single source. A recorded hash is a claim about a
+    build, and a build includes its defaults.
 
 WHAT THIS CANNOT SEE: a builder that writes a byte identical to the one already
 there. This measures the ARTIFACTS — what a player applies — not the builders'
 write sets, and a write that changes nothing collides with nothing.
 """
 import argparse
+import hashlib
 import re
 import subprocess
 import sys
@@ -137,6 +144,46 @@ def measure(rows, clean, tmp, verbose=False):
     return sets, fails
 
 
+REGISTRIES = ("README.md", "docs/project/patch_notes.md", "docs/project/patch_notes_title.md",
+              "docs/project/patch_notes_dashfix.md", "docs/project/patch_notes_palettes.md",
+              "docs/project/patch_index.md")
+HASH_CLAIM = re.compile(r"`?build/([a-z0-9_.]+)\.bps`?(.{0,200})")
+SHA8 = re.compile(r"`([0-9a-f]{8})[…`]")
+
+
+def hash_claims(clean, tmp, verbose=False):
+    """Every "this .bps gives this ROM" in the registry documents, re-derived.
+
+    Scoped to the documents a reader USES to decide what to apply. `HANDOFF.md`
+    is deliberately excluded: it is a dated log, and its entries are meant to
+    record what was true on the day, not what is true now.
+
+    The rule is "SOME hash quoted beside the patch matches", not "the last one",
+    because several rows deliberately carry a LINEAGE (`bd1104ee… -> 7ab26db4…
+    -> 2873f214…`). A rule that pinned one position would either reject those
+    rows or accept a row whose only current-looking hash is historical.
+    """
+    fails, seen = [], 0
+    for rel in REGISTRIES:
+        path = REPO / rel
+        if not path.exists():
+            fails.append(f"{rel} is named as a registry document and does not exist")
+            continue
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            for bps, tail in HASH_CLAIM.findall(line):
+                quoted = SHA8.findall(tail)
+                if not quoted or not (REPO / "build" / f"{bps}.bps").exists():
+                    continue
+                seen += 1
+                got = hashlib.sha1(apply_bps(f"{bps}.bps", f"{tmp}/{bps}.sfc")).hexdigest()
+                if verbose:
+                    print(f"  {rel}:{n} build/{bps}.bps -> {got[:8]}")
+                if got[:8] not in quoted:
+                    fails.append(f"{rel}:{n}: build/{bps}.bps yields {got[:8]}…, but the line "
+                                 f"quotes {', '.join(q + '…' for q in quoted)}")
+    return seen, fails
+
+
 def disjointness(sets):
     """The claim the map exists to make. Variants (1b of 1, 10b of 10) are
     alternatives by naming convention and edit the same bytes deliberately."""
@@ -171,6 +218,9 @@ def selftests(rows, clean, tmp):
         bad.append("an overlap between two patches was not caught")
     if disjointness({"1": {1, 2}, "1b": {1, 2}}):
         bad.append("the variant pair 1/1b was reported as an overlap")
+    line = "| x | `build/sms_dashfix.bps` | `deadbeef…` |"
+    if not SHA8.findall(HASH_CLAIM.findall(line)[0][1]):
+        bad.append("the hash-claim extractor no longer finds a quoted hash beside a .bps")
     return bad
 
 
@@ -187,7 +237,8 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmp:
         sets, fails = measure(rows, clean, tmp, args.verbose)
-        fails += disjointness(sets)
+        claims, claim_fails = hash_claims(clean, tmp, args.verbose)
+        fails += disjointness(sets) + claim_fails
         fails += [f"SELF-TEST: {b}" for b in selftests(rows, clean, tmp)]
 
     appending = {p for p, _, _, a, _ in rows if a is not None}
@@ -199,6 +250,7 @@ def main():
     print(f"\033[32mALL PASS\033[0m ({len(rows)} standalone patches, "
           f"{sum(len(s) for s in sets.values())} changed bytes accounted for)")
     print(f"  in-place regions are pairwise disjoint (variants 1/1b and 10/10b aside)")
+    print(f"  {claims} \"this .bps gives this ROM\" claims in the registry documents re-derived")
     print(f"  {len(appending)} bank-appending patches, all starting at 0x{APPENDED:X} — "
           "which is why standalone BPS must never be chained (HANDOFF §5)")
 

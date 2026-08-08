@@ -31,7 +31,7 @@ true-combo gate `0x05`.
 | 1b. 1f-link **(true combo; SHIPPED in both reference builds)** | **Alternative to patch 1** — true unblockable 1-frame combo (N=5); wider (2-frame connect: combo@0 + meaty@+1). This is the gate REF v.1/v.2 and Rev. S/SS carry | `tools/mkpatch.py 0x05` | `build/sms_uranus_infinite_1f_truecombo.bps` (+`.ips`) | `deefccec…` |
 | 2. Dash-fix | Remove reversal-dash invincibility | `tools/mkpatch2.py` | `build/sms_dashfix.bps` (+`.ips`) | `14f747a7…` |
 | 3. Palettes | Sprint / Big Zam extended character colors ( + "FrenchName" rom header for easy rom ID) | `tools/mkpatch3.py` | `build/sms_palettes.bps` | `291f6474…` |
-| 4. Title | Title subtitle → "FrenchName ver. X.Y" + copyright line 1 → BZ's "©MOONLIGHT FIGHT SOCIETY" ("©ANGEL 1994" untouched) | `tools/mkpatch4.py` | `build/sms_title.bps` | `f5337f9a…` |
+| 4. Title | Title subtitle → "FrenchName ver. X.Y" + copyright line 1 → BZ's "©MOONLIGHT FIGHT SOCIETY" ("©ANGEL 1994" untouched) | `tools/mkpatch4.py` | `build/sms_title.bps` | `7f9e8c76…` |
 | 5. Dash dist | Cut Uranus forward-dash distance ~1/3 | `tools/mkpatch5.py` | `build/sms_dashdist.bps` | `99acb686…` |
 | 6. Dash i-frames **(OPTIONAL)** | Uranus forward dash gains ~6 strike-invuln frames mid-move | `tools/mkpatch6.py` | `build/sms_dashinvuln.bps` (+`.ips`) | `34c5d458…` |
 | 7. Pluto 5HP **(OPTIONAL)** | Pluto 5HP hitbox extended down to hit crouchers (all but Chibi) | `tools/mkpatch7.py` | `build/sms_pluto5hp.bps` | `fc757936…` |
@@ -651,9 +651,13 @@ On-screen title text (the harder graphics job flagged here originally) is now sh
 
 # Patch 4 — Title subtitle → "FrenchName ver. 0.4" + Big Zam credit line
 
-Patched (title only) SHA-1 `f5337f9adfaf7adcd10aaecbc3e6ea8c525e4df3`
-(2026-07-30, credit line included; `--no-credit` reproduces the previous
-subtitle-only build `e5dce7d5…` byte-for-byte).
+Patched (title only) SHA-1 `7f9e8c764f23867eedeae3071caf00e6a07f40d7`
+(credit line included; `--no-credit` gives `1ac091e7…`). ⚠ Both moved on
+2026-08-06 when the default subtitle became `f"FrenchName v.{BUNDLE_VERSION}"`
+— the builder is unchanged in behaviour, but its DEFAULT TEXT is, so every hash
+of a default patch-4 build moves with `smspaths.BUNDLE_VERSION`. The 07-30
+pair was `f5337f9a…` / `e5dce7d5…`; `tools/checkpatchmap.py` now re-derives
+these from the tracked `.bps` so the next bump cannot leave them behind.
 Deliverables: `build/sms_title.bps` (clean → subtitle + credit + header),
 `build/sms_full4.bps` (clean → all four). Built by `tools/mkpatch4.py`
 (+ `tools/texttiles.py`).

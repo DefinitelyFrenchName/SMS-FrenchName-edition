@@ -119,11 +119,12 @@ else
   skip "round-trip needs the clean ROM and flips"
 fi
 
-echo "== the edit-region map still describes the patches =="
+echo "== the patch documents still describe the patches =="
 if [ -f "$CLEAN" ] && [ -x tools/Flips/flips ]; then
   if out="$(python3 tools/checkpatchmap.py 2>&1)"; then
     ok "$(printf '%s' "$out" | grep -aoE '\([0-9]+ standalone patches, [0-9]+ changed bytes accounted for\)' | tr -d '()')"
     ok "in-place edits pairwise disjoint; every appended bank at 0x280000 (why BPS must not be chained)"
+    ok "$(printf '%s' "$out" | grep -aoE '[0-9]+ "this .bps gives this ROM" claims in the registry documents re-derived')"
   else
     printf '%s\n' "$out" | sed 's/^/    /'
     bad "checkpatchmap: docs/project/patch_notes.md disagrees with build/*.bps"

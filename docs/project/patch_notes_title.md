@@ -7,9 +7,12 @@
 
 Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),
 clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`.
-Patched (title only) SHA-1 `f5337f9adfaf7adcd10aaecbc3e6ea8c525e4df3`
-(2026-07-30, includes the credit-line swap; `--no-credit` reproduces the previous
-subtitle-only build `e5dce7d5130909fc0e125ea621a11a10d2ded04e` byte-for-byte).
+Patched (title only) SHA-1 `7f9e8c764f23867eedeae3071caf00e6a07f40d7`
+(includes the credit-line swap; `--no-credit` gives
+`1ac091e7ff4bf860ee66a63184b75a08efaead77`). ⚠ Both hashes moved on 2026-08-06,
+when the default subtitle became `f"FrenchName v.{BUNDLE_VERSION}"`: a default
+patch-4 build carries the bundle version in its title, so its SHA-1 follows
+`smspaths.BUNDLE_VERSION`. The 2026-07-30 pair was `f5337f9a…` / `e5dce7d5…`.
 
 Deliverables (built by `tools/mkpatch4.py`):
 - `build/sms_title.bps` — clean → title subtitle + "FrenchName" header only (for QA).
