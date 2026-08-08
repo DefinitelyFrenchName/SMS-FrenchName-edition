@@ -4,7 +4,7 @@
 > — 17 patches + 2 variants (balance, training mode, taunts/Guts, menu/config edits), plus the
 > 100-series: **Sailor Saturn ported in from Super S**. What ships is `release/` **Rev. S-02**
 > and **Rev. SS-02**. The only ACTIVE work item is **patch 16, menu translation**
-> (`docs/game/menu_text.md`).
+> (mechanism: `docs/game/menu_system.md`; the working record: `docs/project/menu_text.md`).
 > Before doing anything, read `HANDOFF.md` (operational map), `docs/project/NEXT_SESSION.md`
 > (60-second orientation), `docs/project/patch_index.md` (registry), and `docs/project/patch_notes.md`
 > (per-patch detail). The sections below are the original brief, kept for history.**

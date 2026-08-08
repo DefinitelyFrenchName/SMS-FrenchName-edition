@@ -5,7 +5,7 @@ audiences:
 
 | | |
 |---|---|
-| **[`game/`](game/)** | Analysis of the original **Sailor Moon S** ROM — memory maps, data formats, engine behaviour. True of the retail cartridge whatever anyone patches, and **liftable by any other project on this game.** |
+| **[`game/`](game/)** | Analysis of the original **Sailor Moon S** ROM — memory maps, data formats, engine behaviour, the menu/font system. True of the retail cartridge whatever anyone patches, and **liftable by any other project on this game.** |
 | **[`project/`](project/)** | The **FrenchName edition** itself — patches, builds, tests, decisions, the Saturn port. |
 
 The rule of thumb when adding a file: *would this still be true, and still

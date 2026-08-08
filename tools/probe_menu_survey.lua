@@ -1,5 +1,5 @@
 -- probe_menu_survey.lua — enumerate the game's MENU SCREENS and the text on
--- them, as the groundwork for a translation patch (see docs/game/menu_text.md).
+-- them, as the groundwork for a translation patch (see docs/project/menu_text.md).
 --
 -- The translation is a standalone patch, not a Saturn feature, so this lives in
 -- tools/ rather than tools/saturn/.

@@ -25,7 +25,7 @@ rather than described — is published at
 | how damage is computed, end to end | [`sms_damage_system.md`](sms_damage_system.md) — and note its headline: **there is no RNG in damage** |
 | the A.C.S. stat system + the damage matrix | [`sms_acs_system.md`](sms_acs_system.md) |
 | every character's specials and desperations | [`sms_specials.md`](sms_specials.md) |
-| how menus, fonts and text are drawn | [`menu_text.md`](menu_text.md) — asset records, both codecs, the two screen engines |
+| how menus, fonts and text are drawn | [`menu_system.md`](menu_system.md) — the glyph format, both font sheets, the two screen engines, the runtime text writers, the VRAM rules |
 | hitbox / hurtbox / push-box data | [`sms_all_boxes.json`](sms_all_boxes.json) — extracted, all nine characters |
 
 `te_halfwidth.json` holds the half-width Latin font extracted from the Big Zam

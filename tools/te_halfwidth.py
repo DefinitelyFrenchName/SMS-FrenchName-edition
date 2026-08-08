@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """te_halfwidth.py — harvest the Tournament Edition's HALF-WIDTH Latin font.
 
-Why this matters: docs/game/menu_text.md recorded that half-width Latin "already
+Why this matters: docs/project/menu_text.md recorded that half-width Latin "already
 exists" in SMS's `PRESS "SELECT" TO ACS` banner. It does not — that strip is
 proportionally-spaced artwork whose letters straddle tile boundaries, so nothing
 can be lifted from it (measured; see the doc). The Big Zam edition is the same.

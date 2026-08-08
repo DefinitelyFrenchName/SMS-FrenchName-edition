@@ -208,7 +208,7 @@ DF_SHEET_TILES = 0x360            # padded total
 DF_SCRIPT_REFS = (0x1F8D24, 0x1F96CC)             # file offsets of src24 fields
 DF_SHEET_AT = 0xA000              # packed extended sheet's offset in the blob
 # name blocks: (file offset of block, text) — 12 cells x 2 rows each,
-# left-aligned like the Japanese; identified by rendering (docs/game/menu_text.md).
+# left-aligned like the Japanese; identified by rendering (docs/project/menu_text.md).
 # ⚠ pointer-table entry 0 ($DF:9211) is the BLANK block (all-zero cells, the
 # "no entry" row) — the names start at entry 1.
 DF_NAMES = (
@@ -240,7 +240,7 @@ PS_TEXT = "PLAYER SELECT"
 # straight-line stub that rewrites the label cells in $7F:0000 AFTER the
 # numbers went in, then replays $84F9's Y=0 upload (src $7F:0000, vmadd
 # $7000, len $0800) inline — codec 2 never needs decoding. Spans/attrs read
-# off the live map dump (docs/game/menu_text.md § screen census).
+# off the live map dump (docs/project/menu_text.md § screen census).
 # (top_map_row, start_col, old_span_last_col, attr, text)
 DF_REPORT_HOOK = 0x1F9679
 DF_REPORT_OLD = bytes.fromhex("e210a00020f984")
@@ -313,7 +313,7 @@ CFG_MAP_AT = 0x4000               # relocated packed map's offset in the blob
 # a first attempt that uploaded the block to VRAM $5C0 drew GARBAGE along the
 # bottom bar — the runtime-written prompt area references those tiles through
 # another BG's CHR base (blank-but-referenced; trap 2's VRAM cousin). The name
-# card and the prompt line are runtime-drawn (deferred — docs/game/menu_text.md);
+# card and the prompt line are runtime-drawn (deferred — docs/project/menu_text.md);
 # when they're done, their glyph window needs a real census first.
 ACS_TRANSLATE = os.environ.get("SMS_P16_ACS") == "1"
 ACS_SHEET_SRC = 0xC23400

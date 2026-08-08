@@ -53,7 +53,7 @@ port-written, no DMA trace — needs a VRAM write-watch); ACS name card +
 prompt (runtime-drawn with name substitution; glyph window needs a census
 first — the `$5C0` trap). Codec 2 (`$80:8E9A`) is partially decoded
 (tile-unit codec, XOR row filters, 2-bit command stream) but nothing
-shipped needs it. All mechanisms and traps: `docs/game/menu_text.md`. The issue-remediation programme is
+shipped needs it. All mechanisms and traps: `docs/project/menu_text.md`. The issue-remediation programme is
 COMPLETE (all 61 review issues resolved, tracker empty — record and lessons:
 `HANDOFF.md` §0 + traps 12-18); everything else ships green. Dormant
 maintainer options, not tasks: HANDOFF §8's fold-6/7/8-into-canonical and
@@ -107,12 +107,12 @@ since — see the 08-08 hashes above).
   `bottom = top + $10`; labels attr `$0C00`, values `$1000`.
 * The option VALUES are indeed not tilemap work — they are drawn by
   `$80:8C43` from self-describing records in bank `$C4` (uncompressed;
-  found and translated 2026-08-06, see `docs/game/menu_text.md` § Values).
+  found and translated 2026-08-06, see `docs/project/menu_text.md` § Values).
 
 **Screen coverage (maintainer priority: Options ✓, Win, ACS, Tournament; story
 out of scope):**
 * **ALL FOUR screens are now probed** (`tools/probe_p16_screens.lua`, routes
-  win/acs/tournament; full table in `docs/game/menu_text.md` § Screen census).
+  win/acs/tournament; full table in `docs/project/menu_text.md` § Screen census).
   Short version: ACS = cluster `$C3:9CF2` (+ its own small font at `$4000`);
   Win (REPORT CARD) and Tournament both run on a **bank `$DF` loader**
   (`$DF:83CE`) that bypasses the `$C3` clusters and the `$80:92D2` uploader

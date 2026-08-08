@@ -340,7 +340,8 @@ Verified: VRAM census 0/64 -> 52/64 across the stub's transfer, settled;
 `SMS_P16_OPTIONS=1` renders the six English labels (screenshot-checked);
 button-config re-verifies green on the hooked build. Mechanism + asset-record
 plumbing (pointer tables `$C3:BCCD`/`$BCFF`, font = B index 15):
-`docs/game/menu_text.md`; probe: `tools/probe_p16_options_buf.lua`.
+`docs/game/menu_system.md` (how the system works) and `docs/project/menu_text.md`
+(this patch's working record); probe: `tools/probe_p16_options_buf.lua`.
 The option **values** are translated too (2026-08-06): the runtime writer is
 `$80:8C43`, drawing self-describing records `[vmadd][len][rows][cells]` from
 bank `$C4` via pointer tables `$C3:A44F/$A457/$A45B/$A463` ($1B14/$1B16 =

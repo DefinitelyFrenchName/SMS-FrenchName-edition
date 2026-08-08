@@ -7,7 +7,7 @@ file offset = SNES addr & 0x3FFFFF).
 This document covers **seventeen shipped patches plus two variants** (1–5 the original
 gameplay/cosmetic core, 6–15/17/18 optional; 1b and 10b are variants of 1 and 10), plus
 **patch 16 (menu translation), which is IN PROGRESS** — its per-screen mechanism record
-lives in `docs/game/menu_text.md` and its section here is a summary. Each patch is a separate
+lives in `docs/project/menu_text.md` and its section here is a summary. Each patch is a separate
 stackable BPS built by its own `tools/mkpatchN.py`; their edits are byte-disjoint, so they
 combine cleanly — but **never combine by chaining standalone BPS files** (bank-$E8
 clobber; see "Applying" below and `HANDOFF.md` §5). The **100-series** (100 = SMS + Saturn,
@@ -44,7 +44,7 @@ true-combo gate `0x05`.
 | 13. Guts **(OPTIONAL)** | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py` | `build/sms_tauntbuff.bps` | `bafb87d4…` |
 | 14. Guts Grip **(OPTIONAL, companion to 13)** | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py` | `build/sms_gutsgrip.bps` | `5fadcaca…` |
 | 15. No AUTO **(in both reference builds)** | Removes the AUTO option from the VS button-config screen (the モード row goes inert, so both players stay マニュアル); AUTO binds specials to L/R, colliding with patch 12's taunt | `tools/mkpatch15.py` | `build/sms_noauto.bps` | `31832e6e…` |
-| 16. Menu translation **(IN PROGRESS)** | English menu text: a half-width A-Z installed into the menu font, then per-screen tilemap/record edits behind build gates. **No standalone BPS yet** — see the patch 16 section below and `docs/game/menu_text.md` | `tools/mkpatch16.py` | — | — |
+| 16. Menu translation **(IN PROGRESS)** | English menu text: a half-width A-Z installed into the menu font, then per-screen tilemap/record edits behind build gates. **No standalone BPS yet** — see the patch 16 section below and `docs/project/menu_text.md` | `tools/mkpatch16.py` | — | — |
 | 17. All stages **(OPTIONAL, in NEITHER reference build)** | The hidden tenth stage (なかよし編集部) becomes selectable, and — where patch 3 is present — joins its random pool | `tools/mkpatch17.py` | `build/sms_allstages.bps` | `e5dd325b…` |
 | 18. No ACS in 2P VS **(in both reference builds)** | The A.C.S. stat-redistribution screen is unreachable in 2P VS only; story and vs-COM keep it. Companion to 15, same screen | `tools/mkpatch18.py` | `build/sms_noacs_vs.bps` | `67897bbf…` |
 
@@ -1645,7 +1645,7 @@ builds** (REF v.2 onward, and Rev. S/SS).
 **Status (2026-08-08): the font install and five screens are done and
 in-emulator verified; two runtime-drawn text surfaces remain.** This is the
 project's only active work item. This section is the summary; the mechanism
-record — every screen's loader, every trap paid for — is `docs/game/menu_text.md`,
+record — every screen's loader, every trap paid for — is `docs/project/menu_text.md`,
 which is the file to read before touching the builder.
 
 **Why it is a standalone patch, not a Saturn feature** (maintainer, 2026-08-03):

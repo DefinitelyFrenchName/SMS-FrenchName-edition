@@ -91,7 +91,7 @@ KANJI = {
 # labels are set in. Verified by rendering every glyph in both blocks.
 # F is NOT missing: it sits at kana block $228 (VRAM $2C8), after the second
 # digit run, and a side-by-side render against B/E/H shows the same stroke
-# weight and cap height — it sets as part of the alphabet. docs/game/menu_text.md had
+# weight and cap height — it sets as part of the alphabet. docs/project/menu_text.md had
 # listed it missing, from a survey that never rendered the digit run.
 # So the full-width alphabet has 22 of 26; four must be authored.
 MISSING = ("J", "Q", "S", "Z")

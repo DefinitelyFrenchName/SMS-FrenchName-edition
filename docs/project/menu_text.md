@@ -1,4 +1,25 @@
-# Menu translation — groundwork
+# Patch 16 — the menu-translation working record
+
+**This is the project's log, not the reference.** It is how the menu system was
+worked out, in the order it happened: the measurements, the dead ends, the
+corrections of earlier entries in this same file, the maintainer's string
+choices, and what each build shipped. Entries are dated and later ones supersede
+earlier ones in place.
+
+**For how the system WORKS, read [`../game/menu_system.md`](../game/menu_system.md)**
+— the glyph format, the font sheets, the two screen engines, the runtime text
+writers, the VRAM rules and the cell budgets, stated once and cleanly. That file
+is knowledge of the retail ROM and is reusable by anyone; this one is only
+meaningful to this project. Where the two overlap, **the game doc is
+authoritative** — if a mechanism here reads differently, it is an older entry
+that the game doc has since tidied.
+
+Patch 16's current status and gates are in
+[`patch_index.md`](patch_index.md) and [`patch_notes.md`](patch_notes.md)
+§ Patch 16; what to do next is in [`NEXT_SESSION.md`](NEXT_SESSION.md).
+
+---
+
 
 **Decision (maintainer, 2026-08-03): this is a STANDALONE PATCH, not a Saturn
 feature.** It goes in the main patch line (next free number is **16**), builds
@@ -823,7 +844,7 @@ to half width would give a native, in-style, licence-clean alphabet. Tested.
 
 ### First, the addressing — this cost several wrong turns
 
-`docs/game/menu_text.md` records the capitals at "**$20A** onward". That is a **VRAM
+`docs/project/menu_text.md` records the capitals at "**$20A** onward". That is a **VRAM
 address on a screen that displays them**, not a block offset, and the kana block
 does not load at a fixed base:
 

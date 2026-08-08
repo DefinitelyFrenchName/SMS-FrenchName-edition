@@ -107,7 +107,7 @@ was in SMS.
 1. ~~**Menu translation.**~~ **MOVED OUT of this project** (2026-08-03): a
    **standalone patch** in the main line (patch 16), not a Saturn feature, and it
    must work with or without her. Groundwork, budgets and the font inventory are
-   in `docs/game/menu_text.md`; the font path that unblocked it is in
+   in `docs/project/menu_text.md`; the font path that unblocked it is in
    `docs/project/NEXT_SESSION.md`. The maintainer supplies the translations.
 2. ~~**Reveal Saturn earlier in the fight.**~~ **DONE (v0.14.1-v0.14.3).**
    - **Must have — delivered:** she is on screen before the round starts. The
