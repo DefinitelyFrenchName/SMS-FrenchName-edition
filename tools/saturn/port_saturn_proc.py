@@ -7,7 +7,7 @@ full copy of SMS bank $C1, at its original in-bank offsets — so INTERNAL absol
 refs (act jump table $C706, intra-block jsr/jmp) stay verbatim, and EXTERNAL
 bank-local refs must be rewritten from Super S offsets to SMS offsets (the two
 banks' engine routines are identical code at slightly shifted addresses; map
-verified per-target by byte/skeleton signature match, docs/saturn/supers_map.md
+verified per-target by byte/skeleton signature match, docs/project/saturn/supers_map.md
 §per-char proc blocks).
 
 Recursive descent starts at the dispatch entry + all act-table targets, tracks
@@ -84,7 +84,7 @@ def resolve_jsl_map(sup, sms):
       bare RTL here; SMS's real sfx API was mapped in v0.7.0 and her commands are
       re-pointed to the $EF:DB50 translator (see SND_MAP in mksaturn_smoke.py),
       with her own voice added in v0.13.0. The remaining id->sfx mapping is
-      approximate — parked, not open: docs/saturn/PROJECT.md "Parked"."""
+      approximate — parked, not open: docs/project/saturn/PROJECT.md "Parked"."""
     if not (sup[0xC115:0xC115 + 11] == sms[0xBFBB:0xBFBB + 11]):
         raise ValueError("C115/BFBB drift")
     if not (sup[0xC494:0xC494 + 11] == sms[0xC352:0xC352 + 11]):

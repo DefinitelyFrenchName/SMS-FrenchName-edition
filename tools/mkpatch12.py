@@ -7,7 +7,7 @@ pratfall the game plays in story mode / A.C.S. customization matches when a spec
 (fizzle -> embarrassed -> neutral, ~1.8s, fully vulnerable). Works for both players, in
 every match type (VS, vs-COM, tournament, story, Practice).
 
-Ground truth (probe-verified, docs/annotations.md "patch 12 RE"):
+Ground truth (probe-verified, docs/game/annotations.md "patch 12 RE"):
   * Every special's 8-byte record (bank $C1) carries its misfire act at +6; the native
     roll in the dispatcher $C1:0B49 compares ochame (+0x75) against a threshold table
     indexed by the RNG byte $90. On misfire the engine just sets act = record+6.

@@ -9,7 +9,7 @@ base game (works on hardware): an L+R in-match menu on BG3 controlling
 The dummy is driven by rewriting P2's pad words after joy_read -- the same input-level
 mechanism as the Lua training mode (the oracle), never by forcing action bytes.
 
-Native Practice facts this is built on (probe-verified, docs/annotations.md "patch 11 RE"):
+Native Practice facts this is built on (probe-verified, docs/game/annotations.md "patch 11 RE"):
   * $008D: 4 = training, hits connect but HP subtraction is off; 5 = damage on (the
     attract demo also runs at 5 -> gate accepts 5 only when WE set it, via DMGFLAG).
   * $0070 == 4 in any match; $01FA == 0x80 match running / 0xE4 movelist (Start).

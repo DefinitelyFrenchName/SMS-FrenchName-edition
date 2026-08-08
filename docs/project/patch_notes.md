@@ -7,13 +7,13 @@ file offset = SNES addr & 0x3FFFFF).
 This document covers **seventeen shipped patches plus two variants** (1–5 the original
 gameplay/cosmetic core, 6–15/17/18 optional; 1b and 10b are variants of 1 and 10), plus
 **patch 16 (menu translation), which is IN PROGRESS** — its per-screen mechanism record
-lives in `docs/menu_text.md` and its section here is a summary. Each patch is a separate
+lives in `docs/game/menu_text.md` and its section here is a summary. Each patch is a separate
 stackable BPS built by its own `tools/mkpatchN.py`; their edits are byte-disjoint, so they
 combine cleanly — but **never combine by chaining standalone BPS files** (bank-$E8
 clobber; see "Applying" below and `HANDOFF.md` §5). The **100-series** (100 = SMS + Saturn,
 101 = her voice pitch) is a different category of work, built by `tools/saturn/` rather
 than by `mkpatchN.py`; only 101 has a section here, and 100's detail lives in
-`docs/saturn/BUILDS.md`. One-page registry with status/lifecycle: `docs/patch_index.md`.
+`docs/project/saturn/BUILDS.md`. One-page registry with status/lifecycle: `docs/project/patch_index.md`.
 **New here? Read `HANDOFF.md` first** — it is the operational map (current state,
 deliverables, tooling, findings, gotchas).
 
@@ -44,16 +44,16 @@ true-combo gate `0x05`.
 | 13. Guts **(OPTIONAL)** | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py` | `build/sms_tauntbuff.bps` | `bafb87d4…` |
 | 14. Guts Grip **(OPTIONAL, companion to 13)** | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py` | `build/sms_gutsgrip.bps` | `5fadcaca…` |
 | 15. No AUTO **(in both reference builds)** | Removes the AUTO option from the VS button-config screen (the モード row goes inert, so both players stay マニュアル); AUTO binds specials to L/R, colliding with patch 12's taunt | `tools/mkpatch15.py` | `build/sms_noauto.bps` | `31832e6e…` |
-| 16. Menu translation **(IN PROGRESS)** | English menu text: a half-width A-Z installed into the menu font, then per-screen tilemap/record edits behind build gates. **No standalone BPS yet** — see the patch 16 section below and `docs/menu_text.md` | `tools/mkpatch16.py` | — | — |
+| 16. Menu translation **(IN PROGRESS)** | English menu text: a half-width A-Z installed into the menu font, then per-screen tilemap/record edits behind build gates. **No standalone BPS yet** — see the patch 16 section below and `docs/game/menu_text.md` | `tools/mkpatch16.py` | — | — |
 | 17. All stages **(OPTIONAL, in NEITHER reference build)** | The hidden tenth stage (なかよし編集部) becomes selectable, and — where patch 3 is present — joins its random pool | `tools/mkpatch17.py` | `build/sms_allstages.bps` | `e5dd325b…` |
 | 18. No ACS in 2P VS **(in both reference builds)** | The A.C.S. stat-redistribution screen is unreachable in 2P VS only; story and vs-COM keep it. Companion to 15, same screen | `tools/mkpatch18.py` | `build/sms_noacs_vs.bps` | `67897bbf…` |
 
 The 100-series is built and gated separately (`tools/saturn/`, gate
 `tools/saturn/verify_saturn.sh`): **100 = SMS + Saturn** (currently v0.16.1, hidden
-`91639250…`, hidden+stage `c8f7dae8…`, detail in `docs/saturn/BUILDS.md`) and
+`91639250…`, hidden+stage `c8f7dae8…`, detail in `docs/project/saturn/BUILDS.md`) and
 **101 = her voice pitch** (a build flag on 100, shipped and on by default — section at
 the end of this file). Their BPS are deliberately **not tracked**: they embed ported
-Super S content (`docs/patch_index.md` § 100-series).
+Super S content (`docs/project/patch_index.md` § 100-series).
 
 Combined builds:
 
@@ -70,7 +70,7 @@ Combined builds:
 > `build/sms_reference_v1.bps` — **REF v.1** = 1b+2+3+4+5+7+8+9+12+13+14, title
 > "FrenchName REF v.1", ROM `2873f214…` (pre-credit `bd1104ee…`). **2026-07-19 prune:** the historical cumulative bundles listed below
 > (`sms_both`, `sms_full*`, the v1.x line, all-patches < v0.19) were deleted from `build/`
-> (see `docs/patch_index.md`); the entries are kept as historical record of what each
+> (see `docs/project/patch_index.md`); the entries are kept as historical record of what each
 > lineage contained. Custom combinations are rebuilt by chaining the `mkpatchN.py` builders
 > (HANDOFF §2), never by chaining standalone BPS.
 
@@ -1048,7 +1048,7 @@ The in-match HUD is a staging-buffer design: a **main-loop producer `$C0:D5E8`**
   vblank.
   Big digit tiles 0-9 already exist in the HUD CHR (`0x2C50+N` top, `0x2C60+N` bottom — the
   timer's tiles), and HUD tilemap rows 6-7 are blank, so **no graphics are added** — the patch
-  is pure code + WRAM. Full RE map in `docs/annotations.md` ("In-match HUD rendering").
+  is pure code + WRAM. Full RE map in `docs/game/annotations.md` ("In-match HUD rendering").
 
 ## Changed bytes (2 hooks + header/checksum; appended bank for the stubs)
 
@@ -1218,7 +1218,7 @@ is the consolidated reference.
 
 # Patch 11 (OPTIONAL) — In-ROM training mode upgrade ("Training+")
 
-**User guide: `docs/trainingplus.md`** (install, menu reference, drills, internals summary).
+**User guide: `docs/project/trainingplus.md`** (install, menu reference, drills, internals summary).
 
 **Builder:** `tools/mkpatch11.py [src] [out] [--stage pipe|tier1]` (stacks on any patch 1-10 ROM, any order)
 **Standalone BPS:** `build/sms_trainingplus.bps` (clean+11, ROM sha1 `a3aba30d…`;
@@ -1259,7 +1259,7 @@ frame-exact oracle for every feature here.
   | RESET | GO (press ←/→) | both fighters snap to start positions (only when both are neutral) |
 - Settings persist while the console is on (survive rematches; reset on power cycle).
 
-## How it works (RE summary — details in docs/annotations.md "patch 11 RE")
+## How it works (RE summary — details in docs/game/annotations.md "patch 11 RE")
 
 Two JML trampolines, byte-disjoint from patches 1-10 (stacking order never matters):
 - **$80:8373** (joy_read tail, after held words, before edge derivation) → INPUT stub:
@@ -1338,7 +1338,7 @@ taunt risk). Both players can taunt. No advantage is granted (a possible later a
 Special case, kept deliberately: **Jupiter's misfire has a real attack box** (her fizzled
 thunder zaps point-blank) — that is the authentic native animation, so her taunt can hit.
 
-## The RE that made it 1:1 native (docs/annotations.md "patch 12 RE")
+## The RE that made it 1:1 native (docs/game/annotations.md "patch 12 RE")
 
 The misfire mechanic was fully located: every special's 8-byte record in bank $C1 carries
 its **misfire act at +6**; the dispatcher `$C1:0B49` rolls `threshold[$C1:0AF5 + ($90 &
@@ -1463,7 +1463,7 @@ normal hits, projectiles, **chip damage**, throws, and teched throws, with a flo
 Levels last **until the round ends**; no on-screen indicator (the ~1.8 s pratfall is the
 tell). Works standalone (real whiffs only) or with patches 11/12.
 
-## How it works (RE detail in docs/annotations.md "patch 13 RE")
+## How it works (RE detail in docs/game/annotations.md "patch 13 RE")
 
 - **Grant FSM** (hook `$80:837B`, third in the joy_read chain after patches 11/12, any
   install order): per player, idle → in-misfire-act (full per-character act sets from the
@@ -1645,7 +1645,7 @@ builds** (REF v.2 onward, and Rev. S/SS).
 **Status (2026-08-08): the font install and five screens are done and
 in-emulator verified; two runtime-drawn text surfaces remain.** This is the
 project's only active work item. This section is the summary; the mechanism
-record — every screen's loader, every trap paid for — is `docs/menu_text.md`,
+record — every screen's loader, every trap paid for — is `docs/game/menu_text.md`,
 which is the file to read before touching the builder.
 
 **Why it is a standalone patch, not a Saturn feature** (maintainer, 2026-08-03):
@@ -2049,7 +2049,7 @@ Sailor Moon's note values. Patch 101 corrects the four notes.
 
 Pitch in this SPC driver is per-sound NOTE data, not a per-sample rate. Each
 sound id's sequence header carries a **TRANSPOSE byte** at `seq+3`, worth exactly
-one semitone per unit (full decode: `docs/saturn/sound_scope.md`). Her four:
+one semitone per unit (full decode: `docs/project/saturn/sound_scope.md`). Her four:
 
 | id | move | ARAM | vanilla | patched | measured pitch |
 |---|---|---|---|---|---|

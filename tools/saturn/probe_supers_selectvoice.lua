@@ -14,7 +14,7 @@
 -- The log also carries what is needed to extract it: the DSP DIR page, and the
 -- directory entry's start/end, which map linearly into ROM (Super S uploads
 -- samples uncompressed, so a byte search finds the source — see
--- docs/saturn/sound_scope.md Phase 2).
+-- docs/project/saturn/sound_scope.md Phase 2).
 --
 -- usage: CHAR=10 ROM=<Super S> tools/run.sh \
 --            tools/saturn/probe_supers_selectvoice.lua 400

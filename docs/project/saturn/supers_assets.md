@@ -741,7 +741,7 @@ the HUD and OBJ rows — i.e. the fighters, which differ by cast).
 * ~~**Stage names.**~~ **CLOSED by patch 16.** They are on the VS button-config
   screen: name records at `$C3:B5AD` -> bank `$C4`, over the compressed template
   at `$C3:7C00`; translated and shipped behind `SMS_P16_STAGES=1`. See
-  `docs/menu_text.md`. (Two Silver Millenniums existed when this was written;
+  `docs/game/menu_text.md`. (Two Silver Millenniums existed when this was written;
   the slot chosen was the space-time door, so the "light" marker is moot.)
 
 ### Add a stage, or swap one? (measured 2026-08-03)
@@ -770,11 +770,11 @@ only if more than one Super S stage is wanted.
 > Records at `$C3:B5AD` (10 words) -> per-stage name records in bank `$C4`,
 > drawn over the compressed config template `$C3:7C00` (`ldx $1838 / lda $B5AD,X`).
 > Translated names ship behind `SMS_P16_STAGES=1`. Full account in
-> `docs/menu_text.md`. The account below is how it was hunted before that.
+> `docs/game/menu_text.md`. The account below is how it was hunted before that.
 
 The maintainer reports the stage name is printed at the bottom of the
 **button-mapping screen**, between character select and the fight — the same
-screen `docs/menu_text.md` inventories for the translation patch. The harness's
+screen `docs/game/menu_text.md` inventories for the translation patch. The harness's
 VS flow does not pass through it (it pokes the character ids and the transition
 fades straight into the match), and the blind Start-mash flow that *did* reach
 it is 1P-vs-COM, whose capture shows no name. So the name table is not located
@@ -798,7 +798,7 @@ decision — nothing to do, and it makes the "how is music assigned" question mo
 for now.
 
 ~~**Still to do: the stage NAME**~~ **DONE — patch 16** (`$C3:B5AD` -> bank `$C4`,
-template `$C3:7C00`, shipped behind `SMS_P16_STAGES=1`; `docs/menu_text.md`).
+template `$C3:7C00`, shipped behind `SMS_P16_STAGES=1`; `docs/game/menu_text.md`).
 The ruled-out list below is from before it was found, and the last bullet is the
 reason it took a second attempt — the name is NOT keyed off the scene id:
 

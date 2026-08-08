@@ -1,7 +1,7 @@
 # Sailor Moon S (SFC) — ROM map for Uranus frame/hitbox data
 
 > **For the whole-game picture** — every memory, the object struct, and the record
-> formats — see `docs/sms_data_architecture.md`. This file is the original,
+> formats — see `docs/game/sms_data_architecture.md`. This file is the original,
 > Uranus-focused ROM map and stays as the terse address reference.
 
 Verified against the clean Japan ROM, SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`
@@ -94,7 +94,7 @@ need the authoritative byte to patch (as patch 1 did).
 
 > **Scope note.** This file describes the **clean ROM**. Saturn (charID 10) has no data
 > here and never will; she is content this project ADDS from Super S in the Rev. SS
-> builds — `docs/saturn/`.
+> builds — `docs/project/saturn/`.
 
 ## Community resources used
 - sprntgd/Bishoujo-Senshi-Sailor-Moon-S-...-Training-Mode (GitHub): training-mode Lua

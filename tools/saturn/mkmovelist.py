@@ -5,7 +5,7 @@ SMS draws a character's movelist from a compressed 0x800-byte BG3 tilemap chosen
 by `$E0:021A + charID*3`. Super S does not share the format, so hers is authored
 here from SMS's own font and encoded with tools/saturn/sms_lz.py.
 
-Everything below was measured, not guessed (docs/saturn/movelist.md):
+Everything below was measured, not guessed (docs/project/saturn/movelist.md):
 
   * text is 8x16 — every line is two tile rows, the lower tile always +0x10;
   * the title uses palette 5 (attribute byte $34), body text palette 3 ($0D);

@@ -5,7 +5,7 @@ SMS's OWN 16x16 capitals.
 Why this route: the game already contains 21 Latin capitals, so a condensed set
 is natively in style and carries no licence question — the same basis on which
 this project reuses Big Zam palettes and Super S assets. Measured viable
-(docs/menu_text.md "CONDENSING SMS's OWN CAPITALS"): reducing 16->8 with AND of
+(docs/game/menu_text.md "CONDENSING SMS's OWN CAPITALS"): reducing 16->8 with AND of
 each column pair yields 2 px stems inside ~6-7 px of ink, which is exactly the
 weight of the Tournament Edition's half-width font — a face already proven
 legible on this hardware.
@@ -28,7 +28,7 @@ Three glyph sources, in order of preference:
 
     tools/mkhalfwidth.py sheet              # the full A-Z, as ASCII
     tools/mkhalfwidth.py text "MANUAL"      # a string at true size
-    tools/mkhalfwidth.py export --out docs/halfwidth_caps.json
+    tools/mkhalfwidth.py export --out docs/project/halfwidth_caps.json
 """
 import argparse
 import json
@@ -227,7 +227,7 @@ def load_caps():
         bl, br = tile(code + SHEET_W), tile(code + SHEET_W + 1)
         g16 = [tl[y] + tr[y] for y in range(8)] + [bl[y] + br[y] for y in range(8)]
         # AND: a column pair inks only if BOTH halves do. OR closes the counters
-        # and drop-odd is noisier — measured, see docs/menu_text.md.
+        # and drop-odd is noisier — measured, see docs/game/menu_text.md.
         out[ch] = ["".join("#" if (g16[y][2 * x] and g16[y][2 * x + 1]) else "."
                            for x in range(8)) for y in range(CAP_H)]
     return out
@@ -259,7 +259,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["sheet", "text", "export"])
     ap.add_argument("arg", nargs="?", default="")
-    ap.add_argument("--out", default=os.path.join(REPO, "docs", "halfwidth_caps.json"))
+    ap.add_argument("--out", default=os.path.join(REPO, "docs", "project", "halfwidth_caps.json"))
     a = ap.parse_args()
     glyphs, prov = alphabet()
     missing = [c for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" if c not in glyphs]

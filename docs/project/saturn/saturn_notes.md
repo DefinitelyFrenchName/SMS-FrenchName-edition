@@ -10,7 +10,7 @@ or [L] (vendor Lua). This grows into the Uranus-grade balance dossier (template 
 - charID **10 (0x0A)**; loads into a live match via the standard char-select pokes
   (`$1B40=10`) — measured 2026-07-30. Struct at `$7E:1000` behaves exactly like SMS
   (act/step/pos/HP/box indices/ACS offsets all live).
-- Box tables (extracted, `docs/saturn/supers_all_boxes.json`): **30 hit boxes**
+- Box tables (extracted, `docs/project/saturn/supers_all_boxes.json`): **30 hit boxes**
   (`$AF:EC3A`), **93 hurt pairs** (`$AF:ED2A`), **6 collision** (`$AF:F2FA`).
   Same 8-byte box format as SMS.
 - Manifest `$E0:AC6A`: **first_hit_defense = 1** (SMS: only Jupiter=1, Neptune=2),
@@ -245,7 +245,7 @@ Field report: the name under the health bar is always the SHELL character's, not
 Saturn's.
 
 **Found statically, no emulator involved.** Nameplate letters are tile ids with
-A = `$70` (docs/annotations.md), so each name is a searchable byte string. All
+A = `$70` (docs/game/annotations.md), so each name is a searchable byte string. All
 nine appear at a fixed stride:
 
     TABLE at file $D8BA = SNES $C0:D8BA — 9 records of 12 bytes, zero-padded,
@@ -418,13 +418,13 @@ index 0. Those two slots are also the only free ones in reach, since X is 8-bit
 at the read.
 
 **The glyph problem does not exist.** The prediction was that `SATURN` would show
-gaps, because `docs/annotations.md` recorded the nameplate font as
+gaps, because `docs/game/annotations.md` recorded the nameplate font as
 matchup-loaded. Measured instead — all 26 letter tiles carry glyph data in every
 shell's matchup — and corroborated independently by the rendered frame: she reads
 `SATURN` on a **Neptune** shell versus Jupiter, where neither displayed name
 contains an `S` or an `A`. The old note was an inference from "G is in no
 character's name", which is a true fact with a false conclusion attached.
-`docs/annotations.md` is corrected.
+`docs/game/annotations.md` is corrected.
 
 **Verified, 1P-vs-COM:**
 

@@ -1,7 +1,7 @@
 -- probe_sms_menurows.lua — establish the title-menu row -> game-mode ($7E:008D)
 -- map from the game itself, and which char-select nav routine each row uses.
 --
--- Why this matters: `docs/annotations.md` carries BOTH "0=VS, 1=Story" and "VS
+-- Why this matters: `docs/game/annotations.md` carries BOTH "0=VS, 1=Story" and "VS
 -- 1P-vs-2P = 01", and the Saturn story guard is a `$8D == 1` test — so if the
 -- second reading is the right one, that guard blocks 2P VS and leaves story wide
 -- open, which is exactly the pair of field bugs 2 and 3.

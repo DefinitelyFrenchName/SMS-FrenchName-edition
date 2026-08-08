@@ -16,7 +16,7 @@
 -- Method: hook writes to the DSP's KON register ($4C) and, for every voice keyed
 -- on, read back that voice's SRCN ($x4) and PITCH ($x2/$x3). Voice samples live
 -- in directory entries 48-63 (P1 $B700 = 48-55, P2 $DB00 = 56-63, see
--- docs/saturn/sound_scope.md), so SRCN >= 48 filters her voice out of the music.
+-- docs/project/saturn/sound_scope.md), so SRCN >= 48 filters her voice out of the music.
 --
 --   SHELL_ID=6 ROM=<saturn build> tools/run.sh tools/saturn/probe_sms_voicepitch.lua 600
 -- envs: SHELL_ID (6/7/8 — the shell she wears), SATURN=0 (no transform, reference),

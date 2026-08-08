@@ -233,7 +233,7 @@ local STEPS = {
   end,
 }
 
--- Targets settled by the maintainer (docs/saturn/sound_scope.md): in-fight
+-- Targets settled by the maintainer (docs/project/saturn/sound_scope.md): in-fight
 -- voices $0345 (6539 Hz), select line $03E4 (7781 Hz). TOL is not slack for a
 -- shaky measurement — the driver INTERPOLATES between semitone-table entries and
 -- rounds, so a transposed note lands within an LSB or two of the ideal value.

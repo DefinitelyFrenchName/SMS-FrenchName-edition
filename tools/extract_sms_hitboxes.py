@@ -8,7 +8,7 @@ hash it claimed to verify).
 
 Characters are charID 1..9 (Moon..Chibimoon). ID 10 "Saturn" is Sailor Moon Super S
 data — NOT in this game; earlier versions invented an entry for her from projectile
-table bytes (issue #38), which is why old copies of docs/sms_all_boxes.json carry a
+table bytes (issue #38), which is why old copies of docs/game/sms_all_boxes.json carry a
 bogus "Saturn" key.
 """
 import sys, json

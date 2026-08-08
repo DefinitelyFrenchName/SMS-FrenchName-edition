@@ -6,7 +6,7 @@
 -- all 192 menu captures found it blank in every one — but that is EVIDENCE, not
 -- proof: the captures only cover the screens the survey visited. This project has
 -- already been burned once by a region that passed "nothing points at it" and was
--- still live (the ARAM candidate in docs/saturn/memory_and_shell.md), so the same
+-- still live (the ARAM candidate in docs/project/saturn/memory_and_shell.md), so the same
 -- question gets asked properly here.
 --
 -- Two mechanisms, because either alone can lie:

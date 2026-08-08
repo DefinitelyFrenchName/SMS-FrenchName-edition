@@ -5,7 +5,7 @@ Target chosen by the maintainer: **stage 2, the space-time door** — the one
 stage tournaments only play by mutual agreement, so it is the cheapest slot to
 lose and the best long-term removal candidate.
 
-How SMS loads a stage (all verified live, see docs/saturn/supers_assets.md):
+How SMS loads a stage (all verified live, see docs/project/saturn/supers_assets.md):
 
     $7E:008E          scene id * 2
     $E0:017A + id*2   -> scene script: [record ids ... $FF][palette ids ... $FF]
@@ -200,7 +200,7 @@ SUPERS_STAGES = {
 # fighters stay in front of everything.
 # (MERGE_GROUND / STRIP_PRIORITY — the re-cut experiments — were removed with
 # their code, #70: superseded by porting $8F, which composes the stage with
-# Super S's own priority bits. History: docs/saturn/supers_assets.md #43.)
+# Super S's own priority bits. History: docs/project/saturn/supers_assets.md #43.)
 
 # PLANE SPLIT (2026-08-03, field round 2 on #43). Measured on Super S itself
 # (probe_supers_stagejump.lua): at a jump apex its palace band moves +4 px while

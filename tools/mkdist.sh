@@ -14,7 +14,7 @@ FILES=(
   tools/training/
   traces/venus_vs_jupiter_clean.mss traces/jupiter_vs_venus_clean.mss
   traces/uranus_vs_jupiter_v07.mss traces/uranus_vs_jupiter_tm.mss
-  docs/training_install.md docs/training_usage.md
+  docs/project/training_install.md docs/project/training_usage.md
   HANDOFF.md
 )
 # HANDOFF.md is sms_env.lua's root marker — required for path discovery in an extract.

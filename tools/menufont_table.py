@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """menufont_table.py — the menu font's glyph-code -> character table.
 
-docs/saturn/movelist.md recorded "Still missing: the code -> glyph table"; this
+docs/project/saturn/movelist.md recorded "Still missing: the code -> glyph table"; this
 is it. Read off rendered contact sheets (tools/menufont.py sheet) and then
 VALIDATED by decoding a real screen tilemap through it and checking the result
 against the strings the game is known to show (see `menufont.py decode-map`).
@@ -91,7 +91,7 @@ KANJI = {
 # labels are set in. Verified by rendering every glyph in both blocks.
 # F is NOT missing: it sits at kana block $228 (VRAM $2C8), after the second
 # digit run, and a side-by-side render against B/E/H shows the same stroke
-# weight and cap height — it sets as part of the alphabet. docs/menu_text.md had
+# weight and cap height — it sets as part of the alphabet. docs/game/menu_text.md had
 # listed it missing, from a survey that never rendered the digit run.
 # So the full-width alphabet has 22 of 26; four must be authored.
 MISSING = ("J", "Q", "S", "Z")

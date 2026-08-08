@@ -208,7 +208,7 @@ See HANDOFF.md §4 for the harness.
 - `training/dummy.lua` — composable dummy behavior layers for the non-swapped player (default P2).
 - `training/framedata.lua` — per-frame class tagging, move-instance tracking (startup/active/recovery),
 - `training/gamestate.lua` — per-frame RAM snapshot of both fighters (+ projectile slots) and the
-- `training/hitbox_h.lua` — GENERATED from docs/sms_all_boxes.json (attack-box heights per charID).
+- `training/hitbox_h.lua` — GENERATED from docs/game/sms_all_boxes.json (attack-box heights per charID).
 - `training/hud.lua` — draw dispatcher + surface helpers. Other hud_* modules call M.hudSurface()
 - `training/hud_bar.lua` — the SF6-style frame meter (ScriptHud only).
 - `training/hud_boxes.lua` — hitbox/hurtbox/collision overlay on the ConsoleScreen surface (aligns
@@ -481,7 +481,7 @@ See HANDOFF.md §4 for the harness.
 - `menufont_table.py` — the menu font's glyph-code -> character table.
 - `menuscreen_probe.lua` — for a given menu screen: which FONT SHEET it uploads to
 - `menutext_check.py` — validate proposed menu/stage strings against the font and
-- `mkarchpage.py` — Render docs/sms_data_architecture.md's diagrams as a standalone HTML page.
+- `mkarchpage.py` — Render docs/game/sms_data_architecture.md's diagrams as a standalone HTML page.
 - `mkhalfwidth.py` — build a half-width (8x16) Latin alphabet for patch 16 from
 - `smoke.lua` — smoke test: boot ROM, run 120 frames, read some WRAM, exit with code 42
 - `te_halfwidth.py` — harvest the Tournament Edition's HALF-WIDTH Latin font.

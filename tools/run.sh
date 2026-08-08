@@ -32,7 +32,7 @@ if [ -z "${MESEN:-}" ]; then
   esac
 fi
 [ -x "$MESEN" ] || { echo "run.sh: Mesen not found or not executable at $MESEN" >&2
-                     echo "        set MESEN=/path/to/mesen (see docs/toolchain.md)" >&2; exit 1; }
+                     echo "        set MESEN=/path/to/mesen (see docs/project/toolchain.md)" >&2; exit 1; }
 # NB the old --debug.scriptWindow.scriptTimeout=300 flag is gone: measured 2026-08-06
 # (issue #52), it has NO effect under --testrunner — every Lua entry (script load and
 # each callback) is capped at a hard 1 second whatever value is passed, so the flag

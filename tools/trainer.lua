@@ -51,7 +51,7 @@
 --   (it may not match Dustloop's printed number, which uses a different hitstop/cancel
 --   convention) — but it's exact and consistent, so it's the right tool for A/B'ing your
 --   own timings (is this + or - on block? did tightening a link change the advantage?).
--- Reads/labels from docs/annotations.md; structs P1 $7E:1000, P2 $7E:1080.
+-- Reads/labels from docs/game/annotations.md; structs P1 $7E:1000, P2 $7E:1080.
 
 --------------------------------------------------------------------------------
 local WRAM = emu.memType.snesWorkRam
@@ -59,7 +59,7 @@ local function r(a) return emu.read(a, WRAM) end
 local function w(a, v) emu.write(a, v, WRAM) end
 local P1, P2 = 0x1000, 0x1080
 
--- action-id -> short label (universal states + Uranus specifics; from docs/annotations.md)
+-- action-id -> short label (universal states + Uranus specifics; from docs/game/annotations.md)
 local NAME = {
   [0x00]="neutral",[0x01]="walk>",[0x02]="walk<",[0x03]="crouch",[0x04]="crouch",
   [0x05]="jump^",[0x06]="jumpUp",[0x07]="jump>",[0x08]="jump<",[0x09]="land",

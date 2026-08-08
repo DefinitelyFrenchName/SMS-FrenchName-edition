@@ -7,15 +7,15 @@ game, not just look up an address.
 
 **How it relates to the other docs** (read in this order for a new topic):
 - **This file** — how a subsystem *works* and *why*, with the load-bearing addresses inline.
-- `docs/sms_data_architecture.md` — **where the data LIVES and what SHAPE it is**: the four
+- `docs/game/sms_data_architecture.md` — **where the data LIVES and what SHAPE it is**: the four
   memory maps (ROM/WRAM/VRAM/ARAM), the object struct byte by byte, and the record formats
   the engine walks. Read it when the question is "where would that be stored?".
-- `docs/annotations.md` — the flat address→label reference (the "phone book"). Every address
+- `docs/game/annotations.md` — the flat address→label reference (the "phone book"). Every address
   here is (or should be) there too; that file is the source of truth for exact addresses.
-- `docs/sms_uranus_rom_map.md` — the original verified ROM map ("the bible"), terse.
-- `docs/patch_notes.md` — per-patch detail (what each patch changed and why; the count grows — docs/patch_index.md is the registry).
-- `docs/sms_all_boxes.json` — extracted per-character/​object hit/hurt/coll box tables.
-- `docs/sms_acs_system.md` — the A.C.S. stat system, damage matrix and misfire mechanic, complete.
+- `docs/game/sms_uranus_rom_map.md` — the original verified ROM map ("the bible"), terse.
+- `docs/project/patch_notes.md` — per-patch detail (what each patch changed and why; the count grows — docs/project/patch_index.md is the registry).
+- `docs/game/sms_all_boxes.json` — extracted per-character/​object hit/hurt/coll box tables.
+- `docs/game/sms_acs_system.md` — the A.C.S. stat system, damage matrix and misfire mechanic, complete.
 
 **Ground truth.** Clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`, **HiROM +
 FastROM**, headerless. **File offset = SNES address & 0x3FFFFF.** Banks $C0–$FF map to file
@@ -220,7 +220,7 @@ nothing reads their hurtbox), but **any tool that draws a projectile's hurt/coll
 it** or it renders a flickering phantom from garbage (this bit the hitbox viewer; fixed by
 drawing only the hit box for ids ≥ 10).
 
-`docs/sms_all_boxes.json` holds the extracted tables (all 9 fighters complete). Live reads:
+`docs/game/sms_all_boxes.json` holds the extracted tables (all 9 fighters complete). Live reads:
 `$8A0000 + read16($8A:C1F1 + id*2)` gives the hit-table base.
 
 ---
@@ -268,7 +268,7 @@ drawing only the hit box for ids ≥ 10).
   into the animation (both 9 — the bonus is flat across the act, startup AND recovery).
   It ENDS when the move chains into the universal recovery act 0x2A: hitting that tail
   deals plain damage (6). Magnitude: exactly **−2 damage-matrix columns** (proven by
-  read-watching the matrix at $80:D07B — see docs/sms_damage_system.md §3; the percent
+  read-watching the matrix at $80:D07B — see docs/game/sms_damage_system.md §3; the percent
   effect varies with row curvature, ≈+30-70%); the apply site/PC is unchanged, so it is
   a modifier input, not a separate table. The matrix itself is 64×16 (file
   0xD081-0xD480), row 48 = the shared single-hit desperation row. Practical reading: "punishing" a whiffed move is rewarded
@@ -374,7 +374,7 @@ Mercury $38EE/…, Mars $4925/…, Jupiter $5A07/…, Venus $6C53, Uranus $7B59/
 ### Which throw comes out, and which way it goes (measured 2026-08-05)
 
 Both questions are answered by **data**, which is why a character can ship with them
-wrong (Saturn did — see `docs/saturn/BUILDS.md` 0.16.0).
+wrong (Saturn did — see `docs/project/saturn/BUILDS.md` 0.16.0).
 
 **Selection — `$C1:055A`.** A character's proc calls it with `Y` = the address of a
 **4 × 8-byte table, one record per attack button**. The routine derives a button index
@@ -464,7 +464,7 @@ Holding down-back = `$5F = 0x04|back-bit` where back is 0x01 (Right) if P2.x ≥
 0x02. Zeroing P1's `$5C/$5D` at the same point "eats" the pad invisibly (used by patch 11's
 menu; note the release-edge leak when you stop eating — hold the eat 2 extra frames).
 
-Patch 11 (`tools/mkpatch11.py`, `docs/trainingplus.md`) builds the full in-ROM trainer on
+Patch 11 (`tools/mkpatch11.py`, `docs/project/trainingplus.md`) builds the full in-ROM trainer on
 these facts: L+R menu, dummy layers, native damage switch, no-KO refill, WMDATA recording
 ring, input/advantage displays — hooks at `$80:8373` + `$80:D574`, state in `$7F:F000+`.
 
@@ -573,9 +573,9 @@ patch 10 transliterates the same logic into 65816 and is validated *against* the
 | In-ROM combo/labels | hooks above + WRAM `$0900+`, CHR 0xC7 | 10 | `mkpatch10.py`, `hudfont.py`, `perf_patch10.lua`, `test_labels.lua` |
 | Practice mode / in-ROM trainer | `$80:8373`, `$80:D574`, `$008D` 4↔5, `$0070`, `$01FA`, `$7F:E000/F000`, TM `$212C` | 11 | `mkpatch11.py`, `probe_p11_*.lua`, `test_p11_tier1.lua`, `perf_patch11.lua` |
 | Taunt / ochame misfire | `$C1:0B49`, RNG `$0090`, roll `$C1:0AB9`, act `0x27` | 12 | `mkpatch12.py`, `test_p12_taunt.lua` |
-| Damage apply + Guts | 8 apply sites in `$C0` (§6), throw sites `$C1:082F/084D`, matrix `$C0:D081`, state `$7F:F800+` | 13, 14 | `mkpatch13/14.py`, `test_p13_guts.lua`, `probe_p13_timeout.lua`, `docs/sms_damage_system.md` |
-| Front-end menus / asset pipeline | job table `$C3:BE08` (`[vram16][len16][src24][dest24]`), uploader `$C0:92D2`, decompress `$80:927D`, clusters `$C3:A4DD`/`AF8A`/`9CF2`, bank-`$DF` screen engine `$DF:83CE`, config dispatcher `$C3:BB60` | 15, 16, 17, 18 | `mkpatch15/16/17/18.py`, `menufont.py`, `probe_p16_*.lua`, `probe_acs_select.lua`, `docs/menu_text.md` |
-| A.C.S. stats | `$1C02`, menu state `$8A`, wheel cluster `$C3:9CF2` | 18 (removal) | `docs/sms_acs_system.md`, `probe_acs_select.lua` |
+| Damage apply + Guts | 8 apply sites in `$C0` (§6), throw sites `$C1:082F/084D`, matrix `$C0:D081`, state `$7F:F800+` | 13, 14 | `mkpatch13/14.py`, `test_p13_guts.lua`, `probe_p13_timeout.lua`, `docs/game/sms_damage_system.md` |
+| Front-end menus / asset pipeline | job table `$C3:BE08` (`[vram16][len16][src24][dest24]`), uploader `$C0:92D2`, decompress `$80:927D`, clusters `$C3:A4DD`/`AF8A`/`9CF2`, bank-`$DF` screen engine `$DF:83CE`, config dispatcher `$C3:BB60` | 15, 16, 17, 18 | `mkpatch15/16/17/18.py`, `menufont.py`, `probe_p16_*.lua`, `probe_acs_select.lua`, `docs/game/menu_text.md` |
+| A.C.S. stats | `$1C02`, menu state `$8A`, wheel cluster `$C3:9CF2` | 18 (removal) | `docs/game/sms_acs_system.md`, `probe_acs_select.lua` |
 
 **Builders** `tools/mkpatch{,2..18}.py` (all take `(src,out)` positionals and stack on any
 input; every stacked step needs `--stacked` since 2026-07-30). The 100-series (Saturn) is

@@ -34,7 +34,7 @@
 -- desperation, 0.11.3 win screen, 0.14.7-0.14.9 throws incl. command grabs), and
 -- P2 can be Saturn too (P2_ALSO below, or L+R on pad 2). Parked, not gaps:
 -- approximate sfx mapping, shell-dependent voice pitch, and balance —
--- docs/saturn/PROJECT.md "Parked".
+-- docs/project/saturn/PROJECT.md "Parked".
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/../sms_env.lua")
 local P2_ALSO = false   -- set true for a Saturn MIRROR match (P2 transforms too;
                         -- P2's fireball art + palette use P2 slots automatically)

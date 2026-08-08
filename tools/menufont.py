@@ -2,7 +2,7 @@
 """menufont.py — the menu font, as data: compose its 16x16 glyphs and render a
 labelled contact sheet so the code -> character table can be read off and fixed.
 
-Why this exists: docs/saturn/movelist.md records "Still missing: the code -> glyph
+Why this exists: docs/project/saturn/movelist.md records "Still missing: the code -> glyph
 table", and every part of patch 16 (menu translation) needs it — you cannot
 inventory a screen's strings, budget a translation, or author a replacement
 without knowing which glyph code draws which character. This builds it once.

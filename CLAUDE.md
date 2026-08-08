@@ -4,9 +4,9 @@
 > — 17 patches + 2 variants (balance, training mode, taunts/Guts, menu/config edits), plus the
 > 100-series: **Sailor Saturn ported in from Super S**. What ships is `release/` **Rev. S-02**
 > and **Rev. SS-02**. The only ACTIVE work item is **patch 16, menu translation**
-> (`docs/menu_text.md`).
-> Before doing anything, read `HANDOFF.md` (operational map), `docs/NEXT_SESSION.md`
-> (60-second orientation), `docs/patch_index.md` (registry), and `docs/patch_notes.md`
+> (`docs/game/menu_text.md`).
+> Before doing anything, read `HANDOFF.md` (operational map), `docs/project/NEXT_SESSION.md`
+> (60-second orientation), `docs/project/patch_index.md` (registry), and `docs/project/patch_notes.md`
 > (per-patch detail). The sections below are the original brief, kept for history.**
 
 ## Objective (REVISED 2026-07-10 — supersedes the 2LP wording below)
@@ -24,12 +24,12 @@ crouching-jab infinite is no longer bufferable: increase the recovery of her
 **crouching light attack** by enough frames that the loop requires a 1-frame link.
 Deliverable = a BPS/IPS patch against the clean ROM + a writeup of what bytes changed and why.
 
-## Ground truth (verified — do NOT re-derive; details in docs/sms_uranus_rom_map.md)
+## Ground truth (verified — do NOT re-derive; details in docs/game/sms_uranus_rom_map.md)
 - Clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`, HiROM+FastROM,
   headerless, file offset = SNES addr & 0x3FFFFF.
 - Characters: 1 Moon … **6 Uranus** … 9 Chibimoon. (10 "Saturn" = Super S carry-over,
   **not in the clean ROM** — no assets, which is why the extractors stop at 9. She IS
-  playable in the **Rev. SS** builds, ported from Super S: `docs/saturn/`.)
+  playable in the **Rev. SS** builds, ported from Super S: `docs/project/saturn/`.)
 - Player structs: P1 `$7E:1000`, P2 `$7E:1080` (0x80 bytes).
   +0x00 charID, +0x01 actionID, +0x02 step, +0x06/07 tick/frame,
   +0x40 hitbox idx, +0x41 hurtbox idx, +0x42 collision idx,
@@ -56,7 +56,7 @@ Deliverable = a BPS/IPS patch against the clean ROM + a writeup of what bytes ch
 - Disassembler: pelrun/Dispel — vendored at tools/Dispel/, build once with
   `cc -O2 -o dispel main.c 65816.c`. (An earlier tools/disasm65816.py no longer exists;
   tools/asm65816.py is the assembler, not a disassembler.)
-- Maintain docs/annotations.md (address → label/comment). Commit after each finding.
+- Maintain docs/game/annotations.md (address → label/comment). Commit after each finding.
 - Never patch the ROM in place; generate patches via flips (BPS) from build/.
 - All timing claims must be validated by frame-advance in emulator, not inferred.
 - The engine processes attacks starting the frame AFTER action start (per Lua comments);
@@ -71,13 +71,13 @@ Deliverable = a BPS/IPS patch against the clean ROM + a writeup of what bytes ch
 3. Verified in-emulator: (a) the old bufferable timing no longer connects,
    (b) a frame-perfect re-press still does (infinite becomes 1f link, not removed),
    (c) no side effects on her other moves (scripts may share data/pointers).
-4. BPS patch + docs/patch_notes.md documenting every changed byte.
+4. BPS patch + docs/project/patch_notes.md documenting every changed byte.
 
 ## Reference material
-- docs/sms_engine_internals.md — **how the engine works, by subsystem** (the synthesis; start here to understand/modify the game)
-- docs/sms_data_architecture.md — **where the data lives and what shape it is** (four memory maps, the object struct, the record catalogue)
-- docs/sms_uranus_rom_map.md — full verified ROM map (this project's bible)
-- docs/sms_all_boxes.json + tools/extract_sms_hitboxes.py
+- docs/game/sms_engine_internals.md — **how the engine works, by subsystem** (the synthesis; start here to understand/modify the game)
+- docs/game/sms_data_architecture.md — **where the data lives and what shape it is** (four memory maps, the object struct, the record catalogue)
+- docs/game/sms_uranus_rom_map.md — full verified ROM map (this project's bible)
+- docs/game/sms_all_boxes.json + tools/extract_sms_hitboxes.py
 - vendor/sms-training-mode/ — sprntgd's Lua (RAM map source) & WLA-DX hook examples;
   its color-edit patcher shows a working ROM-expansion/hook workflow if in-place
   editing proves too tight. The Big Zam hack proves hook-based balance edits work.

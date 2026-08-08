@@ -15,7 +15,7 @@ melee paths (class-check the other fighter) and 4 projectile paths (always speci
 The native ACS stat +0x73 (buff_special) genuinely scales special damage but only
 UPWARD from the VS default of 0 — a nerf below baseline needs these hooks.
 
-Ground truth (probe-verified, docs/annotations.md "patch 13 RE"):
+Ground truth (probe-verified, docs/game/annotations.md "patch 13 RE"):
   * Strike/chip damage applies at 8 IDENTICAL sites in bank $C0: `lda $0049,Y / sec /
     sbc $00 / sta $0049,Y` — Y = defender struct, damage staged in DP $00, D = 0.
     Chip flows through the same sites (blocked normals stage 0).

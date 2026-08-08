@@ -1020,7 +1020,7 @@ bounded by the scripted window (900 frames, practice mode, one shell).
 ## SHIPPED AS PATCH 101 — ON BY DEFAULT (registry synced 2026-08-05) [P 08-04]
 
 Implemented as `SATURN_PITCH=1` on patch 100's builder — full notes, verification
-table and the two traps in `docs/patch_notes.md` "Patch 101". Two things learned
+table and the two traps in `docs/project/patch_notes.md` "Patch 101". Two things learned
 here that generalise beyond this patch:
 
 * **An extra IPL upload at character load phase-shifts the audio timeline.** The

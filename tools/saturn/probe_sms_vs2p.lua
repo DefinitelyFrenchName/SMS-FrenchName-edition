@@ -74,7 +74,7 @@ end, emu.eventType.inputPolled)
 
 -- TWO PADS: P1 confirms its own cursor, P2 confirms its own. The cursors are
 -- poked for the whole load — a one-shot poke is undone by the second selection
--- screen that reuses $1B40 (see docs/saturn/BUILDS.md v0.14.5).
+-- screen that reuses $1B40 (see docs/project/saturn/BUILDS.md v0.14.5).
 local function poke()
   wr(0x1B40, SHELL); wr(0x1B80, OPP)
 end

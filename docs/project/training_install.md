@@ -25,8 +25,8 @@ tools/training/             <- the module package (all required)
 tools/training_test.lua     <- headless self-test harness (optional, for development)
 tools/training_test_cfg.lua <- selects which self-test runs (optional)
 traces/                     <- recordings + settings are saved here at runtime
-docs/training_install.md    <- this file
-docs/training_usage.md      <- commands & usage reference
+docs/project/training_install.md    <- this file
+docs/project/training_usage.md      <- commands & usage reference
 ```
 
 ## Recommended paths

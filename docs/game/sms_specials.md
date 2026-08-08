@@ -213,7 +213,7 @@ criterion (GC-able ⇔ special), Shadow Dash is a full special move.
 - Shadow Dash is the cancel target of the 2HP infinite — the whole reason this project
   exists. Patch 1 gates the 2HP-recovery→dash cancel; patch 5 shortens the dash to
   82px (−1/3, from 121px — the builder constant `0x0640` is the source of truth);
-  patch 6 optionally adds dash i-frames. See docs/patch_notes.md.
+  patch 6 optionally adds dash i-frames. See docs/project/patch_notes.md.
 - Wiki lists dash startup 1 — consistent (movement begins on the first act frames).
 
 ### 2HK — sliding sweep (command normal, character-specific slide)

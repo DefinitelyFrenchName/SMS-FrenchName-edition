@@ -85,7 +85,7 @@ def dir_blob(entries, base=DEST):
 
     `base` is where the bank actually lands: $B700 for P1, $DB00 for P2 (the
     game gives each fighter its own copy of the same samples — see
-    docs/saturn/sound_scope.md). Each sample is a one-shot, so the loop pointer
+    docs/project/saturn/sound_scope.md). Each sample is a one-shot, so the loop pointer
     is never reached; the vanilla records still fill it with the sample's end,
     and we match that convention.
     """

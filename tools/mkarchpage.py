@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Render docs/sms_data_architecture.md's diagrams as a standalone HTML page.
+"""Render docs/game/sms_data_architecture.md's diagrams as a standalone HTML page.
 
-The visual companion to `docs/sms_data_architecture.md`: the same material, with
+The visual companion to `docs/game/sms_data_architecture.md`: the same material, with
 the memory maps drawn rather than described. Writes an HTML file (default next
 to this script; pass a path to place it elsewhere) which is published as an
 Artifact — it is self-contained, so it also just opens in a browser.
@@ -461,7 +461,7 @@ def build(sections_html):
 <footer class="col">
   <p>Every address here was measured against the clean Japanese ROM
   <code>bc0e29ee…</code>, HiROM+FastROM, headerless. Companion to
-  <code>docs/sms_data_architecture.md</code> in the repo, which carries the same
+  <code>docs/game/sms_data_architecture.md</code> in the repo, which carries the same
   material as text.</p>
   <p>The page is coloured in Sailor Uranus's own sixteen colours, read out of the
   cartridge at <code>$E0:06BE</code>:</p>

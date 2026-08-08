@@ -5,7 +5,7 @@ Injects Saturn's three animation layers + a benign engine hook into a clean SMS 
 so that an object with her new id animates idle/walk in a live match (poked by
 tools/saturn/probe_sms_saturn_smoke.lua — she is NOT on the char select).
 
-Design (docs/saturn/supers_map.md §pipeline + §Character architecture):
+Design (docs/project/saturn/supers_map.md §pipeline + §Character architecture):
   * Saturn takes OBJECT ID 0x1C (28) — free in SMS's object-id namespace
     ($C0:0000 script-table ids 28..47 are zero; ids 10-27 are projectiles).
   * The three data layers can't extend in place (tables end flush against data),
@@ -43,7 +43,7 @@ import asm65816 as A  # noqa: E402  (two-pass assembler for the char-select/win/
 import mkpatch17  # noqa: E402  (patch 17, folded in — see SATURN_ALLSTAGES)
 
 # Build version (semver). Bump MINOR per feature batch, PATCH per fix; registry
-# with per-version contents + ROM SHAs: docs/saturn/BUILDS.md. The version is
+# with per-version contents + ROM SHAs: docs/project/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
 SATURN_VERSION = "0.16.1"
@@ -212,7 +212,7 @@ EF_TRAMP3 = 0xDA60      # v0.11.8: the id-routing trampoline outgrew its old
 # silent otherwise. Normals' whooshes were script CMD steps: the interpreter CMD
 # back-port that restores them landed in v0.7.0 (audit immediately below), so
 # scripts are CMD-intact. What remains is only that the id->sfx MAPPING is
-# approximate — parked, not open: docs/saturn/PROJECT.md "Parked".
+# approximate — parked, not open: docs/project/saturn/PROJECT.md "Parked".
 SND_MAP = {0x0E: 0x06, 0x20: 0x06}   # her special-move command ids -> SMS heavy whoosh
 EF_SND = 0xDB50
 # Interpreter CMD back-port: the SMS interpreter lacks Super S's 0xC0 command
@@ -256,7 +256,7 @@ SATURN_VOICE = os.environ.get("SATURN_VOICE") != "0"
 SATURN_PITCH = os.environ.get("SATURN_PITCH", "1") != "0"
 #
 # How SMS voices a fighter (all measured — probe_sms_voiceload / voiceid /
-# voicetrace; full write-up in docs/saturn/sound_scope.md):
+# voicetrace; full write-up in docs/project/saturn/sound_scope.md):
 #
 #   * Each player gets a private BRR bank in ARAM: P1 at $B700, P2 at $DB00
 #     (delta $2400). Both are uploaded at match start from table $C0:ECE7,
@@ -359,7 +359,7 @@ V_SELHOOK, V_WHO1, V_WHO2 = 0x3300, 0x3360, 0x3380
 # --- PATCH 101: voice PITCH correction (SATURN_PITCH=1) ----------------------
 # Her samples are natively ~6539 Hz and play at Moon's notes, so she is sharp.
 # Pitch in this driver is per-sound NOTE data: each sound id's sequence carries a
-# TRANSPOSE byte, one semitone per unit (full decode in docs/saturn/sound_scope.md
+# TRANSPOSE byte, one semitone per unit (full decode in docs/project/saturn/sound_scope.md
 # "SOLVED (mechanism + measured fix)"). Her four ids all want $FB, measured: the
 # retune lands every voice on $0346 against the settled $0345 target.
 #
@@ -395,7 +395,7 @@ PITCH_DP_BIAS_P2 = 0x0010
 # exactly at $E0:0238, the manifest pointer table), which is why this is a hook.
 # Her tilemap is authored by tools/saturn/mkmovelist.py and compressed with
 # tools/saturn/sms_lz.py — Super S does not share this codec, so it cannot be
-# lifted; see docs/saturn/movelist.md.
+# lifted; see docs/project/saturn/movelist.md.
 SITE_ML_P1 = 0x008B59
 SITE_ML_P2 = 0x008B81
 ML_OLD = bytes.fromhex("BF1C02E0")
@@ -996,7 +996,7 @@ cmdret:{_setret(0xA076)}
         #   row 0 -> $8D=00  ONE cursor, roster 1-5 only          = STORY
         #   row 1 -> $8D=01  TWO independent cursors, full roster = 2P VS
         #   row 2 -> $8D=02  one cursor + fixed opponent          = 1P vs COM
-        # docs/annotations.md carried both readings ("0=VS, 1=Story" and "VS
+        # docs/game/annotations.md carried both readings ("0=VS, 1=Story" and "VS
         # 1P-vs-2P = 01"); the first was wrong and is now corrected there.
         story = f"""
   lda_dp $8D

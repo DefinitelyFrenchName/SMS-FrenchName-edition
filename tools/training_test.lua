@@ -63,7 +63,7 @@ tests.T1 = {
   },
 }
 
--- T2: Uranus 2LP on hit (clean-ROM state; oracle: docs/annotations.md + Dustloop).
+-- T2: Uranus 2LP on hit (clean-ROM state; oracle: docs/game/annotations.md + Dustloop).
 -- S/A/R are press-parity independent; expect S4 A5 R4, adv +6, defender hitstun.
 tests.T2 = {
   STATE = "uranus_vs_jupiter_tm.mss",

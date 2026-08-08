@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Extract Sailor Saturn's complete data unit from Super S — the Route A port bundle.
 
-Pulls every DATA component the SMS port needs (docs/saturn/supers_map.md has the
-decoded systems; docs/saturn/saturn_notes.md the dossier) into build/saturn/unit/
+Pulls every DATA component the SMS port needs (docs/project/saturn/supers_map.md has the
+decoded systems; docs/project/saturn/saturn_notes.md the dossier) into build/saturn/unit/
 as raw .bin blobs + manifest.json (addresses, sizes, sha1s, rebase rules).
 ROM-derived output stays in build/ (gitignored) — never commit the bundle.
 
@@ -254,7 +254,7 @@ def main():
         "what": "Sailor Saturn data unit extracted from Super S (Route A port bundle)",
         "source_rom_sha1": SUPERS_SHA1, "char_id": CID,
         "extracted_by": "tools/saturn/extract_saturn_unit.py",
-        "docs": ["docs/saturn/supers_map.md", "docs/saturn/saturn_notes.md"],
+        "docs": ["docs/project/saturn/supers_map.md", "docs/project/saturn/saturn_notes.md"],
         "components": comps, "notes": notes, "total_bytes": total,
     }
     (outdir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")

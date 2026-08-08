@@ -7,7 +7,7 @@ them, which is what this module ends. Argument plumbing and output shapes
 stay per-tool — only the primitives live here (maintainer's dedup rule,
 smspaths.py).
 
-Box format (docs/sms_uranus_rom_map.md): 8 bytes
+Box format (docs/game/sms_uranus_rom_map.md): 8 bytes
   [x_off_r, w_r, x_off_l, w_l, y_off, h, flags, ?]
 y_off negative = above the feet (origin at feet, +y down).
 """

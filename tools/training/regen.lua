@@ -40,7 +40,7 @@ function M.init(ctx)
 
   -- HUD tilemap (BG3, word $1000). Each HP bar = 12 cells x 2 rows; a full cell references
   -- the solid bar tile under palette $64. P2 bar: top cells $1072-$107D, bottom $1092-$109D
-  -- (P1: top $1062-$106D, bottom $1082-$108D). See docs/sms_engine_internals.md §4.
+  -- (P1: top $1062-$106D, bottom $1082-$108D). See docs/game/sms_engine_internals.md §4.
   local function fullBar(topL, botL, topTile, botTile)
     for i = 0, 11 do
       local tw, bw = (topL + i) * 2, (botL + i) * 2

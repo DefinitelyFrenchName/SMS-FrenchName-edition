@@ -2,7 +2,7 @@
 -- character name under the health bar), which currently shows the SHELL's name
 -- when Saturn is playing.
 --
--- Known ground (docs/annotations.md, sms_engine_internals.md): the HUD is BG3,
+-- Known ground (docs/game/annotations.md, sms_engine_internals.md): the HUD is BG3,
 -- tilemap base VRAM word $1000; row 5 holds the nameplates (cells around $10A2);
 -- letter tile ids run A=$70 .. Z=$89, but the GLYPHS are matchup-loaded, not a
 -- resident alphabet — "G" is in no character's name.

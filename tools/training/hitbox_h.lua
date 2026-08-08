@@ -1,4 +1,4 @@
--- hitbox_h.lua -- GENERATED from docs/sms_all_boxes.json (attack-box heights per charID).
+-- hitbox_h.lua -- GENERATED from docs/game/sms_all_boxes.json (attack-box heights per charID).
 -- Regenerate: python3 snippet in this file's git history / HANDOFF training section.
 -- Index 0 = the all-zero empty box. h>0 means the box can actually hit.
 return {

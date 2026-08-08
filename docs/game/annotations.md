@@ -473,7 +473,7 @@ tools/hudfont.py (glyphs), tools/test_labels.lua (oracle), tools/perf_patch10.lu
 | ACS +0x73 buff_special | REALLY scales special damage: Neptune 214LP 8 -> 10/14/16 at stat 1/3/7 (values >7 misbehave; boost-only from the VS default 0 — cannot nerf below baseline). +0x74 (secret) showed no effect on a regular special (presumably desperation-only; untested). |
 | third throw-damage site $C1:0D61 | per-tick HOLD throws (Moon 4x5, Mars 12x2, Chibi) drain HP here; standard toss throws use $C1:083C/$C1:085E (Mercury/Jupiter/Venus/Uranus/Neptune). Pluto's grab did not trigger with fwd+HP in the census (unresolved). |
 
-## A.C.S. stat system — decoded (2026-07-18; **full reference: docs/sms_acs_system.md**)
+## A.C.S. stat system — decoded (2026-07-18; **full reference: docs/game/sms_acs_system.md**)
 
 **CORRECTS the earlier "ACS stats show no damage-time effect" note (patch 13 RE) — that
 sweep was drowned by the damage variance; reload-per-sample methodology shows real effects.**
@@ -493,7 +493,7 @@ sweep was drowned by the damage variance; reload-per-sample methodology shows re
 decaying to ≈ base/4 at col 15), **column 8 = neutral**, each column ≈ ±12%. The modifier
 is composed from stat shifts: attacker's +0x70 (normals)
 or +0x73 (specials) shift LEFT (stronger), defender's +0x71 shifts RIGHT (weaker).
-⚠ **SUPERSEDED IN TWO PLACES, corrected below and in `docs/sms_damage_system.md` §3:**
+⚠ **SUPERSEDED IN TWO PLACES, corrected below and in `docs/game/sms_damage_system.md` §3:**
 the matrix is **64x16**, not 16x16, and **there is NO RNG in damage** — what looked like
 per-hit jitter is the defender's +0x48 first-hit defense (1 column, once) plus the
 counter-hit shift (-2 columns). Damage is deterministic.
@@ -551,7 +551,7 @@ short-circuits on it, `lda $75,X / beq $0B8F`); values **1-5** give rates
   per-move base columns: Jup/Merc/Moon c8(48), Venus/Nept c9(37), Mars c10(32).
   Counter-hit = exactly -2 columns; crouch defender = -1 column (desperations);
   desperation hits show no RNG column jitter.
-- Consolidated damage reference: docs/sms_damage_system.md.
+- Consolidated damage reference: docs/game/sms_damage_system.md.
 
 ### ACS defense scope correction (maintainer review, 2026-07-18)
 - +0x71 buff_defense reduces MATRIX-path damage only. Verified at defense 7:

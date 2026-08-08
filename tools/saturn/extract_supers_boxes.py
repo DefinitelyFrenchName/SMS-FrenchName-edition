@@ -2,7 +2,7 @@
 """Extract hitbox/hurtbox/collision tables from Sailor Moon SUPER S (Zenin Sanka!!).
 
 Super S counterpart of extract_sms_hitboxes.py, using the vendor Lua's Rosetta
-constants (docs/saturn/supers_map.md): box data in bank $AF, pointer tables at
+constants (docs/project/saturn/supers_map.md): box data in bank $AF, pointer tables at
 $AF:B000 (hit) / $AF:B046 (hurt) / $AF:B05C (coll), charIDs 1..10 (10 = Sailor
 Saturn — playable in THIS game). Same 8-byte box format and interleaved per-char
 layout as SMS; the bounds-inversion guard will catch it if that assumption fails.

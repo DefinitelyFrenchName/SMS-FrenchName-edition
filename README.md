@@ -42,15 +42,15 @@ the files themselves so it cannot go stale.
 The individual patches below stay in `build/` for anyone assembling their own
 combination — see the warning in the release notes about chaining them.
 
-Setting up (what the repo does not ship, and where to get it): [docs/toolchain.md](docs/toolchain.md) — then run `tools/health.sh`.
+Setting up (what the repo does not ship, and where to get it): [docs/project/toolchain.md](docs/project/toolchain.md) — then run `tools/health.sh`.
 
-Deeper docs: [docs/patch_index.md](docs/patch_index.md) (one-line registry, status,
-lifecycle), [docs/patch_notes.md](docs/patch_notes.md) (per-patch mechanism + verification),
+Deeper docs: [docs/project/patch_index.md](docs/project/patch_index.md) (one-line registry, status,
+lifecycle), [docs/project/patch_notes.md](docs/project/patch_notes.md) (per-patch mechanism + verification),
 [HANDOFF.md](HANDOFF.md) (operational map: build, test, gotchas),
-[docs/sms_engine_internals.md](docs/sms_engine_internals.md) (how the engine works),
-[docs/sms_data_architecture.md](docs/sms_data_architecture.md) (where the data lives:
+[docs/game/sms_engine_internals.md](docs/game/sms_engine_internals.md) (how the engine works),
+[docs/game/sms_data_architecture.md](docs/game/sms_data_architecture.md) (where the data lives:
 memory maps, the object struct, the record formats).
-Training mode (pure Lua, no ROM patching): [docs/training_install.md](docs/training_install.md).
+Training mode (pure Lua, no ROM patching): [docs/project/training_install.md](docs/project/training_install.md).
 
 ## Deliverables & how they stack
 
@@ -81,7 +81,7 @@ no ROM can end up in a commit.
 | 13. Guts (Q-style taunts)                                  | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py`                 | `build/sms_tauntbuff.bps`                              | `bafb87d4…`   |
 | 14. Guts Grip **(companion to 13)**                        | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py`                 | `build/sms_gutsgrip.bps`                               | `5fadcaca…`   |
 | 15. No AUTO                                                | Removes the AUTO option from the VS button-config screen (Auto binds specials to L/R, colliding with patch 12's taunt) | `tools/mkpatch15.py`                 | `build/sms_noauto.bps`                                 | `31832e6e…`   |
-| 16. Menu translation **(EXPERIMENTAL, IN PROGRESS)**       | English menu text — a half-width A-Z built from the game's own capitals, then per-screen edits. Options, tournament select, report card, stage names, VS config, A.C.S. wheel and PLAYER SELECT are done behind build gates; the bracket VS names and the A.C.S. prompt are not. No BPS yet — see [docs/menu_text.md](docs/menu_text.md) | `tools/mkpatch16.py`                 | *(none yet)*                                           | —             |
+| 16. Menu translation **(EXPERIMENTAL, IN PROGRESS)**       | English menu text — a half-width A-Z built from the game's own capitals, then per-screen edits. Options, tournament select, report card, stage names, VS config, A.C.S. wheel and PLAYER SELECT are done behind build gates; the bracket VS names and the A.C.S. prompt are not. No BPS yet — see [docs/game/menu_text.md](docs/game/menu_text.md) | `tools/mkpatch16.py`                 | *(none yet)*                                           | —             |
 | 18. No ACS in 2P VS                                        | Removes the A.C.S. stat-customisation screen from 2P VS only (companion to 15; story and vs-COM keep it) | `tools/mkpatch18.py`                 | `build/sms_noacs_vs.bps`                               | `67897bbf…`   |
 | 17. All stages                                             | Unlocks the hidden tenth stage (なかよし編集部) in the stage select, and — where patch 3 is present — in its random default pool | `tools/mkpatch17.py`                 | `build/sms_allstages.bps`                              | `e5dd325b…`   |
 
@@ -100,4 +100,4 @@ v0.22 and REF v.1 rebuilt 2026-07-30 with the patch-4 "©MOONLIGHT FIGHT SOCIETY
 by `tools/saturn/`, not by a `mkpatchN.py` — she rides in **Rev. SS** only. Her patches
 are deliberately **not** tracked as `.bps`, because they embed ported game content;
 rebuild from source (`tools/saturn/build_refsaturn.sh`, gate
-`tools/saturn/verify_saturn.sh`). Detail: [docs/saturn/BUILDS.md](docs/saturn/BUILDS.md).
+`tools/saturn/verify_saturn.sh`). Detail: [docs/project/saturn/BUILDS.md](docs/project/saturn/BUILDS.md).

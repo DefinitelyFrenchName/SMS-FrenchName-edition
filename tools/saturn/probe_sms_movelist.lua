@@ -56,7 +56,7 @@ for _, r in ipairs({ { 0x7E01FA, 0x7E01FA }, { 0x0001FA, 0x0001FA } }) do
 end
 
 -- the asset loader itself: $C0:853D takes DP $00 = src, $02 = src bank,
--- $03 = VRAM word address, A = flag (docs/saturn/supers_assets.md). Catching it
+-- $03 = VRAM word address, A = flag (docs/project/saturn/supers_assets.md). Catching it
 -- names the exact asset RECORD the movelist stages, which is what a Saturn
 -- override has to replace.
 for _, a in ipairs({ 0x00853D, 0x80853D, 0xC0853D }) do

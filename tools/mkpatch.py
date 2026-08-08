@@ -16,7 +16,7 @@ N.B. lower gate = more recovery. 0x04 (N=6, canonical) makes the single connecti
 MEATY on the defender's first actionable frame — unblockable by holding back (hit beats
 same-frame block), escapable only by a frame-1/2-invincible reversal. 0x05 (N=5) shifts one
 frame earlier so it lands in hitstun (guaranteed true combo, but a 2-frame connect window).
-See docs/patch_notes.md "Patch 1" / "Patch 1b".
+See docs/project/patch_notes.md "Patch 1" / "Patch 1b".
 
 Always builds FROM THE CLEAN ROM (this is the chain's first patch by design).
 Restructured 2026-07-30 (issue #14): main() guard (no work at import), the clean-ROM

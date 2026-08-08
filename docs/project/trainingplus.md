@@ -2,7 +2,7 @@
 
 Patch 11 upgrades the base game's own **Practice mode** into a real training mode, entirely
 inside the ROM. Everything renders and runs on real hardware — no emulator, no Lua, no
-overlay. The Mesen-Lua training mode (`docs/training_usage.md`) remains the *precision*
+overlay. The Mesen-Lua training mode (`docs/project/training_usage.md`) remains the *precision*
 tool (frame meter, exact frame data, hitbox viewer); Training+ is its console-friendly
 sibling, oracle-validated against it feature by feature.
 
@@ -88,9 +88,9 @@ the same positions (RESET makes this easy). One recording slot; re-arming overwr
 
 ## 5. How it works (internals summary)
 
-Full engine background: `docs/sms_engine_internals.md` §10 (Practice mode) and §11 (modding
-playbook); flat addresses: `docs/annotations.md` "patch 11 RE"; per-byte changes and
-verification: `docs/patch_notes.md` Patch 11.
+Full engine background: `docs/game/sms_engine_internals.md` §10 (Practice mode) and §11 (modding
+playbook); flat addresses: `docs/game/annotations.md` "patch 11 RE"; per-byte changes and
+verification: `docs/project/patch_notes.md` Patch 11.
 
 - **Two JML hooks**, byte-disjoint from patches 1-10 (stacking order never matters):
   - `$80:8373` — joy_read tail, after the held words are stored, before press edges are

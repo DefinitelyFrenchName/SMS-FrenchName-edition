@@ -4,7 +4,7 @@
 > same role CLAUDE.md played for the original infinite patch. Companion docs in this
 > directory: `feasibility.md` (route decision, evidence), `supers_map.md` (the Super S
 > ROM/RAM map — verified facts only), `saturn_notes.md` (Saturn's kit, act IDs, frame
-> data, balance hooks). Session state: repo `HANDOFF.md` / `docs/NEXT_SESSION.md`; test-ROM registry `BUILDS.md`.
+> data, balance hooks). Session state: repo `HANDOFF.md` / `docs/project/NEXT_SESSION.md`; test-ROM registry `BUILDS.md`.
 
 ## Objective
 
@@ -72,7 +72,7 @@ was in SMS.
 - ROMs never tracked; resolution via `tools/smspaths.py`.
 - The repo-wide "no Saturn references in code" rule (HANDOFF §5) has a **scoped
   exception**, and everything not bound to the original SMS lives in dedicated
-  `saturn/` subfolders mirroring `docs/saturn/`: **`tools/saturn/`** (all
+  `saturn/` subfolders mirroring `docs/project/saturn/`: **`tools/saturn/`** (all
   Saturn/Super-S probes, extractors, port tools, builders — their Lua bootstrap
   uses `/../sms_env.lua`), **`traces/saturn/`** (Super S fixtures, Saturn
   screenshots, probe outputs), **`build/saturn/`** (the smoke ROM + the
@@ -107,8 +107,8 @@ was in SMS.
 1. ~~**Menu translation.**~~ **MOVED OUT of this project** (2026-08-03): a
    **standalone patch** in the main line (patch 16), not a Saturn feature, and it
    must work with or without her. Groundwork, budgets and the font inventory are
-   in `docs/menu_text.md`; the font path that unblocked it is in
-   `docs/NEXT_SESSION.md`. The maintainer supplies the translations.
+   in `docs/game/menu_text.md`; the font path that unblocked it is in
+   `docs/project/NEXT_SESSION.md`. The maintainer supplies the translations.
 2. ~~**Reveal Saturn earlier in the fight.**~~ **DONE (v0.14.1-v0.14.3).**
    - **Must have — delivered:** she is on screen before the round starts. The
      transform happens one frame after the round goes live (f=1856 against
@@ -140,7 +140,7 @@ inert by rebuilding and diffing: **byte-identical ROM** (`76ba6d8c…` hidden,
 only to record that the diff was byte-identical at that moment; current is
 v0.16.1, hidden `91639250…` / hidden+stage `c8f7dae8…`), so no version bump. The `-hidden` filename tag and the `H` in
 the on-screen version string stay: every recorded hash and doc reference uses
-them, and they are a continuity tell. History: `docs/saturn/BUILDS.md`
+them, and they are a continuity tell. History: `docs/project/saturn/BUILDS.md`
 0.10.0/0.11.0, and git.
 
 ## Parked — not open work, worth revisiting (2026-08-04)

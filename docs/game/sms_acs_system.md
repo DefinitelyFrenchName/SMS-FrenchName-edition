@@ -111,7 +111,7 @@ yet disassembled):
   (stronger); defender's +0x71 shifts right (weaker). Effects stack arithmetically in the
   column domain, and can never exceed the row's column-0 cap or column-15 floor.
 - The lookup runs **once per landed hit**, immediately before the HP subtraction — the 8
-  damage-apply sites (`docs/annotations.md` "patch 13 RE") consume its result via DP `$00`.
+  damage-apply sites (`docs/game/annotations.md` "patch 13 RE") consume its result via DP `$00`.
 
 **Interaction with the taunt-nerf patch (13 v3):** patch 13 scales the *final* rolled
 value at the apply sites, i.e. downstream of this whole computation — ACS boosts and the
@@ -150,7 +150,7 @@ as out-of-range, consistent with 4-bit column wrap.)
 - The damage-stat reads (+0x70/+0x71/+0x73) are **FOUND** (2026-07-19): they sit in the
   **11 near-identical modifier-composition handlers at file `0xCAED-0xCD6D`**, between
   the on-hit table dispatch and the `$D055` lookup — disassembled, with the template and
-  the chip/clamp tails, in `docs/sms_damage_system.md` §3. NOTE: the lookup routine
+  the chip/clamp tails, in `docs/game/sms_damage_system.md` §3. NOTE: the lookup routine
   EXECUTES from bank $80 ($80:D055; matrix read at $80:D07B) — exec-watch $80:D055,
   not $C0:D055.
 
@@ -230,7 +230,7 @@ grounded state via the standard act write (`+0x01=act, +0x02=1, +0x04=act, +0x06
 inputs. The misfire roll (low nibble) is its only mapped consumer in combat code.
 ⚠ **Damage does NOT use it** — the "modifier jitter" this paragraph used to guess at
 was the defender's +0x48 first-hit defense; damage is fully deterministic
-(`docs/sms_damage_system.md` §3, and the supersession note in §2 above).
+(`docs/game/sms_damage_system.md` §3, and the supersession note in §2 above).
 
 ## 6. Manipulating the system from patches / Lua
 
@@ -446,6 +446,6 @@ error that produced the earlier wrong "stats are inert" conclusion.
 - `tools/probe_p12_rec.lua` — special-record harvester (captures Y at `$C1:0B49`).
 - `tools/probe_p12_acts.lua` — misfire-act auditor (forces acts, verifies recovery).
 - `tools/probe_p13b_class.lua` — attack-class (+0x44) census at the damage-apply sites.
-- Related docs: `docs/sms_engine_internals.md` §6 (damage path) & §10 (Practice mode);
-  `docs/annotations.md` ("patch 12 RE", "patch 13 RE", "A.C.S. stat system" sections);
-  `docs/patch_notes.md` patches 12–13.
+- Related docs: `docs/game/sms_engine_internals.md` §6 (damage path) & §10 (Practice mode);
+  `docs/game/annotations.md` ("patch 12 RE", "patch 13 RE", "A.C.S. stat system" sections);
+  `docs/project/patch_notes.md` patches 12–13.

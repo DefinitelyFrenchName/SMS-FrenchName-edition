@@ -89,7 +89,7 @@ end, emu.eventType.inputPolled)
 --   row 1 -> $8D=01  TWO independent cursors, full roster   = 2P VS
 --   row 2 -> $8D=02  one cursor + fixed opponent            = 1P vs COM
 --   row 4 -> $8D=04  (down then RIGHT from row 1)           = PRACTICE
--- docs/annotations.md's "0=VS, 1=Story" line was wrong and is corrected; that one
+-- docs/game/annotations.md's "0=VS, 1=Story" line was wrong and is corrected; that one
 -- constant is what made the mode guard block 2P VS and miss story entirely.
 local MODES = {
   story    = { row = 0, confirm2 = "none" },

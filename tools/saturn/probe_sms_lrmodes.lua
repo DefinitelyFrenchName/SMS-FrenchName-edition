@@ -65,7 +65,7 @@ local STEPS = {
     -- mash walks through a second selection screen that reuses $1B40, so a
     -- one-shot poke is silently undone and the fight loads charID 1 (story) or
     -- 0 (practice). That artifact is what made SHELL_GUARD look like it blocked
-    -- every shell on 2026-08-03 — see docs/saturn/BUILDS.md v0.14.5.
+    -- every shell on 2026-08-03 — see docs/project/saturn/BUILDS.md v0.14.5.
     wr(0x1B40, SHELL)
     if MODE == "practice" then wr(0x1B80, 4) end
     pulse[0] = (frames % 14 < 3) and {a = true}

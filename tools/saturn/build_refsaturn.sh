@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build the COMBINED "SMS + REF v.1 + Saturn" ROM — the project-goal artifact
-# (docs/saturn/PROJECT.md). Chains the committed REF v.1 recipe, then stacks
+# (docs/project/saturn/PROJECT.md). Chains the committed REF v.1 recipe, then stacks
 # the Saturn build on top (bank-agnostic since v0.11.5: Saturn occupies the
 # first 9 free banks — $F0-$F8 on this base — and chains patch 5's char-select
 # confirm hook). Pass SATURN_HIDDEN=1 for the hidden-character variant.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """te_halfwidth.py — harvest the Tournament Edition's HALF-WIDTH Latin font.
 
-Why this matters: docs/menu_text.md recorded that half-width Latin "already
+Why this matters: docs/game/menu_text.md recorded that half-width Latin "already
 exists" in SMS's `PRESS "SELECT" TO ACS` banner. It does not — that strip is
 proportionally-spaced artwork whose letters straddle tile boundaries, so nothing
 can be lifted from it (measured; see the doc). The Big Zam edition is the same.
@@ -169,7 +169,7 @@ def main():
     ap.add_argument("--lo", type=lambda s: int(s, 0), default=0x300)
     ap.add_argument("--hi", type=lambda s: int(s, 0), default=0x460)
     ap.add_argument("--row", type=lambda s: int(s, 0), default=0x340)
-    ap.add_argument("--out", default=os.path.join(REPO, "docs", "te_halfwidth.json"))
+    ap.add_argument("--out", default=os.path.join(REPO, "docs", "game", "te_halfwidth.json"))
     a = ap.parse_args()
     if not os.path.exists(a.cap):
         sys.exit("no capture at %s — run probe_title_vram.lua on SMS_BZE_TE.sfc first" % a.cap)

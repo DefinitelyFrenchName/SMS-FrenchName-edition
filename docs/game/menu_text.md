@@ -33,7 +33,7 @@ the whole of VRAM at each capture point, plus every decompressor call).
   given cell width.
 
 **Consequence for translation:** editing a string = editing tile indices in a
-tilemap. That is the same job as Saturn's movelist (`docs/saturn/movelist.md`),
+tilemap. That is the same job as Saturn's movelist (`docs/project/saturn/movelist.md`),
 for which the tooling already exists.
 
 ## The font is a REDUCED alphabet — this is the cost driver
@@ -81,7 +81,7 @@ Other screens seen but not yet inventoried: title, the intro cutscene, and
 
 ## SOLVED (2026-08-04): the code -> glyph table, and screens are readable as text
 
-`docs/saturn/movelist.md` recorded "Still missing: the code -> glyph table". It
+`docs/project/saturn/movelist.md` recorded "Still missing: the code -> glyph table". It
 exists now — `tools/menufont_table.py`, with `tools/menufont.py` to build and
 check it. This closes Open items 1 and 3 below and corrects two facts.
 
@@ -715,7 +715,7 @@ and **row `$340` decodes letter by letter as**
     T O U R N A M E N T   M O D E
 
 `tools/te_halfwidth.py extract` pulls **16 distinct 8×16 glyphs** to
-`docs/te_halfwidth.json` (bitmaps + tile ids, labels left null for a human pass).
+`docs/game/te_halfwidth.json` (bitmaps + tile ids, labels left null for a human pass).
 
 ### What this changes
 
@@ -746,7 +746,7 @@ Two of the title's font rows decode cleanly:
     row $340   ! T O U R N A M E N T   M O D E
     row $380   O P T I O N S
 
-which labels 15 of the 16 extracted glyphs (`docs/te_halfwidth.json`). A third
+which labels 15 of the 16 extracted glyphs (`docs/game/te_halfwidth.json`). A third
 row, `$360`, is visibly the same face (`P R A C/G T I/J ? E`) but the classifier
 still calls it art because two of its runs merge — worth a second pass, it should
 add **C** and probably **G**.
@@ -812,7 +812,7 @@ first or the numbers mean nothing.
 from anything in the base game. That makes the maintainer's "standard SNES
 half-width set" hypothesis *more* likely, not less: the face came from somewhere,
 and if that somewhere is a common font, the complete alphabet is findable. The
-metrics table above plus the 12 confirmed glyphs in `docs/te_halfwidth.json` are
+metrics table above plus the 12 confirmed glyphs in `docs/game/te_halfwidth.json` are
 what a candidate should be tested against — using IoU with controls, not eyeball.
 
 ## CONDENSING SMS's OWN CAPITALS: viable — measured 2026-08-04
@@ -823,7 +823,7 @@ to half width would give a native, in-style, licence-clean alphabet. Tested.
 
 ### First, the addressing — this cost several wrong turns
 
-`docs/menu_text.md` records the capitals at "**$20A** onward". That is a **VRAM
+`docs/game/menu_text.md` records the capitals at "**$20A** onward". That is a **VRAM
 address on a screen that displays them**, not a block offset, and the kana block
 does not load at a fixed base:
 
@@ -881,7 +881,7 @@ Built from the three sources the condensing test implied:
 | **authored** to match the condensed siblings | 5 | F J Q S Z |
 
 `sheet` renders the alphabet, `text "MANUAL"` renders a string at true size,
-`export` writes `docs/halfwidth_caps.json`. Nothing is committed that isn't ours:
+`export` writes `docs/project/halfwidth_caps.json`. Nothing is committed that isn't ours:
 the condensed glyphs are a mechanical reduction of the game's own art, the same
 basis as every other asset reuse in this project.
 
@@ -1094,7 +1094,7 @@ patched ROMs, because a later, smaller upload has already overwritten it.
   exactly 26 letters x 2 tiles — against **0** on clean.
 
 Next: the tilemap edits. The glyph → VRAM tile map is written to
-`docs/halfwidth_tiles.json` by the builder.
+`docs/project/halfwidth_tiles.json` by the builder.
 
 ## Options screen: WORKS — labels translated (2026-08-06; field-confirmed same day)
 
