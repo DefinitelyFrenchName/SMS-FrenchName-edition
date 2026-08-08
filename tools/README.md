@@ -10,6 +10,7 @@ See HANDOFF.md §4 for the harness.
 - `saturn/brr.py` — Decode SNES BRR samples to WAV.
 - `saturn/build_refsaturn.sh` — Build the COMBINED "SMS + REF v.1 + Saturn" ROM — the project-goal artifact
 - `saturn/build_saturn_stage.sh` — Saturn + stage PoC in one ROM (committed recipe).
+- `saturn/checksaturndocs.py` — Verify docs/project/saturn/'s cross-game claims against BOTH cartridges.
 - `saturn/dspdiff.py` — diff two trace_dsp.lua captures and judge the difference.
 - `saturn/extract_saturn_unit.py` — Extract Sailor Saturn's complete data unit from Super S — the Route A port bundle.
 - `saturn/extract_saturn_voice.py` — Extract Saturn's voice samples from the Super S ROM, trimmed to fit SMS.

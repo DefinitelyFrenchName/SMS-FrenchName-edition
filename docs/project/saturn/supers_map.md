@@ -59,7 +59,7 @@ ROM: `SailorMoonSuperS Vol2`, HiROM+FastROM, 0x300000, file offset = SNES & 0x3F
 | Char loader body | 0x87D0 | 0x87E8 | +0x18 | first 48 B identical |
 | On-hit tables | 0xCDD5 | 0xCEFF | +0x12A | first 0x40 identical |
 | Damage matrix | 0xD081 | 0xD1C9 | +0x148 | rows 10 & 48 identical |
-| Box-index writer | $C0:9CCD ctx | 0x9FF1 ctx | +0x32C | 16 B identical |
+| Box-index writer | $C0:9CCD ctx | 0x9FF9 ctx | +0x32C | 16 B identical |
 | joy_read tail | 0x8373 | 0x8347 | −0x2C | 4 B identical |
 
 NOT found byte-exact (changed in Super S, consistent with the wiki's gameplay deltas):
@@ -72,6 +72,14 @@ data banks <13% (globally shifted, locally identical where hunted).
 
 `$E0:AC6A` (via ptr table idx 10): **first_hit_defense = 1** (only Jupiter=1,
 Neptune=2 in SMS), pal1 `$E0:B0C8`, anim payload `$E0:F328`.
+
+⚠ **Naming, because the two corpora disagree:** this project's Saturn tooling calls
+the manifest's two character palettes **pal1/pal2** (the `+1` and `+4` fields);
+`docs/game/sms_data_architecture.md` calls the same two fields **palette 0 and
+palette 1**. Same bytes, different base. And a measured oddity worth knowing before
+touching her colours: **Saturn is the only character whose two palette pointers are
+stored in DESCENDING order** — `$E0:B0C8` then `$E0:B0A8`, where all nine others
+ascend by `0x20`.
 
 ## Manifest semantics delta [P 07-30]
 
@@ -250,8 +258,11 @@ Boxes/cels alone don't render a fighter; the OAM layout is a separate id-indexed
 layer (found when smoke-test Saturn was invisible):
 
 - **Renderer** (SMS `$C0:9A0E`, per frame): walks the draw-order list at `$0B00`
-  with **DB=$84**; `object id ×3` indexes **char table `$84:8000`** (52 entries,
-  3 B each: `[ptr16, bank]`) → `plb bank` → `pose ×2` indexes the pose→spritelist
+  with **DB=$84**; `object id ×3` indexes **char table `$84:8000`** (**52 entries in SMS (ids 0-0x33)
+  and 53 in Super S** — the extra one is the inserted object type behind the
+  §Cross-game ENGINE OBJECT-ID SHIFT; entries 1-27/1-34 are the fighters and their
+  objects, 28-47 are zero, and the last four/five share one blob), 3 B each:
+  `[ptr16, bank]` → `plb bank` → `pose ×2` indexes the pose→spritelist
   table at `ptr` → list = `[count, count × 6-byte records]`. Super S twin
   `$C0:9AA0` (long-pointer plumbing, same data shapes).
 - **Record format** (6 B): `[x_off, x_off_flipped, y_off, attr-ish, tile, 
@@ -351,10 +362,16 @@ table bases — scripts `$C0:0000` (interpreter `$80:A05C`; SMS lacks Super S's 
 command extension — Saturn's CMD steps need handling at port time: strip or
 back-port), pose records `$84:809C` (writer `$C0:9C96`), cels `$CB:0000` (resolver
 `$80:9FB8`). All tables are null+9 packed (id-10 "entries" are adjacent data — no
-dormant slot, as established). **Cross-game content identity (Uranus): pose-record
-array 100% byte-identical (all 115 SMS poses; Super S appended 5), universal-act
-scripts byte-identical, pose→cels lists identical, cel records same sizes with only
-addr24 relocated (SMS bank $D4 vs Super S $D6).** Port recipe per layer: pose
+dormant slot, as established). **Cross-game content identity (Uranus), re-measured 2026-08-09 — two of these
+were stated too strongly and are corrected here:** pose-record
+array 100% byte-identical (all 115 SMS poses; Super S appended 5), pose→cels lists
+identical, cel records **97 of 98** the same size with only addr24 relocated (⚠ record
+**29** differs: SMS `0x0500`, Super S `0x04E0` — one tile; and the src banks span
+`$D4-$D6` in SMS against `$D6-$D7` in Super S, not one bank each), and the
+universal-act scripts are identical **once Super S's `0xC0` CMD steps are removed**
+— which is the port recipe this document already prescribes, but not what
+"byte-identical" says. Raw, they match ~26/43; stripped, **43/43 for five characters
+(Moon, Jupiter, Uranus, Neptune, Pluto)** and 41-42/43 for the rest.** Port recipe per layer: pose
 records verbatim (+ the 2 guard-fix bytes), pose→cels verbatim, cel records with
 addr24 rebased to wherever her 137 KB cel block lands in SMS, scripts verbatim
 minus/with the CMD delta, plus 11th entries in the three char tables (relocation

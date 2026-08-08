@@ -119,6 +119,18 @@ else
   skip "round-trip needs the clean ROM and flips"
 fi
 
+echo "== the Saturn corpus still describes both cartridges =="
+if [ -f "$CLEAN" ] && [ -f "$SUP" ]; then
+  if out="$(python3 tools/saturn/checksaturndocs.py 2>&1)"; then
+    ok "$(printf '%s' "$out" | grep -aoE '\([0-9]+ checks against both cartridges[^)]*\)' | tr -d '()')"
+  else
+    printf '%s\n' "$out" | sed 's/^/    /'
+    bad "checksaturndocs: docs/project/saturn disagrees with the cartridges"
+  fi
+else
+  skip "Saturn corpus (needs the clean ROM and the Super S donor)"
+fi
+
 echo "== the patch documents still describe the patches =="
 if [ -f "$CLEAN" ] && [ -x tools/Flips/flips ]; then
   if out="$(python3 tools/checkpatchmap.py 2>&1)"; then
