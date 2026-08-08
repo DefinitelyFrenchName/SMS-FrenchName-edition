@@ -1,5 +1,64 @@
 # Next-session handoff — 2026-08-08 (session close)
 
+**Read this, then `../game/README.md` if the work is about the ROM, or
+`patch_index.md` if it is about a patch.** Everything below is current; the
+sections further down are this session's detail.
+
+## Where to pick up
+
+1. **Patch 16 — menu translation.** Still the active feature work. Two surfaces
+   left: the **bracket VS names** (codec-2 blob `$C7:3BBD` + an unfound runtime
+   builder) and the **A.C.S. name card + prompt** (the variable-text glyph
+   blitter `$80:9583`, fed from `$7F:DC00+`, filler unfound). Detail below and in
+   `../game/menu_system.md`.
+2. **Patch 14 — needs a RULING, not a patch.** `--all-grabs` does not scale a
+   TECHED throw, so at Guts L3 teching costs more than eating the throw (12 vs
+   10, measured). No shipped build passes the flag. The question is yours:
+   *should a teched command grab be scaled by Guts at all?* Full brief below.
+3. **`checkdocs` next increment** (offered, not started): generate assertions for
+   every `$BB:AAAA` token that names a table this project already parses —
+   `annotations.md` alone carries 264 address tokens against the 31 claims
+   currently checked.
+
+## What changed this session (2026-08-08)
+
+* **`docs/` is split in two.** `docs/game/` is analysis of the retail ROM and is
+  meant to be liftable by anyone hacking this game; `docs/project/` is this
+  edition's own record. Rule for new files: *would this still be true, and still
+  useful, to someone who had never heard of this project?*
+* **New: `docs/game/sms_data_architecture.md`** — where the data lives and what
+  shape it is, by memory (cartridge/WRAM/VRAM/ARAM), plus the object struct, the
+  record catalogue, the pipelines, and §13, the list of what is NOT decoded.
+* **New: `docs/game/characters/`** — a generated page per fighter
+  (`tools/mkcharmap.py`, `--check`-gated), holding only what differs per
+  character.
+* **New: `docs/game/menu_system.md`** — the menu/font/text system as a reference;
+  `menu_text.md` stays in `project/` as patch 16's log, and the game doc is
+  authoritative where they overlap.
+* **`sms_uranus_rom_map.md` retired → `sms_quickref.md`**, a one-page address
+  card. The old name was a lie (one section of seven was Uranus-specific) and
+  renaming alone would have kept a near-duplicate.
+* **New: `tools/checkdocs.py`** — 31 checks that re-derive documented claims from
+  the cartridge, negative-controlled, wired into `health.sh` (ROM-gated).
+* **The page is published**: <https://definitelyfrenchname.github.io/SMS-FrenchName-edition/>,
+  generated in CI by `tools/mkarchpage.py` (`--standalone` for a local export;
+  the PDF is `--print-to-pdf` over that file).
+* Registry sync: patch_notes gained patches 15/16/17/18 and the 100-series;
+  patch 101 is recorded as SHIPPED; Saturn hashes corrected to v0.16.1.
+
+### Corrections to ROM facts (all re-verified by hand, then by `checkdocs`)
+
+| Was documented | Actually |
+|---|---|
+| 58 asset job records at `$C3:BE08` | **74**, `$C3:BD61-$C04B`, via two pointer tables (25 + 49) |
+| nine on-hit variant tables | **ten** — `$C0:CED5` was missing everywhere |
+| manifest = 22 B, four palettes | **16 B**: defense byte + five 24-bit pointers, **two** palettes |
+| first-hit defense partly censused | complete: **Jupiter 1, Neptune 2, rest 0** |
+| per-character proc blocks "~4.3 KB each" | exact, via the **`$C1:00A6` dispatch** (28 entries) |
+| clean ROM "3 MB" | **2.5 MB** (40 banks, `$C0-$E7`); 3 MB is the patched size |
+
+---
+
 **2026-08-08 — DOCUMENTATION SYNC, no code or artifact changed.** The registry
 docs had drifted from the artifacts: `patch_notes.md`'s deliverables table
 stopped at patch 14 (15/17/18 missing, **16 had no section at all**) and still

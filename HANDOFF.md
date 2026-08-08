@@ -24,6 +24,44 @@ ported from Super S and is playable in the **Rev. SS** builds only (§0).
 
 ## 0. Current state (2026-08-08) — SMS + Saturn = PATCH 100, and the issue backlog
 
+**2026-08-08 (session close) — DOCS RESTRUCTURED, AND THEY ARE NOW CHECKED
+AGAINST THE CARTRIDGE.** `docs/` is split: **`docs/game/`** is analysis of the
+retail ROM, meant to be liftable by anyone hacking this game, and
+**`docs/project/`** is this edition's record (`saturn/` sits there whole). New in
+`game/`: `sms_data_architecture.md` (the four memories, the object struct, the
+record catalogue, the pipelines, and §13 — what is *not* decoded), `menu_system.md`
+(the front end as a reference; `menu_text.md` stays in `project/` as patch 16's
+log), `characters/` (a generated page per fighter), and `sms_quickref.md`, which
+replaces the misnamed `sms_uranus_rom_map.md` — one of its seven sections was
+Uranus-specific, so renaming alone would have kept a near-duplicate.
+
+**`tools/checkdocs.py` is the new gate that matters here: 31 checks that
+re-derive documented claims from the ROM**, each asserting the claim is still in
+the doc before testing it, negative-controlled both ways, and wired into
+`health.sh` (ROM-gated, SKIP not silent-pass). It exists because rewriting
+documentation is exactly where a plausible sentence can replace a measured one.
+It found one error on its first run — **mine, in the check, not in the docs**.
+Two other generated things joined the same discipline: `tools/mkcharmap.py`
+(`--check`) and the GitHub Pages workflow, which renders
+`tools/mkarchpage.py` on every push rather than committing a built page
+(<https://definitelyfrenchname.github.io/SMS-FrenchName-edition/>).
+
+⚠ **Six documented ROM facts were wrong and are corrected** (all re-verified by
+hand, then locked by `checkdocs`): the asset job table is **74 records** across
+two pointer tables, not 58 at `$C3:BE08`; there are **ten** on-hit variant tables
+(`$C0:CED5` was missing everywhere); the manifest is **16 bytes — a defense byte
+and five pointers**, with **two** palettes, not 22 bytes and four; the
+first-hit-defense census is complete (**Jupiter 1, Neptune 2, rest 0**); bank
+`$C1` is carved by the **`$C1:00A6` proc dispatch**; and the clean image is
+**2.5 MB**, not 3 MB — 3 MB is the *patched* size, and that figure was hardcoded
+prose inside `mkrelease.py`, the generator whose whole job is not transcribing.
+
+**The one behavioural finding is patch 14's, and it is unfixed by choice** —
+`--all-grabs` does not scale a TECHED throw (measured: 24→10 landed, 12 teched at
+Guts L3, so teching costs more than eating it). No shipped build passes the flag.
+It needs a maintainer ruling before code moves: `docs/project/NEXT_SESSION.md`
+§ "Patch 14 — what going over it means".
+
 **2026-08-08 — DOCUMENTATION SYNC (maintainer request), everything re-measured.**
 The registry docs had drifted from the artifacts in three ways, all now fixed:
 `docs/project/patch_notes.md` still called patch **101** "BUILT, NOT SHIPPED" (it ships, on
