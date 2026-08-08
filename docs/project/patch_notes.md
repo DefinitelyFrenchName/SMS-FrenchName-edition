@@ -105,42 +105,75 @@ Combined builds:
   (SHA-1 `b1c3163f…`); differs from canonical v0.7 by four gameplay bytes (`0xAFD5D/65/6D/75`,
   the fireball hit-box `y_off`) + checksum.
 
-Edit-region map (why they're disjoint):
-- Patch 1: `0x1874D/E` + stub `0x1BE20–29` (bank $C1).
-- Patch 2: `0x188ED/E` + stub `0x1BE2A–31` (bank $C1, adjacent free bytes).
-- Patch 3: bank-$C0 hooks `0x884B` / `0x8998` / `0xA630`, appended bank $E8
-  (file 0x280000+), header `0xFFC0` + checksum.
-- Patch 4: bank-$C3 hook `0x3B81F`, appended bank ($E8 standalone / $E9 combined),
-  header `0xFFC0` + checksum.
-- Patch 5: 2 bytes at `0x188EA/EB` (dash X-speed operand), adjacent to but disjoint
-  from patch 2's `0x188ED/EE`.
-- Patch 6: bank-$C0 hook `0x09CCD` + stub `0x1BE85` (bank $C1, clear of patches 1/2).
-- Patch 7: one byte `0xAF0DE` (bank $8A Pluto hit table).
-- Patch 8: one byte `0x16C70` (bank $C1 Venus throw-hold script data).
-- Patch 9: four bytes `0xAFD5D/65/6D/75` (bank $8A Deep Submerge fireball hit table `$8A:FD51`,
-  object-id 0x18 — exclusive; disjoint from every character/projectile table).
-- Patch 10/10b: bank-$C0 hooks `0x0D5E8` (HUD producer) + `0x0D56F` (NMI uploader), stubs in
-  an appended bank; WRAM `$0816-$08FF` (unused HUD page tail).
-- Patch 11: bank-$80 hook `0x08373` (joy_read tail) + `0x0D574` (uploader body), stubs in an
-  appended bank; state `$7F:F000+`, recording ring `$7F:E000`.
-- Patch 12: bank-$80 hook `0x08377` (edge derivation), stub in an appended bank; zero WRAM.
-- Patch 13: bank-$80 hook `0x0837B` (third in the joy_read chain) + indicator hook `0x0D596`,
-  8 strike/chip apply sites in bank $C0 (`0xC09C/C16F/C216/C2C5` melee, `0xC47E/C551/C5F8/
-  C6A7` projectile), throw sites `0x1082F` (toss) + `0x10D54` (drain tick), stubs in an
-  appended bank; state `$7F:F800-F80A`.
-- Patch 14: the 7-byte **tails** of the same toss/tick sites (`0x10835` / `0x10D5A` — right
-  after patch 13's 6 subtract bytes, byte-disjoint), stub in an appended bank; scratch
-  `$7F:F810-F815`, reads patch 13's state read-only.
-- Patch 15: 6 bytes on the config screen's mode-row handler (`0x03A863` / `0x03A87A` /
-  `0x03A880`), no bank, no WRAM.
-- Patch 16 (in progress): the menu font sheet and, per gate, the screen tilemaps/art
-  sheets are **relocated into an appended bank** and their asset records repointed —
-  record #27's src + its length field `$C3:BF18`; hooks at `$C3:A4DD` (Options loader),
-  `$C3:AF8A` (char-select loader) and `$DF:9679` (report card); in-place record edits in
-  bank `$C4` (option values, stage names). No WRAM.
-- Patch 17: 1 byte `0x03BADE`, plus — only when patch 3 is present — 2 bytes in patch 3's
-  own appended bank (`0x2800D3` / `0x2800D9`), located by signature.
-- Patch 18: 12 bytes at `0x03BB9E` (the shared mode-1/2 config handler), no bank, no WRAM.
+### Edit-region map (why they're disjoint)
+
+**Measured from the tracked `.bps`, not from the builders' intentions**, and
+re-measured by `tools/checkpatchmap.py` — which also *proves* the disjointness
+this table is here to claim, rather than asserting it in prose. Every range is
+the exact extent of a changed run in `clean → patched`; ranges are inclusive.
+
+| Patch | Standalone BPS | In-place edits (file offsets) | Appended | Header |
+|---|---|---|---|---|
+| **1** | `sms_uranus_infinite_1f.bps` | `0x1874D-1874E` · `0x1BE20-1BE29` | — | checksum |
+| **1b** | `sms_uranus_infinite_1f_truecombo.bps` | `0x1874D-1874E` · `0x1BE20-1BE29` | — | checksum |
+| **2** | `sms_dashfix.bps` | `0x188ED-188EE` · `0x1BE2A-1BE31` | — | checksum |
+| **3** | `sms_palettes.bps` | `0x0884B-0885A` · `0x0885C-08882` · `0x08884-088AB` · `0x08998-089A7` · `0x089A9-089CF` · `0x089D1-089F8` · `0x0A630-0A634` | 512 KB @ `0x280000` | title + checksum |
+| **4** | `sms_title.bps` | `0x3B820-3B822` | 512 KB @ `0x280000` | title + checksum |
+| **5** | `sms_dashdist.bps` | `0x188EA-188EB` | — | checksum |
+| **6** | `sms_dashinvuln.bps` | `0x09CCD-09CD0` · `0x1BE85-1BE87` · `0x1BE89-1BEA1` | — | checksum |
+| **7** | `sms_pluto5hp.bps` | `0xAF0DE` | — | checksum |
+| **8** | `sms_venustech.bps` | `0x16C70` | — | checksum |
+| **9** | `sms_neptune_ds.bps` | `0xAFD5D` · `0xAFD65` · `0xAFD6D` · `0xAFD75` | — | checksum |
+| **10** | `sms_combocounter.bps` | `0x0D56F-0D572` · `0x0D5E8-0D5EB` | 512 KB @ `0x280000` | title + checksum |
+| **10b** | `sms_combolabels.bps` | `0x0D56F-0D572` · `0x0D5E8-0D5EB` | 512 KB @ `0x280000` | title + checksum |
+| **11** | `sms_trainingplus.bps` | `0x08373-08376` · `0x0D574-0D577` | 512 KB @ `0x280000` | checksum |
+| **12** | `sms_taunt.bps` | `0x08377-0837A` | 512 KB @ `0x280000` | checksum |
+| **13** | `sms_tauntbuff.bps` | `0x0837B-0837E` · `0x0C09C-0C0A1` · `0x0C16F-0C174` · `0x0C216-0C21B` · `0x0C2C5-0C2CA` · `0x0C47E-0C483` · `0x0C551-0C556` · `0x0C5F8-0C5FD` · `0x0C6A7-0C6AC` · `0x0D596-0D599` · `0x1082F-10834` · `0x10D54-10D59` | 512 KB @ `0x280000` | checksum |
+| **14** | `sms_gutsgrip.bps` | `0x10835-1083B` · `0x10D5A-10D60` | 512 KB @ `0x280000` | checksum |
+| **15** | `sms_noauto.bps` | `0x3A863-3A865` · `0x3A87A-3A87C` · `0x3A880` | — | checksum |
+| **17** | `sms_allstages.bps` | `0x3BADE` | — | checksum |
+| **18** | `sms_noacs_vs.bps` | `0x3BB9E-3BBA9` | — | checksum |
+
+What each patch's regions ARE — the table gives extents, this gives meaning:
+
+- **1 / 1b**: the `jsr` operand at `0x1874C` + the gate stub in bank `$C1`'s free
+  hole. The two are alternatives (gate `0x04` vs `0x05`) and edit the same bytes.
+- **2**: the reversal-dash `stz $46,X` operand + its stub, in the free bytes
+  adjacent to patch 1's.
+- **3**: not a hook but an in-place **rewrite** of both palette-load paths
+  (`0x0884B` and `0x08998`, ~97 bytes each) plus the char-select confirm at
+  `0x0A630`. Its appended bank carries the Big Zam palettes.
+- **4**: the operand of the `JSL $80:8C43` at `0x3B81F`; the title tiles live in
+  the appended bank ($E8 standalone, $E9 when chained after patch 3).
+- **5**: the dash X-speed operand — adjacent to, and disjoint from, patch 2's.
+- **6**: the box-index writer hook + a stub clear of patches 1/2.
+- **7**: one box-height byte in Pluto's hit table. **8**: one script byte in
+  Venus's throw-hold script. **9**: the four `y_off` bytes of the Deep Submerge
+  fireball's exclusive table `$8A:FD51`.
+- **10 / 10b**: the HUD producer + NMI uploader hooks; WRAM `$0816-$08FF`.
+- **11**: joy_read tail + uploader body; state `$7F:F000+`, ring `$7F:E000`.
+- **12**: the edge-derivation hook (third in the joy_read chain is 13's).
+- **13**: joy_read + indicator hooks, the 8 strike/chip apply sites, and the
+  6-byte subtracts at the toss and drain-tick sites; state `$7F:F800-F80A`.
+- **14**: the 7-byte **tails** of those same two sites — byte-disjoint from
+  patch 13's subtracts, which is why they compose; scratch `$7F:F810-F815`.
+- **15**: the config screen's mode-row handler. **17**: the menu bound byte (plus
+  2 bytes inside patch 3's appended bank when patch 3 is present, located by
+  signature — not visible in the standalone diff). **18**: the shared mode-1/2
+  config handler.
+- **16** (in progress, no tracked BPS yet): the menu font sheet and, per gate,
+  screen tilemaps/art sheets are **relocated into an appended bank** and their
+  asset records repointed — record #27's src + its length field `$C3:BF18`;
+  hooks at `$C3:A4DD` (Options loader), `$C3:AF8A` (char-select loader) and
+  `$DF:9679` (report card); in-place record edits in bank `$C4`. No WRAM.
+
+⚠ **The in-place regions are pairwise disjoint — measured, not asserted** (the
+variant pairs 1/1b and 10/10b edit the same bytes by design). **The appended
+banks are not**: every bank-appending standalone writes 512 KB at `0x280000`,
+because each is diffed against the clean ROM and each takes the first free bank.
+That is the whole reason a bundle must be built by **chaining the builders**
+(each re-detects the next free bank) and never by applying standalone BPS one
+after another — see HANDOFF §5. `checkpatchmap.py` proves both halves.
 
 Note: every bank-appending patch (4, 10/10b, 11, 12, 13, 14) auto-detects the **next free
 bank** at build time — that's why builders chain cleanly while standalone BPS files (all
@@ -1609,7 +1642,7 @@ entries = the screen's eight rows: モード, 弱/強パンチ, 弱/強キック
 モード, ステージ). The same bytes are present in the clean ROM, so the edit
 applies anywhere in our lineage.
 
-**The edit** (6 bytes, file offsets):
+**The edit** (7 bytes, file offsets):
 
 | Offset | Vanilla | Patched | Effect |
 |---|---|---|---|

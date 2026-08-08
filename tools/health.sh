@@ -114,6 +114,19 @@ else
   skip "round-trip needs the clean ROM and flips"
 fi
 
+echo "== the edit-region map still describes the patches =="
+if [ -f "$CLEAN" ] && [ -x tools/Flips/flips ]; then
+  if out="$(python3 tools/checkpatchmap.py 2>&1)"; then
+    ok "$(printf '%s' "$out" | grep -aoE '\([0-9]+ standalone patches, [0-9]+ changed bytes accounted for\)' | tr -d '()')"
+    ok "in-place edits pairwise disjoint; every appended bank at 0x280000 (why BPS must not be chained)"
+  else
+    printf '%s\n' "$out" | sed 's/^/    /'
+    bad "checkpatchmap: docs/project/patch_notes.md disagrees with build/*.bps"
+  fi
+else
+  skip "edit-region map (needs the clean ROM and flips)"
+fi
+
 echo "== conventions (reported, never fatal) =="
 note "$(grep -rlE '^\s*assert\b' tools/saturn/*.py 2>/dev/null | wc -l | tr -d ' ') Saturn tools still use bare asserts for guards (#102)"
 note "$(grep -rc 'io.open' tools/*.lua tools/saturn/*.lua tools/training/*.lua 2>/dev/null | awk -F: '{s+=$2} END {print s+0}') io.open sites; $(grep -rc 'assert(io.open' tools/*.lua tools/saturn/*.lua tools/training/*.lua 2>/dev/null | awk -F: '{s+=$2} END {print s+0}') wrapped in assert (#105)"
