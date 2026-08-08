@@ -505,44 +505,6 @@ patch in this project can append banks past the end and still boot, and why they
 all target the first free bank, <code>$E8</code>.</p>
 <p>Its title field is not ASCII: it is Shift-JIS half-width katakana,
 <code>ｾｰﾗｰﾑｰﾝSｼｭﾔｸｿｳﾀﾞﾂｾﾝ</code>.</p></div>
-<div class="footnotes">
-<h3>Footnote</h3>
-<p id="fn1"><strong>[1] Why one routine has three addresses, and why it matters.</strong>
-There are two different spaces in play, and the rule above converts between
-them. The cartridge is a <em>file</em> — 2.5 MB of bytes numbered
-<code>0</code> to <code>0x27FFFF</code>. The CPU never sees a file; it sees an
-address space of 256 banks of 64 KB, which also holds RAM and hardware
-registers. The mapping is simply: which byte of the file appears at which CPU
-address? The cartridge's wiring decides that, and there were two common
-conventions — LoROM and HiROM. This game is HiROM, so a full 64 KB slab of the
-file appears in each bank.</p>
-<p><code>&amp; 0x3FFFFF</code> means "throw away everything above the low 22
-bits, and what is left is the position in the file". Twenty-two bits, because a
-HiROM cartridge tops out at 4 MB and that is all it takes to name any byte of
-one. Worked out on the routine named above:</p>
-<pre>$C0:D055  →  0xC0D055 &amp; 0x3FFFFF  =  0x00D055  →  c2 30 85 02 a5 00
-$80:D055  →  0x80D055 &amp; 0x3FFFFF  =  0x00D055  →  c2 30 85 02 a5 00
-$40:D055  →  0x40D055 &amp; 0x3FFFFF  =  0x00D055  →  c2 30 85 02 a5 00</pre>
-<p><strong>Those are not three copies. They are one set of bytes, visible at
-three addresses.</strong> The high bits choose which window you look through,
-not which byte you get — being wired into the address space several times over
-was normal on this console.</p>
-<p>The game prefers the <code>$80</code> window for speed: the SNES reads the
-cartridge at 2.68 MHz through most windows and at 3.58 MHz through banks
-<code>$80-$FF</code> when the cartridge asks for it, which this one does (its
-map-mode byte is <code>$31</code> — HiROM <em>and</em> FastROM). About a third
-faster, for free.</p>
-<p>And that is where the cost lands: <strong>breakpoints and watches are keyed to
-an address, not to a byte.</strong> Break on <code>$C0:D055</code> and the CPU
-will execute those exact bytes through <code>$80:D055</code> all day without
-tripping it. Your probe prints nothing — and nothing looks identical to "the game
-never calls this". Low work RAM has the same sibling trap, visible as both
-<code>$7E:1000</code> and <code>$00:1000</code>.</p>
-<p>One last thing the rule assumes: <strong>no copier header</strong>. Some dumps
-carry an extra 512 bytes at the front, added by the hardware that made them; with
-one of those, every offset on this page is wrong by 512. The SHA-1 in the footer
-is what pins that down. <a class="back" href="#fnref1">↩ back</a></p>
-</div>
 </section>
 
 <section id="rom">
@@ -834,6 +796,47 @@ ask where it came from.</p>
 <p><strong>A write-watch cannot prove a region is free</strong>, because DMA is
 not a CPU write. Snapshot as well, and make the two instruments disagree before
 you believe either.</p></div>
+</div>
+</section>
+
+<section id="notes" class="col">
+<div class="footnotes">
+<h3>Footnote</h3>
+<p id="fn1"><strong>[1] Why one routine has three addresses, and why it matters.</strong>
+There are two different spaces in play, and the rule above converts between
+them. The cartridge is a <em>file</em> — 2.5 MB of bytes numbered
+<code>0</code> to <code>0x27FFFF</code>. The CPU never sees a file; it sees an
+address space of 256 banks of 64 KB, which also holds RAM and hardware
+registers. The mapping is simply: which byte of the file appears at which CPU
+address? The cartridge's wiring decides that, and there were two common
+conventions — LoROM and HiROM. This game is HiROM, so a full 64 KB slab of the
+file appears in each bank.</p>
+<p><code>&amp; 0x3FFFFF</code> means "throw away everything above the low 22
+bits, and what is left is the position in the file". Twenty-two bits, because a
+HiROM cartridge tops out at 4 MB and that is all it takes to name any byte of
+one. Worked out on the routine named above:</p>
+<pre>$C0:D055  →  0xC0D055 &amp; 0x3FFFFF  =  0x00D055  →  c2 30 85 02 a5 00
+$80:D055  →  0x80D055 &amp; 0x3FFFFF  =  0x00D055  →  c2 30 85 02 a5 00
+$40:D055  →  0x40D055 &amp; 0x3FFFFF  =  0x00D055  →  c2 30 85 02 a5 00</pre>
+<p><strong>Those are not three copies. They are one set of bytes, visible at
+three addresses.</strong> The high bits choose which window you look through,
+not which byte you get — being wired into the address space several times over
+was normal on this console.</p>
+<p>The game prefers the <code>$80</code> window for speed: the SNES reads the
+cartridge at 2.68 MHz through most windows and at 3.58 MHz through banks
+<code>$80-$FF</code> when the cartridge asks for it, which this one does (its
+map-mode byte is <code>$31</code> — HiROM <em>and</em> FastROM). About a third
+faster, for free.</p>
+<p>And that is where the cost lands: <strong>breakpoints and watches are keyed to
+an address, not to a byte.</strong> Break on <code>$C0:D055</code> and the CPU
+will execute those exact bytes through <code>$80:D055</code> all day without
+tripping it. Your probe prints nothing — and nothing looks identical to "the game
+never calls this". Low work RAM has the same sibling trap, visible as both
+<code>$7E:1000</code> and <code>$00:1000</code>.</p>
+<p>One last thing the rule assumes: <strong>no copier header</strong>. Some dumps
+carry an extra 512 bytes at the front, added by the hardware that made them; with
+one of those, every offset on this page is wrong by 512. The SHA-1 in the footer
+is what pins that down. <a class="back" href="#fnref1">↩ back</a></p>
 </div>
 </section>
 """
