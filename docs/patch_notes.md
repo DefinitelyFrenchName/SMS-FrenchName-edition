@@ -1542,6 +1542,53 @@ command grabs can be added once their inputs are identified (send motions!).
 `--all-grabs` switches to nerfing EVERY grab-path damage (normal throws + hold-throw
 ticks included) for those who want throws covered too.
 
+### ⚠ `--all-grabs` does NOT cover a TECHED throw (measured 2026-08-08)
+
+**The knob scales a throw that lands and not one that is teched, and at high Guts
+levels that inverts the incentive: teching costs the victim MORE than eating it.**
+
+Measured on `clean + 13 + 14 --all-grabs`, Guts L3 (60%), with patch 13's own
+throw phases (`tools/test_p13_guts.lua`, states as in that suite):
+
+| | patch 13 alone | + patch 14 `--all-grabs` |
+|---|---|---|
+| throw that lands | 24 | **10** (scaled ✓) |
+| throw that is **teched** | 12 | **12** (unscaled ✗) |
+
+**Why.** `$C1:0823` splits on the victim's mash count (`lda $56,X / cmp #$02 /
+bpl`), and the two outcomes are *separate branches* that both read the damage from
+DP `$05`:
+
+```
+$C1:082F  lda $0049,Y / sec / sbc $05 …    ← lands.  patch 13 hooks +0, patch 14 the tail +6
+$C1:084D  lda $05 / lsr / eor #$FF / inc a
+$C1:0854  adc $0049,Y …                    ← teched. hooked by NEITHER patch
+```
+
+The tech branch never passes through the hooked site, so it halves the *unscaled*
+damage. This is **correct and deliberate for patch 13 alone** — normal throws are
+out of its scope, and `test_p13_guts.lua`'s `tech-immune` phase pins exactly that
+("throws untouched"). It is an incompleteness only in patch 14's `--all-grabs`,
+whose whole claim is that every grab path is covered.
+
+**Blast radius: no shipped build.** All four recipes (`build_rev.sh`,
+`build_ref_v1/v2.sh`, `build_v022.sh`) call `mkpatch14.py` with no flags, so
+Rev. S-02, Rev. SS-02, REF v.1/v.2 and v0.22 are unaffected. The **default**
+scope (command grabs) also appears unexposed: Uranus's SPD scripts toss
+immediately with no mash-sampling steps, so the tech branch should be
+unreachable for them — *that part is inferred from the scripts, not measured, and
+should be measured before anyone relies on it.*
+
+**Fixing it** means hooking the tech branch too (its tail `$C1:0857
+cmp #$90 / bcs / sta` has the same shape as the two sites already hooked), and
+deciding a question that is the maintainer's, not the code's: should a teched
+command grab be scaled by Guts at all? Left open deliberately.
+
+⚠ The general lesson is trap 5 again, in a new costume: **patch 13's site census
+was complete, and patch 14 inherited its site list rather than re-deriving one
+for its own, wider claim.** A patch that widens another patch's scope must
+re-census the paths for the new scope.
+
 ## Verification
 Regression suite (`tools/test_regression.lua`): v0.18 = 42 tests ALL PASS incl.
 p14-spd-uranus-scaled (13), p14-spd-jupiter-scaled (5×2), throw exemption at L3,

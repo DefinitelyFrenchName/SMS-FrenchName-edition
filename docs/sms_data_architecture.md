@@ -586,6 +586,16 @@ artifact of the discovery method**: a flat 10-byte-stride scan from `$BE08`
 finds the last contiguous stretch and silently misses the 16 records before it.
 Walk the pointer tables instead.
 
+⚠ **An asset can be named by more than one record**, which matters to anything
+that relocates one. Ten sources are referenced twice — including **`$C3:48D0`,
+the big text sheet**, uploaded to VRAM `$2C00` by record `$C3:BEBC` and to
+`$2A00` by `$C3:BEE4`; the other nine pairs are the same block sent to `$4000`
+on one screen and `$3000` on another. Repointing the record you happened to find
+leaves the other pointing at the original block. That is benign when the original
+survives (the second screen simply keeps the vanilla asset) and corrupting when
+it does not — which is why patch 16 relocates rather than edits in place, and why
+the screens it has *not* repointed need their own glyph-delivery hook.
+
 ⚠ **The length sits two bytes BEFORE the source pointer.** Reading it the other
 way round pairs record N's length with record N+1's source, which is exactly the
 mistake that made three attempts to grow a transfer "change nothing" — they were

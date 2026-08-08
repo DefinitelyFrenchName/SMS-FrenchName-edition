@@ -1054,6 +1054,14 @@ vendor/   sms-training-mode (RAM map + palette patcher)
 ---
 
 ## 8. Open threads / possible future work
+- **Patch 14 `--all-grabs` misses the throw-TECH branch** (measured 2026-08-08, while
+  auditing whether the data-architecture doc's corrections implied wrong code). At Guts
+  L3 a landed throw scales 24→10, a teched one stays 12 — teching costs the victim more
+  than eating it. `$C1:0823` splits into two branches and only the landing one is hooked.
+  **No shipped build passes `--all-grabs`**, and the default command-grab scope looks
+  unexposed (those scripts toss with no mash sampling — inferred, not measured). Fixing
+  it needs a maintainer ruling first: should a teched command grab be scaled at all?
+  Detail: `docs/patch_notes.md` § Patch 14.
 - **Dash distance** (patch 5): maintainer said −1/3 "feels much better" but *may* retune later.
   One flag: `mkpatch5.py --speed`. Infinite is unaffected by dash speed (dash stops on contact).
 - **Patch 6 (dash i-frames)**, **patch 7 (Pluto 5HP)** and **patch 8 (Venus throw tech)** are
