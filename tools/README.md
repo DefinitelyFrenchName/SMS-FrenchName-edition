@@ -475,6 +475,7 @@ See HANDOFF.md §4 for the harness.
 
 - `boxlib.py` — the box-extractor core, in ONE place (#85).
 - `checkdocs.py` — Verify docs/game/'s load-bearing claims against the cartridge.
+- `checkknobs.py` — Verify the knobs table in docs/project/patch_notes.md against the builders.
 - `checkpatchmap.py` — Verify the edit-region map in docs/project/patch_notes.md against the .bps files.
 - `docaddrs.py` — the address census the documentation checks are built on.
 - `findfont.py` — locate a Latin font inside an arbitrary SNES ROM.

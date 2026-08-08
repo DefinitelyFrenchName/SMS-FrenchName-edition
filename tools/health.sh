@@ -34,6 +34,11 @@ echo "== generated artifacts are in sync with their sources =="
 if out="$(python3 tools/mksigs.py --check 2>&1)"; then ok "$out"; else bad "mksigs: $out"; fi
 if out="$(python3 tools/mkrelease.py --check 2>&1)"; then ok "$out"; else bad "mkrelease: $out"; fi
 if out="$(python3 tools/mkindex.py --check 2>&1)"; then ok "$out"; else bad "mkindex: $out"; fi
+# The knobs table is read from the builders' source, so this one needs no ROM
+# and runs everywhere, CI included (trap 18: a documented knob either works or
+# does not exist).
+if out="$(python3 tools/checkknobs.py 2>&1)"; then ok "knobs table vs builders: $(printf '%s' "$out" | grep -aoE '\([0-9]+ documented knobs.*\)' | tr -d '()')"
+else printf '%s\n' "$out" | sed 's/^/    /'; bad "checkknobs: the knobs table disagrees with the builders"; fi
 # mkcharmap reads the ROM, so it can only be checked where the ROM exists; a
 # hosted runner has none and must SKIP rather than silently pass (#24).
 # Guard on the ROM FILE EXISTING, not on clean_rom() merely returning: it hands
