@@ -1,5 +1,10 @@
 # feasibility.md — Route A (Saturn → SMS) vs Route B (SMS → Super S)
 
+**HISTORICAL (as of 2026-08-08) — kept for the evidence.** Route A was chosen and
+delivered: the port is feature-complete at **v0.16.1** (`BUILDS.md`,
+`PROJECT.md`). Nothing below is a live decision; it is the measurement record
+that made the call, and the routes it compares are settled.
+
 Status 2026-07-30: evidence gathered (see `supers_map.md` for every measured fact);
 **recommendation at the end**. Decision is the maintainer's.
 

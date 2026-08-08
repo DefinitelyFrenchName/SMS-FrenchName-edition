@@ -16,8 +16,12 @@ or [L] (vendor Lua). This grows into the Uranus-grade balance dossier (template 
 - Manifest `$E0:AC6A`: **first_hit_defense = 1** (SMS: only Jupiter=1, Neptune=2),
   palettes pal1 `$E0:B0C8` / pal2 `$E0:B0A8` / icon `$E0:B270` / obj `$E0:B208`.
   NOTE: the record's last field is `$E0:F328` for ALL TEN characters — in Super S it
-  is NOT the per-char anim payload (SMS semantics changed); the real payload location
-  is an open question (find it at runtime: watch what fills `$7E:6A00` during her load).
+  is NOT the per-char anim payload (SMS semantics changed).
+  ~~the real payload location is an open question~~ **ANSWERED 2026-07-30**: the
+  animation data is not in the manifest at all, it is four id-indexed tables —
+  scripts `$C0:0000`, pose records `$84:809F`, cel tables `$CB:0000`, OAM layout
+  `$84:8000` (supers_map §pipeline; her cels fully censused, §3c below: 115 cels,
+  136.7 KB). The `$7E:6A00` blob is the compressed *effect* tiles, not her cels.
 - Dispatch entries (both tables are SMS's structures widened to 11): recognizer record
   `$C1:1452` = `145E 15F1 15FA 1603 160C FFFF` — **5 command recognizers, the exact
   SMS shape** (Uranus has 5+FFFF too); state-proc-B record `$C1:174E` (7 bytes,
@@ -137,7 +141,8 @@ in-ROM select path).
 **0x68/0x69** (P2 held 0x1C → damaged into hitstun; the acts-68/69 sound site id
 0x20 = the throw sfx). She takes throws normally (victim acts 1C/1D/1E).
 **"Weird throws" RESOLVED (2026-08-05) — the wiki's [W] flag was two real data
-faults, both inherited from Super S and both now fixed (v0.16.0).** Measured
+faults, both inherited from Super S and both now fixed (shipped in **v0.16.1**;
+v0.16.0's attempt at fault 2 is retired — see the ⚠ below).** Measured
 with `tools/saturn/probe_throwmap.lua` / `probe_throwsrc.lua`, mechanism in
 `sms_engine_internals.md` §8:
 
@@ -211,19 +216,28 @@ Drive Break input (412364+HP → 632146+HK), sped Silence Buster, added a counte
 
 ## 5. Dossier TODO (the Uranus-grade template)
 
+Status refreshed 2026-08-08 — five of eight are answered above; pointers given.
+
 - [ ] Full act table incl. crouch/jump/dash normals, specials, desperation (record
       dispatcher: find the Super S `$C1:0B49` equivalent), throws (the "weird" ones).
+      (Partial: §2 act map + §3d scripts cover the standing normals, the specials
+      and the desperation; crouch/jump/dash normals still uncensused.)
 - [ ] Frame data per move, oracle conventions (S excl. first active, hitstop-excluded
       counts, advantage) — port the training framedata rig (hook `$80:8347`).
 - [ ] Hitbox visualization (retarget hud_boxes to bank $AF tables).
-- [ ] Damage values + attack classes (+0x44) per move; whether she claims on-hit
-      classes beyond 0x1F.
-- [ ] Guard-proximity data: LOCATE the per-move guard-distance table that far
+- [x] Damage values + attack classes (+0x44) per move; whether she claims on-hit
+      classes beyond 0x1F. → **§3b** (lights 0x00 / heavies 0x04; no overflow).
+- [x] Guard-proximity data: LOCATE the per-move guard-distance table that far
       5LK/5HK get wrong — this is balance knob #1 (make them blockable).
-- [ ] Throws: type, ranges, techability (vs SMS mash-tech system).
-- [ ] Desperation: trigger conditions, damage, chip.
-- [ ] Sprite/anim payload: manifest at `$E0:ABC4 + 10*2`, LZSS payload address/size
-      (for Route A porting budget).
+      → **§3**: not a distance table — the startup pose's CLASS byte; 2-byte fix,
+      confirmed fixed in the port.
+- [x] Throws: type, ranges, techability (vs SMS mash-tech system).
+      → **§3 "Weird throws" RESOLVED (2026-08-05)**, shipped v0.16.1.
+- [x] Desperation: trigger conditions, damage, chip. → **§2** (412364+HP at
+      HP≤0x18, act 0x78→0x79, 8 hits ~15 dmg). Chip on guard still unmeasured.
+- [x] Sprite/anim payload: manifest at `$E0:ABC4 + 10*2`, LZSS payload address/size
+      (for Route A porting budget). → **§3c** (115 cels, 136.7 KB, `$DD`-`$DF`);
+      the manifest was the wrong place to look — see §1.
 
 ## In-match NAMEPLATE — the table is located (2026-08-05)
 

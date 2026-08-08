@@ -215,5 +215,3 @@ Revisit this decision if — and only if — one of these becomes true:
 
 None of those is close today. The one budget that genuinely constrains us is
 ARAM, and it is a hardware limit no cartridge change can lift.
-EOF
-echo written; wc -l docs/saturn/memory_and_shell.md

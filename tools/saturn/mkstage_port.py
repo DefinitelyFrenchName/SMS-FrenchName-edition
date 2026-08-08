@@ -33,8 +33,9 @@ Super S's structures are the same, so its side is pure data:
     job table  = its asset records (index == supers_lz job index)
     $E0:AC7A   palette records (same format)
 
-Source stage is SUPERS_SCENE below (default 1 = the moonlit terrace with the
-Elysion palace skyline; jobs 0/1/2, palettes 2 + 12). Swapping it is one
+Source stage is SUPERS_SCENE below (default 8 = Silent Throne of the Messiah,
+the shipped choice since 2026-08-03; scene 1 = the moonlit terrace with the
+Elysion palace skyline, jobs 0/1/2, palettes 2 + 12). Swapping it is one
 constant — every Super S stage decompresses to within SMS's budget (tilesets
 0x1F40-0x5F60 vs the 0x6000 window, tilemaps exactly 0x1000).
 """

@@ -77,8 +77,11 @@ Neptune=2 in SMS), pal1 `$E0:B0C8`, anim payload `$E0:F328`.
 
 Super S manifest records keep SMS's 16-byte layout for d48 + the four palette
 pointers, but the final 3-byte field is `$E0:F328` for ALL characters — NOT the
-per-char anim payload SMS stores there. Per-char animation payload location in
-Super S: UNKNOWN (runtime method: read-watch the `$7E:6A00` expansion during load).
+per-char anim payload SMS stores there. ~~Per-char animation payload location in
+Super S: UNKNOWN~~ **ANSWERED 2026-07-30, same session** — it is not a payload
+at all but four id-indexed tables: scripts `$C0:0000`, pose records `$84:809F`,
+cel tables `$CB:0000` (§Sprite/animation pipeline) and OAM layout `$84:8000`.
+The `$7E:6A00` expansion is the compressed EFFECT tiles (§Effect tiles).
 
 ## Character architecture — the move pipeline [P 07-30, movereq/coverage probes]
 
@@ -135,7 +138,9 @@ procs) is ported by `tools/saturn/port_saturn_proc.py`:
   signature/skeleton match at regional deltas −2/−25/−5; two JSLs: $80:C115 →
   $80:BFBB (the box-data helper; only operand bytes differ incl. box bank
   $AF→$8A) and $80:FBB0 → $80:9FB7 bare-RTL stub ($FBB0→$FBB4 is the Super S
-  sound/CMD handler with NO SMS twin — her sfx are silenced, TODO).
+  sound/CMD handler with NO SMS twin — her sfx were silenced at this point; DONE
+  since: sfx in v0.7.0, her own voice in v0.13.0 / select line v0.13.1, pitch in
+  patch 101 — see `sound_scope.md`).
 - **Graft**: appended bank $EF = full SMS-$C1 copy + her fixed block at its
   original in-bank offsets. Internal refs verbatim; engine jsr's hit the copied
   SMS routines (PB=$EF, plain rts works); phk/plb data readers (special starter,
@@ -211,14 +216,18 @@ The static OBJ effect tiles (VRAM $6A00+, tiles 0xA0-0xFF — fireball art etc.)
 are loaded at match start: DECOMPRESSED into WRAM **$7F:0000** (0x1040 bytes)
 then DMA'd to VRAM $6A00 (one ch0 transfer). The decompressor drives a
 RAM-resident `MVN $7F,$E2 / RTL` stub at $00:00C8 (LZ/RLE with MVN literal
-bursts); Saturn's compressed source sits in **bank $E2 (~$E2:FC42)**. The
-per-char source pointer table is not yet located. STRONG HYPOTHESIS for the
+bursts); Saturn's compressed source sits in **bank $E2 (~$E2:FC42)**.
+~~The per-char source pointer table is not yet located.~~ **LOCATED in v0.11.4**
+— it is the decompression JOB table `$80:EEF1`, entries 47+charID (P1) /
+57+charID (P2); Saturn = 57/67 → stream `$E3:FA09`, 0x1040 bytes (next section).
+STRONG HYPOTHESIS for the
 SMS side: the manifest record's final field (the "anim payload" pointer,
 decompressed via `$C0:916B` to $7E:6A00 per CLAUDE.md's original notes) is
 SMS's own compressed effect-tile blob — i.e. the char-load integration point
 for her effects is the 10th manifest entry + an appended compressed blob (or a
-raw-copy patch of the loader). Until then the smoke uses the fixture VRAM dump
-at runtime. Verify the SMS hypothesis before building on it.
+raw-copy patch of the loader). ~~Until then the smoke uses the fixture VRAM dump
+at runtime.~~ Superseded by v0.11.4 — the smoke no longer needs it.
+Verify the SMS hypothesis before building on it.
 
 ## Graphics LZSS + decompression job table [P 07-31, v0.11.4 session]
 

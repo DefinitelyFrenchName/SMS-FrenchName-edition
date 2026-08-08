@@ -162,8 +162,9 @@ Maintainer testing, recorded because several of these close long-running items:
 
 ```bash
 git pull
-python3 tools/saturn/mksaturn_smoke.py          # -> build/saturn/SailorMoonS_saturn_v<ver>.sfc
-SATURN_HIDDEN=1 python3 tools/saturn/mksaturn_smoke.py   # -> ..._v<ver>-hidden.sfc (0.11.0+)
+python3 tools/saturn/mksaturn_smoke.py   # -> build/saturn/SailorMoonS_saturn_v<ver>-hidden.sfc
+# (SATURN_HIDDEN is no longer read here — hidden is unconditional since 2026-08-04;
+#  the "-hidden"/"H" tags are kept in the filename and version string as a continuity tell.)
 # one-time, for correct fireball art (needs the Super S ROM):
 ROM=<SuperS.sfc> tools/run.sh tools/saturn/probe_supers_effecttiles.lua 60
 ```
@@ -172,15 +173,14 @@ ROM=<SuperS.sfc> tools/run.sh tools/saturn/probe_supers_effecttiles.lua 60
 Pluto** at the select screen (any other shell is refused since 0.14.5 — that
 restriction IS the story lock, and since 0.14.8 an illegal shell does not even
 arm her sfx/palette); that character becomes Saturn at the round load.
+Works for P1, P2, and the practice dummy (the code follows
+the pad that drives the confirming cursor). Confirming without the code always
+un-picks.
 The v0.10.0 VISIBLE slot-10 variant is **retired and its code deleted**: a
 placeholder (parked cursor glyph, no portrait or name) that added the one
 char-select surface the story lock exists to avoid. Removal is byte-identical to
-the last hidden build, so no ROM changed. The rows below are history. Works for P1, P2, and the practice dummy (the code follows
-the pad that drives the confirming cursor). Confirming without the code always
-un-picks. **Visible variant — since 0.10.0**: in VS or practice char select, go to Chibimoon and press
-RIGHT (or Venus + DOWN) — the cursor lands on a marked 10th spot at the
-photo's bottom-right; confirm to pick Saturn (shows as Uranus until the round
-loads). Works for P1, P2, and the practice dummy. **Since 0.8.0**: hold L+R
+the last hidden build, so no ROM changed. The rows below are history.
+**Since 0.8.0**: hold L+R
 as a round loads (either pad) — that player becomes Saturn; SELECT-hold at a
 round load reverts; this is also the ONLY way in story/1P mode.
 `tools/saturn/saturn_test.lua` remains available (auto-transform + P2 mirror
@@ -420,7 +420,10 @@ sheet is **identical across shells** (cross-shell invariance rather than a
 hardcoded checksum, so it survives any change to her art). Sanity-checked
 against v0.14.8: shells 6 and 7 disagree there, and agree on the fix.
 
-## THROWN SPRITE: the v0.14.7 fix left a RESIDUAL, and it is still open (2026-08-05)
+## THROWN SPRITE: the v0.14.7 fix left a RESIDUAL — ROOT-CAUSED AND FIXED in v0.14.14 (2026-08-05)
+
+(Heading corrected 2026-08-08; it read "and it is still open". The investigation
+below is kept in the order it happened — the fix is at the end.)
 
 **Field report:** her sprite corrupts while she is thrown, "the same way as when
 we first had that bug". **Reproduced, with a frame-matched vanilla control** —
@@ -513,7 +516,10 @@ let this ship, and it is now checked against the artifact.
 saw "pose=01" throughout, which is the wrong byte and says nothing about the
 thrown sprite.
 
-**Next, and it is the only ground truth left:** her list and cels are
+~~**Next, and it is the only ground truth left:**~~ **SUPERSEDED** — this was the
+pre-fix next step, written before the `$C1`-copy root cause above was found. It
+was never needed: the data was fine, the copy's read was not. Kept for the
+reasoning. Her list and cels are
 byte-identical to Super S's, so our render should equal Super S's. Capture the
 SAME throw in Super S and compare the composed victim. If Super S looks right and
 ours does not, the difference is in how the ENGINE uses the data — the cel window

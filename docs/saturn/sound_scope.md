@@ -683,7 +683,11 @@ Acceptance (`probe_sms_selectcheck.lua`, on `…v0.13.1-hidden.sfc`):
 plus the v0.13.0 suite re-run on the new ROM: in-match voice 8/8 both players,
 restore 4/4 both halves, smoke 228/228, regression ALL PASS (57).
 
-## OPEN (polish, not blocking): her voices play SHARP vs Super S [P 08-03]
+## CLOSED (was: OPEN, polish): her voices played SHARP vs Super S [P 08-03]
+
+> Fixed by **patch 101**, on by default since 2026-08-05 (§SHIPPED AS PATCH 101
+> at the end of this file). Route 1 (retune the transposes) is what
+> shipped; the analysis below is how it was chosen.
 
 Field report, 2026-08-03: everything is present and correct, but the voices sit
 higher than they do in Super S. The measurements already taken explain it, and
@@ -703,8 +707,10 @@ So over the Uranus shell she plays about **1.23×** too fast (≈ +3.6 semitones
 and over Moon about **1.30×** (≈ +4.5). Note the consequence: because she
 borrows the SHELL's sound id for the select line, **how sharp she sounds depends
 on which shell she is summoned over**. For the in-match voices she borrows char
-1's ids, so those are consistently Moon's pitch — that set has not been measured
-yet and should be, before any retune.
+1's ids, so those are consistently Moon's pitch — ~~that set has not been
+measured yet and should be, before any retune~~ **measured 2026-08-04, see
+§The in-match fix — MEASURED, four bytes below** (ids 49-52, all converging on
+transpose `$FB`).
 
 Two ways to fix it, with different costs:
 
@@ -889,7 +895,7 @@ Check 4 exists because the first version of this script printed ALL PASS through
 three Python tracebacks — it read `tail`'s exit status instead of the differ's. A
 gate that cannot fail is not a gate, and that applies to the gate's own harness.
 
-### What it found on the first real use — an open finding
+### What it found on the first real use — a finding, disposed of below
 
 Diffing vanilla against the proposed retune (all four transposes -> `$FB`):
 
@@ -908,7 +914,13 @@ Diffing vanilla against the proposed retune (all four transposes -> `$FB`):
   plays in this window, which is also a reminder that the window bounds the
   claim.
 
-⚠ **Not root-caused, and it must be before this ships.** Two readings fit the
+⚠ ~~**Not root-caused, and it must be before this ships.**~~ **DISPOSITION
+(2026-08-05): shipped anyway, still not root-caused, cleared by a maintainer
+listening A/B rather than by deciding (a) vs (b).** The field verdict was: her
+pitch correct, other characters no downpitch or only mild, and a Moon facing her
+3 semitones flat — the shared-transpose limitation, **accepted**. So the
+question below is open in theory and closed in practice; re-open it if anyone
+reports detuned music. Two readings fit the
 evidence and they have opposite consequences: either (a) her sfx is **layered
 across several DSP voices** using shared percussion samples, in which case
 shifting all layers together is correct and the "side effect" is the fix working
@@ -1005,7 +1017,7 @@ what a load-time hook can damage, but they are not "everything": VRAM, OAM
 proper, CGRAM and the APU's internal state stay outside, and every claim is
 bounded by the scripted window (900 frames, practice mode, one shell).
 
-## SHIPPED AS PATCH 101 (built, held) [P 08-04]
+## SHIPPED AS PATCH 101 — ON BY DEFAULT (registry synced 2026-08-05) [P 08-04]
 
 Implemented as `SATURN_PITCH=1` on patch 100's builder — full notes, verification
 table and the two traps in `docs/patch_notes.md` "Patch 101". Two things learned

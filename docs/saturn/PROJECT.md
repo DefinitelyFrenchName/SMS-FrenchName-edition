@@ -136,7 +136,9 @@ It was a placeholder anyway (parked cursor glyph, no portrait or name,
 post-confirm screens showed the shell), and it added a navigable char-select
 entry — the exact surface the story lock exists to avoid. Removal was proven
 inert by rebuilding and diffing: **byte-identical ROM** (`76ba6d8c…` hidden,
-`03b73cdd…` stage), so no version bump. The `-hidden` filename tag and the `H` in
+`03b73cdd…` stage — those are the **v0.11-era retirement pair**, quoted here
+only to record that the diff was byte-identical at that moment; current is
+v0.16.1, hidden `91639250…` / hidden+stage `c8f7dae8…`), so no version bump. The `-hidden` filename tag and the `H` in
 the on-screen version string stay: every recorded hash and doc reference uses
 them, and they are a continuity tell. History: `docs/saturn/BUILDS.md`
 0.10.0/0.11.0, and git.
@@ -148,7 +150,13 @@ are not rediscovered later as bugs.
 
 * **Sound mapping is approximate.** SMS whoosh/starter sfx stand in for her Super
   S command sounds. Good enough for now; refine per-move if it ever grates.
-* **Her voice pitch varies with the shell character — MEASURED 2026-08-04, and
+* **Her voice pitch: IN-MATCH FIXED by patch 101 (shipped, on by default); only
+  the CHARACTER-SELECT line still inherits the shell's pitch.** The parked
+  investigation below is from before 101 and is kept for its measurements —
+  read it knowing the in-match half is closed (`sound_scope.md`, patch 101:
+  transposes `$FE/$FE/$FF/$FD` → `$FB`; accepted limitation, a Moon facing her
+  is 3 semitones flat).
+  Original entry — **MEASURED 2026-08-04, and
   it is narrower than it looked.** `tools/saturn/probe_sms_voicepitch.lua`
   shadows the DSP register file from the SPC's own port writes ($00F2 index /
   $00F3 data — a write callback on `memType.spcDspRegisters` never fires) and
@@ -185,9 +193,10 @@ are not rediscovered later as bugs.
     ~2 semitones apart — audible back to back); and do the same special on two
     shells (my measurement says identical). Either result is informative: a
     confirmed in-fight difference means one of the two unmeasured voiced paths.
-  * **For her ORIGINAL pitch:** run this same probe against the SUPER S ROM with
-    Saturn and read the pitch her own game uses. That is the principled answer,
-    ~20 minutes, and it is what makes a fix non-arbitrary. The maintainer also
+  * ~~**For her ORIGINAL pitch:** run this same probe against the SUPER S ROM~~
+    **DONE** — Super S plays her select line at `$03FE` (7984 Hz) against SMS's
+    `$04E7`/`$0533`; that measurement is what set patch 101's target.
+    (`sound_scope.md`.) The maintainer also
     reports the extracted samples sounded at or near original pitch, which is a
     second, independent calibration.
   * **Cost of fixing, if ever wanted:** pin the select path to one sound id for

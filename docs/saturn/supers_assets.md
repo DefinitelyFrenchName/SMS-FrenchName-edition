@@ -5,9 +5,16 @@
 > (moves, boxes, frame data, balance) lives in `saturn_notes.md`. Shared engine/ROM
 > facts live in `supers_map.md`.
 
-Status: NICE-TO-HAVE milestone — **feasibility exploration DONE (2026-07-31,
-v0.11.5 session)**, port not started. Verdict: **feasible, moderate effort**
-(details in §Stage-port feasibility below).
+> **Screenshots referenced below are NOT in git** (`traces/`, `mockups/` and
+> `*.png` are gitignored — they are game art). Regenerate them locally by
+> re-running the probe named next to each one; only `.mss` savestates are
+> committed.
+
+Status (2026-08-08): the stage port **SHIPPED in v0.13.6** — Super S scene 8
+(Silent Throne of the Messiah) over SMS stage 2, and it rides in Rev. SS.
+(Superseded status line, kept for the trail: "feasibility exploration DONE
+(2026-07-31, v0.11.5 session), port not started. Verdict: feasible, moderate
+effort" — §Stage-port feasibility below is that exploration.)
 
 ## Inventory targets
 
@@ -119,7 +126,16 @@ Three traps, all paid for once:
    asset's DMA into the appended bank. The stub programs the DMA registers
    itself and touches no DP state.
 
-### Field fixes [P 08-02]
+### Field fixes [P 08-02] — SUPERSEDED (see Round 3, 2026-08-03)
+
+> **The knobs described in this section no longer exist.** `STRIP_PRIORITY`,
+> `SWAP_MAPS` and `MAP1_SHIFT` were deleted from `mkstage_port.py` (#70): Round 3
+> found the real cause — the scene script's tail byte `$8F` (`0x10` -> `0x18`) —
+> after which the maps go in **verbatim** and the stage-2 scroll entry is simply
+> repointed to `$C0:B42F`. The builder now uses `PORT_SCRIPT_TAIL` and nothing
+> else. Kept because the symptoms and the measurements are still the evidence
+> that led there — and because each knob was a fix for a symptom of that one
+> missing byte.
 
 Three problems reported from play, two fixed:
 
@@ -155,24 +171,23 @@ Three problems reported from play, two fixed:
    instructive way: with the vortex removed the palace went out of frame and
    the offline renders — palace at map rows 0-10, floor at rows 9-13 — made a
    VERTICAL offset look like the cause. It was not; the plane assignment was.
-   A horizontal re-framing knob `MAP1_SHIFT` remains but is unused at 0.)* With the vortex gone
-   the palace is out of view. Rendering both tilemaps offline shows why: the
-   palace occupies map ROWS 0-10 while the near layer's floor is rows 9-13, so
-   it is the far plane's VERTICAL offset that is off, not the horizontal one (a
-   horizontal rotation was tried and did not help; the knob `MAP1_SHIFT`
-   remains for when it is useful). The fix needs BG2VOFS measured
-   (`$210E`/`$2110`) and then either a row rotation of the far map or a small
-   custom scroll routine in the appended bank.
+   A horizontal re-framing knob `MAP1_SHIFT` remains but is unused at 0.)*
 
-Net: the stage is stable and correctly layered, and looks like a clean moonlit
-terrace — with its palace skyline still to be brought back into frame.
+   *(A duplicate of that same superseded diagnosis stood here — the offline
+   render, the "far plane's VERTICAL offset", the BG2VOFS next step. Deleted
+   2026-08-08: it restated the paragraph directly above it, and the framing was
+   finished in v0.13.6 by the `$8F` tail byte.)*
+
+Net (corrected 2026-08-08): the stage is stable and correctly layered, and the
+palace skyline is back in frame — done in v0.13.6, Round 3 below.
 
 ### Status and what is left
 
 Verified in-emulator: the ported stage renders with correct art and palette,
 stages 0/1/5 are unchanged on the same ROM, and the regression suite is 42/42.
-Source stage is one constant (`SUPERS_SCENE`, default 1 = the moonlit terrace
-with the Elysion palace skyline).
+Source stage is one constant (`SUPERS_SCENE`; it defaulted to 1 = the moonlit
+terrace with the Elysion palace skyline when this was written — **default is 8,
+Silent Throne of the Messiah, since 2026-08-03**, see §DECIDED below).
 
 Remaining polish, all in the same family: **the per-stage BG CONFIG is still
 SMS's** — mode, scroll/parallax registers, colour-math and windows, plus the
@@ -233,6 +248,12 @@ per-player Saturn flag consulted at that point.
 
 
 ## Card portrait — plumbing DONE, art conversion REMAINS [P 08-01, v0.12.0]
+
+> **Both closed since v0.12.1.** The art conversion is done (§Art conversion —
+> SOLVED via capture) and the per-character sprite list is substituted
+> (§The sprite-list selector — SOLVED), so `SATURN_PORTRAIT` is **ON by default**
+> in the builder (`!= "0"`); `SATURN_PORTRAIT=0` builds without it. The heading
+> and the "OFF in shipped builds" line below are the v0.12.0 state.
 
 Implemented behind `SATURN_PORTRAIT=1` (OFF in shipped builds):
 
@@ -396,6 +417,8 @@ python3 tools/saturn/mkportrait.py --card mockups/saturn_win.png \
     build/saturn/portrait_list.bin build/saturn/portrait_saturn.bin \
     build/saturn/portrait_saturn.pal
 ```
+`mockups/saturn_win.png` is a **maintainer-supplied local capture**, not a
+committed file — supply your own before running this.
 Input is a 1:1 (256x224, no scaling/filtering) capture of Super S's report
 card. `--render` redraws a composition from VRAM+OAM+CGRAM dumps and is what
 validated the model in the first place (it reproduces SMS's Uranus portrait
@@ -466,7 +489,11 @@ grass field with no feature at the fighters' feet, while the ported stage has a
 hard perspective floor line exactly there. So the port did not invent the
 behaviour; it inherited it onto art that shows it.
 
-### Fix
+### Fix — SUPERSEDED (Round 3, 2026-08-03; `GROUND_TRACKS_CAMERA` deleted, #70)
+
+> The in-place rewrite of `$C0:B454` is gone: SMS's own Silver Millennium keeps
+> its sky+ground plane still through a jump, so tracking the camera 1:1 deviated
+> from **both** originals. The builder repoints stage 2 to `$C0:B42F` instead.
 
 `mkstage_port.py`, `GROUND_TRACKS_CAMERA = True` (default): instead of
 repointing `$C0:B32F`, the **vortex routine's body at `$C0:B454` is rewritten in
@@ -491,7 +518,11 @@ same ROM is byte-identical before and after, so no other stage moved; regression
 camera clamps at −12 px however high the fighter goes, so the 1:1 ground can
 never scroll far enough to expose the tilemap's wrap.
 
-### Round 2 — the PALACE rate (field, 2026-08-03)
+### Round 2 — the PALACE rate (field, 2026-08-03) — SUPERSEDED by Round 3
+
+> `PLANE_SPLIT` and `MERGE_GROUND` were deleted with their code (#70). The
+> measurements below (Super S's per-scanline HDMA, the per-band shifts) stand;
+> the plane-splitting response to them does not.
 
 The slide was confirmed gone, with one thing left: the palace. Two captures at
 the same jump apex, Super S vs ours, showed Super S's palace shifted a fraction
@@ -696,16 +727,22 @@ the HUD and OBJ rows — i.e. the fighters, which differ by cast).
 
 ### Still open on these
 
-* **Which SMS slots to sacrifice.** All three test ROMs replace stage 2 so they
+(Two of these three closed in §DECIDED below, 2026-08-03 — noted 2026-08-08.)
+
+* ~~**Which SMS slots to sacrifice.**~~ **DECIDED**: stage 2 (the space-time
+  door), one stage only. All three test ROMs replace stage 2 so they
   can be looked at without deciding; shipping more than one needs a slot each.
-* **BGM.** Not yet answered. The obvious probe cannot answer it: forcing
+* ~~**BGM.**~~ **MOOT by decision** — the ported stage keeps the space-time
+  door's track. The obvious probe cannot answer it: forcing
   `$7E:008E` at `$C0:8586` changes the stage *after* the music has been chosen,
   so every forced-stage run plays the same track. Answering it means finding
   where the scene id is chosen in the first place and whether the music id is
   derived from the same place.
-* **Stage names.** Two Silver Millenniums now exist; the maintainer wants the
-  ported one marked (e.g. "light"). Where SMS displays a stage name at all is
-  not yet established.
+* ~~**Stage names.**~~ **CLOSED by patch 16.** They are on the VS button-config
+  screen: name records at `$C3:B5AD` -> bank `$C4`, over the compressed template
+  at `$C3:7C00`; translated and shipped behind `SMS_P16_STAGES=1`. See
+  `docs/menu_text.md`. (Two Silver Millenniums existed when this was written;
+  the slot chosen was the space-time door, so the "light" marker is moot.)
 
 ### Add a stage, or swap one? (measured 2026-08-03)
 
@@ -728,7 +765,12 @@ So a swap costs nothing but the slot; an addition costs a table relocation, a
 record-table change, and a change to how a stage is picked. Worth revisiting
 only if more than one Super S stage is wanted.
 
-### Stage names
+### Stage names — LOCATED AND TRANSLATED (patch 16)
+
+> Records at `$C3:B5AD` (10 words) -> per-stage name records in bank `$C4`,
+> drawn over the compressed config template `$C3:7C00` (`ldx $1838 / lda $B5AD,X`).
+> Translated names ship behind `SMS_P16_STAGES=1`. Full account in
+> `docs/menu_text.md`. The account below is how it was hunted before that.
 
 The maintainer reports the stage name is printed at the bottom of the
 **button-mapping screen**, between character select and the fight — the same
@@ -755,9 +797,10 @@ now defaults to 8, so `build_saturn_stage.sh` builds it.
 decision — nothing to do, and it makes the "how is music assigned" question moot
 for now.
 
-**Still to do: the stage NAME** on the button-mapping screen, so the slot no
-longer announces the space-time door. Not located yet, and here is exactly what
-has been ruled out, so the next attempt does not repeat it:
+~~**Still to do: the stage NAME**~~ **DONE — patch 16** (`$C3:B5AD` -> bank `$C4`,
+template `$C3:7C00`, shipped behind `SMS_P16_STAGES=1`; `docs/menu_text.md`).
+The ruled-out list below is from before it was found, and the last bullet is the
+reason it took a second attempt — the name is NOT keyed off the scene id:
 
 * The screen itself is reached by the blind Start-mash flow (`probe_menu_survey`
   at ~f1180-1300) — it is 1P-vs-COM there, and dense captures every 10 frames

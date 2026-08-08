@@ -3,11 +3,11 @@
 **Status: SHIPPED in v0.13.2**, verified in-emulator on two shells with the
 vanilla path unchanged. She has her own list: SAILOR SATURN, サイレンス バスター
 (236+P), プレス クラッシャー (JUMP中 632+K), デス リボン レボリューション
-(214+P). Not yet seen by the maintainer in normal play. Everything about how SMS
-picks and draws a character's movelist is now known and measured, including the
-exact per-player hook to use. What is NOT solved is producing HER data — and the
-approach the maintainer preferred (lift it from Super S) is ruled out, for a
-reason worth recording.
+(214+P). **Field-verified by the maintainer in normal play 2026-08-03; #41
+closed.** Everything about how SMS picks and draws a character's movelist is
+known and measured, including the exact per-player hook to use. Producing HER
+data is solved too — authored, not lifted: the approach the maintainer preferred
+(lift it from Super S) is ruled out, for a reason worth recording below.
 
 ## How SMS draws a movelist
 
@@ -165,12 +165,13 @@ original `lda` and returns.
 | Saturn over the **Uranus** shell | expands from `$F9:3400`; staged tilemap byte-identical to the authored one |
 | Saturn over the **Moon** shell | identical — the shell is irrelevant |
 | nobody armed | the vanilla `$E2:7790` list, unchanged |
-| in-game screenshot | `traces/saturn/movelist_satml2.png` — all three moves render |
+| in-game screenshot | `traces/saturn/movelist_satml2.png` — all three moves render (regenerate locally; screenshots are game art and are not committed) |
 | regression / smoke / voice / select-voice | ALL PASS (57) / 228+228 / 8+8 / 4+4 |
 
 ## Her content — SUPPLIED by the maintainer [P 08-03]
 
-From the Super S capture (`traces/saturn/supers_movelist_saturn.png`) plus his
+From the Super S capture (`traces/saturn/supers_movelist_saturn.png` — a local
+capture, not committed) plus his
 transcription. Layout matches SMS's exactly: a title line, then three moves, each
 a katakana name with its input notation on the line below.
 
@@ -218,7 +219,10 @@ Worked example, Uranus's title row at map offset `$140`:
     b0 34  90 34  98 34  9a 34  9d 34  9f 34  b2 34  9f 34  90 34  9c 34  b2 34  b0 34
     S      A      I      L      O      R      U      R      A      N      U      S
 
-**Still missing: the code -> glyph table.** The font's CHR window has not been
+~~**Still missing: the code -> glyph table.**~~ **SOLVED** — exactly this way:
+the BG3 CHR base read out of the PPU is word `$5000`, and the glyph tables are
+in §The font, and how her list is built above. Kept because the failure mode is
+the lesson. The font's CHR window had not been
 pinned down — inferring it from the tile codes and the VRAM dump gave
 inconsistent answers (the letters resolve cleanly at one base, the `$1xx`
 katakana codes do not, which means the base assumption is wrong rather than the
