@@ -10,8 +10,10 @@ Geometry is COMPUTED, never hand-typed: the 40-bank strip, the 128-byte struct
 grid, the memory bands and the byte-layout ribbons are all regular grids, and
 hand-authoring SVG coordinates is how off-by-one diagrams happen.
 
-The palette is the game's own: the sixteen colours of Sailor Uranus's character
-palette, read out of the clean ROM at $E0:06BE.
+The page's palette is the game's own. The strip in the footer is Sailor Uranus's
+character palette, read out of the clean ROM at $E0:06BE; the diagram categories
+borrow from Neptune's, Pluto's and Moon's, adjusted where a theme needed the
+contrast.
 
   python3 tools/mkarchpage.py [out.html]               # Artifact fragment
   python3 tools/mkarchpage.py --standalone [out.html]  # a file that opens in a browser
@@ -478,8 +480,10 @@ def build(sections_html):
   <code>bc0e29ee…</code>, HiROM+FastROM, headerless. Companion to
   <code>docs/game/sms_data_architecture.md</code> in the repo, which carries the same
   material as text.</p>
-  <p>The page is coloured in Sailor Uranus's own sixteen colours, read out of the
-  cartridge at <code>$E0:06BE</code>:</p>
+  <p>Its palette is the game's own. Below is <strong>Sailor Uranus's character
+  palette</strong> — the sixteen colours the cartridge paints her with, read from
+  <code>$E0:06BE</code>. The diagram categories borrow from Neptune's, Pluto's and
+  Moon's palettes, adjusted where a theme needed the contrast.</p>
   <div class="palette">{swatches}</div>
 </footer>
 </div>"""
@@ -599,8 +603,8 @@ first-hit defense. Neptune ships with 2, Jupiter with 1, everyone else 0.</p>
 structured identically — grey, outline, four skin tones, <strong>six costume
 colours</strong>, two accents, a shared shade, white — and only those six costume
 colours differ meaningfully between fighters. Re-hueing that ramp is how this
-project authors new palette slots, and it is why the page you are reading is
-coloured in Uranus's.</p>
+project authors new palette slots — and it is where this page's own palette comes
+from.</p>
 </div>
 </section>
 
