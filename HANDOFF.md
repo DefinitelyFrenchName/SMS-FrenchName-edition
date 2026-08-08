@@ -24,6 +24,41 @@ ported from Super S and is playable in the **Rev. SS** builds only (§0).
 
 ## 0. Current state (2026-08-08) — SMS + Saturn = PATCH 100, and the issue backlog
 
+**2026-08-08 (later) — THE DOC CHECKS ARE NOW GENERATED, AND FIVE MORE ROM FACTS
+WERE WRONG.** `checkdocs` went from 31 hand-written checks to **76**, because
+hand-writing one per claim does not scale to 254 distinct ROM addresses. Three
+mechanisms replace the typing: a **table registry** (15 documented tables, each
+declared with a validator for its shape — box pointers, the four animation
+layers, the modifier jump tables, the throw structures, the special records, the
+menu value records, both cursor-navigation tables); **claims extracted from the
+prose** (`tools/docaddrs.py` — file-offset transcriptions, quoted byte runs and
+quoted instructions, 30 checks nobody wrote); and an **address census** that
+prints how much of `docs/game/` any check actually re-derives (**105/254**, plus
+123 in the generated character pages; a `health.sh` NOTE, never fatal, because
+the honest weakness of a checker is the claims nobody checked and a number that
+is never printed never moves).
+
+⚠ **Every table validator is re-run at a WRONG base and required to fail.** That
+one rule is what makes the registry worth having: it forced each check to assert
+a *shape* — strides, orderings, cross-table contiguity, the fact that the story
+nav table routes to none of 6/7/8 — because "the pointers look plausible"
+survives a two-byte shift, and a check that survives a shift would go green on a
+rotted address. The extractors get the same treatment on synthetic lines each
+run, since a family that has stopped matching passes every claim it no longer
+finds.
+
+⚠ **Five documented facts died** (re-measured by hand, then locked): a
+special-move record is **7 bytes, not 8** — the "+7 strength-ish" field is the
+next record's attackID, masked off by a 16-bit `lda $0006,Y`; the 16-bit
+`stz $47,X` is at **`$C1:0E4F`**, not `$C1:0E51` (four places, three documents);
+the config dispatcher's tail is **`jsr ($BB6D,X)`**, not `jmp`; the bank-`$DF`
+engine has **eight** screens, not nine (a builder comment); and Uranus's toss Y
+velocity is **−$0580**, written `-$FA80` in one doc. Two fixes fell out:
+`mkcharmap.py` printed toss records and hold scripts under one heading, so a
+toss header's *damage* read as the hold step's mash-sampling flag (now split on
+the `$FF` marker the interpreter itself dispatches on), and `menu_system.md`
+gained the option-value pointer tables, which had only existed in the patch log.
+
 **2026-08-08 (session close) — DOCS RESTRUCTURED, AND THEY ARE NOW CHECKED
 AGAINST THE CARTRIDGE.** `docs/` is split: **`docs/game/`** is analysis of the
 retail ROM, meant to be liftable by anyone hacking this game, and
@@ -477,9 +512,10 @@ would actually cost). Short version: ROM is not scarce (384 KB spare), ARAM is
 the only hard wall, and the real constraint is per-character tables sized to nine
 and immediately followed by live data.
 
-**Nineteen traps this project paid for — they generalise** (12-18 are the
+**Twenty traps this project paid for — they generalise** (12-18 are the
 2026-08-06 issue-remediation programme's distillate, per-issue evidence in
-the `Fixes #NN` commits; 19 came out of the 2026-08-08 data-architecture audit):
+the `Fixes #NN` commits; 19 came out of the 2026-08-08 data-architecture audit
+and 20 out of the generated doc checks the same day):
 
 1. **Per-character fixes must be tested with at least TWO shells.** Saturn can
    be summoned over Uranus, Neptune or Pluto (over any of the nine before
@@ -610,6 +646,18 @@ the `Fixes #NN` commits; 19 came out of the 2026-08-08 data-architecture audit):
    inherited list was *correct* — correct for a smaller claim. When you widen a
    claim, re-derive the evidence for it; do not inherit evidence gathered for
    the narrower one. (Found 2026-08-08; unfixed pending a maintainer ruling.)
+20. **A check that cannot fail at the WRONG address is not checking the
+   address.** Every table check in `checkdocs` is re-run at base ±1/±2 and must
+   object; writing that negative control first is what turned each one from "the
+   pointers look plausible" — which survives a two-byte shift, and would have
+   gone green on a rotted address — into a claim about a *shape*: strides,
+   orderings, cross-table contiguity, "the story nav table routes to none of
+   6/7/8". The same rule caught the other half: generated check families are
+   negative-controlled on synthetic lines, because an extractor that quietly
+   stops matching passes every claim it no longer finds, and a family that finds
+   nothing is indistinguishable from a family that verified everything. This is
+   trap 18 ("a documented knob either works or does not exist") pointed at the
+   verification layer itself.
 
 ---
 

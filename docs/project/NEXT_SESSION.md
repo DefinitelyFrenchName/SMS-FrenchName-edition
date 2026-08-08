@@ -15,10 +15,61 @@ sections further down are this session's detail.
    TECHED throw, so at Guts L3 teching costs more than eating the throw (12 vs
    10, measured). No shipped build passes the flag. The question is yours:
    *should a teched command grab be scaled by Guts at all?* Full brief below.
-3. **`checkdocs` next increment** (offered, not started): generate assertions for
-   every `$BB:AAAA` token that names a table this project already parses —
-   `annotations.md` alone carries 264 address tokens against the 31 claims
-   currently checked.
+3. **`checkdocs` — the generated increment is DONE** (76 checks; see below). The
+   next one, if it is wanted: **149 of `docs/game/`'s 254 ROM addresses are
+   still not re-derived**, and nearly all of them are *code* addresses carrying
+   prose claims ("routine X does Y"), which no census can decide. Two ways
+   forward, in order of cheapness — (a) adopt the convention that documenting a
+   routine QUOTES its entry instruction, since the extractor then covers it for
+   free and the quote is what makes the address falsifiable; (b) drive a
+   disassembler and check that each documented address is an instruction
+   boundary something actually calls. `tools/checkdocs.py --uncovered` prints
+   the list.
+
+## What changed this session (2026-08-08, later — the generated checks)
+
+`checkdocs` went from **31 hand-written checks to 76**, and the way it grows is
+now three mechanisms rather than typing:
+
+* **A table registry** — 15 documented tables, each declared with a validator
+  for its SHAPE (box pointer tables, the four animation layers, the modifier
+  jump tables, the throw structures, the special records, the menu value
+  records, both cursor-navigation tables). The doc-mention assertion is
+  generated, and **every validator is re-run at a wrong base and required to
+  fail**. That is why the invariants are strides, orderings and cross-table
+  contiguity rather than "the pointers look plausible": plausibility survives a
+  two-byte shift, so a check built on it would go green on a rotted address.
+* **Claims extracted from the prose** (`tools/docaddrs.py`) — file-offset
+  transcriptions, quoted byte runs, quoted instructions (encoded by a small
+  65816 subset, looked for at the address or inside the routine starting
+  there). 30 checks nobody wrote. Both extractors are negative-controlled on
+  synthetic lines every run, because a family that has stopped matching passes
+  every claim it no longer finds.
+* **A census with a printed number** — every `$BB:AAAA` token in `docs/`,
+  classified by whether the cartridge can decide anything about it. `docs/game/`
+  is at **105/254** re-derived (+123 in the generated character pages, 42 RAM,
+  2 in appended banks). It is a `health.sh` NOTE, never fatal.
+
+**Five documented ROM facts did not survive being re-derived** (all re-measured
+by hand, then locked by a check):
+
+| Was documented | Actually |
+|---|---|
+| special-move record = 8 bytes, `+7 strength-ish` | **7 bytes**; +7 is the next record's attackID, masked off by a 16-bit `lda $0006,Y` |
+| `stz $47,X` at `$C1:0E51` (4 places, 3 docs) | **`$C1:0E4F`** — two bytes late |
+| config dispatcher `jmp ($BB6D,x)` | **`jsr`** (`$C3:BB69`, opcode `fc`) |
+| bank-`$DF` engine: nine screens (mkpatch16 comment) | **eight** call sites, eight ids |
+| Uranus toss Y `-$FA80` | **`−$0580`** (`$FA80` is the word) |
+
+Two documentation fixes fell out of it: `mkcharmap.py` printed toss records and
+hold scripts under one heading (so a toss header's DAMAGE read as the hold
+step's mash-sampling flag) and now splits them on the `$FF` marker the
+interpreter itself dispatches on; and `menu_system.md` gained the option-value
+pointer tables (`$C3:A44F`), which had only ever existed in the patch log.
+
+⚠ **The lesson worth carrying: an invariant that cannot fail at the wrong
+address is not checking the address.** Writing the negative control first is
+what forced every table check to assert a shape instead of a plausibility.
 
 ## What changed this session (2026-08-08)
 
