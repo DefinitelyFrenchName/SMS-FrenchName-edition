@@ -446,8 +446,8 @@ tools/hudfont.py (glyphs), tools/test_labels.lua (oracle), tools/perf_patch10.lu
 
 | Addr / fact | Meaning |
 |---|---|
-| $C1:0B49 | **special-move dispatcher**: entered with X = fighter struct, Y = the special's 8-byte record (bank $C1, read via phk/plb). Runs for EVERY recognized special. |
-| special record layout | +0 attackID, +1 variant (0=LP 1=HP), +2/+3 ?, +4/5 ?, **+6 = misfire act ID** (0 = this special can never misfire), +7 strength-ish. Records found at e.g. Neptune $C1:9DF6/9DFD, Chibi $C1:BDF0/BDF7. |
+| $C1:0B49 | **special-move dispatcher**: entered with X = fighter struct, Y = the special's 7-byte record (bank $C1, read via phk/plb). Runs for EVERY recognized special. |
+| special record layout | +0 attackID, +1 variant (0=LP 1=HP), +2/+3 ?, +4/5 ?, **+6 = misfire act ID** (0 = this special can never misfire). **7 bytes** — the records are 7 apart and the dispatcher's 16-bit `lda $0006,Y` masks byte 7 off; the old "+7 strength-ish" was the next record's attackID (corrected 2026-08-08, sms_acs_system.md §5). Records found at e.g. Neptune $C1:9DF6/9DFD, Chibi $C1:BDF0/BDF7. |
 | the ochame roll | in $C1:0B49: if record+6 ≠ 0 and fighter +0x75 (ochame) ≠ 0: `Y = $90 & 15; if table[$C1:0AF5 + Y] < ochame → MISFIRE`. On misfire: act word $00 |= 0xFF00 (marker), and the ACT SET is simply record+6 via $C1:0224 (`sta $01,X / stz $02,X`). Roll verified live: ochame=0xFF makes ~1/3 of Neptune 214LP whiff into act 0x66. |
 | $7E:0090 | **RNG byte** (low nibble consumed by the misfire roll). |
 | $C1:0AF5 | 16-entry misfire threshold table (indexed by rand&15, compared against ochame). |
@@ -486,7 +486,7 @@ sweep was drowned by the damage variance; reload-per-sample methodology shows re
 | +0x73 | buff_special | boosts the owner's **SPECIAL** damage (fireball 8 -> 10/14/16 @1/3/7); no effect on normals; values >7 misbehave |
 | +0x74 | buff_secret | no effect on regular specials (presumed desperation-only; unverified — no scripted desperation trigger yet) |
 | +0x75 | buff_ochame | misfire chance via threshold[$C1:0AF5 + (rand&15)] < ochame |
-| +0x48 | first_hit_defense | from the char manifest; **SOLVED** — worth +1 matrix column until the defender's first hit lands, then cleared at $C1:0E51 (it is what the old "variance" readings were seeing) |
+| +0x48 | first_hit_defense | from the char manifest; **SOLVED** — worth +1 matrix column until the defender's first hit lands, then cleared at $C1:0E4F (it is what the old "variance" readings were seeing) |
 
 **The damage formula, unified ($C0:D055/D081):** `final = matrix[base_damage_class][8 + modifier & 15]`
 — the matrix at $C0:D081 has rows = base damage (row max ≈ 2x base at col 0,
@@ -832,7 +832,7 @@ Mars 10/11, Jupiter 13, Venus 16, Chibi 1B beyond the harvested sets.
   mod = counter(-2 if def+0x18 bit0) + def+0x48 + def+0x71 - att($70/$73/$74)
   [- 1 in dec_a variants]; row = att+0x45; -> $D055.
 - NO RNG IN DAMAGE. def+0x48 = first-hit defense (init 1, cleared on first hit by
-  16-bit stz $47,X at $C1:0E51 — zeroes +0x47/+0x48 together). All 'roll pairs' =
+  16-bit stz $47,X at $C1:0E4F — zeroes +0x47/+0x48 together). All 'roll pairs' =
   d48 1 vs 0. Wiki damage|faceHit columns = the same pair.
 - jsr tails: chip = dmg>>2 floor 1 (in code); 3 desperation tails CLAMP damage to
   remaining HP (cannot-kill mechanism — Dimension Dance no-chip-kill etc.).

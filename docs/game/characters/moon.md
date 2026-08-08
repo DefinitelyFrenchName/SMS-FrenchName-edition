@@ -67,8 +67,8 @@ below the table, so no static derivation for it survived checking.)*
 **Close-throw tables** (4 × 8 B, indexed by attack button; the record's last byte
 is the thrower's act): `$C1:2844`, `$C1:2864`.
 
-**Throw-hold scripts** (8 B per step; a step whose byte 5 is non-zero samples the
-victim's mashing): `$C1:2884`, `$C1:28AC`.
+**Toss records** (`[$FF][X vel 8.8][Y vel 8.8][damage]`, read by `$C1:07E5`; X is the
+**forward** velocity and is negated when she faces left): `$C1:2884` (x +5.50, y -4.00, 20 dmg), `$C1:28AC` (x +5.50, y -4.00, 24 dmg).
 
 **Cancellable light-recovery acts:** `42 48 54 58` — the frames this game's links
 live in.

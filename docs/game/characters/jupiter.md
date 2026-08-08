@@ -68,7 +68,10 @@ below the table, so no static derivation for it survived checking.)*
 is the thrower's act): `$C1:59C7`, `$C1:59E7`.
 
 **Throw-hold scripts** (8 B per step; a step whose byte 5 is non-zero samples the
-victim's mashing): `$C1:5A07`, `$C1:5A3F`, `$C1:5A67`, `$C1:5A77`.
+victim's mashing): `$C1:5A07`, `$C1:5A3F`.
+
+**Toss records** (`[$FF][X vel 8.8][Y vel 8.8][damage]`, read by `$C1:07E5`; X is the
+**forward** velocity and is negated when she faces left): `$C1:5A67` (x +2.50, y -5.50, 28 dmg), `$C1:5A77` (x +2.50, y -5.50, 28 dmg).
 
 **Cancellable light-recovery acts:** `42 47 53 57` — the frames this game's links
 live in.

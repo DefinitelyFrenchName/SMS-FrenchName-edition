@@ -99,7 +99,7 @@ row 15: 20 1F 1E 1D 1C 1A 17 14 | 0F 0C 0A 09 08 08 07 07
 
 **SUPERSEDED (2026-07-19): the modifier is fully disassembled — see
 `sms_damage_system.md` §3.** There is NO RNG in damage: the "variance" is defender
-+0x48 (first-hit defense, 1 until first hit taken then cleared at $C1:0E51). The
++0x48 (first-hit defense, 1 until first hit taken then cleared at $C1:0E4F). The
 paragraph below is kept as historical record of the inference stage:
 
 The **modifier** mixes (mechanism inferred from measurements; exact combination code not
@@ -177,7 +177,7 @@ ACS scaling.
 ## 5. The ochame / misfire system (fully reverse-engineered)
 
 **Trigger point:** the special-move dispatcher `$C1:0B49` (file 0x10B49) runs for every
-*recognized* special, X = fighter struct, Y = the special's 8-byte record (bank $C1,
+*recognized* special, X = fighter struct, Y = the special's 7-byte record (bank $C1,
 accessed with DB=$C1 via phk/plb):
 
 ```
@@ -205,8 +205,17 @@ Misfire iff `table[rand&15] < ochame` → effective ochame range **0–5**:
 |---|---|---|---|---|---|---|
 | misfire chance | 0% | 6.25% | 12.5% | 25% | 37.5% | **50% (hard cap — 8 slots are 0xFF)** |
 
-**Special-move records** (8 bytes each, bank $C1; harvested by capturing Y at `$C1:0B49`):
-`[+0 attackID, +1 variant (0=LP,1=HP), +2 ?, +3 ?, +4 ?, +5 ?, +6 misfire act, +7 strength-ish]`.
+**Special-move records** (7 bytes each, bank $C1; harvested by capturing Y at `$C1:0B49`):
+`[+0 attackID, +1 variant (0=LP,1=HP), +2 ?, +3 ?, +4 ?, +5 ?, +6 misfire act]`.
+
+⚠ **CORRECTION 2026-08-08: seven bytes, not eight — there is no "+7 strength-ish"
+field.** Every consecutive pair below is **7 apart**, so an eight-byte record would
+overlap its neighbour. What made +7 look like a field is the read at `C1/0B5D`: in
+16-bit mode `lda $0006,Y` fetches bytes 6 AND 7, and the very next instruction is
+`and #$00FF`, which throws byte 7 away. Byte 7 is simply the next record's attackID.
+Nothing reads it: bank `$C1`'s only `lda $0007,Y` is at `$C1:049D`, inside an
+unrelated record reader. (`tools/checkdocs.py` now asserts the stride and the acts.)
+
 Known record addresses: Moon $C1:373E/3745 · Mercury $C1:4786/478D · Mars $C1:5851/5858/585F ·
 Jupiter $C1:6AD0/6AD7 · Venus $C1:79BD/79C4/79CB/79D2 · Uranus $C1:8D6A/8D71 ·
 Neptune $C1:9DF6/9DFD · Pluto $C1:AE33/AE3A · ChibiMoon $C1:BDF0/BDF7.
@@ -396,7 +405,7 @@ so ACS defense and the Guts patch scale it like any matrix hit.
 
 1. ~~Where the ACS screen lives~~ — **MAPPED by patch 18** (2026-08-05): it is opened
    with **SELECT on the VS button-config screen**, through the per-mode dispatcher
-   `$C3:BB60` (`jmp ($BB6D,x)` on `$8D`) which sets menu state `$05`; that state has
+   `$C3:BB60` (`jsr ($BB6D,x)` on `$8D`, at `$C3:BB69`) which sets menu state `$05`; that state has
    exactly two writers ROM-wide. Reachable in 2P VS, vs-COM and story — patch 18 closes
    the 2P VS door only. Its wheel labels are translated by patch 16 (`SMS_P16_ACS`).
    Still uncensused: the screen's **point budget**.
@@ -426,7 +435,7 @@ so ACS defense and the Guts patch scale it like any matrix hit.
    `0xCAED-0xCD6D`, fully disassembled in `sms_damage_system.md` §3 (and there is no RNG
    in the composition; the matrix READ is `$80:D07B`).
 6. ~~+0x48 first_hit_defense~~ — **RESOLVED** (§1): manifest-loaded, worth +1 column
-   until the defender's first hit, cleared by the 16-bit `stz $47,X` at `$C1:0E51`. It
+   until the defender's first hit, cleared by the 16-bit `stz $47,X` at `$C1:0E4F`. It
    is the source of every historical "damage variance" reading.
 
 ## 8. Methodology (reuse this)

@@ -392,7 +392,8 @@ faces left** (`lda $09,x` → `eor #$FFFF / inc a`), and stores it as the victim
 velocity at `+0x30`; `$C1:01B0` then integrates `+0x30/+0x36/+0x38` into the position
 at `+0x20`. So the record always holds the **forward** velocity and the sign of that
 one word is the whole "forward throw vs back throw" question. Uranus's HP throw record
-(`$C1:7B81`) is `FF 80 01 80 FA 18` → X `+$0180`, Y `-$FA80`.
+(`$C1:7B81`) is `FF 80 01 80 FA 18` → X `+$0180`, Y `−$0580` (the word `$FA80`),
+damage 24.
 
 Note the direction is chosen *before* this, at `$C1:061B`: `lda $50,x / and #$01 /
 eor #$01 / sta $09,x` — the thrower's facing is set from the direction held at contact,

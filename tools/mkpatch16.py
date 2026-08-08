@@ -169,7 +169,8 @@ RECSZ = 10
 NRECS = 58
 
 # ---- the bank-$DF screens (Win/REPORT CARD, Tournament) — 2026-08-06 -------
-# Nine screens driven by scripts at $DF ('lda #script / jsr $DF:83E1'); their
+# Eight screens driven by scripts at $DF ('lda #script / jsr $DF:83E1' — eight
+# call sites, eight distinct ids, counted 2026-08-08; this said nine); their
 # glyphs come from the big text sheet $C3:48D0 (sms_lz), uploaded whole from
 # $7F:0000. The sheet has a full-width Latin alphabet missing Q/S/Z and no
 # half-width, so this builder (SMS_P16_DF=1 while in bring-up):

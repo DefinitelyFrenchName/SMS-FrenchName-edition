@@ -89,7 +89,7 @@ behind Dimension Dance's no-chip-kill in code form.
 - **THERE IS NO RNG IN DAMAGE.** The historical "variance"/"roll" is defender
   **+0x48, the first-hit defense**: loaded 1 at character init, it grants +1 modifier
   column until the defender is first hit, then is cleared — by a 16-bit
-  `stz $47,X` at `$C1:0E51` that zeroes hitstun-staging +0x47 AND +0x48 together (a
+  `stz $47,X` at `$C1:0E4F` that zeroes hitstun-staging +0x47 AND +0x48 together (a
   two-byte side effect). Every "roll pair" ever measured (ours and the wiki's
   damage|faceHit columns) is exactly d48=1 vs d48=0 — two adjacent matrix columns.
   Damage is fully deterministic. **+0x48 is PER-CHARACTER** (manifest byte) — and the

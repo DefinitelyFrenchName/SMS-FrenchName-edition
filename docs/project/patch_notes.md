@@ -1956,7 +1956,7 @@ config screen first). The VS config screen hands off through a per-game-mode
 dispatcher:
 
 ```
-$C3:BB60  jsr $BBCA / lda $8D / asl / tax / jmp ($BB6D,x)
+$C3:BB60  jsr $BBCA / lda $8D / and #$FF / asl / tax / jsr ($BB6D,x)   ; $C3:BB69
 $C3:BB6D  table: $BB77 $BB93 $BB93 $BBAF $BBBA      ; modes 0..4
 ```
 

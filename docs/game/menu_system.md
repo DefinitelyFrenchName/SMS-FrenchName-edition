@@ -132,6 +132,11 @@ draw and every redraw — which is why a tilemap-only edit of a *value* does not
 stick. This carries the Options values, the VS config's MANUAL/AUTO and the
 tournament name rows. Byte layout: `sms_data_architecture.md` §9.
 
+The Options screen's selectors read theirs from four overlapping windows onto one
+12-word array at **`$C3:A44F`** — `$C3:A44F` (COM level), `$C3:A457`, `$C3:A45B`
+and `$C3:A463`, indexed by `$1B14`/`$1B16` = value × 2. Twelve records, two per
+value per highlight state, each `len $14` over `rows 2`.
+
 **Stage names** — `ldx $1838` indexes two 10-entry tables, `$C3:B5AD` (palette 3)
 and `$C3:B5C1` (palette 4), into fixed-size records in bank `$C4`: a header, then
 a 24-word top row and a 24-word bottom row that is the top plus `$10`. Layout and

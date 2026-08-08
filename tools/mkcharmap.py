@@ -148,7 +148,7 @@ def gather(cid):
         boxes=boxes(cid),
         movelist=r24(f(0xE0021A) + cid * 3),
         throws=throw_tables(cid, proc, proc_next),
-        holds=hold_scripts(cid, proc, proc_next),
+        scripts=throw_scripts(cid, proc, proc_next),
     )
 
 
@@ -162,7 +162,27 @@ def _scan(pattern, lo, hi):
 
 
 def throw_tables(cid, lo, hi): return _scan(b"\x20\x5a\x05", lo, hi)   # jsr $055A
-def hold_scripts(cid, lo, hi): return _scan(b"\x20\xe5\x06", lo, hi)   # jsr $06E5
+
+
+def throw_scripts(cid, lo, hi):
+    """Everything handed to the throw-script interpreter `jsr $06E5`, SPLIT on the
+    $FF marker the interpreter itself dispatches on.
+
+    A record starting `$FF` is a toss header — `[FF][X vel 8.8][Y vel 8.8][damage]`,
+    handled by `$C1:07E5` — and anything else is a hold script of 8-byte steps.
+    They are different structures (sms_data_architecture.md §9, "Throw records"),
+    and printing both under one heading made byte 5 of a toss header, which is its
+    DAMAGE, read as the hold step's mash-sampling flag. Corrected 2026-08-08.
+    """
+    out = {"hold": [], "toss": []}
+    for a in _scan(b"\x20\xe5\x06", lo, hi):
+        rec = ROM[f(0xC10000) + a: f(0xC10000) + a + 6]
+        if rec[0] == 0xFF:
+            xv, yv = rec[1] | rec[2] << 8, (rec[3] | rec[4] << 8) - 0x10000
+            out["toss"].append((a, xv, yv, rec[5]))
+        else:
+            out["hold"].append(a)
+    return out
 
 
 def page(d):
@@ -244,9 +264,15 @@ def page(d):
         A("**Close-throw tables** (4 × 8 B, indexed by attack button; the record's last byte")
         A("is the thrower's act): " + ", ".join(f"`$C1:{t:04X}`" for t in d["throws"]) + ".")
         A("")
-    if d["holds"]:
+    if d["scripts"]["hold"]:
         A("**Throw-hold scripts** (8 B per step; a step whose byte 5 is non-zero samples the")
-        A("victim's mashing): " + ", ".join(f"`$C1:{t:04X}`" for t in d["holds"]) + ".")
+        A("victim's mashing): " + ", ".join(f"`$C1:{t:04X}`" for t in d["scripts"]["hold"]) + ".")
+        A("")
+    if d["scripts"]["toss"]:
+        A("**Toss records** (`[$FF][X vel 8.8][Y vel 8.8][damage]`, read by `$C1:07E5`; X is the")
+        A("**forward** velocity and is negated when she faces left): "
+          + ", ".join(f"`$C1:{a:04X}` (x {x / 256:+.2f}, y {y / 256:+.2f}, {dmg} dmg)"
+                      for a, x, y, dmg in d["scripts"]["toss"]) + ".")
         A("")
     A(f"**Cancellable light-recovery acts:** `{CANCEL[cid]}` — the frames this game's links")
     A("live in.")
