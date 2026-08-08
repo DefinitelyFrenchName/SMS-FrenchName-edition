@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Patch 5: halve Uranus's forward-dash travel distance.
+"""Patch 5: reduce Uranus's forward-dash travel distance.
 
 The dash handler ($C1:88C8) sets the dash X-speed via `LDA #$0B00` (0x0B00 = 11.0
 px/frame) at file 0x188E9, then runs for a fixed 14-frame duration. Halving the SPEED

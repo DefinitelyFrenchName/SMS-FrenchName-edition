@@ -237,7 +237,7 @@ See HANDOFF.md §4 for the harness.
 - `mkpatch2.py` — Dash-fix: add the missing `stz $46,X` to Uranus's forward-dash (act 0x60)
 - `mkpatch3.py` — Patch 3: extended character palettes (extracted from the Big Zam edition) +
 - `mkpatch4.py` — Patch 4: replace the title-screen red subtitle with "FrenchName ver. <BUNDLE_VERSION>" (see --text),
-- `mkpatch5.py` — Patch 5: halve Uranus's forward-dash travel distance.
+- `mkpatch5.py` — Patch 5: reduce Uranus's forward-dash travel distance.
 - `mkpatch6.py` — Patch 6 (OPTIONAL): give Uranus's forward dash a short mid-move invulnerability window.
 - `mkpatch7.py` — Patch 7 (OPTIONAL): extend Sailor Pluto's 5HP hitbox downward so it hits crouchers.
 - `mkpatch8.py` — Patch 8 (OPTIONAL): make Sailor Venus's 6HP throw mash-escapable on a standard schedule.

@@ -10,7 +10,7 @@ GATE meanings (on-hit, hit at t=85, hitstop 8, tick 0A..00 at t=94..104):
   GATE 0x0B -> unchanged (tick always < 0x0B)   [sanity]
   GATE 0x09 -> dash-out 95 (+1 frame)           [proof]
   GATE 0x05 -> dash-out 99 (+5 frames)          [1f link, TRUE COMBO — patch 1b, alt]
-  GATE 0x04 -> dash-out 100 (+6 frames)         [1f link, 1-frame MEATY — patch 1, CANONICAL]
+  GATE 0x04 -> dash-out 100 (+6 frames)         [1f link, 1-frame MEATY — patch 1, default]
   GATE 0x03 -> dash-out 101 (+7 frames)         [loop removed entirely]
 N.B. lower gate = more recovery. 0x04 (N=6, canonical) makes the single connecting press a
 MEATY on the defender's first actionable frame — unblockable by holding back (hit beats
