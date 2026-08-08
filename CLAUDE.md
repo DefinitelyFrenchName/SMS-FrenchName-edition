@@ -24,7 +24,7 @@ crouching-jab infinite is no longer bufferable: increase the recovery of her
 **crouching light attack** by enough frames that the loop requires a 1-frame link.
 Deliverable = a BPS/IPS patch against the clean ROM + a writeup of what bytes changed and why.
 
-## Ground truth (verified — do NOT re-derive; details in docs/game/sms_uranus_rom_map.md)
+## Ground truth (verified — do NOT re-derive; details in docs/game/sms_quickref.md)
 - Clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`, HiROM+FastROM,
   headerless, file offset = SNES addr & 0x3FFFFF.
 - Characters: 1 Moon … **6 Uranus** … 9 Chibimoon. (10 "Saturn" = Super S carry-over,
@@ -76,7 +76,7 @@ Deliverable = a BPS/IPS patch against the clean ROM + a writeup of what bytes ch
 ## Reference material
 - docs/game/sms_engine_internals.md — **how the engine works, by subsystem** (the synthesis; start here to understand/modify the game)
 - docs/game/sms_data_architecture.md — **where the data lives and what shape it is** (four memory maps, the object struct, the record catalogue)
-- docs/game/sms_uranus_rom_map.md — full verified ROM map (this project's bible)
+- docs/game/sms_quickref.md — the one-page address card (start here to orient, then follow its pointers)
 - docs/game/sms_all_boxes.json + tools/extract_sms_hitboxes.py
 - vendor/sms-training-mode/ — sprntgd's Lua (RAM map source) & WLA-DX hook examples;
   its color-edit patcher shows a working ROM-expansion/hook workflow if in-place

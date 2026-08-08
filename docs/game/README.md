@@ -21,7 +21,7 @@ rather than described — is published at
 | **where data lives and what shape it is** | [`sms_data_architecture.md`](sms_data_architecture.md) — the four memories, the object struct byte by byte, the record catalogue, the pipelines. Start here |
 | how a subsystem *behaves* and why | [`sms_engine_internals.md`](sms_engine_internals.md) — the explanatory synthesis, by subsystem |
 | the exact address of a thing | [`annotations.md`](annotations.md) — the flat address → label phone book |
-| the original, terse ROM map | [`sms_uranus_rom_map.md`](sms_uranus_rom_map.md) |
+| **a one-page card of the load-bearing addresses** | [`sms_quickref.md`](sms_quickref.md) — every entry points at a longer document |
 | how damage is computed, end to end | [`sms_damage_system.md`](sms_damage_system.md) — and note its headline: **there is no RNG in damage** |
 | the A.C.S. stat system + the damage matrix | [`sms_acs_system.md`](sms_acs_system.md) |
 | every character's specials and desperations | [`sms_specials.md`](sms_specials.md) |

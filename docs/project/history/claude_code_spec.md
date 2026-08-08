@@ -16,7 +16,7 @@ values and in-emulator observation.
 
 ## Inputs (place in ./assets/)
 - Clean ROM (verified hash above)
-- sms_uranus_rom_map.md (prior findings — treat as ground truth, all addresses verified)
+- sms_quickref.md (the address card; superseded in detail by sms_data_architecture.md)
 - extract_sms_hitboxes.py
 - Clone: github.com/sprntgd/Bishoujo-Senshi-Sailor-Moon-S-Jougai-Rantou-Shuyaku-Soudatsusen-Training-Mode
 

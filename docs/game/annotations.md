@@ -1,7 +1,7 @@
 # annotations.md — address → label/comment (running log)
 
 All SNES addresses unless noted. File offset = SNES & 0x3FFFFF (HiROM, headerless).
-Sources: sms_uranus_rom_map.md (ground truth), vendor/sms-training-mode/SailorMoonS.lua,
+Sources: sms_data_architecture.md + sms_quickref.md, vendor/sms-training-mode/SailorMoonS.lua,
 and findings made in this project (marked NEW, with evidence).
 
 ## WRAM
@@ -69,7 +69,7 @@ and findings made in this project (marked NEW, with evidence).
   (written by the shared box-writer) are vestigial. A projectile's hit box doubles as its
   hittable/clashable region → patch 9's hit-box fix covers offense AND clash.
 
-## ROM (ground truth recap — see sms_uranus_rom_map.md)
+## ROM (ground truth recap — card: sms_quickref.md; detail: sms_data_architecture.md)
 - $8A:C1F1/C229/C23D box pointer tables; Uranus boxes $8A:E3E1/E489/E999.
 - $C0:BFC0 hit check; $C0:CDD5+ damage tables `[dmg, hitstun, level, flags]` — GLOBAL, do not patch.
 - $C1:0000 per-frame object update (state procs ≈ $C1:122A, $C1:15BD).

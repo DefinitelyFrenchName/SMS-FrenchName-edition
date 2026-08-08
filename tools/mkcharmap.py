@@ -13,7 +13,7 @@ with each other, and `--check` makes that enforceable from a build script.
 
 The engine-wide map those addresses hang off — the object struct, the box
 format, the damage tables, the pipelines — is docs/game/sms_data_architecture.md
-and docs/game/sms_uranus_rom_map.md; nothing here repeats it.
+and the one-page card docs/game/sms_quickref.md; nothing here repeats them.
 
 Two derivations are worth naming because they are not obvious:
 

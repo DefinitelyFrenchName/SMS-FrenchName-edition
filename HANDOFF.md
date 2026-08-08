@@ -10,7 +10,7 @@ the A.C.S. stat system in `docs/game/sms_acs_system.md`; the damage system end-t
 (counter-hit/punish, posture tables, apply-site census, desperation compendium data) in
 `docs/game/sms_damage_system.md`;
 address-level notes in `docs/game/annotations.md`; the verified ROM map in
-`docs/game/sms_uranus_rom_map.md`. Persistent findings also live in the memory file
+`docs/game/sms_quickref.md`. Persistent findings also live in the memory file
 `uranus-patch-state.md`.
 
 Game: **Bishoujo Senshi Sailor Moon S: Jougai Rantou!?** (SFC, Japan).
@@ -1093,7 +1093,8 @@ tools/build_ref_v2.sh  # -> 6d79fb5f…  (REF v.1 + patch 15; base for the Satur
 ```
 CLAUDE.md, HANDOFF.md, README.md, .gitignore   ← root only
 roms/     clean JP ROM + Big Zam ROM (gitignored; may live in ../roms/ or $SMS_ROM_DIR instead — see §2)
-docs/     patch_notes.md, annotations.md, sms_uranus_rom_map.md, sms_all_boxes.json, spec, PDF
+docs/     game/ (the ROM: architecture, quickref, annotations, boxes, characters/)
+          project/ (this edition: patch_notes, patch_index, handoff, saturn/)
 tools/    mkpatch*.py, all test/demo .lua, run.sh, coltest, texttiles, Dispel/, Mesen.app, Flips/
 traces/   savestates (.mss) + trace outputs (gitignored; key states force-added)
 build/    patched .sfc (gitignored) + .bps/.ips patches (tracked)
