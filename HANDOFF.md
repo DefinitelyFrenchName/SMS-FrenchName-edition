@@ -4,6 +4,8 @@
 how to test, what was learned, and the traps. Deep per-patch detail is in
 `docs/patch_notes.md`; **how the engine works, by subsystem, is in
 `docs/sms_engine_internals.md`** (the synthesis — read it to understand or modify the game);
+**where the data lives and what shape it is, in `docs/sms_data_architecture.md`**
+(the four memory maps, the object struct, the record formats);
 the A.C.S. stat system in `docs/sms_acs_system.md`; the damage system end-to-end
 (counter-hit/punish, posture tables, apply-site census, desperation compendium data) in
 `docs/sms_damage_system.md`;

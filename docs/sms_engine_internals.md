@@ -7,6 +7,9 @@ game, not just look up an address.
 
 **How it relates to the other docs** (read in this order for a new topic):
 - **This file** — how a subsystem *works* and *why*, with the load-bearing addresses inline.
+- `docs/sms_data_architecture.md` — **where the data LIVES and what SHAPE it is**: the four
+  memory maps (ROM/WRAM/VRAM/ARAM), the object struct byte by byte, and the record formats
+  the engine walks. Read it when the question is "where would that be stored?".
 - `docs/annotations.md` — the flat address→label reference (the "phone book"). Every address
   here is (or should be) there too; that file is the source of truth for exact addresses.
 - `docs/sms_uranus_rom_map.md` — the original verified ROM map ("the bible"), terse.

@@ -1,5 +1,9 @@
 # Sailor Moon S (SFC) — ROM map for Uranus frame/hitbox data
 
+> **For the whole-game picture** — every memory, the object struct, and the record
+> formats — see `docs/sms_data_architecture.md`. This file is the original,
+> Uranus-focused ROM map and stays as the terse address reference.
+
 Verified against the clean Japan ROM, SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`
 (No-Intro verified dump; no copier header; HiROM + FastROM; file offset = SNES address & 0x3FFFFF).
 

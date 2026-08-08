@@ -75,6 +75,7 @@ Deliverable = a BPS/IPS patch against the clean ROM + a writeup of what bytes ch
 
 ## Reference material
 - docs/sms_engine_internals.md — **how the engine works, by subsystem** (the synthesis; start here to understand/modify the game)
+- docs/sms_data_architecture.md — **where the data lives and what shape it is** (four memory maps, the object struct, the record catalogue)
 - docs/sms_uranus_rom_map.md — full verified ROM map (this project's bible)
 - docs/sms_all_boxes.json + tools/extract_sms_hitboxes.py
 - vendor/sms-training-mode/ — sprntgd's Lua (RAM map source) & WLA-DX hook examples;

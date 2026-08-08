@@ -1,0 +1,744 @@
+# The data architecture of Sailor Moon S
+
+**What this is.** A map of *where the game's data lives and what shape it is* —
+organised by the four memories the console gives you (ROM, work RAM, video RAM,
+audio RAM) rather than by the order this project discovered things. Read it to
+answer "where would that be stored, and what would I be looking at?"
+
+**How it relates to the other docs.** `sms_engine_internals.md` explains how each
+subsystem *behaves*; this file explains how the data is *laid out*.
+`annotations.md` is the flat address phone book. `patch_notes.md` records what we
+changed. When those disagree with this file, they are older: everything here was
+re-measured on 2026-08-08 unless it says otherwise.
+
+Clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`.
+
+---
+
+## 0. The one thing to understand first
+
+**This engine is data-driven.** Very little of the game's behaviour is written as
+per-character code. Instead, generic interpreters walk **records**: a character is
+a manifest, a set of box tables, four animation tables and a palette; a move is a
+script whose steps set box indices and durations; a menu screen is a compressed
+tilemap plus a list of upload jobs; a throw is a table indexed by which button you
+pressed. The engine reads those and does the same thing to everybody.
+
+Two consequences run through everything below:
+
+* **Most "features" are data edits.** Changing a stage's name, a hitbox, a throw's
+  direction or a menu's language is writing bytes into a record — no code.
+  This is why a 14-patch project has so few hooks.
+* **A character can ship with the wrong data and the engine will faithfully do the
+  wrong thing.** Saturn's two ground throws were on each other's buttons for
+  thirty years because her close-throw table's records were swapped. The engine
+  was never wrong.
+
+The corollary for anyone reading a table: **find the interpreter before trusting
+your reading of the data.** Every format below was confirmed by watching the code
+consume it, and the ones that were not are marked as such.
+
+---
+
+## 1. The address model
+
+HiROM + FastROM, headerless. The whole mapping reduces to one rule:
+
+```
+file offset = SNES address & 0x3FFFFF
+```
+
+| SNES banks | What they are |
+|---|---|
+| `$C0-$FF` | the cartridge, mapped straight through — file banks `$00-$3F` |
+| `$80-$BF` | **FastROM mirror** of the same data |
+| `$00-$3F` | the slow mirror, plus WRAM `$0000-$1FFF` at the bottom of each bank |
+| `$7E-$7F` | the 128 KB of work RAM, addressed in full |
+
+Three practical consequences, each of which has cost this project time:
+
+* **The same routine has three names.** `$C0:D055` and `$80:D055` are one
+  routine; the game usually *executes* from the `$80` mirror even where docs write
+  `$C0`. An exec-watch on the wrong mirror sees nothing — and "the probe saw
+  nothing" reads exactly like "the game doesn't do this".
+* **Low WRAM is visible twice.** `$7E:1000` and `$00:1000` are the same byte.
+  Memory callbacks must watch the right view or they silently never fire.
+* **Bank `$EE` and friends have no WRAM mirror.** A data list placed there and
+  handed to a routine that writes the OAM shadow with plain absolute stores
+  vanishes; it needs the `$AE` alias.
+
+### The cartridge header (file `0xFFC0`)
+
+| Field | Value | Note |
+|---|---|---|
+| title | `ｾｰﾗｰﾑｰﾝSｼｭﾔｸｿｳﾀﾞﾂｾﾝ` | Shift-JIS **half-width katakana**, not ASCII. Patch 3 overwrites it with `…S FrenchName` as the ROM's ID tag |
+| map mode | `$31` | HiROM + FastROM |
+| rom size | `$0C` → 4096 KB | **declared**, a power-of-two ceiling |
+| actual size | `0x280000` = **2.5 MB** | 40 banks, `$C0-$E7`, 20 megabit |
+| country | `$00` | Japan |
+| checksum / complement | `0785` / `F87A` | XOR = `FFFF`, valid |
+
+That gap between the declared 4 MB and the actual 2.5 MB is load-bearing: it is
+why every bank-appending patch can grow the image past `$E7` and still boot. The
+first free bank is therefore **`$E8`**, which is why *every* standalone patch
+targets it — and why chaining standalone BPS files corrupts them all.
+
+---
+
+## 2. Map 1 — the ROM
+
+40 banks. Roughly: code and tables at the bottom, then a long run of graphics,
+then the manifests and audio at the top.
+
+```
+$C0 ██████░░░░  engine core: char load, hit resolution, damage tables, HUD,
+                the decompressor, the DMA uploaders, action scripts
+$C1 ███████░░░  object update + per-character proc blocks + throw scripts/records
+                (and the only verified-free code hole, at the very end)
+$C2 ███████░░░  code / data
+$C3 ██████░░░░  the FRONT END: menu screens, asset job table, cluster loaders,
+                stage-name pointer tables, the kana font block
+$C4 ██████░░░░  menu payloads: the menu font sheet, stage-name records,
+                option-value records
+$C5 ████████░░  graphics
+$C6 ████████░░  graphics (incl. the font sheet laid out as a grid)
+$C7 ███████░░░  the kanji font block + menu graphics
+$C8 ███████░░░  ⎫
+...             ⎬ character and stage graphics — the bulk of the cartridge
+$DB ███████░░░  ⎭
+$DC ██░░░░░░░░  sparse
+$DD ████░░░░░░  sparse
+$DE █████░░░░░  sparse
+$DF ███░░░░░░░  the bank-$DF SCREEN ENGINE (win/report card, tournament) + its blobs
+$E0 ████████░░  character MANIFESTS + palettes  ← the roster's index
+$E1 █████████░  data (densest bank in the image)
+$E2 █████░░░░░  compressed effect tiles
+$E3 █░░░░░░░░░  nearly empty (12% used)
+$E4 ███████░░░  audio data
+$E5 █████████░  audio data
+$E6 ████████░░  audio data
+$E7 ███████░░░  audio data — the last vanilla bank
+────────────────────────────────────────────────────────────────────────
+$E8+            FREE. Every appended-bank patch starts here.
+```
+
+Bars are measured fill (bytes that are neither `00` nor `FF`); they say how
+*packed* a bank is, not what is in it.
+
+**Bank `$8A` is the exception worth knowing by heart.** It is a mirror of file
+bank `$0A`, and it holds every collision box in the game — see §5.
+
+---
+
+## 3. Map 2 — work RAM
+
+128 KB, and the game uses about a third of it. Low WRAM (`$7E:0000-$1FFF`) is the
+part that matters: it is mirrored into bank `$00`, so all the game's code reaches
+it with short addressing, and **direct page is 0 in essentially all game code** —
+which is why `$8D` and `$7E:008D` are the same byte written two ways.
+
+```
+$0000 ┌──────────────────────────────────────┐
+      │ direct page — the engine's registers │  D=0, so DP $8D == $7E:008D
+$0100 ├──────────────────────────────────────┤
+      │ stack (by convention; never probed)  │
+$0200 ├──────────────────────────────────────┤
+      │ OAM shadow        → DMA'd to $2104   │  every frame
+$0500 ├──────────────────────────────────────┤
+      │ CGRAM shadow, 512B → DMA'd whole     │  every frame: a one-shot
+      │                                      │  colour poke is overwritten
+$0800 ├──────────────────────────────────────┤
+      │ HUD: displayed HP, timer, tile stage │  $0800-$0815
+      │ ── $0816-$09FF FREE in VS matches ── │  ⚠ NOT free in Practice
+$0A00 ├──────────────────────────────────────┤
+      │ camera scroll X/Y                    │
+$0B00 │ OBJ draw-order list                  │
+$1000 ├──────────────────────────────────────┤
+      │ ★ OBJECT POOL — 16 slots × 0x80      │  $1000 P1  $1080 P2
+      │                                      │  $1100/$1180 projectiles
+      │                                      │  $1200-$17FF unmapped
+$1800 ├──────────────────────────────────────┤
+      │ menus: cursors, stage index, ACS     │  $1B10 title menu
+      │ staging ($1D00/$1D10), job index     │  $1C18 asset job index
+      │ ($1C18), menu state ($1F5A-$1F63)    │  $1D00/$1D10 ACS stats
+$2000 └──────────────────────────────────────┘
+```
+
+The direct page is where the engine keeps its working state, and a handful of
+those bytes are the ones every patch in this project ends up reading:
+
+| DP | Meaning |
+|---|---|
+| `$5C-$5F` | joypad held words P1/P2; `$60/$62` press edges; `$64-$67` previous frame |
+| `$70` | **in-match flag** — 4 while any match runs (VS *and* Practice), 0 outside |
+| `$78` | global one-shot sound id → APU port 2 |
+| `$88` | current object base **in the proc dispatch only** — during script interpretation it holds whatever object last set it |
+| `$8A` | menu state (`$05` = the A.C.S. screen) |
+| `$8D` | **game mode**: 0 story · 1 VS · 2 vs-COM · 4 Practice · 5 Practice-with-damage *and* the attract demo |
+| `$8E` | stage id (word) |
+| `$8F` | **scene sprite-attribute byte** — `0x18` puts fighters at OBJ priority 3, `0x10` at 2 |
+| `$90` | RNG — consumed by the ochame/misfire roll, and **by nothing in damage** |
+| `$00`, `$05` | where damage is staged for the apply sites (strike/chip, throw) |
+
+Above `$2000`, WRAM is mostly staging buffers — data on its way from ROM to
+VRAM. The important ones:
+
+| Region | Contents |
+|---|---|
+| `$7E:2000` | generic decompression target for menu assets |
+| `$7E:6A00` | the per-character payload the char loader expands — **the compressed effect tiles**, not the animation data (an old note said otherwise) |
+| `$7E:C000` | menu font staging: `$C4:2590` lands here, then DMAs to VRAM. Its ceiling is `$4000` bytes, because more runs off the end of bank `$7E` |
+| `$7E:1900+`, `$7E:3640+`, `$7F:DC00+` | three staging areas whose **fillers are unfound** — they are written by block moves, which per-byte write watches never see. The last one is patch 16's remaining blocker |
+| `$7F:0000-$5FFF` | scene-load scratch |
+| `$7F:6000+` | **free** — zero steady-state traffic. Patches 11/13/14/100 keep their state here |
+
+---
+
+## 4. The object struct — the centre of the engine
+
+Everything that moves is one of these: both fighters, both projectiles, and even
+the report-card portrait. Sixteen `0x80`-byte slots from `$1000`.
+
+```
+      ┌0──────1──────2──────3──────4──────5──────6──────7──────┐
+ +00  │ WHO AND WHAT STATE           │ POSE / ANIMATION        │
+      │ charID actID step  step  act │ pose  tick  frame       │
+ +08  │ pal   face  ── cel pointers and sizes ──────────────── │
+ +10  │ ...                          │ flags class             │
+ +18  │ act flags                    │ (unmapped)              │
+ +20  │ ★ X POSITION (32-bit subpixel, pixel byte at +0x21)     │
+ +28  │ screen pos    │ (unmapped)                              │
+ +30  │ ★ VELOCITY  X vel │ Y vel │ gravity │ ... │ pushback    │
+ +38  │ ...                                                     │
+ +40  │ ★ BOXES: hit │ hurt │ coll │ connected │ atkID │ dmg    │  ← the four
+ +48  │ d48   HP    maxHP  │ ...  │ hitstop │ ...               │     bytes a
+ +50  │ ★ INPUT: held │ cmd │ btns │ cmd │ flags │ ... │ mash   │     patch
+ +58  │ ── command recognizer timer/state pairs ($5B-$68) ───── │     usually
+ +60  │ ...  (+0x5D = the 66 dash's timer AND its frame 1..14)  │     wants
+ +68  │ ...                                                     │
+ +70  │ ★ A.C.S. STATS: atk def hp spc sec och │ upd │ strength │
+ +78  │ sound id │ (unmapped)                                   │
+      └────────────────────────────────────────────────────────┘
+```
+
+The fields worth knowing by name:
+
+| Off | Field | Why it matters |
+|---|---|---|
+| `+0x00` | charID / **object type id** | 1-9 are fighters; **10-27 are projectile types**. A projectile picks its box table by its OWN id, not its owner's |
+| `+0x01` | actionID | 0x00-0x2A universal (idle, walk, blockstun, hitstun, knockdown, KO…), 0x2B+ per-character |
+| `+0x05` | pose id | indexes the sprite list. An out-of-range pose makes the emitter read a garbage sprite COUNT and flood OAM — the signature of a corrupted throw |
+| `+0x08` | palette + priority | OAM attribute is this byte `<< 1`; projectiles get 2 or 3 **by slot**, not by character |
+| `+0x18` | action flags | **bit0 = "this act is an attack"** — the engine's own discriminator, and the right test to use instead of `act ≥ 0x2B` |
+| `+0x40/41/42` | hit / hurt / coll box index | rewritten every frame from animation data by `$C0:9CCD` |
+| `+0x41` = 0 | **invulnerable** | not a flag — an empty hurtbox |
+| `+0x44` | attackID / strength class | `(id>>1)*4` indexes the on-hit tables |
+| `+0x45` | damage | the **row** into the damage matrix |
+| `+0x46` | hurt state | ≥0x80 untargetable, 0xA0 knocked down, 0xE0 thrower during a grab |
+| `+0x48` | **first-hit defense** | manifest-loaded, worth +1 matrix column until first hit, then cleared. This is the "damage randomness" that isn't |
+| `+0x49/4A` | HP / max HP | base `0x60`; max = `0x60 + 8×ACS health` |
+| `+0x4D` | hitstop countdown | animation ticks stall while nonzero; frame data excludes these frames |
+| `+0x50` | buttons held | `1` back `2` fwd `4` down `8` up `0x10` LP `0x20` LK `0x40` HP `0x80` HK — **press bits latch at 30 Hz**, so mashing yields ~1 press per 2 frames |
+| `+0x56` | throw mash counter | on the THROWER; ≥2 and the victim techs |
+| `+0x5B-0x68` | recognizer timer/state pairs | the motion inputs live here; `+0x5D` doubles as the dash's frame counter |
+| `+0x70-0x75` | the six A.C.S. stats | attack, defense, health, special, secret, ochame |
+| `+0x77` | action strength | 7 LP, 8 LK, 9 HP, 10 HK. The button map is **Y=LP X=HP B=LK A=HK** |
+
+About a third of the struct is still unmapped (`0x19-0x1F`, `0x2B-0x2F`,
+`0x3B-0x3F`, `0x57-0x5A`, `0x69-0x6F`, `0x79-0x7F` among others) — listed here as
+unknown rather than guessed at.
+
+---
+
+## 5. Box data — the one table you will read most
+
+Three pointer tables sit next to each other in bank `$8A`, each indexed by
+`id * 2`:
+
+| Table | SNES | Entries | Indexed by |
+|---|---|---|---|
+| hit (attack) | `$8A:C1F1` | **28** | struct `+0x40` |
+| hurt | `$8A:C229` | 10 | struct `+0x41` |
+| collision (push) | `$8A:C23D` | 10 | struct `+0x42` |
+
+They are `0x14` bytes apart — the hurt table ends exactly where the coll table
+begins. That adjacency is not trivia: **only the hit table was widened to 28
+entries** for projectiles, so indexing hurt or coll by a projectile's object id
+runs straight off the end into the neighbouring table's bytes. Gameplay never
+notices (nothing reads a projectile's hurtbox), but a tool that draws one renders
+a flickering phantom from unrelated data.
+
+Per character the three tables are **contiguous**, and the characters follow each
+other in roster order:
+
+| Character | hit | hurt | coll |
+|---|---|---|---|
+| Moon | `$8A:C251` ×17 | `$8A:C2D9` ×89 | `$8A:C869` ×6 |
+| Mercury | `$8A:C899` ×22 | `$8A:C949` ×87 | `$8A:CEB9` ×6 |
+| Mars | `$8A:CEE9` ×33 | `$8A:CFF1` ×96 | `$8A:D5F1` ×6 |
+| Jupiter | `$8A:D621` ×26 | `$8A:D6F1` ×104 | `$8A:DD71` ×6 |
+| Venus | `$8A:DDA1` ×18 | `$8A:DE31` ×88 | `$8A:E3B1` ×6 |
+| Uranus | `$8A:E3E1` ×21 | `$8A:E489` ×81 | `$8A:E999` ×6 |
+| Neptune | `$8A:E9C9` ×25 | `$8A:EA91` ×96 | `$8A:F091` ×6 |
+| Pluto | `$8A:F0C1` ×21 | `$8A:F169` ×77 | `$8A:F639` ×6 |
+| Chibi Moon | `$8A:F669` ×16 | `$8A:F6E9` ×76 | `$8A:FBA9` ×6 |
+
+Then the projectile/object tables run from `$8A:FBD9` to `$8A:FDA1` — **9 distinct
+tables shared by object ids 10-27** (several ids point at the same table).
+
+Every box is 8 bytes:
+
+```
+ 0     1     2     3     4        5    6      7
+ x_off_R  w_R  x_off_L  w_L  y_off(s)  h   flags  (unused)
+
+ origin is at the character's FEET, +y is DOWN, so y_off is normally negative.
+ h == 0 or w == 0 means "no box". Facing picks the (x_off, w) pair.
+ flags: bit0 = H, bit1 = L, bit2 = J  (guard height / jump property)
+```
+
+A **hurt entry is two boxes** (16 bytes): body then head. There is no damage
+difference between them — contact zone does not affect damage in this engine.
+
+**Invulnerability is the absence of a box, not a flag:** hurtbox index 0 is an
+empty pair, and that is exactly how the backdash is invincible for all 14 of its
+frames.
+
+---
+
+## 6. Character manifests — the roster's index
+
+`$E0:0238 + id*2` holds a 16-bit pointer into bank `$E0`. That record is where a
+character begins:
+
+| Character | id | manifest | first-hit defense | palette 0 |
+|---|---|---|---|---|
+| Moon | 1 | `$E0:024C` | 0 | `$E0:057E` |
+| Uranus | 6 | `$E0:029C` | 0 | `$E0:06BE` |
+| Neptune | 7 | `$E0:02AC` | **2** | `$E0:06FE` |
+| Pluto | 8 | `$E0:02BC` | 0 | `$E0:073E` |
+
+Records are `0x10` bytes apart. The layout is a defense byte, then pointers:
+palettes, win icon, object palette, and finally the pointer whose payload the
+loader expands into WRAM.
+
+That **first byte is a real balance value hiding in plain sight**: it is the
+defender's first-hit defense, worth one damage-matrix column until the character
+is first hit that round. Neptune ships with 2 and everyone else with 0 or 1 — and
+it is the single mechanism behind every "damage varies randomly" reading this
+project ever made. There is no RNG in damage.
+
+### The palettes are the character
+
+A character palette is 16 colours, BGR555, and they are structured identically
+across the roster:
+
+```
+ index  0      1        2  3  4  5        6 … 11            12 13    14      15
+        grey   outline  skin ramp         COSTUME RAMP      accents  shared  white
+```
+
+Only indices 6-11 differ meaningfully between characters — that ramp *is* the
+character's identity on screen, which is why re-hueing it is how this project
+authors new palette slots. Uranus's, read out of `$E0:06BE`:
+
+`#6a6a6a` `#202020` `#6a2000` `#e67b52` `#ff9c7b` `#ffc5c5` **`#081083` `#0820ac`
+`#394abd` `#6a7bd5` `#9cace6` `#cddeff`** `#ffb46a` `#ffd573` `#c55a31` `#ffffff`
+
+---
+
+## 7. Map 3 — video memory
+
+VRAM is the one memory whose layout **changes completely between a match and a
+menu**, which is the single biggest source of wasted debugging time in this
+project.
+
+### In a match (BG mode 1)
+
+```
+VRAM word
+$0000  ┌─────────────────────────────┐
+       │ BG1 tilemap (stage)         │
+$0800  │ BG2 tilemap (stage)         │
+$1000  │ BG3 tilemap ── THE HUD ──   │ rows 3-4 bars, 5 nameplates + timer
+$2000  ├─────────────────────────────┤
+       │ BG1 + BG2 CHR (stage art)   │ 4bpp
+$5000  ├─────────────────────────────┤
+       │ BG3 CHR (2bpp): digits at   │ tile 0x50/0x60 = the timer's glyphs
+       │ 0x50-0x69, A-Z at 0x70-0x89 │ ⚠ the full alphabet IS resident
+       │ ── 0xC7-0xDF FREE (25) ──   │ patches 10 and 11 put fonts here
+$6000  ├─────────────────────────────┤  ← OBJ name base
+       │ P1 cels $6000  P2 cels $6500│ DMA'd from ROM per frame, uncompressed
+       │ P1 fx $6A00    P2 fx $7300  │ per-character effect sheets
+$7000  │ (second OBJ name table)     │
+$8000  └─────────────────────────────┘
+```
+
+* A tilemap word is `flip<<14 | prio<<13 | palette<<10 | tile`. The HUD writes
+  `0x2C00 | tile` — priority bit set, palette 3 — and because `mode1Bg3Priority`
+  is on, **those tiles draw above the sprites**. That is what makes an in-match
+  text overlay possible without touching the sprite engine.
+* **Layer enable (`$212C`) is written only at scene setup**: `0x17` in VS,
+  `0x13` in Practice (BG3 off, because BG3 there holds the pre-staged movelist —
+  Start just flips the layer on).
+* ⚠ **Address a sprite tile through the OBJ name base**, never as `tile * 32`.
+  Getting this wrong once produced an entire "root signature" measured out of
+  unrelated VRAM.
+* ⚠ **Sprite lists are emitted on alternate frames.** Trigger a capture on the
+  thing you want to see, not on a frame delay.
+
+### On a menu screen
+
+```
+VRAM tile
+$0200  ← BG1 CHR base, so:  MAP tile = VRAM tile − $200
+$0400  ┌─────────────────────────────┐
+       │ the menu font sheet         │ $C4:2590 (418 tiles) staged in $7E:C000
+$05B5  │ ...ends here                │ transfer: vram $4000 len $3480
+$05C0  │ ── FREE: 64 tiles ──        │ = 32 half-width glyphs. Patch 16's home
+$0600  ├─────────────────────────────┤
+       │ screen art                  │
+$0738  │ ── FREE: 136 tiles ──       │
+$07C0  └─────────────────────────────┘
+```
+
+`$5C0-$5FF` is free on **every** menu screen and first used at match load — a
+pass for menu text, and a fail for anything that must survive into gameplay. The
+probe that established this is worth copying: it snapshots *and* write-watches,
+because **DMA never surfaces as a CPU write callback**. The write watch saw zero
+writes while the snapshots caught 1416 bytes arriving.
+
+⚠ **A screen transition clears all 64 KB of VRAM** (a fixed-source DMA with
+`len $0000` = 65536) and the destination screen then reloads only its own asset
+list. "It was in VRAM a moment ago" proves nothing about the next screen.
+
+### Colour
+
+256 colours as 16 rows of 16 — rows 0-7 for backgrounds, 8-15 for sprites. The
+engine keeps a **512-byte CGRAM shadow at `$7E:0500` and DMAs the whole thing
+every frame**, so a one-shot colour poke is erased by the engine's own refill,
+invisibly, since that refill is a DMA.
+
+Censused over a full match, only OBJ rows **0, 1, 2 and 4** are ever drawn.
+Row 7 is all zeros and never loaded — which is precisely why the Saturn port
+moved her projectiles there. And each character ships **exactly two** palettes;
+the other two pointers in the manifest are the icon and effect palettes, not
+character colours.
+
+---
+
+## 8. Map 4 — audio memory
+
+The APU has its own 64 KB, and it is **full**: the largest run of zeros in the
+whole of ARAM is 64 bytes.
+
+```
+ARAM
+$0800  driver (its ROM home is file offset = ARAM + 0x23F804)
+$2800  sequence data — swapped per scene
+$3400  BRR sample directory, 64 entries × [start16, loop16]
+$34C0  ★ the nine-character VOICE DIRECTORY, boot-resident,
+       $34C0 + (charID-1)*32 — ROM source $E4:2CC4 + (charID-1)*32
+$3800  resident instrument samples
+$8E00  swappable sample slot (per scene)
+$9B92  ~7 KB that looks free and is not (trap 2)
+$B700  ★ P1's VOICE BANK   (directory entries 48-55)
+$DB00  ★ P2's VOICE BANK   (directory entries 56-63)
+$FE8B  end of samples
+```
+
+Two facts explain most of the audio architecture. First, **a fighter's voice is
+uploaded per player, not per character** — the same nine-character directory is
+resident from boot, but the actual samples for the two fighters on screen are
+streamed into two fixed banks. Second, **pitch is per-sound note data, not a
+per-sample rate**: each sound's sequence header carries a transpose byte at
+`seq+3` worth one semitone per unit. That is the whole mechanism behind patch 101
+— and the reason it cannot fix two characters at once, since the transpose lives
+in a shared sequence.
+
+---
+
+## 9. The record catalogue
+
+Every format below is followed by a real example decoded out of the clean ROM,
+because a layout without a worked example is a hypothesis.
+
+### Box entry — 8 bytes
+
+```
+[x_off_R][w_R][x_off_L][w_L][y_off signed][h][flags][unused]
+```
+Origin at the feet, +y down. `h == 0` or `w == 0` = no box. `flags` bit0 H,
+bit1 L, bit2 J. A **hurt entry is two of these** (16 bytes): body, then head —
+and the head box carries no damage difference, contact zone does not affect
+damage in this engine.
+
+### On-hit record — 4 bytes, indexed by `(attackID >> 1) * 4`
+
+```
+[damage][hitstun][hit level][flags]
+```
+
+`$C0:CDD5` and its eight sibling tables (`CE15 … D015`) select on
+(attack, defender posture). Decoded:
+
+| idx | attackID | damage | hitstun | level |
+|---|---|---|---|---|
+| 0 | 0/1 | 6 | 8 | 1 |
+| 2 | 4/5 | 10 | 8 | 2 |
+| 4 | 8/9 | 14 | 8 | 2 |
+| 7 | 14/15 | 24 | 8 | 2 |
+
+⚠ These tables are **global, indexed by strength class, not by character**.
+Editing hitstun here changes every character's move of that class — which is why
+this project has never patched them.
+
+### The damage matrix — 64 rows × 16 columns at `$C0:D081`
+
+`final = MATRIX[attacker+0x45][(modifier + 8) & 15]`. Column 8 is neutral, lower
+columns are stronger. Row 8 reads:
+
+```
+col   0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
+     17  16  16  16  15  14  12  10 [ 8]  6   5   5   4   4   4   4
+```
+
+The modifier is composed by eleven near-identical handlers at file
+`0xCAED-0xCD6D`: counter-hit shifts it −2 columns, the defender's first-hit
+defense +1, A.C.S. attack/special shift left, A.C.S. defense right. **Nothing in
+that chain reads the RNG.**
+
+### Character manifest — pointer at `$E0:0238 + id*2`
+
+```
+[first-hit defense byte][palette ptr ×24][win icon ptr24][obj palette ptr24][payload ptr24]
+```
+Records are `0x10` apart. Each character ships **two** character palettes; the
+remaining pointers are the icon and effect palettes.
+
+### Compressed-asset job record — 10 bytes, table at `$C3:BE08`
+
+```
+[vram16][len16][src24][dest24]
+```
+
+⚠ **The length sits two bytes BEFORE the source pointer.** Reading it the other
+way round pairs record N's length with record N+1's source, which is exactly the
+mistake that made three attempts to grow a transfer "change nothing" — they were
+silently lengthening an unrelated upload. Decoded, the menu font's record:
+
+```
+$C3:BF16   vram $4000   len $3480   src $C4:2590   dest $7E:C000
+```
+
+Patch 16 changes exactly one field of that record — `len` to `$4000` — and that
+is the entire font-install mechanism.
+
+### Stage-name record — `0x66` bytes, stride `0xCC`, in bank `$C4`
+
+```
++0x00  header  e4 02 30 00 02 00      (0x30 = a row field's size)
++0x06  TOP row     exactly 24 words   ← 12 glyphs max
++0x36  BOTTOM row  exactly 24 words   ← the same glyphs + 0x10
+```
+
+**There is no terminator.** The name is *centred* by leading and trailing zero
+words. Stage 2 decoded — eight zero words, then the name, then eight more:
+
+```
+top: 0000 ×8  0F48 0F49 0F4A 0F4B  0D02 0D03  0F4C 0F4D  0000 ×8
+              時                   の         扉
+bot: 0000 ×8  0F58 0F59 0F5A 0F5B  0D12 0D13  0F5C 0F5D  0000 ×8   (= top + $10)
+```
+
+⚠ **A run of zeros after a string is not evidence of a terminator.** Read as
+"start at the first glyph, stop at `0000`", this record looks terminated — and a
+build made on that reading wrote a longer name straight through the bottom row
+and into the next stage's header, corrupting the screen and hanging the game a
+second after stage select. Two records side by side would have shown the padding
+immediately.
+
+### Runtime text record — drawn by `$80:8C43`
+
+```
+[vmadd16][len16][rows16][cells…]
+```
+
+Self-describing and **uncompressed**, in bank `$C4`, one record per value per
+highlight state. This is how the option values and the tournament rows are drawn,
+and it is why a tilemap-only edit of a *value* gets overwritten: the tilemap holds
+the initial state, this record holds every redraw.
+
+### Throw records
+
+Three separate data structures decide what a throw does, which is why a character
+can have all three wrong independently:
+
+| What | Where | Shape |
+|---|---|---|
+| **which throw** | a 4 × 8-byte table indexed by attack button (`$C1:055A` consumes it) | index 2 = HP, 3 = HK; the record's **last byte is the thrower's act** |
+| **where the victim goes** | a 5-byte toss record (`$C1:07E5`) | `[?][X vel 8.8][Y vel 8.8]`, X **negated when the thrower faces left** — so the record holds the *forward* velocity |
+| **how escapable it is** | the hold script, 8 bytes per step (`$C1:06E5`) | a step whose **byte 5 ≠ 0** samples the victim's mashing that frame |
+
+Teching is mash-counted, not a one-press window: the sampler increments the
+**thrower's** `+0x56`, and at the toss `≥ 2` sends the victim to the tech act at
+half damage. The threshold is global; the only per-throw variable is how many
+steps sample. Patch 8 changes one byte of one script.
+
+### Animation — four id-indexed layers
+
+| Layer | Table | What a record holds |
+|---|---|---|
+| action scripts | `$C0:0000` | per-step: box indices, sprite frame, duration |
+| pose records | `$84:809C` | the pose's class byte (which is also the "is an attack" flag) |
+| cel tables | `$CB:0000` | the graphics for a pose |
+| OAM sprite layout | `$84:8000` | `[count][count × 6-byte sprite records]` |
+
+A sprite record is `[x_off, x_off_flipped, y_off, attr, tile, attr_flipped]`, and
+the list begins with a **count**. That count is why a bad pose id is catastrophic
+rather than merely wrong: the emitter reads a garbage length and floods OAM.
+
+### The two compression codecs
+
+| | Codec 1 | Codec 2 |
+|---|---|---|
+| entry | `$C0:916B` / `$80:927D` | `$80:8E9A` |
+| used for | movelists, menu tilemaps, font blocks, stage art | the bank-`$DF` screen engine's tilemaps |
+| status | **fully decoded and re-encodable** (`tools/saturn/sms_lz.py`; all nine vanilla movelists round-trip to exactly `0x800`) | **partially decoded** — tile-unit, XOR row filters, a 2-bit command stream. Nothing shipped needs it |
+
+⚠ Our encoder is weaker than the original's: even an *untouched* block re-encodes
+larger. So an edited block is always **relocated into an appended bank** and its
+record repointed, never written back in place.
+
+---
+
+## 10. The four pipelines
+
+### A. Loading a character
+
+```
+charID
+  └─ $E0:0238 + id*2 ─────────────► manifest record (bank $E0)
+        ├─ first-hit defense byte ─► struct +0x48
+        ├─ palette pointers ───────► CGRAM shadow $7E:0500  ─DMA every frame─► CGRAM
+        ├─ win icon / obj palette
+        └─ payload pointer ────────► $C0:916B decompress ──► $7E:6A00
+                                                              └─DMA─► VRAM effect tiles
+  box tables are NOT copied: $8A:C1F1/C229/C23D are read straight out of ROM
+  every frame, indexed by the struct's own +0x40/41/42.
+```
+
+The load site is `$C0:879B` (P1; P2 has its twin). Note what *doesn't* happen:
+no per-character code is selected, and the boxes are never staged anywhere —
+which is why editing bank `$8A` changes the game with no hooks at all.
+
+### B. One frame
+
+```
+NMI ── joy read $80:8353 ──► $5C-$5F held, $60/$62 press edges
+ │                             └─ 30 Hz latch ──► struct +0x50
+ │
+main loop
+ ├─ JSL $C1:0000  per-object update
+ │    └─ state proc walks the action script ──► sets pose, duration, and
+ │       $C0:9CCD writes +0x40/41/42 (hit/hurt/coll indices) for every object
+ ├─ hit check $C0:BFC0  (boxes read live from bank $8A, DB=$8A)
+ │    └─ on hit: on-hit record ──► modifier handlers (0xCAED-0xCD6D)
+ │               ──► matrix lookup $80:D055 ──► one of 8 apply sites
+ │               ──► reaction dispatch $C1:0E85 (posture × hit level)
+ │                    └─ sets pushback/launch velocity, +0x46, and the
+ │                       reaction act via $10A9
+ ├─ HUD producer $C0:D5E8   computes bars/timer into $0806-$0815
+ └─ sprite emitter $C0:9A0E walks the draw order ──► OAM shadow $7E:0200
+NMI ── HUD uploader $C0:D56F flushes staging ──► VRAM
+    └─ OAM + CGRAM shadows DMA'd whole
+```
+
+Two things to know before hooking anything here. **The HUD producer never runs in
+Practice mode** — hook it and your code is dead in the mode people train in. And
+**attacks are not processed on an action's step 0**, so the engine's effective
+timing is one frame later than the action's start.
+
+### C. Building a menu screen
+
+```
+screen entry
+  ├─ (often) a full VRAM clear: fixed-source DMA, len $0000 = 65536, $80:8191
+  └─ the screen's own cluster: straight-line code, per record:
+        lda #idx*2 / sta $1C18 / jsr
+             └─ $C3:BCCD (A, 25 entries) or $C3:BCFF (B, 49) ──► 10-byte record
+                  ├─ $80:927D decompress  src24 ──► dest24 (WRAM staging)
+                  └─ $80:92AD DMA         vram16, len16 ◄── the staging buffer
+```
+
+The bank-`$DF` screen engine (the win/report card and the tournament screens)
+**bypasses this entirely**: nine straight-line scripts, its own asset entries, its
+own DMA at `$DF:84C2`, and a second codec. Two systems, one front end — which is
+why translating "the menus" was really translating two different machines.
+
+### D. Making a sound
+
+```
+ROM bank id ──► 6-byte record at $C0:ECE7 ──► IPL blocks ──► ARAM
+                                                  └─ $C0:EC5E adds DP $10 to every
+                                                     destination — that one bias is
+                                                     how P2's bank lands at $DB00
+per frame: $C0:D4F5 sends three bytes
+     P1 struct +0x78 ──► APU port 0
+     P2 struct +0x78 ──► APU port 1   (with ora #$80 — a +4 directory shift)
+     DP $78 (global)  ──► APU port 2
+sound id ──► directory entry ($34C0 + (charID-1)*32) ──► BRR sample
+         └─ the sequence header's byte at seq+3 is the TRANSPOSE: one semitone per unit
+```
+
+---
+
+## 11. Where there is room
+
+Any change that needs more than a few bytes has to go somewhere. The inventory,
+measured:
+
+| Space | Size | Notes |
+|---|---|---|
+| **Appended banks `$E8+`** | unlimited-ish | The vanilla image ends at `$E7` and the header declares a 4 MB ceiling, so appending banks is free and legal. This is where every non-trivial patch puts its code |
+| ROM hole `$C1:BE09-BE47` | **63 bytes** | The classic "free code hole". Patches 1 and 2 live here (`$BE20`, `$BE2A`) |
+| ROM hole `$C1:BE85-BEC9` | **69 bytes** | Patch 6 lives here |
+| WRAM `$0816-$09FF` | 490 bytes | **VS matches only** — native Practice uses the whole range. Patch 10's state |
+| WRAM `$7F:6000-$DBFF` | ~31 KB | Untouched in steady-state play. Patches 11/13/14/100 keep state here, reached with long addressing or the `$2180-83` WMDATA port the game never uses |
+| VRAM BG3 CHR `0xC7-0xDF` | 25 tiles | Free in every matchup; where patches 10 and 11 upload their fonts |
+| VRAM menu tiles `$5C0-$5FF` | 64 tiles | Free on every menu screen, overwritten at match load. Patch 16's half-width alphabet |
+| VRAM menu tiles `$738-$7BF` | 136 tiles | Free in every capture; unused so far |
+| CGRAM OBJ row 7 | 16 colours | Never loaded, never drawn — the Saturn port's projectile palette |
+| **ARAM** | **~0** | The largest zero run in the APU's 64 KB is 64 bytes. Audio is the one hard wall; adding a voice means displacing one |
+
+⚠ Two rules this project learned the expensive way, both about "free":
+
+* **Unreferenced and unchanging is not free.** A 7 KB ARAM region passed both
+  tests and was still live — proven only by finding its bytes in ROM bank `$E4`.
+  On this console everything was uploaded from somewhere; ask where it came from.
+* **A write-watch cannot prove a region is free**, because DMA does not surface
+  as a CPU write. Snapshot as well, and cross-check the two.
+
+---
+
+## 12. Reading this yourself
+
+Three habits make the difference between reading these structures and guessing
+at them:
+
+1. **Find the interpreter before trusting the data.** A run of zeros after a
+   string looks exactly like a terminator; in the stage-name records it was
+   centring padding, and reading it as a terminator produced a build that hung
+   the game one second after stage select. Two records side by side would have
+   shown it immediately.
+2. **Verify the instrument against a known-present signal.** Three separate
+   probes in this project reported "the game never does this" while hooked to
+   the wrong bank, filtering on a write-only register, or dead on a thrown error.
+   A 16,544-write signal was there the whole time. Prove the harness sees
+   something before you conclude the game does nothing.
+3. **Count the sites in the image you ship, not the clean ROM.** "There are
+   exactly two reads of this table" was true of the vanilla ROM and false of the
+   build, which carries a full copy of bank `$C1` — and the difference was a
+   corruption bug that survived four sessions.
+
+---

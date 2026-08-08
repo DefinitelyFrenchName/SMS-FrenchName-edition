@@ -47,7 +47,9 @@ Setting up (what the repo does not ship, and where to get it): [docs/toolchain.m
 Deeper docs: [docs/patch_index.md](docs/patch_index.md) (one-line registry, status,
 lifecycle), [docs/patch_notes.md](docs/patch_notes.md) (per-patch mechanism + verification),
 [HANDOFF.md](HANDOFF.md) (operational map: build, test, gotchas),
-[docs/sms_engine_internals.md](docs/sms_engine_internals.md) (how the engine works).
+[docs/sms_engine_internals.md](docs/sms_engine_internals.md) (how the engine works),
+[docs/sms_data_architecture.md](docs/sms_data_architecture.md) (where the data lives:
+memory maps, the object struct, the record formats).
 Training mode (pure Lua, no ROM patching): [docs/training_install.md](docs/training_install.md).
 
 ## Deliverables & how they stack
