@@ -4,20 +4,31 @@ Target: Bishoujo Senshi Sailor Moon S: Jougai Rantou!? (SFC, Japan),
 clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c` (HiROM+FastROM, headerless,
 file offset = SNES addr & 0x3FFFFF).
 
-This document covers **fourteen independent patches plus two variants** (1–5 the canonical
-gameplay/cosmetic core, 6–14 optional; 1b and 10b are variants of 1 and 10). Each is a
-separate stackable BPS built by its own `tools/mkpatchN.py`; their edits are byte-disjoint,
-so they combine cleanly — but **never combine by chaining standalone BPS files** (bank-$E8
-clobber; see "Applying" below and `HANDOFF.md` §5). One-page registry with
-status/lifecycle: `docs/patch_index.md`. **New here? Read `HANDOFF.md` first** — it is
-the operational map (current state, deliverables, tooling, findings, gotchas).
+This document covers **seventeen shipped patches plus two variants** (1–5 the original
+gameplay/cosmetic core, 6–15/17/18 optional; 1b and 10b are variants of 1 and 10), plus
+**patch 16 (menu translation), which is IN PROGRESS** — its per-screen mechanism record
+lives in `docs/menu_text.md` and its section here is a summary. Each patch is a separate
+stackable BPS built by its own `tools/mkpatchN.py`; their edits are byte-disjoint, so they
+combine cleanly — but **never combine by chaining standalone BPS files** (bank-$E8
+clobber; see "Applying" below and `HANDOFF.md` §5). The **100-series** (100 = SMS + Saturn,
+101 = her voice pitch) is a different category of work, built by `tools/saturn/` rather
+than by `mkpatchN.py`; only 101 has a section here, and 100's detail lives in
+`docs/saturn/BUILDS.md`. One-page registry with status/lifecycle: `docs/patch_index.md`.
+**New here? Read `HANDOFF.md` first** — it is the operational map (current state,
+deliverables, tooling, findings, gotchas).
+
+**What a player applies is in `release/`**, not `build/`: **Rev. S-02** (ROM
+`41d93a53…`) and **Rev. SS-02** (`b96f3fe8…`), each a complete build, hashes generated
+by `tools/mkrelease.py`. The per-patch rows below are for assembling your own
+combination. ⚠ Note that **both reference builds ship patch 1b, not patch 1** — the
+true-combo gate `0x05`.
 
 ## Deliverables & how they stack
 
 | Patch | What | Builder | Standalone BPS | Patched SHA-1 |
 |---|---|---|---|---|
-| 1. 1f-link **(CANONICAL)** | Uranus infinite → **1-frame meaty** (N=6): exactly one press connects, and it's an unblockable-by-block meaty (escapable by invincible reversal / jump) | `tools/mkpatch.py 0x04` | `build/sms_uranus_infinite_1f.bps` (+`.ips`) | `258ffd4e…` |
-| 1b. 1f-link (true combo) | **Alternative to patch 1** — true unblockable 1-frame combo (N=5); wider (2-frame connect: combo@0 + meaty@+1) | `tools/mkpatch.py 0x05` | `build/sms_uranus_infinite_1f_truecombo.bps` (+`.ips`) | `deefccec…` |
+| 1. 1f-meaty **(not a true link; gate `0x04`)** | Uranus infinite → **1-frame meaty** (N=6): exactly one press connects, and it's an unblockable-by-block meaty (escapable by invincible reversal / jump). The v0.7 "canonical" lineage's gate | `tools/mkpatch.py 0x04` | `build/sms_uranus_infinite_1f.bps` (+`.ips`) | `258ffd4e…` |
+| 1b. 1f-link **(true combo; SHIPPED in both reference builds)** | **Alternative to patch 1** — true unblockable 1-frame combo (N=5); wider (2-frame connect: combo@0 + meaty@+1). This is the gate REF v.1/v.2 and Rev. S/SS carry | `tools/mkpatch.py 0x05` | `build/sms_uranus_infinite_1f_truecombo.bps` (+`.ips`) | `deefccec…` |
 | 2. Dash-fix | Remove reversal-dash invincibility | `tools/mkpatch2.py` | `build/sms_dashfix.bps` (+`.ips`) | `14f747a7…` |
 | 3. Palettes | Sprint / Big Zam extended character colors ( + "FrenchName" rom header for easy rom ID) | `tools/mkpatch3.py` | `build/sms_palettes.bps` | `291f6474…` |
 | 4. Title | Title subtitle → "FrenchName ver. X.Y" + copyright line 1 → BZ's "©MOONLIGHT FIGHT SOCIETY" ("©ANGEL 1994" untouched) | `tools/mkpatch4.py` | `build/sms_title.bps` | `f5337f9a…` |
@@ -32,9 +43,26 @@ the operational map (current state, deliverables, tooling, findings, gotchas).
 | 12. Taunts **(OPTIONAL)** | Taunt on L: each character's native misfire ("ochame") pratfall, fully vulnerable | `tools/mkpatch12.py` | `build/sms_taunt.bps` | `614f318e…` |
 | 13. Guts **(OPTIONAL)** | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py` | `build/sms_tauntbuff.bps` | `bafb87d4…` |
 | 14. Guts Grip **(OPTIONAL, companion to 13)** | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py` | `build/sms_gutsgrip.bps` | `5fadcaca…` |
+| 15. No AUTO **(in both reference builds)** | Removes the AUTO option from the VS button-config screen (the モード row goes inert, so both players stay マニュアル); AUTO binds specials to L/R, colliding with patch 12's taunt | `tools/mkpatch15.py` | `build/sms_noauto.bps` | `31832e6e…` |
+| 16. Menu translation **(IN PROGRESS)** | English menu text: a half-width A-Z installed into the menu font, then per-screen tilemap/record edits behind build gates. **No standalone BPS yet** — see the patch 16 section below and `docs/menu_text.md` | `tools/mkpatch16.py` | — | — |
+| 17. All stages **(OPTIONAL, in NEITHER reference build)** | The hidden tenth stage (なかよし編集部) becomes selectable, and — where patch 3 is present — joins its random pool | `tools/mkpatch17.py` | `build/sms_allstages.bps` | `e5dd325b…` |
+| 18. No ACS in 2P VS **(in both reference builds)** | The A.C.S. stat-redistribution screen is unreachable in 2P VS only; story and vs-COM keep it. Companion to 15, same screen | `tools/mkpatch18.py` | `build/sms_noacs_vs.bps` | `67897bbf…` |
+
+The 100-series is built and gated separately (`tools/saturn/`, gate
+`tools/saturn/verify_saturn.sh`): **100 = SMS + Saturn** (currently v0.16.1, hidden
+`91639250…`, hidden+stage `c8f7dae8…`, detail in `docs/saturn/BUILDS.md`) and
+**101 = her voice pitch** (a build flag on 100, shipped and on by default — section at
+the end of this file). Their BPS are deliberately **not tracked**: they embed ported
+Super S content (`docs/patch_index.md` § 100-series).
 
 Combined builds:
 
+> **The two RELEASE builds** (`release/`, one recipe `tools/build_rev.sh s|ss|both`) are
+> what a player applies: **Rev. S-02** = 1b+2+3+4+5+7+8+9+12+13+14+15+18, ROM
+> `41d93a53…`, and **Rev. SS-02** = the same plus Saturn, ROM `b96f3fe8…`. Their notes
+> (`release/RELEASE_NOTES.md`) are generated from the files, so their hashes cannot go
+> stale; the bundles below are development artifacts kept for lineage.
+>
 > **Current bundle:** `build/sms_allpatches_v0.22.bps` — clean → ALL 14 patches (10 as 10b,
 > labels on), title tell "v.0.22", ROM `build/SailorMoonS_FrenchName_v0.22_ALLPATCHES.sfc`
 > (SHA-1 `e6b999b5…`; re-recorded 2026-08-06 with the batch-2 fixes to patches 10b/11;
@@ -103,6 +131,16 @@ Edit-region map (why they're disjoint):
 - Patch 14: the 7-byte **tails** of the same toss/tick sites (`0x10835` / `0x10D5A` — right
   after patch 13's 6 subtract bytes, byte-disjoint), stub in an appended bank; scratch
   `$7F:F810-F815`, reads patch 13's state read-only.
+- Patch 15: 6 bytes on the config screen's mode-row handler (`0x03A863` / `0x03A87A` /
+  `0x03A880`), no bank, no WRAM.
+- Patch 16 (in progress): the menu font sheet and, per gate, the screen tilemaps/art
+  sheets are **relocated into an appended bank** and their asset records repointed —
+  record #27's src + its length field `$C3:BF18`; hooks at `$C3:A4DD` (Options loader),
+  `$C3:AF8A` (char-select loader) and `$DF:9679` (report card); in-place record edits in
+  bank `$C4` (option values, stage names). No WRAM.
+- Patch 17: 1 byte `0x03BADE`, plus — only when patch 3 is present — 2 bytes in patch 3's
+  own appended bank (`0x2800D3` / `0x2800D9`), located by signature.
+- Patch 18: 12 bytes at `0x03BB9E` (the shared mode-1/2 config handler), no bank, no WRAM.
 
 Note: every bank-appending patch (4, 10/10b, 11, 12, 13, 14) auto-detects the **next free
 bank** at build time — that's why builders chain cleanly while standalone BPS files (all
@@ -128,10 +166,12 @@ one patch (or re-run the whole chain) after changing a knob; all stack.
 | **Status labels (opt.)** | `mkpatch10.py … --events labels` | `off` | Also render GC/REVERSAL/PUNISH/TECH text (patch 10b). MEATY label removed 2026-07-20. |
 | **Guts reduction (opt.)** | `mkpatch13.py … --l1 <pct> --l2 <pct> --l3 <pct>` | `20/40/60` | % damage reduction per Guts level vs specials/desperations (build-time 3×128 tables). |
 | **Guts Grip reduction (opt.)** | `mkpatch14.py … --l1/--l2/--l3`, `--all-grabs` | `20/40/60` / off | Same per-level % vs command grabs; `--all-grabs` extends to EVERY grab path (normal throws + hold ticks). Keep the percentages aligned with patch 13. |
+| **Hidden stage (opt.)** | `mkpatch17.py … --no-pool`, `--bgm <N>` | pool on / vanilla music | `--no-pool` unlocks the stage in the menu but leaves patch 3's random default bounded to nine; `--bgm N` gives it another stage's track (its own is `$06`; the nine normal stages hold `$0A`-`$12`). |
+| **Menu translation (in progress)** | `mkpatch16.py`, **env gates** `SMS_P16_OPTIONS` / `SMS_P16_DF` / `SMS_P16_STAGES` / `SMS_P16_ACS` / `SMS_P16_SATURN` | font install always on, every screen gate **off** | Each gate turns on one screen's strings; `SMS_P16_ACS` requires `SMS_P16_STAGES` (they share the glyph block), and `SMS_P16_SATURN` (stage 2 → SILENT THRONE OF MESSIAH) is for a future Saturn chain only. |
 
 Patches 2 (dashfix), 3 (palettes), 11 (Training+ — all settings live in its in-game menu;
-`--stage` is a dev/debug flag) and 12 (taunts) have no balance knobs — they're
-single-purpose. Example
+`--stage` is a dev/debug flag), 12 (taunts), 15 (No AUTO) and 18 (No ACS in 2P VS) have no
+balance knobs — they're single-purpose. Example
 retune: `python3 tools/mkpatch.py 0x05 build/n5.sfc` (true-combo gate), or
 `python3 tools/mkpatch6.py "<clean>" build/tight.sfc --lo 6 --hi 9` (tighter i-frame window).
 
@@ -661,7 +701,7 @@ first, and only adds DMAs; it never executes during matches.
 
 ---
 
-# Patch 5 — Halve the forward-dash distance
+# Patch 5 — Reduce the forward-dash distance
 
 Patched (standalone) SHA-1 `99acb686…`; all-five `b09a189c…`.
 Deliverables: `build/sms_dashdist.bps` (clean → dash distance only), `build/sms_full5.bps`
@@ -1553,6 +1593,142 @@ builds** (REF v.2 onward, and Rev. S/SS).
 
 ---
 
+# Patch 16 — menu translation (IN PROGRESS)
+
+**Status (2026-08-08): the font install and five screens are done and
+in-emulator verified; two runtime-drawn text surfaces remain.** This is the
+project's only active work item. This section is the summary; the mechanism
+record — every screen's loader, every trap paid for — is `docs/menu_text.md`,
+which is the file to read before touching the builder.
+
+**Why it is a standalone patch, not a Saturn feature** (maintainer, 2026-08-03):
+it builds from clean like every other `mkpatchN.py` and must work with or
+without her.
+
+## The font install (always on)
+
+The game's menu font has no usable half-width Latin — the
+`PRESS "SELECT" TO ACS` banner looks like one but is proportional artwork stored
+as tiles (22 slots, 22 *distinct* glyphs for a string that repeats S four times).
+So a half-width A-Z was **built from the game's own capitals**
+(`tools/mkhalfwidth.py`: 17 condensed by ANDing column pairs, 4 repaired, 5
+authored — F J Q S Z), plus the punctuation the strings need. No foreign font,
+no licence surface.
+
+Delivery, and the two facts that cost the most:
+
+* **The asset-record layout is `[vram16][len16][src24][dest24]`** (10 bytes,
+  table at `$C3:BE08`) — a block's upload **length sits 2 bytes BEFORE its src
+  pointer**. Every earlier attempt to grow the transfer wrote into the *next*
+  record and silently lengthened an unrelated upload. The font sheet is
+  `$C4:2590` (record #27); its length field `$C3:BF18` goes `$3480 → $4000`,
+  which is the ceiling — the source is `$7E:C000`, so more runs off bank `$7E`.
+* **The sheet is relocated, not patched in place** (418 → 512 tiles, re-encoded
+  into the appended bank), because this project's encoder is weaker than the
+  original's: even an untouched block re-encodes larger.
+
+Glyphs land at **VRAM tiles `$5C0-$5FF`** — a region proved free on every menu
+screen and first used at match load (`tools/probe_vram_free.lua`), which is a
+pass for menu text and would not be for anything persisting into gameplay.
+
+## The screens, and their gates
+
+Every screen's strings are **off by default**; each gate turns on one screen.
+
+| Gate | What it translates |
+|---|---|
+| *(none — always on)* | the font install, plus the Options-loader hook that re-uploads it |
+| `SMS_P16_OPTIONS` | the six Options labels **and** all 12 option-value records |
+| `SMS_P16_DF` | tournament select names (9) + the REPORT CARD labels (8) + PLAYER SELECT |
+| `SMS_P16_STAGES` | the 10 stage names (×2 highlight states), the whole VS config screen, and the char-select glyph delivery |
+| `SMS_P16_ACS` | the A.C.S. wheel labels (**requires `SMS_P16_STAGES`** — shared glyph block) |
+| `SMS_P16_SATURN` | stage 2 → `SILENT THRONE OF MESSIAH`; **default off**, for a future Saturn chain that stacks this patch |
+
+Four mechanisms are worth knowing, because they are what the screens differ by:
+
+1. **Options** is a `$C3` cluster screen. Its transition **clears all 64 KB of
+   VRAM** (fixed-source DMA at `$80:8191`) and its loader (`$C3:A4DD`) never
+   re-uploads the font — so the glyphs, which do arrive at *main-menu* entry,
+   were simply gone. Fix: the loader's first record load is JSL-hooked to a
+   60-byte stub that replays the two JSL-able primitives (`$80:927D`
+   decompress, `$80:92AD` DMA) for the font FIRST, preserving order so the
+   screen's own text sheet keeps winning their overlap.
+2. **Option values** are not tilemap data: `$80:8C43` draws self-describing
+   records `[vmadd16][len16][rows16][cells…]` from bank `$C4`, one per value
+   **per highlight state**, selected by four pointer tables at
+   `$C3:A44F/A457/A45B/A463`. They are uncompressed, so translating them is a
+   12-record in-place cell edit.
+3. **Win (REPORT CARD) and Tournament share a separate engine** in bank `$DF`
+   (`$DF:83CE`) that bypasses the `$C3` clusters entirely: nine screens, each a
+   straight-line script, with **two codecs** — the familiar `sms_lz` for
+   flag≠0 blobs and a second, still-unreversed one (`$80:8E9A`) for the rest.
+   Nothing shipped needs codec 2: the report card is edited by a stub *between*
+   its decompress and its upload (`$DF:9679`), the same seam the match numbers
+   go in, and the tournament rows are uncompressed blocks.
+4. **The A.C.S. wheel** labels are raster-edited into the relocated art sheet.
+   ⚠ **No glyph hook on that screen** — its runtime prompt bar references the
+   blank `$5C0` tiles through another BG's CHR base, so uploading glyphs there
+   corrupts the prompt.
+
+## Builds (measured 2026-08-08)
+
+| build | ROM SHA-1 |
+|---|---|
+| clean → patch 16, font install only | `c9ad4910…` |
+| clean → patch 16, all four screen gates on | `257598c8…` |
+
+(Lineage, for anyone reading older notes: `d8f4ff1d…` was the font-install-only
+build before the Options hook existed, `206fee3d…`/`3cba4171…` the base and
+full-Options pair recorded on 2026-08-06.) **No standalone BPS is tracked yet** —
+the patch is still moving, and a tracked BPS is a promise about bytes.
+
+## Verification
+
+Each screen was verified **in-emulator**, not from the build: the glyph census
+in VRAM `$5C0-$5FF` goes 0/64 → **56/64** across the hooking transfer and stays
+there settled; Options renders its six English labels and both highlight states
+of its values; the report card renders KO TIME / HIT COUNT / DAMAGE / BEST / WIN
+COUNT with its numbers and colours intact; the stage row renders
+`CRYSTAL TOKYO, EVENING` and cycles to `FOUNTAIN PARK, DAY`. Regression stayed
+**45/45** at every step. The Options screen is **field-confirmed** (2026-08-06):
+legibility "excellent", repeated entry/exit and value cycling clean. The letters
+sit on a slightly wobbly baseline — per-letter variance from the condensation —
+and the maintainer likes it ("a fun, childish look"), so it stays.
+
+⚠ **Verify with `tools/probe_menu_vram.lua`, which dumps ON the font transfer,**
+not at the end of a run: a final-screen dump reads identical on clean and
+patched ROMs because a later upload overwrites the region. `POKE=1` is the
+positive control (0/256 bytes arrive clean, 256/256 patched).
+
+## What remains
+
+* **Bracket VS names.** Map cells in the small font, baked as Moon-vs-Moon
+  inside the codec-2 blob `$C7:3BBD` and rewritten per entrant by a runtime
+  builder that has not been found; a VRAM write-watch at screen entry catches
+  nothing because codec 2 flushes by DMA. Next: arm the watch and force a
+  bracket-advance redraw, or find the builder statically. Translating them also
+  needs glyph delivery on that screen — the plan is to extend the small-font
+  blob (`$C2:27E0`) and bump only `$DF:A43E`'s length field.
+* **The A.C.S. name card and prompt.** Not map data at all: a **dynamic glyph
+  blitter** (`$80:9583`, queue-driven, `$20` bytes at a time into BG3 CHR) fed
+  from a staging area at `$7F:DC00+` that per-byte write watches never see.
+  This is the game's variable-text engine — the same machinery the story
+  dialogue uses — which is why the prompt can substitute a character's name.
+  Finding what fills `$7F:DC00+` yields the font source; only then is an English
+  prompt authorable, and it would want proportional glyphs. Until then the
+  Japanese prompt stays, which the maintainer has accepted.
+
+Story-mode text is **out of scope** (maintainer).
+
+⚠ **Three laws this screen family taught, the hard way:** a screen transition
+may clear ALL of VRAM and reload only its own list; **blank ≠ unreferenced** (a
+screen can reference blank tiles through another BG's CHR base — three separate
+instances now, incl. the story pre-fight portrait screen `$DF:9405`, whose stray
+letters were a field report); and a runtime record will overdraw baked text, so
+a tilemap-only edit of a *value* is not enough.
+
+---
+
 # Patch 17 — every stage selectable (hidden stage unlocked)
 
 **Why.** The tenth stage — **なかよし編集部**, the Nakayoshi editorial
@@ -1711,10 +1887,12 @@ is in neither REF nor patch 100. The Saturn builder keeps the capability behind
 rather than carrying a second copy of the bytes, with `SATURN_STAGE_BGM=<byte>`
 as the `--bgm` knob; an opted-in build tags its on-screen version **S**
 (`v0.14.15HRS`) so it cannot be mistaken for the shipped one in a field report.
-Both directions are byte-checked: default rebuilds v0.14.15 **exactly**
-(`8c5db8e4…`/`e1788e31…`), and the opted-in build differs from it by **six**
-bytes — patch 17's three, the version tag, the checksum. Play it instead via
-`sms_allstages.bps` or `sms_ref_v2_allstages.bps`.
+Both directions were byte-checked at the time: the default rebuilt v0.14.15
+**exactly** (`8c5db8e4…`/`e1788e31…`), and the opted-in build differed from it by
+**six** bytes — patch 17's three, the version tag, the checksum. (The Saturn line
+has since advanced to **v0.16.1**, hidden `91639250…` / +stage `c8f7dae8…`, which
+is what the builder reproduces today; the hook is still off by default.) Play
+patch 17 instead via `sms_allstages.bps` or `sms_ref_v2_allstages.bps`.
 
 ---
 
@@ -1806,8 +1984,13 @@ together: same screen, same reason.
 
 # Patch 101 — Saturn voice pitch (`SATURN_PITCH=1`)
 
-**Status: BUILT, NOT SHIPPED.** Measured correct and gate-clean; held on one
-unresolved behavioural finding (below). Off by default.
+**Status: SHIPPED, ON BY DEFAULT** (2026-08-05) — it rides in Rev. SS-02. The
+"held pending a listening test" state below was resolved by that test: the field
+verdict is that her pitch is correct, and the one accepted limitation is that a
+**Moon facing her is three semitones flat** (the shared-transpose limitation, see
+the last section). `SATURN_PITCH=0` builds patch 100 alone and reproduces
+`03b73cdd…` byte-for-byte. The "voices 1/2/6" finding below stays **recorded but
+un-chased** — the listening A/B is what cleared it.
 
 ## What
 
@@ -1877,13 +2060,13 @@ round-trips to the same hash.
 | **vanilla** session, WRAM diff | **byte-identical**, all 128 KB × 10 checkpoints |
 | **Saturn** session, WRAM diff | **byte-identical** — the transposes live in ARAM, so WRAM must not move |
 | `test_regression.lua` | **ALL PASS (57)** |
-| `verify_saturn.sh` | **ALL PASS (45 checks)** |
+| `verify_saturn.sh` | **ALL PASS (45 checks)** — the gate as it stood on 2026-08-05; it has since grown to 53 |
 
 Note the oracle: across builds whose LOAD duration differs, a frame-aligned DSP
 diff desynchronises (see trap 1) — use `dspdiff.py --semantic`, which compares the
 ordered key-on sequence and is shift-immune.
 
-## The "voices 1/2/6" finding — narrowed 2026-08-04, still the reason this is held
+## The "voices 1/2/6" finding — narrowed 2026-08-04, then CLEARED by the field test
 
 Measured with `tools/saturn/probe_sms_voicechan.lua`, which watches the driver's
 PER-CHANNEL state (`$0240+X` transpose, `$02B0+X` pitch shadow) instead of the DSP
@@ -1916,11 +2099,12 @@ upward only). So the contamination enters through `$0300+X` / `$0400+X` or throu
 the music sequence's own timing, and finding it needs the sequence interpreter
 read rather than the converter.
 
-**What would close this without more RE:** a listening A/B of
-`sms_saturn_pitch.bps` applied and not. The question is whether three
-single-note perturbations per ~15 seconds are audible at all — and since the
-vanilla build already perturbs those same notes by a different amount, the honest
-comparison is "does it sound worse", not "does it sound wrong".
+**What closed it:** the listening A/B of `sms_saturn_pitch.bps` applied and not
+(maintainer, 2026-08-05). The question was whether three single-note
+perturbations per ~15 seconds are audible at all — and since the vanilla build
+already perturbs those same notes by a different amount, the honest comparison
+was "does it sound worse", not "does it sound wrong". It did not, so 101 shipped
+on by default and the path stays un-chased.
 
 ## Known limitation, independent of the above
 

@@ -1,4 +1,19 @@
-# Next-session handoff — 2026-08-06 (session close)
+# Next-session handoff — 2026-08-08 (session close)
+
+**2026-08-08 — DOCUMENTATION SYNC, no code or artifact changed.** The registry
+docs had drifted from the artifacts: `patch_notes.md`'s deliverables table
+stopped at patch 14 (15/17/18 missing, **16 had no section at all**) and still
+called patch 101 "BUILT, NOT SHIPPED"; `patch_index.md` carried Saturn v0.14.15
+hashes and a 49-check gate. All corrected, and **every number was re-measured
+rather than transcribed** — releases `41d93a53…`/`b96f3fe8…`, Saturn dev build
+`91639250…` (v0.16.1), patches 15/17/18 `31832e6e…`/`e5dd325b…`/`67897bbf…`,
+patch 16 `c9ad4910…` (font only) / `257598c8…` (all four gates), Saturn gate
+**ALL PASS (53 checks)**. Two audits swept the rest of `docs/` for claims HEAD
+contradicts (~45 fixes: pruned bundles still in "Applying" blocks, deleted
+builder knobs, resolved "open unknowns", the no-RNG-in-damage correction).
+⚠ **A stale generated file was blocking the release builder** — `tools/README.md`
+was out of date and `tools/build_rev.sh` preflights `mkindex --check`, so
+`build_rev.sh both` aborted before building anything. Regenerated.
 
 **NEXT SESSION CONTINUES PATCH 16 (menu translation).** It is the only
 active work item. **2026-08-06 (this session) shipped:** Options labels +
@@ -30,9 +45,10 @@ the dash-distance retune.
 **Step 1 (font install) WORKS.** The half-width A-Z (built by
 `tools/mkhalfwidth.py`, condensed from the game's own capitals) is installed
 into the menu font sheet `$C4:2590` (extended 418 -> 512 tiles, relocated)
-and **reaches VRAM tiles `$5C0-$5FF`** — read back out of VRAM, 52/64
-non-blank (26 letters x 2 tiles) vs 0 on clean. Builder: `tools/mkpatch16.py
-<out.sfc>` (standalone A/B: clean -> `d8f4ff1d…` with today's tree). Two
+and **reaches VRAM tiles `$5C0-$5FF`** — read back out of VRAM, 56/64 (52/64
+when it was 26 letters; today 29 glyphs, three with a blank half) vs 0 on clean. Builder: `tools/mkpatch16.py
+<out.sfc>` (standalone A/B: clean -> `c9ad4910…` as of 2026-08-08; `d8f4ff1d…`
+was the font-install-only build before the Options hook). Two
 hard-won facts behind it:
 
 * **The asset-record layout is `[vram16][len16][src24][dest24]`** (job table
@@ -57,8 +73,9 @@ first. `SMS_P16_OPTIONS=1` now renders the six English labels
 (screenshot-verified); button-config still green on the hooked build.
 Values are DONE too (same day): the runtime writer is `$80:8C43` + record
 tables at `$C3:A44F..A46B`; records uncompressed in bank `$C4`, 12 in-place
-cell edits, verified through both highlight states. Builder A/B today: base
-`206fee3d…`, full Options translation `3cba4171…`.
+cell edits, verified through both highlight states. Builder A/B **on 2026-08-06**:
+base `206fee3d…`, full Options translation `3cba4171…` (the builder has grown
+since — see the 08-08 hashes above).
 
 **Everything else for Options is ready:**
 * Its tilemap is **asset record 19** (`$C3:69F0`).

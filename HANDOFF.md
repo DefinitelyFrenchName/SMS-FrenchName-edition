@@ -20,7 +20,28 @@ ported from Super S and is playable in the **Rev. SS** builds only (§0).
 
 ---
 
-## 0. Current state (2026-08-06) — SMS + Saturn = PATCH 100, and the issue backlog
+## 0. Current state (2026-08-08) — SMS + Saturn = PATCH 100, and the issue backlog
+
+**2026-08-08 — DOCUMENTATION SYNC (maintainer request), everything re-measured.**
+The registry docs had drifted from the artifacts in three ways, all now fixed:
+`docs/patch_notes.md` still called patch **101** "BUILT, NOT SHIPPED" (it ships, on
+by default, and the listening A/B that cleared it is recorded); its deliverables
+table **stopped at patch 14**, so 15/17/18 were absent and **16 had no section at
+all**; and `docs/patch_index.md` still carried Saturn **v0.14.15** hashes and a
+**49**-check gate. Nothing was transcribed — every number written was produced by a
+run today: both releases rebuild to `41d93a53…` / `b96f3fe8…`, the Saturn dev build
+to `91639250…` (v0.16.1), patches 15/17/18 to `31832e6e…` / `e5dd325b…` /
+`67897bbf…` (each tracked BPS round-tripping to the same), patch 16 to `c9ad4910…`
+(font only) and `257598c8…` (all four screen gates), and
+`tools/saturn/verify_saturn.sh` to **ALL PASS (53 checks)**.
+⚠ **A stale GENERATED file was blocking the release builder**: `tools/README.md` was
+out of date (from the maintainer's `mkpatch5.py` docstring edit), and
+`tools/build_rev.sh` preflights `mkindex --check`, so `build_rev.sh both` aborted
+before building anything. Regenerated. This is trap 17 in its intended form — the
+generated check caught real drift, and it caught it by refusing to build.
+⚠ **Terminology corrected throughout:** "canonical" names the **v0.7 lineage**, not
+what ships. Both reference builds and both releases carry patch **1b** (gate `0x05`,
+true combo), never patch 1.
 
 **Numbering (2026-08-04, maintainer):** the whole Super S body of work is
 **patch 100**, and the voice-pitch correction is **patch 101**. The gap from 16
@@ -262,7 +283,8 @@ tasks: §8's fold-6/7/8-into-canonical and dash-distance retune.**
 
 **Patch 16 — menu translation. Step 1 DONE; step 2's Options screen WORKS
 (2026-08-06).** The half-width A-Z reaches VRAM (tiles `$5C0-$5FF`, read back
-out of VRAM, 52/64 non-blank vs 0 on clean). Two things had been wrong and both
+out of VRAM, 56/64 non-blank vs 0 on clean — 52/64 in entries written before the
+punctuation glyphs were added). Two things had been wrong and both
 are fixed: the asset-record layout is `[vram16][len16][src24][dest24]` — the
 upload LENGTH sits 2 bytes BEFORE the src pointer (field `$C3:BF18`, `$3480` ->
 `$4000`), and the kanji block is not loaded on the screen being translated
@@ -502,10 +524,14 @@ the `Fixes #NN` commits):
 
 ---
 
-## 1. Current state (2026-07-30) — all green
+## 1. The base patch project (record as of 2026-07-30) — all green
 
-Sixteen patch entries (14 patches + 2 variants), all built and suite-verified. The
-**canonical** shipping build is **v0.7**; the newest all-patches test ROM is **v0.22**.
+> **Read §0 for the current state.** This section is the base project's record and its
+> counts are of that date: sixteen patch entries (14 patches + 2 variants). Since then
+> patches **15, 17 and 18** shipped and **16** (menu translation) is in progress, so the
+> registry is nineteen entries (17 patches + 2 variants) plus the 100-series —
+> `docs/patch_index.md` is the authority. "Canonical v0.7" names the original **lineage**;
+> what ships today is `release/` Rev. S-02 / SS-02, which carry patch **1b**.
 
 **2026-07-30 — patch 4 credit line (maintainer request):** `mkpatch4.py` now also swaps
 title-screen copyright line 1 to the Big Zam edition's **"©MOONLIGHT FIGHT SOCIETY"**

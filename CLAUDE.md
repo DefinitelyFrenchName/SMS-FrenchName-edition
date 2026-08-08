@@ -1,10 +1,13 @@
 # CLAUDE.md — SMS Uranus infinite patch
 
-> **STATUS (2026-07-24): the original objective is DONE and the project has grown well beyond it
-> (14 patches + 2 variants — balance, training mode, taunts/Guts — tooling, full verification).
-> Before doing anything, read `HANDOFF.md` (operational map), `docs/patch_index.md` (registry),
-> and `docs/patch_notes.md` (per-patch detail). The sections below are the original brief,
-> kept for history.**
+> **STATUS (2026-08-08): the original objective is DONE and the project has grown well beyond it
+> — 17 patches + 2 variants (balance, training mode, taunts/Guts, menu/config edits), plus the
+> 100-series: **Sailor Saturn ported in from Super S**. What ships is `release/` **Rev. S-02**
+> and **Rev. SS-02**. The only ACTIVE work item is **patch 16, menu translation**
+> (`docs/menu_text.md`).
+> Before doing anything, read `HANDOFF.md` (operational map), `docs/NEXT_SESSION.md`
+> (60-second orientation), `docs/patch_index.md` (registry), and `docs/patch_notes.md`
+> (per-patch detail). The sections below are the original brief, kept for history.**
 
 ## Objective (REVISED 2026-07-10 — supersedes the 2LP wording below)
 Per Dustloop, the real Uranus Infinite™ is `[2LP > 2HP > 66]xN` — the load-bearing link
