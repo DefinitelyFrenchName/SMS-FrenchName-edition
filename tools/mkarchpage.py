@@ -374,6 +374,21 @@ td:first-child{white-space:nowrap}
 .callout p{margin:.3rem 0}
 .callout .tag{font:600 .7rem/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;
   text-transform:uppercase;color:var(--accent)}
+/* the nav is sticky, so an anchor jump would otherwise land its target underneath it */
+section[id],[id^="fn"]{scroll-margin-top:4rem}
+a.fnref{font-size:.7em;vertical-align:super;line-height:0;text-decoration:none;
+  padding:0 .12em;font-weight:600}
+a.fnref:hover{text-decoration:underline}
+.footnotes{margin:2rem 0 0;padding:1.1rem 0 0;border-top:1px solid var(--rule);
+  font-size:.88rem;color:var(--ink-3)}
+.footnotes h3{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.72rem;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:0 0 .6rem;font-weight:600}
+.footnotes p{margin:.55rem 0;color:var(--ink-3)}
+.footnotes strong{color:var(--ink-2)}
+.footnotes pre{background:var(--sunken);border-radius:6px;padding:.7rem .85rem;overflow-x:auto;
+  font-size:.82rem;line-height:1.5;color:var(--ink-2);margin:.7rem 0}
+.footnotes .back{text-decoration:none;font-weight:600}
+
 .palette{display:flex;flex-wrap:wrap;gap:0;border-radius:8px;overflow:hidden;margin:1.1rem 0;
   border:1px solid var(--rule)}
 .palette i{flex:1 1 3.4rem;height:3.2rem;position:relative}
@@ -481,7 +496,8 @@ every offset in this project is written with it in mind:</p>
 game usually executes from it. That mirror is the single most expensive fact on
 this page: a routine documented as <code>$C0:D055</code> runs as
 <code>$80:D055</code>, so a watch on the wrong one sees nothing at all — which
-reads exactly like "the game never does this".</p>
+reads exactly like "the game never does this".<a class="fnref" id="fnref1"
+href="#fn1">[1]</a></p>
 <div class="callout"><p class="tag">The cartridge, on paper</p>
 <p>The header declares a <strong>4 MB</strong> ROM. The image is
 <strong>2.5 MB</strong> — 40 banks, <code>$C0-$E7</code>. That gap is why every
@@ -489,6 +505,44 @@ patch in this project can append banks past the end and still boot, and why they
 all target the first free bank, <code>$E8</code>.</p>
 <p>Its title field is not ASCII: it is Shift-JIS half-width katakana,
 <code>ｾｰﾗｰﾑｰﾝSｼｭﾔｸｿｳﾀﾞﾂｾﾝ</code>.</p></div>
+<div class="footnotes">
+<h3>Footnote</h3>
+<p id="fn1"><strong>[1] Why one routine has three addresses, and why it matters.</strong>
+There are two different spaces in play, and the rule above converts between
+them. The cartridge is a <em>file</em> — 2.5 MB of bytes numbered
+<code>0</code> to <code>0x27FFFF</code>. The CPU never sees a file; it sees an
+address space of 256 banks of 64 KB, which also holds RAM and hardware
+registers. The mapping is simply: which byte of the file appears at which CPU
+address? The cartridge's wiring decides that, and there were two common
+conventions — LoROM and HiROM. This game is HiROM, so a full 64 KB slab of the
+file appears in each bank.</p>
+<p><code>&amp; 0x3FFFFF</code> means "throw away everything above the low 22
+bits, and what is left is the position in the file". Twenty-two bits, because a
+HiROM cartridge tops out at 4 MB and that is all it takes to name any byte of
+one. Worked out on the routine named above:</p>
+<pre>$C0:D055  →  0xC0D055 &amp; 0x3FFFFF  =  0x00D055  →  c2 30 85 02 a5 00
+$80:D055  →  0x80D055 &amp; 0x3FFFFF  =  0x00D055  →  c2 30 85 02 a5 00
+$40:D055  →  0x40D055 &amp; 0x3FFFFF  =  0x00D055  →  c2 30 85 02 a5 00</pre>
+<p><strong>Those are not three copies. They are one set of bytes, visible at
+three addresses.</strong> The high bits choose which window you look through,
+not which byte you get — being wired into the address space several times over
+was normal on this console.</p>
+<p>The game prefers the <code>$80</code> window for speed: the SNES reads the
+cartridge at 2.68 MHz through most windows and at 3.58 MHz through banks
+<code>$80-$FF</code> when the cartridge asks for it, which this one does (its
+map-mode byte is <code>$31</code> — HiROM <em>and</em> FastROM). About a third
+faster, for free.</p>
+<p>And that is where the cost lands: <strong>breakpoints and watches are keyed to
+an address, not to a byte.</strong> Break on <code>$C0:D055</code> and the CPU
+will execute those exact bytes through <code>$80:D055</code> all day without
+tripping it. Your probe prints nothing — and nothing looks identical to "the game
+never calls this". Low work RAM has the same sibling trap, visible as both
+<code>$7E:1000</code> and <code>$00:1000</code>.</p>
+<p>One last thing the rule assumes: <strong>no copier header</strong>. Some dumps
+carry an extra 512 bytes at the front, added by the hardware that made them; with
+one of those, every offset on this page is wrong by 512. The SHA-1 in the footer
+is what pins that down. <a class="back" href="#fnref1">↩ back</a></p>
+</div>
 </section>
 
 <section id="rom">

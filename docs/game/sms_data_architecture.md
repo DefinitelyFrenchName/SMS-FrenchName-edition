@@ -67,6 +67,49 @@ Three practical consequences, each of which has cost this project time:
   handed to a routine that writes the OAM shadow with plain absolute stores
   vanishes; it needs the `$AE` alias.
 
+### If that rule is not obvious yet — the long version
+
+Two different spaces are in play, and the rule converts between them.
+
+The cartridge is a **file**: 2.5 MB of bytes numbered `0` to `0x27FFFF`. The CPU
+never sees a file. It sees an **address space** of 256 banks of 64 KB, which also
+contains RAM and hardware registers. "The mapping" is just the question *which
+byte of the file appears at which CPU address?* — and the cartridge's own wiring
+answers it. There were two common conventions, LoROM and HiROM; this game is
+HiROM, so a full 64 KB slab of the file appears in each bank.
+
+`& 0x3FFFFF` therefore means **"throw away everything above the low 22 bits, and
+what is left is the position in the file"**. Twenty-two bits because a HiROM
+cartridge tops out at 4 MB, and that is all it takes to name any byte of one.
+Worked out on the damage-matrix lookup:
+
+```
+$C0:D055  ->  0xC0D055 & 0x3FFFFF  =  0x00D055  ->  c2 30 85 02 a5 00
+$80:D055  ->  0x80D055 & 0x3FFFFF  =  0x00D055  ->  c2 30 85 02 a5 00
+$40:D055  ->  0x40D055 & 0x3FFFFF  =  0x00D055  ->  c2 30 85 02 a5 00
+```
+
+**Those are not three copies. They are one set of bytes, visible at three
+addresses.** The high bits choose which window you look through, not which byte
+you get; being wired into the address space several times over was normal on this
+console.
+
+The game prefers the `$80` window because it is **faster**: the SNES reads the
+cartridge at 2.68 MHz through most windows and at 3.58 MHz through banks
+`$80-$FF` when the cartridge asks for it — which this one does, its map-mode byte
+being `$31`, HiROM *and* FastROM. About a third quicker, for free.
+
+And that is where the cost lands. **Breakpoints and watches are keyed to an
+address, not to a byte.** Break on `$C0:D055` and the CPU will execute those exact
+bytes through `$80:D055` all day without tripping it; the probe prints nothing,
+and nothing looks identical to "the game never calls this". Low WRAM carries the
+same trap, visible as both `$7E:1000` and `$00:1000`.
+
+One assumption the rule makes: **no copier header.** Some dumps carry an extra
+512 bytes at the front, added by the hardware that made them; against one of
+those, every offset in this document is wrong by 512. The SHA-1 above is what
+pins that down.
+
 ### The cartridge header (file `0xFFC0`)
 
 | Field | Value | Note |
