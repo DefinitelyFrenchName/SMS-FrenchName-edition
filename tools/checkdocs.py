@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Verify docs/game/'s load-bearing claims against the cartridge.
 
-  python3 tools/checkdocs.py            # run every check
-  python3 tools/checkdocs.py -v         # ...and print each one that passes
+  python3 tools/checkdocs.py             # run every check
+  python3 tools/checkdocs.py -v          # ...and print each one that passes
+  python3 tools/checkdocs.py --uncovered # ...and every documented address no check reaches
 
 WHY THIS EXISTS. Documentation gets reorganised and rewritten, and rewriting is
 where a plausible-sounding statement can quietly replace a measured one — not by
@@ -19,6 +20,26 @@ HOW A CHECK IS BUILT, because the shape matters:
     3. the two are compared.
 
 A check that only did step 2 would test my memory of the docs, not the docs.
+
+THREE KINDS OF CHECK, because hand-writing them does not scale to a document set
+carrying 250 distinct ROM addresses:
+
+  * **hand-written** (the first section) — one function per claim worth arguing
+    about, quoting the doc and re-deriving the fact.
+  * **table structures** (the registry) — a documented table's address plus a
+    validator for its SHAPE. The doc-mention assertion is generated, and each
+    validator is re-run at a WRONG base and required to fail, because a check
+    that survives a two-byte shift would go green on a rotted address.
+  * **claims extracted from the prose** — file-offset transcriptions
+    (`$C1:88E9 (file 0x188E9)`), quoted byte runs and quoted instructions. The
+    doc states these mechanically, so no human has to decide what is claimed;
+    the extractors live in tools/docaddrs.py and are negative-controlled on
+    synthetic lines every run, since a family that has stopped matching passes
+    every claim it no longer finds.
+
+Coverage is printed at the end — how many documented ROM addresses any check
+actually re-derives — because the honest weakness of this file is the claims
+nobody wrote a check for, and a number that is never shown never moves.
 
 What this canNOT check, stated plainly so the green line is not over-read:
 prose, reasoning, causal claims ("this is why X"), anything about runtime
@@ -329,10 +350,524 @@ def _():
         raise Fail(f"{len(bad)} reaction pointers land outside the handler region: {[hex(b) for b in bad[:4]]}")
 
 
+# =============================================================================
+# THE TABLE REGISTRY — one entry per documented table this project parses
+# =============================================================================
+# Everything above is hand-written: a claim, quoted, then re-derived. That does
+# not scale to a document set carrying 248 distinct ROM addresses, so the rest
+# of this file is built rather than written out.
+#
+# A registry entry declares a table's documented address and a validator that
+# re-derives its STRUCTURE. Three things then happen automatically:
+#
+#   1. the address token must still appear in every doc that is supposed to
+#      name it (the `says` discipline, generated instead of typed);
+#   2. the validator runs against the cartridge;
+#   3. **the validator is re-run at a WRONG base and must fail.** A table check
+#      that still passes two bytes over is not pinning the address the doc
+#      publishes — it is describing the neighbourhood, and it would go green on
+#      a rotted address. That negative control is the reason the invariants
+#      below are shapes (strides, orderings, cross-table contiguity) rather
+#      than "the pointers look plausible": plausibility survives a shift.
+#
+# Every validator therefore takes `shift` and must derive EVERYTHING from the
+# documented address plus that shift. Reading a second address from a literal
+# would make the negative control lie.
+
+class Table:
+    def __init__(self, name, snes, docs, parsed_by, fn, shifts=(1, 2), covers=(), says_also=()):
+        self.name, self.snes, self.docs = name, snes, docs
+        self.parsed_by, self.fn, self.shifts = parsed_by, fn, shifts
+        self.covers = (snes,) + tuple(covers)
+        self.says_also = says_also
+
+    @property
+    def token(self):
+        return f"${self.snes >> 16:02X}:{self.snes & 0xFFFF:04X}"
+
+
+TABLES = []
+def table(**kw):
+    def deco(fn):
+        TABLES.append(Table(fn=fn, **kw)); return fn
+    return deco
+
+# Addresses a validator RE-DERIVED rather than named as a literal — the per
+# character box bases, the projectile tables. Without this they would read as
+# uncovered in the census, which would under-report exactly the checks that do
+# the most work. Snapshotted before the negative controls run, so the shifted
+# addresses those produce never count as covered.
+DERIVED = set()
+def derived(*snes):
+    DERIVED.update(snes)
+
+# Quoted instructions outside the encoder's subset. Reported, never silently
+# dropped: a claim nobody checked must not be mistaken for one that held.
+UNENCODABLE = []
+
+
+def ascending(vals, label, strict=True):
+    for a, b in zip(vals, vals[1:]):
+        if (a >= b) if strict else (a > b):
+            raise Fail(f"{label}: {a:#06x} then {b:#06x} is out of order")
+
+
+def _boxes_json():
+    import json
+    return json.loads((GAME / "sms_all_boxes.json").read_text())
+
+
+# ------------------------------------------------------------- bank $8A --
+@table(name="attack-box pointer table, 28 entries",
+       snes=0x8AC1F1, docs=("sms_quickref.md", "sms_data_architecture.md", "annotations.md"),
+       parsed_by="extract_sms_hitboxes.py, extract_proj_boxes.py, mkcharmap.py")
+def _(shift):
+    e = [r16(f(0x8AC1F1) + shift + i * 2) for i in range(28)]
+    eq("index 0 (unused charID)", 0, e[0])
+    ascending(e[1:10], "roster entries")
+    ascending(e[10:], "projectile entries", strict=False)
+    eq("distinct projectile tables", 9, len(set(e[10:])))
+    if not all(0xC251 <= p <= 0xFDA1 for p in e[1:]):
+        raise Fail("an entry points outside the bank-$8A box-data region")
+
+
+@table(name="hurt/coll pointer tables — per character the three are contiguous",
+       snes=0x8AC229, docs=("sms_quickref.md", "sms_data_architecture.md"),
+       parsed_by="extract_sms_hitboxes.py, mkcharmap.py", covers=(0x8AC23D,))
+def _(shift):
+    # The counts published per character are (next table's base − this one's),
+    # so contiguity is not a curiosity: it is what makes them derivable at all.
+    hit = [r16(f(0x8AC1F1) + i * 2) for i in range(11)]
+    hurt = [r16(f(0x8AC229) + shift + i * 2) for i in range(10)]
+    coll = [r16(f(0x8AC23D) + shift + i * 2) for i in range(10)]
+    eq("hurt index 0", 0, hurt[0])
+    eq("coll index 0", 0, coll[0])
+    js, names = _boxes_json(), ["Moon", "Mercury", "Mars", "Jupiter", "Venus",
+                                "Uranus", "Neptune", "Pluto", "Chibimoon"]
+    for cid in range(1, 10):
+        nxt = hit[cid + 1]                      # entry 10 = the first projectile table
+        if not hit[cid] < hurt[cid] < coll[cid] < nxt:
+            raise Fail(f"charID {cid}: hit/hurt/coll are not contiguous and in order")
+        got = {"hit": (hit[cid], (hurt[cid] - hit[cid]) / 8),
+               "hurt": (hurt[cid], (coll[cid] - hurt[cid]) / 16),
+               "coll": (coll[cid], (nxt - coll[cid]) / 8)}
+        derived(*(0x8A0000 + a for a, _ in got.values()))
+        for kind, (addr, n) in got.items():
+            if n != int(n):
+                raise Fail(f"charID {cid} {kind}: {n} entries is not a whole number")
+            published = js[names[cid - 1]][kind]
+            eq(f"charID {cid} {kind} count vs sms_all_boxes.json", published["count"], int(n))
+            eq(f"charID {cid} {kind} base vs sms_all_boxes.json",
+               published["snes"], f"$8A:{addr:04X}")
+
+
+@table(name="the nine projectile box tables annotations.md lists",
+       snes=0x8AFBD9, docs=("annotations.md",),
+       parsed_by="extract_proj_boxes.py", covers=(0x8AFD51,))
+def _(shift):
+    says("annotations.md", "9 distinct: `$8A:FBD9,FC69,FC91,FCB9,FCF1,FD29,FD51,FD79,FDA1`")
+    m = re.search(r"9 distinct: `\$8A:((?:[0-9A-F]{4},)+[0-9A-F]{4})`", doc_text("annotations.md"))
+    listed = [int(x, 16) for x in m.group(1).split(",")]
+    hit = [r16(f(0x8AC1F1) + i * 2) for i in range(28)]
+    eq("the documented list", listed, sorted({p + shift for p in hit[10:]}))
+    derived(*(0x8A0000 + p for p in listed))
+
+
+# ------------------------------------------------- animation, four layers --
+@table(name="action-script tables, 28 entries",
+       snes=0xC00000, docs=("sms_data_architecture.md", "sms_quickref.md"),
+       parsed_by="mkcharmap.py")
+def _(shift):
+    e = [r16(f(0xC00000) + shift + i * 2) for i in range(28)]
+    eq("index 0 (unused charID)", 0, e[0])
+    ascending(e[1:10], "roster act tables")
+    ascending(e[10:], "object act tables", strict=False)   # objects share act tables
+    derived(*(0xC00000 + p for p in e[1:10]))
+    if e[-1] >= 0x2000:
+        raise Fail("the act tables run past the script region")
+
+
+@table(name="pose-record tables, 28 entries of 4-byte records",
+       snes=0x84809C, docs=("sms_data_architecture.md", "sms_quickref.md"),
+       parsed_by="mkcharmap.py")
+def _(shift):
+    e = [r16(f(0x84809C) + shift + i * 2) for i in range(28)]
+    eq("index 0 (unused charID)", 0, e[0])
+    ascending(e[1:10], "roster pose tables")
+    ascending(e[10:], "object pose tables", strict=False)
+    if not all(0x8000 <= p <= 0x9400 for p in e[1:]):
+        raise Fail("a pose table points outside bank $84's record region")
+    for cid in range(1, 9):
+        if (e[cid + 1] - e[cid]) % 4:
+            raise Fail(f"charID {cid}'s pose table is not a whole number of 4-byte records")
+    derived(*(0x840000 + p for p in e[1:10]))
+
+
+@table(name="cel tables, 10 entries of [pose→cel][cel records]",
+       snes=0xCB0000, docs=("sms_data_architecture.md", "sms_quickref.md"),
+       parsed_by="mkcharmap.py")
+def _(shift):
+    e = [(r16(f(0xCB0000) + shift + i * 4), r16(f(0xCB0000) + shift + i * 4 + 2))
+         for i in range(10)]
+    eq("index 0 (unused charID)", (0, 0), e[0])
+    for cid in range(1, 10):
+        p2c, recs = e[cid]
+        if not 0 < p2c < recs:
+            raise Fail(f"charID {cid}: pose→cel {p2c:#06x} / records {recs:#06x} are not in order")
+    ascending([x for pair in e[1:] for x in pair], "cel tables")
+    derived(*(0xCB0000 + x for pair in e[1:] for x in pair))
+
+
+@table(name="OAM sprite-layout tables, 28 entries of 24-bit pointers",
+       snes=0x848000, docs=("sms_data_architecture.md", "sms_quickref.md"),
+       parsed_by="mkcharmap.py")
+def _(shift):
+    e = [r24(f(0x848000) + shift + i * 3) for i in range(28)]
+    eq("index 0 (unused charID)", 0, e[0])
+    for i, p in enumerate(e[1:], 1):
+        if not (0x84 <= p >> 16 <= 0x8A and (p & 0xFFFF) >= 0x8000):
+            raise Fail(f"entry {i} is {p:#08x} — not a sprite-list pointer in banks $84-$8A")
+
+
+# ------------------------------------------------------------ damage path --
+@table(name="the three modifier jump tables, 16 words each",
+       snes=0xC0CD75, docs=("sms_quickref.md",),
+       parsed_by="mkarchpage.py (the handler window)", covers=(0xC0CD95, 0xC0CDB5))
+def _(shift):
+    says("sms_quickref.md", "three 16-word jump tables selecting the modifier handler")
+    tabs = [[r16(f(0xC0CD75) + shift + t * 0x20 + i * 2) for i in range(16)] for t in range(3)]
+    for t, tb in enumerate(tabs):
+        if not all(0xCAED <= p <= 0xCD6D for p in tb):
+            raise Fail(f"table {t} selects something outside the handler window 0xCAED-0xCD6D")
+        eq(f"table {t} distinct handlers", 4, len(sorted(set(tb))))
+    shapes = [[sorted(set(tb)).index(p) for p in tb] for tb in tabs]
+    if not shapes[0] == shapes[1] == shapes[2]:
+        raise Fail("the three tables do not select parallel handlers — "
+                   f"{shapes[0]} vs {shapes[1]} vs {shapes[2]}")
+
+
+# --------------------------------------------------------------- throws ---
+@table(name="per-victim thrown-pose lists, 10 entries 0x15 apart",
+       snes=0xC10881, docs=("annotations.md",), parsed_by="mkpatch/saturn throw fix")
+def _(shift):
+    says("annotations.md", "Lists live at $0895, $08AA … $093D, 0x15 apart")
+    e = [r16(f(0xC10881) + shift + i * 2) for i in range(10)]
+    eq("index 0 (1-indexed table)", 0, e[0])
+    eq("the nine lists, 0x15 apart", [e[1] + (i - 1) * 0x15 for i in range(1, 10)], e[1:])
+    eq("first list", 0x895, e[1])
+
+
+@table(name="close-throw tables — 4 × 8 B per character, indexed by attack button",
+       snes=0xC1055A, docs=("sms_data_architecture.md", "sms_engine_internals.md"),
+       parsed_by="mkcharmap.py")
+def _(shift):
+    says("sms_data_architecture.md", "Uranus's (`$C1:7B39`)", "03 00 28 D8 28 D0 30 5B")
+    found = {cid: _scan_bank_c1(0x055A + shift, cid) for cid in range(1, 10)}
+    if not all(found.values()):
+        raise Fail(f"no close-throw table found for charID {sorted(c for c, v in found.items() if not v)}")
+    for cid, addrs in found.items():
+        for a in addrs:
+            recs = [ROM[f(0xC10000) + a + i * 8: f(0xC10000) + a + i * 8 + 8] for i in range(4)]
+            for slot, rec in enumerate(recs):
+                if rec[0] == 0xFF:
+                    continue                       # this button has no throw
+                if slot < 2:
+                    raise Fail(f"charID {cid} {a:#06x}: a LIGHT button has a throw record")
+                if rec[0] not in (1, 2, 3) or not 0x58 <= rec[7] <= 0x61:
+                    raise Fail(f"charID {cid} {a:#06x} slot {slot}: gate {rec[0]:#04x} "
+                               f"act {rec[7]:#04x} is not a throw record")
+    derived(*(0xC10000 + a for addrs in found.values() for a in addrs))
+    uranus = f(0xC10000) + 0x7B39 + shift
+    eq("Uranus's HP (slot 2) record", "03 00 28 d8 28 d0 30 5b",
+       ROM[uranus + 16:uranus + 24].hex(" "))
+
+
+@table(name="throw scripts — every toss record holds a FORWARD velocity",
+       snes=0xC106E5, docs=("sms_engine_internals.md", "sms_data_architecture.md"),
+       parsed_by="mkcharmap.py, mkpatch8.py", covers=(0xC107E5,))
+def _(shift):
+    says("sms_engine_internals.md", "the record always holds the **forward** velocity")
+    says("sms_data_architecture.md", "X is **negated when the thrower\nfaces left**")
+    toss = []
+    for cid in range(1, 10):
+        for a in _scan_bank_c1(0x06E5 + shift, cid):
+            rec = ROM[f(0xC10000) + a: f(0xC10000) + a + 6]
+            if rec[0] == 0xFF:                     # $FF marks the toss header
+                toss.append((cid, a, rec))
+    derived(*(0xC10000 + a for _, a, _ in toss))
+    if len(toss) < 12:
+        raise Fail(f"only {len(toss)} toss records found — the scan pattern is wrong")
+    for cid, a, rec in toss:
+        xv = rec[1] | rec[2] << 8
+        yv = (rec[3] | rec[4] << 8) - 0x10000
+        if xv <= 0:
+            raise Fail(f"charID {cid} $C1:{a:04X}: X velocity {xv:#06x} is not forward "
+                       "(this is the exact fault Saturn shipped with)")
+        if yv >= 0 or not 0x10 <= rec[5] <= 0x30:
+            raise Fail(f"charID {cid} $C1:{a:04X}: Y {yv} / damage {rec[5]} out of range")
+
+
+# ------------------------------------------------------------- specials ---
+@table(name="special-move records — stride 7, +6 is the misfire act",
+       snes=0xC10B49, docs=("sms_acs_system.md", "annotations.md"),
+       parsed_by="mkpatch12.py, probe_p12_rec.lua")
+def _(shift):
+    says("sms_acs_system.md", "**Special-move records** (7 bytes each",
+         "Known record addresses: Moon $C1:373E/3745")
+    says("annotations.md", "misfire acts (per char, LP-version = record+6 of the first special)")
+    # The evidence for "7 bytes, not 8": nothing in bank $C1 reads a record's +7.
+    c1 = ROM[f(0xC10000):f(0xC10000) + 0x10000]
+    eq("the only `lda $0007,y` in bank $C1", [0x049D],
+       [m.start() for m in re.finditer(rb"\xb9\x07\x00", c1)])
+    listed = re.search(r"Known record addresses: (.+?)\.\n", doc_text("sms_acs_system.md"), re.S)
+    per_char, acts_doc = {}, {}
+    for part in listed.group(1).split("·"):
+        name, addrs = part.split("$C1:", 1)
+        per_char[name.strip()] = [int(x, 16) for x in addrs.strip().rstrip(".").split("/")]
+    for name, want in re.findall(r"(\w+) \*\*0x([0-9A-F]{2})\*\*", doc_text("annotations.md")):
+        acts_doc.setdefault(name, int(want, 16))
+    for name, addrs in per_char.items():
+        eq(f"{name}: records are 7 bytes apart",
+           [7] * (len(addrs) - 1), [b - a for a, b in zip(addrs, addrs[1:])])
+        derived(*(0xC10000 + a for a in addrs))
+        got = [r8(f(0xC10000) + a + shift + 6) for a in addrs]
+        key = {"ChibiMoon": "ChibiMoon"}.get(name, name)
+        if key in acts_doc:
+            eq(f"{name}: first special's misfire act", acts_doc[key], got[0])
+            eq(f"{name}: the HP variant is +1", got[0] + 1, got[1])
+
+
+# ---------------------------------------------------------------- menus ---
+@table(name="option-value record tables — 12 records, one per value per highlight",
+       snes=0xC3A44F, docs=("menu_system.md",), parsed_by="mkpatch16.py",
+       covers=(0xC3A457, 0xC3A45B, 0xC3A463))
+def _(shift):
+    says("menu_system.md", "`$C3:A44F`")
+    heads = [r16(f(0xC3A44F) + shift + i * 2) for i in range(12)]
+    for h in heads:
+        rec = f(0xC40000) + h
+        if r16(rec + 2) != 0x14 or r16(rec + 4) != 2:
+            raise Fail(f"$C4:{h:04X}: len {r16(rec + 2):#06x} rows {r16(rec + 4)} "
+                       "is not a 2-row, 10-cell value record")
+    derived(*(0xC40000 + h for h in heads))
+    import mkpatch16
+    eq("the records mkpatch16.py edits", sorted(h for h, _ in mkpatch16.OPT_VALUES), sorted(heads))
+
+
+@table(name="char-select nav tables (2 × 10 rows) and the three cursor-position tables",
+       snes=0xC0AA4D, docs=("annotations.md",), parsed_by="probe_sms_menurows.lua")
+def _(shift):
+    says("annotations.md",
+         "10 rows × [up,down,left,right] neighbor charID; row 0 dead",
+         "table deliberately omits routes to 6/7/8",
+         "positions $AAB1+charID*2 (+0x10 x-shift)", "positions $AAC5+charID*2 (+8 x-shift)")
+    base = f(0xC0AA4D) + shift
+    t1 = [list(ROM[base + i * 4:base + i * 4 + 4]) for i in range(10)]
+    t2 = [list(ROM[base + 0x28 + i * 4:base + 0x28 + i * 4 + 4]) for i in range(10)]
+    for name, t in (("t1", t1), ("t2", t2)):
+        eq(f"{name} row 0 (the cursor is never 0)", [0, 0, 0, 0], t[0])
+        if not all(1 <= v <= 9 for row in t[1:] for v in row):
+            raise Fail(f"{name} routes to a charID outside 1-9")
+    # the story/1P table's whole point: no route reaches the three outer senshi
+    reach2 = {v for cid in (1, 2, 3, 4, 5, 9) for v in t2[cid]}
+    if reach2 & {6, 7, 8}:
+        raise Fail(f"the story nav table reaches {sorted(reach2 & {6, 7, 8})} — 6/7/8 are bosses")
+    if not {6, 7, 8} & {v for cid in (1, 2, 3, 4, 5, 9) for v in t1[cid]}:
+        raise Fail("the VS nav table reaches none of 6/7/8 either — then it is not the VS table")
+    # three cursor-position tables, contiguous after the nav pair, second and
+    # third being the first shifted in x by $10 and $8
+    p1, p2, p3 = (base + 0x50 + k * 0x14 for k in range(3))
+    for i in range(10):
+        a, b, c = (r16(p + i * 2) for p in (p1, p2, p3))
+        if i == 0:
+            eq("char-0 slot is never read", (0, 0, 0), (a, b, c))
+        elif b != a + 0x10 or c != a + 8:
+            raise Fail(f"charID {i}: positions {a:#06x}/{b:#06x}/{c:#06x} are not +$10 / +8 in x")
+
+
+@table(name="title-menu cursor table — 6 rows of [up, down, left, right]",
+       snes=0xC0A29D, docs=("annotations.md",), parsed_by="probe_sms_menurows.lua")
+def _(shift):
+    says("annotations.md", "moves via table $C0:A29D+cursor*4 [up,down,left,right]")
+    rows = [list(ROM[f(0xC0A29D) + shift + i * 4:f(0xC0A29D) + shift + i * 4 + 4])
+            for i in range(6)]
+    if not all(0 <= v < 6 for r in rows for v in r):
+        raise Fail(f"a destination is not one of the six menu rows: {rows}")
+    for i, (up, down, left, right) in enumerate(rows):
+        if rows[up][1] != i or rows[down][0] != i or rows[left][3] != i or rows[right][2] != i:
+            raise Fail(f"row {i} {rows[i]}: the moves are not mutual inverses")
+
+
+def _scan_bank_c1(routine, cid):
+    """Every `ldy #imm / jsr <routine>` inside charID `cid`'s proc block.
+
+    The same scan mkcharmap.py uses to publish a character's throw tables — so
+    a check built on it is checking what that generator publishes, not a second
+    opinion about it.
+    """
+    base, dispatch = f(0xC10000), f(0xC100A6)
+    lo = r16(dispatch + cid * 2)
+    hi = r16(dispatch + (cid + 1) * 2) if cid < 9 else 0xBE00
+    pat = bytes([0x20, routine & 0xFF, (routine >> 8) & 0xFF])
+    return sorted({r16(base + off + 1) for off in range(lo, hi - 5)
+                   if ROM[base + off] == 0xA0 and ROM[base + off + 3:base + off + 6] == pat})
+
+
+def register_tables():
+    """Turn each registry entry into a check: the docs must still name the
+    address, and the cartridge must still have the structure."""
+    for t in TABLES:
+        def run(t=t):
+            for doc in t.docs:
+                says(doc, t.token)
+            for doc, frag in t.says_also:
+                says(doc, frag)
+            t.fn(0)
+        CHECKS.append((t.docs[0], f"{t.token} {t.name}", run))
+
+
+def negative_controls():
+    """Re-run every table validator at a WRONG base; each must object.
+
+    This is the check on the checks, and it has teeth: a validator that passes
+    two bytes off its documented address would go green on a rotted address,
+    which is precisely the failure this file exists to prevent.
+    """
+    bad = []
+    for t in TABLES:
+        for d in t.shifts:
+            try:
+                t.fn(d)
+            except Exception:
+                continue                      # noticed — good
+            bad.append(f"{t.token} ({t.name}) still passes at base+{d}")
+    return bad
+
+
+# =============================================================================
+# GENERATED CLAIMS — the two families the docs state mechanically
+# =============================================================================
+def register_claims():
+    """Every `(file 0x…)` transcription and every quoted byte run becomes a check.
+
+    Neither needs a human to decide what is being claimed: the doc says the
+    address, the doc says the bytes (or the offset), and HiROM decides the rest.
+    Extraction and its association rule live in tools/docaddrs.py.
+    """
+    import docaddrs
+    game = [p for p in docaddrs.docs_files() if p.parent.name == "game"]
+    claimed = set()
+
+    for doc, line_no, snes, off in docaddrs.file_offset_claims():
+        def run(snes=snes, off=off):
+            if f(snes) != off:
+                raise Fail(f"${snes:06X} is file 0x{f(snes):05X}, doc writes 0x{off:05X}")
+        CHECKS.append((doc, f"${snes:06X} (file 0x{off:05X})", run))
+        claimed.add(snes)
+
+    for doc, line_no, snes, want in docaddrs.byte_run_claims(game):
+        def run(snes=snes, want=want, doc=doc, line_no=line_no):
+            got = ROM[f(snes):f(snes) + len(want)]
+            if got != want:
+                near = ROM[f(snes) - 64:f(snes) + 128].find(want)
+                where = (f" — that run is at ${snes + near - 64:06X}" if near >= 0 else "")
+                raise Fail(f"{doc}:{line_no} quotes {want.hex(' ')} at ${snes:06X}, "
+                           f"which holds {got.hex(' ')}{where}")
+        CHECKS.append((doc, f"${snes:06X} = {want.hex(' ')[:23]}…", run))
+        claimed.add(snes)
+
+    # Instructions the docs quote beside an address. The claim checked is "these
+    # bytes are AT that address, or inside the routine that starts there" — the
+    # window is 128 bytes, and the offset found is printed, because "$C0:9A0E
+    # (`lda $05,x`)" names a routine and its instruction, not a byte.
+    for doc, line_no, snes, quoted, cands in docaddrs.instruction_claims(game):
+        if not cands:
+            UNENCODABLE.append(f"{doc}:{line_no} `{quoted}`")
+            continue
+
+        def run(snes=snes, quoted=quoted, cands=cands, doc=doc, line_no=line_no):
+            win = ROM[f(snes):f(snes) + 128]
+            if not any(win.find(c) >= 0 for c in cands):
+                raise Fail(f"{doc}:{line_no} puts `{quoted}` at ${snes:06X}, which holds "
+                           f"{ROM[f(snes):f(snes) + 6].hex(' ')} and does not contain it "
+                           "in its first 128 bytes")
+        CHECKS.append((doc, f"${snes:06X} `{quoted}`", run))
+        claimed.add(snes)
+    return claimed
+
+
+def claim_selftests():
+    """The two extractors, negative-controlled both ways on synthetic lines.
+
+    A generated check family has a failure mode a hand-written check does not:
+    the EXTRACTOR can quietly stop matching, and a family that finds nothing
+    passes vacuously. So four cases go through the real code paths every run —
+    a true claim must be found and pass, a falsified one must be found and
+    fail, and the loose form the association rule rejects must not be found at
+    all. `$C1:0AF5` is used because its bytes are pinned by a hand check above.
+    """
+    import docaddrs
+    bad = []
+
+    def offsets(line):
+        return docaddrs.file_offset_claims_in("synthetic", line)
+
+    def runs(line):
+        return docaddrs.byte_run_claims_in("synthetic", line)
+
+    right = offsets("| `$C1:0AF5` (file 0x10AF5) | threshold table |")
+    wrong = offsets("| `$C1:0AF5` (file 0x10AF6) | threshold table |")
+    loose = offsets("| `$C1:0AF5` | the misfire threshold, third byte at file 0x10AF7 |")
+    if len(right) != 1 or f(right[0][2]) != right[0][3]:
+        bad.append("file-offset extractor: the true form is not found, or does not pass")
+    if len(wrong) != 1 or f(wrong[0][2]) == wrong[0][3]:
+        bad.append("file-offset extractor: a falsified offset is not caught")
+    if loose:
+        bad.append("file-offset extractor: bound a claim to an unattached parenthetical")
+
+    hit = runs("**Ochame threshold table $C1:0AF5** = `00 01 02 02`")
+    miss = runs("**Ochame threshold table $C1:0AF5** = `00 01 02 03`")
+    if len(hit) != 1 or ROM[f(hit[0][2]):f(hit[0][2]) + 4] != hit[0][3]:
+        bad.append("byte-run extractor: the true run is not found, or does not match the ROM")
+    if len(miss) != 1 or ROM[f(miss[0][2]):f(miss[0][2]) + 4] == miss[0][3]:
+        bad.append("byte-run extractor: a falsified run is not caught")
+    return bad
+
+
+def covered_addresses(claimed):
+    """Every documented address some check re-derives — for the coverage note.
+
+    A hand-written check counts as covering an address if that address (or its
+    file offset) appears as a literal in the check's source. That is a heuristic
+    and it is only ever printed as a note, never gated: over-counting a covered
+    address would be a quiet lie, so this number is reported next to the total
+    and meant to be read with suspicion.
+    """
+    import inspect
+    lits = set(claimed) | DERIVED
+    for _, _, fn in CHECKS:
+        try:
+            src = inspect.getsource(fn)
+        except (OSError, TypeError):
+            continue
+        for m in re.finditer(r"0x([0-9A-Fa-f]{4,6})", src):
+            lits.add(int(m.group(1), 16))
+    for t in TABLES:
+        lits.update(t.covers)
+    return lits
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("-v", "--verbose", action="store_true")
+    ap.add_argument("--uncovered", action="store_true",
+                    help="list the documented ROM addresses no check re-derives")
     args = ap.parse_args()
+
+    hand = len(CHECKS)
+    register_tables()
+    claimed = register_claims()
+    covered = None
 
     fails = []
     for doc, name, fn in CHECKS:
@@ -347,11 +882,27 @@ def main():
             print(f"  \033[31mERROR\033[0m [{doc}] {name}\n          {type(e).__name__}: {e}")
             fails.append(name)
 
+    covered = covered_addresses(claimed)      # before the shifted runs pollute DERIVED
+
+    # The check on the checks: a table validator that survives a wrong base is
+    # not pinning the address its document publishes, and an extractor that has
+    # stopped matching passes every claim it no longer finds.
+    for line in negative_controls() + claim_selftests():
+        print(f"  \033[31mFAIL\033[0m  [self-test] {line}")
+        fails.append(line)
+
     docs = len({d for d, _, _ in CHECKS})
     if fails:
         print(f"\n\033[31m{len(fails)} of {len(CHECKS)} checks FAILED\033[0m")
         sys.exit(1)
     print(f"\n\033[32mALL PASS\033[0m ({len(CHECKS)} checks across {docs} documents)")
+    print(f"  {hand} written by hand · {len(TABLES)} table structures, each re-run at a wrong "
+          f"base and required to fail · {len(CHECKS) - hand - len(TABLES)} claims extracted from "
+          f"the prose (file offsets, quoted bytes, quoted instructions)")
+    for u in UNENCODABLE:
+        print(f"  note  quoted instruction outside the encoder's subset, NOT checked: {u}")
+    import docaddrs
+    docaddrs.report(covered=covered, show_uncovered=args.uncovered)
     print("Checks facts decidable by reading the cartridge. It does NOT check prose,")
     print("reasoning, runtime behaviour, or anything about ARAM.")
 

@@ -475,6 +475,7 @@ See HANDOFF.md §4 for the harness.
 
 - `boxlib.py` — the box-extractor core, in ONE place (#85).
 - `checkdocs.py` — Verify docs/game/'s load-bearing claims against the cartridge.
+- `docaddrs.py` — the address census the documentation checks are built on.
 - `findfont.py` — locate a Latin font inside an arbitrary SNES ROM.
 - `gen_plan.py` — Generate a trace_plan for a re-press experiment.
 - `halfwidth_render.py` — render the half-width alphabet to a PNG for eyeballing.

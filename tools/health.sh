@@ -44,8 +44,13 @@ if python3 -c 'import os,sys;sys.path.insert(0,"tools");from smspaths import cle
   if out="$(python3 tools/mkcharmap.py --check 2>&1)"; then ok "$out"; else bad "mkcharmap: $out"; fi
   # match on the count, not on "ALL PASS": the tool colourises, so an ANSI escape
   # sits between the words and the parenthesis and a naive pattern never matches.
-  if out="$(python3 tools/checkdocs.py 2>&1 | grep -aoE '[0-9]+ checks across [0-9]+ documents')"; then
-    ok "doc claims vs cartridge: $out verified"
+  if cd_out="$(python3 tools/checkdocs.py 2>&1)"; then
+    ok "doc claims vs cartridge: $(printf '%s' "$cd_out" | grep -aoE '[0-9]+ checks across [0-9]+ documents') verified"
+    # The coverage number is a NOTE for the same reason the convention counts
+    # are: it is the honest weakness (claims nobody wrote a check for), and a
+    # number that is never printed never moves. Never fatal — failing a build
+    # because a document mentions an address is how a census gets deleted.
+    note "address coverage: $(printf '%s' "$cd_out" | grep -aoE '[0-9]+ distinct ROM addresses in hand-written pages, [0-9]+ re-derived from the cartridge') (tools/checkdocs.py --uncovered)"
   else
     bad "checkdocs: doc claims disagree with the ROM — run python3 tools/checkdocs.py"
   fi
