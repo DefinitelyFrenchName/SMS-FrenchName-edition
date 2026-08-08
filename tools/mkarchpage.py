@@ -13,7 +13,8 @@ hand-authoring SVG coordinates is how off-by-one diagrams happen.
 The palette is the game's own: the sixteen colours of Sailor Uranus's character
 palette, read out of the clean ROM at $E0:06BE.
 
-  python3 tools/mkarchpage.py [out.html]
+  python3 tools/mkarchpage.py [out.html]               # Artifact fragment
+  python3 tools/mkarchpage.py --standalone [out.html]  # a file that opens in a browser
 """
 import html, pathlib
 
@@ -381,6 +382,34 @@ td:first-child{white-space:nowrap}
 footer{margin-top:4rem;padding-top:1.4rem;border-top:1px solid var(--rule);color:var(--ink-3);
   font-size:.85rem}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* PRINT / PDF EXPORT. Two things break when this page is printed rather than
+   scrolled: wide diagrams live in overflow-x containers, so anything past the
+   page width is simply GONE in a PDF; and the dark palette wastes ink. Both are
+   fixed here rather than in a separate stylesheet, so one file exports well. */
+@media print{
+  :root,:root[data-theme="dark"],:root:not([data-theme="light"]){
+    --paper:#fff; --surface:#fff; --sunken:#f0f2f7;
+    --ink:#000; --ink-2:#23262e; --ink-3:#4a5060;
+    --rule:#c3c9d6; --accent:#25348c; --accent-soft:#eef0fa;
+    --code:#25348c; --data:#8a6210; --gfx:#00615f; --audio:#256b25;
+    --menu:#8a2f52; --free:#6b7286; --unknown:#d3d8e4; --shadow:none;
+  }
+  body{background:#fff}
+  nav.jump{display:none}
+  .scroller{overflow:visible;padding-bottom:1rem}
+  svg{max-width:100%;height:auto}            /* scale wide diagrams to the page */
+  figure{break-inside:avoid;box-shadow:none;border-color:var(--rule)}
+  section{break-before:auto}
+  h2{break-after:avoid}
+  table{break-inside:auto}
+  tr{break-inside:avoid}
+  .callout{break-inside:avoid}
+  a{color:var(--ink);text-decoration:underline}
+  .hoveronly{display:none}
+  .cell text{fill:#fff}
+  .g-unknown text{fill:var(--ink-3)}
+}
+
 
 .fld rect{stroke:var(--surface);stroke-width:1.5}
 .fname{font-size:11.5px;fill:var(--paper);font-weight:600}
@@ -471,7 +500,7 @@ height is measured packing — how much of each bank is neither <code>00</code> 
 <figure><div class="scroller">{svg_banks()}</div>
 {legend([("code","engine code"),("data","tables + manifests"),("gfx","graphics"),
          ("menu","front end / fonts"),("audio","sound driver + samples")])}
-<figcaption><b>40 banks.</b> Hover any bank for what it holds. Bank
+<figcaption><b>40 banks.</b> <span class="hoveronly">Hover any bank for what it holds. </span>Bank
 <code>$8A</code> — a mirror of file bank <code>$0A</code> — is the one to know by
 heart: it holds every collision box in the game.</figcaption></figure>
 </section>
@@ -496,7 +525,7 @@ the portrait on the report card. Sixteen slots of <code>0x80</code> bytes from
 <figure><div class="scroller">{svg_struct()}</div>
 {legend([("menu","identity"),("code","state + input"),("gfx","animation + drawing"),
          ("audio","position + velocity"),("data","box indices"),("free","unmapped")])}
-<figcaption><b>128 bytes, byte by byte.</b> Hover for each field. The pale cells
+<figcaption><b>128 bytes, byte by byte.</b> <span class="hoveronly">Hover for each field. </span>The pale cells
 are genuinely unmapped — about a third of the struct — and are shown as unknown
 rather than guessed at.</figcaption></figure>
 <div class="col">
@@ -755,6 +784,37 @@ you believe either.</p></div>
 </section>
 """
 
+# The Artifact host wraps the page in its own <!doctype>/<head>/<body>, so the
+# default output is a FRAGMENT. Exporting one file that opens in a browser needs
+# a real document — above all a charset, since this page carries Japanese
+# katakana, box-drawing rules and em dashes that mojibake without it.
+STANDALONE = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Where Bishoujo Senshi Sailor Moon S (SFC, 1994) keeps its data and what shape it is in: four memory maps, the object struct byte by byte, and the record formats the engine walks.">
+<meta name="color-scheme" content="light dark">
+{head}
+</head>
+<body>
+{body}
+</body>
+</html>
+"""
+
+
+def standalone(page):
+    """Split the fragment at </style> into head-ish and body-ish halves."""
+    cut = page.index("</style>") + len("</style>")
+    return STANDALONE.format(head=page[:cut].strip(), body=page[cut:].strip())
+
+
 if __name__ == "__main__":
-    OUT.write_text(build(SECTIONS), encoding="utf-8")
+    page = build(SECTIONS)
+    if "--standalone" in sys.argv:
+        sys.argv.remove("--standalone")
+        OUT = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else OUT
+        page = standalone(page)
+    OUT.write_text(page, encoding="utf-8")
     print("wrote", OUT, OUT.stat().st_size, "bytes")
