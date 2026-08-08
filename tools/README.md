@@ -481,6 +481,7 @@ See HANDOFF.md §4 for the harness.
 - `menufont_table.py` — the menu font's glyph-code -> character table.
 - `menuscreen_probe.lua` — for a given menu screen: which FONT SHEET it uploads to
 - `menutext_check.py` — validate proposed menu/stage strings against the font and
+- `mkarchpage.py` — Render docs/sms_data_architecture.md's diagrams as a standalone HTML page.
 - `mkhalfwidth.py` — build a half-width (8x16) Latin alphabet for patch 16 from
 - `smoke.lua` — smoke test: boot ROM, run 120 frames, read some WRAM, exit with code 42
 - `te_halfwidth.py` — harvest the Tournament Edition's HALF-WIDTH Latin font.

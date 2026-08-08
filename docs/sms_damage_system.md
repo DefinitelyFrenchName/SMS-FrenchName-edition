@@ -92,7 +92,10 @@ behind Dimension Dance's no-chip-kill in code form.
   `stz $47,X` at `$C1:0E51` that zeroes hitstun-staging +0x47 AND +0x48 together (a
   two-byte side effect). Every "roll pair" ever measured (ours and the wiki's
   damage|faceHit columns) is exactly d48=1 vs d48=0 — two adjacent matrix columns.
-  Damage is fully deterministic. **+0x48 is PER-CHARACTER** (manifest byte):
+  Damage is fully deterministic. **+0x48 is PER-CHARACTER** (manifest byte) — and the
+  census is now COMPLETE, decoded from all nine manifests (2026-08-08):
+  **Jupiter 1, Neptune 2, every other character 0.** The two live-measured values
+  agree, which is what validates the decode:
   Jupiter 1, Neptune 2 (verified — fresh Neptune takes 6 where a d48=1 defender takes
   8: two columns of first-hit protection); remaining characters' manifest values need
   boot-fresh rounds to census (mid-match saves carry hit history).

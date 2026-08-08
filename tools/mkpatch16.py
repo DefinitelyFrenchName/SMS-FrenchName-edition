@@ -158,6 +158,12 @@ OPT_VALUES = (
 )
 
 # Asset job table: 10-byte records of [vram16][len16][src24][dest24].
+# NOTE (2026-08-08): this is a flat SCAN WINDOW, not the table's real extent. The
+# record pool is $C3:BD61-$C3:C04B (74 records), reached through two pointer
+# tables — $C3:BCCD (25) and $C3:BCFF (49). Scanning at a 10-byte stride from
+# $BE08 finds the last stretch and misses the 16 records before it. Everything
+# this builder needs lives inside the window, so the window stays; widen it to
+# the pointer tables if a record before $BE08 ever has to be touched.
 REC0 = 0x00BE08                   # in bank $C3 — the first record's vram field
 RECSZ = 10
 NRECS = 58

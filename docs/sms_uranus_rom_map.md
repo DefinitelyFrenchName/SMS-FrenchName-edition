@@ -58,7 +58,10 @@ Box entry: `[x_off_R, width_R, x_off_L, width_L, y_off(signed), height, flags, u
   Reads the bank-$8A tables above with DB=$8A; box-overlap tests at `$C0:C959`/`$C0:C9DF`.
 - **Damage tables**: on hit, `(player+0x44)>>1 × 4` indexes 4-byte entries
   `[damage, hitstun, hit-level, flags]` in a table family at `$C0:CDD5`, with variants at
-  `$C0:CE15, CE55, CE95, CF15, CF55, CF95, CFD5, D015` (standing/crouching/air/projectile cases).
+  `$C0:CE15, CE55, CE95, **CED5**, CF15, CF55, CF95, CFD5, D015` (standing/crouching/air/projectile
+  cases). **Ten tables at a stride of `0x40`** — `$C0:CED5` was missing from this list until
+  2026-08-08; the arithmetic confirms the count, since `CDD5 + 10*0x40` lands exactly on the
+  lookup routine `$D055`.
 - Damage scaling: 16×16 matrix at `$C0:D081`, looked up via `$C0:D055`.
 - Hitstop dispatch jump tables: `$C0:CD75 / CD95 / CDB5`.
 

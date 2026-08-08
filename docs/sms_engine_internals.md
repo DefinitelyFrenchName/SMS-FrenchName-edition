@@ -229,7 +229,8 @@ drawing only the hit box for ids ≥ 10).
 
 - **Strike hit check** `$C0:BFC0` (vs players; `$C0:C352` vs projectiles; `$C0:C745`
   push/collision). Box-overlap tests `$C0:C959/C9DF`, DB=$8A during them.
-- **On-hit tables** `$C0:CDD5+` (variants CE15…D015), 4-byte entries `[damage, hitstun, level,
+- **On-hit tables** `$C0:CDD5+` (**ten** tables, stride 0x40: CE15, CE55, CE95, **CED5**, CF15,
+  CF55, CF95, CFD5, D015 — CED5 was missing from the docs until 2026-08-08), 4-byte entries `[damage, hitstun, level,
   flags]`, indexed by `(attackID>>1)*4`. These are **GLOBAL / strength-class-indexed — never
   patch hitstun here** (it changes every character's move of that class). Damage scaling matrix
   `$C0:D081` (lookup `$C0:D055`).

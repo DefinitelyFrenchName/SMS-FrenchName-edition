@@ -128,6 +128,30 @@ Bars are measured fill (bytes that are neither `00` nor `FF`); they say how
 **Bank `$8A` is the exception worth knowing by heart.** It is a mirror of file
 bank `$0A`, and it holds every collision box in the game — see §5.
 
+### How bank `$C1` is divided — the proc dispatch
+
+The one piece of genuinely per-character *code* in the game is reached through a
+28-entry table at **`$C1:00A6`**, called as `jsr ($00A6,X)` with `X = id × 2`.
+That table is what carves the bank up, and it gives every character's proc block
+an exact address rather than the estimate the docs used to carry:
+
+| id | Character | Proc block | Size |
+|---|---|---|---|
+| 1 | Moon | `$C1:270B` | 4206 B |
+| 2 | Mercury | `$C1:3779` | 4141 B |
+| 3 | Mars | `$C1:47A6` | 4320 B |
+| 4 | Jupiter | `$C1:5886` | 4740 B |
+| 5 | Venus | `$C1:6B0A` | 3816 B |
+| 6 | **Uranus** | **`$C1:79F2`** | 5040 B |
+| 7 | Neptune | `$C1:8DA2` | 4200 B |
+| 8 | Pluto | `$C1:9E0A` | 4157 B |
+| 9 | Chibi Moon | `$C1:AE47` | ~4025 B |
+
+Ids 10-27 hold the eighteen object/projectile procs; id 0 and 28+ are `0000` and
+guarded against. The cross-check that this is right: every per-character anchor
+the project already knew — Uranus's dash handler `$C1:88C8`, her throw table
+`$C1:7B39`, Mars's `$583C` — falls inside its own character's block.
+
 ---
 
 ## 3. Map 2 — work RAM
@@ -318,15 +342,41 @@ character begins:
 | Neptune | 7 | `$E0:02AC` | **2** | `$E0:06FE` |
 | Pluto | 8 | `$E0:02BC` | 0 | `$E0:073E` |
 
-Records are `0x10` bytes apart. The layout is a defense byte, then pointers:
-palettes, win icon, object palette, and finally the pointer whose payload the
-loader expands into WRAM.
+The record is **16 bytes: one defense byte and five 24-bit pointers** — and it is
+smaller than the docs used to claim, because a character has only **two** body
+palettes, not four:
+
+```
++0x00  1B   first-hit defense      -> struct +0x48
++0x01  3B   body palette 0    (0x20 bytes -> CGRAM staging $0600)
++0x04  3B   body palette 1    (the alternate; the confirm button picks via $1D02)
++0x07  3B   a 4-colour palette (8 bytes -> $0530)
++0x0A  3B   the object palette (0x20 bytes -> $0640)
++0x0D  3B   the LZ payload    -> her compressed sprite CHR
+```
+
+⚠ **Where that payload lands is a long-standing doc error.** The ROM map and
+`annotations.md` both say it is "copied/expanded to WRAM `$7E:6A00`". Read at the
+call site, the `$6A00` is a **VRAM word address**: the loader decompresses into
+staging and DMAs to VRAM, and the payload is compressed sprite CHR rather than
+anything animation-logical. The same idiom appears in the movelist loader, where
+`$1000` is plainly the BG3 tilemap's VRAM address. *(Disassembly-derived this
+session; not yet confirmed by watching it run — worth a probe before anyone
+relies on it.)*
+
+Decoded, Uranus's (`$E0:029C`): `00 | $E0:06BE | $E0:06DE | $E0:0906 | $E0:085E |
+$E2:44C0`. The payloads are 0x6F0-0xD40 bytes — far too small to be sprite
+sheets, which is the clue that the cels live elsewhere entirely (§9).
 
 That **first byte is a real balance value hiding in plain sight**: it is the
 defender's first-hit defense, worth one damage-matrix column until the character
-is first hit that round. Neptune ships with 2 and everyone else with 0 or 1 — and
-it is the single mechanism behind every "damage varies randomly" reading this
-project ever made. There is no RNG in damage.
+is first hit that round. The full census, decoded from all nine manifests:
+**Jupiter 1, Neptune 2, everyone else 0** — which matches the two values that had
+been measured live, and closes an open question the damage doc had left to "needs
+boot-fresh rounds".
+
+This one byte is the mechanism behind every "damage varies randomly" reading this
+project ever made. **There is no RNG in damage.**
 
 ### The palettes are the character
 
@@ -479,8 +529,11 @@ damage in this engine.
 [damage][hitstun][hit level][flags]
 ```
 
-`$C0:CDD5` and its eight sibling tables (`CE15 … D015`) select on
-(attack, defender posture). Decoded:
+`$C0:CDD5` and its **nine** sibling tables select on (attack, defender posture) —
+`CDD5, CE15, CE55, CE95, CED5, CF15, CF55, CF95, CFD5, D015`, ten in all at a
+stride of `0x40`. ⚠ Older docs list nine and omit **`$C0:CED5`**; the arithmetic
+settles it, since `CDD5 + 10 × 0x40` lands exactly on the lookup routine at
+`$D055`. Decoded:
 
 | idx | attackID | damage | hitstun | level |
 |---|---|---|---|---|
@@ -516,11 +569,22 @@ that chain reads the RNG.**
 Records are `0x10` apart. Each character ships **two** character palettes; the
 remaining pointers are the icon and effect palettes.
 
-### Compressed-asset job record — 10 bytes, table at `$C3:BE08`
+### Compressed-asset job record — 10 bytes
 
 ```
 [vram16][len16][src24][dest24]
 ```
+
+There are **74 records**, spanning `$C3:BD61-$C3:C04B`, reached through **two
+pointer tables**: `$C3:BCCD` (25 entries, every one a `0x800`-byte 32×32 tilemap)
+and `$C3:BCFF` (49 entries, the CHR and big text sheets). The two are disjoint —
+25 + 49 = 74 distinct addresses, verified. A screen names a record by writing
+`index × 2` into `$1C18`.
+
+⚠ **Older docs say "58 records at `$C3:BE08`" (or 59 at `$C3:BE02`). That is an
+artifact of the discovery method**: a flat 10-byte-stride scan from `$BE08`
+finds the last contiguous stretch and silently misses the 16 records before it.
+Walk the pointer tables instead.
 
 ⚠ **The length sits two bytes BEFORE the source pointer.** Reading it the other
 way round pairs record N's length with record N+1's source, which is exactly the
@@ -574,29 +638,97 @@ the initial state, this record holds every redraw.
 Three separate data structures decide what a throw does, which is why a character
 can have all three wrong independently:
 
-| What | Where | Shape |
-|---|---|---|
-| **which throw** | a 4 × 8-byte table indexed by attack button (`$C1:055A` consumes it) | index 2 = HP, 3 = HK; the record's **last byte is the thrower's act** |
-| **where the victim goes** | a 5-byte toss record (`$C1:07E5`) | `[?][X vel 8.8][Y vel 8.8]`, X **negated when the thrower faces left** — so the record holds the *forward* velocity |
-| **how escapable it is** | the hold script, 8 bytes per step (`$C1:06E5`) | a step whose **byte 5 ≠ 0** samples the victim's mashing that frame |
+**1. Which throw comes out** — a 4 × 8-byte table indexed by attack button
+(`$C1:055A`; `0x10`→LP, `0x20`→LK, `0x40`→**HP**, `0x80`→**HK**). Structurally it
+is the box entry again, with `flags`/`unused` replaced by a gate and an act:
+
+```
++0 gate   $FF = this button has no throw; low 2 bits test the opponent's state
++1..+4    the range box, one (x_off, w) pair per facing
++5..+6    y_off, height
++7 act    the THROWER's action ID
+```
+
+Uranus's (`$C1:7B39`): LP and LK are `FF` — no throw. HP is
+`03 00 28 D8 28 D0 30 5B` — no state condition, reach 1..40 px forward, act `$5B`.
+HK is `01 …` — the gate requires the opponent's `+0x16` bit 7 *set*.
+
+**2. Where the victim goes** — a toss record read by `$C1:07E5`:
+`[$FF marker][X vel 8.8][Y vel 8.8][damage]`. X is **negated when the thrower
+faces left**, so the record always holds the *forward* velocity. Uranus's
+(`$C1:7B81`) is `FF 80 01 80 FA 18` — X `+$0180`, Y `−$0580`, damage 24. A
+negative X here means the throw comes out backwards on 6 and forwards on 4, which
+is exactly the fault Saturn shipped with.
+
+**3. How escapable it is** — the hold script, 8 bytes per step (`$C1:06E5`):
+`[victim pose][drag X 8.8][drag Y 8.8][mash sampling][sfx][swap]`. **A step whose
+byte 5 is non-zero samples the victim's mashing that frame.**
 
 Teching is mash-counted, not a one-press window: the sampler increments the
 **thrower's** `+0x56`, and at the toss `≥ 2` sends the victim to the tech act at
 half damage. The threshold is global; the only per-throw variable is how many
 steps sample. Patch 8 changes one byte of one script.
 
-### Animation — four id-indexed layers
+### Animation — four id-indexed layers, and how they chain
 
-| Layer | Table | What a record holds |
-|---|---|---|
-| action scripts | `$C0:0000` | per-step: box indices, sprite frame, duration |
-| pose records | `$84:809C` | the pose's class byte (which is also the "is an attack" flag) |
-| cel tables | `$CB:0000` | the graphics for a pose |
-| OAM sprite layout | `$84:8000` | `[count][count × 6-byte sprite records]` |
+This is the heart of the data-driven design, so it is worth following all the way
+through. Four tables, each indexed by the object's id:
 
-A sprite record is `[x_off, x_off_flipped, y_off, attr, tile, attr_flipped]`, and
-the list begins with a **count**. That count is why a bad pose id is catastrophic
-rather than merely wrong: the emitter reads a garbage length and floods OAM.
+| Layer | Table | Entries | A record is |
+|---|---|---|---|
+| action scripts | `$C0:0000` | 28 | a **byte stream** of animation steps (below) |
+| pose records | `$84:809C` | 28 | **4 bytes**: `[class][hit idx][hurt idx][coll idx]` |
+| cel tables | `$CB:0000` | **10 — roster only** | `[pose→cel ptr][cel-record ptr]` |
+| OAM sprite layout | `$84:8000` | 28 | `[ptr16][bank]` → per-pose sprite lists |
+
+**The action-script step**, walked by the interpreter at `$C0:A05C`:
+
+```
+d & 0xC0 == 0x00   STEP   2 bytes [d][pose]   this pose for d+1 frames
+d & 0xC0 == 0x40   LOOP   1 byte              restart the script
+d & 0xC0 == 0x80   HOLD   1 byte              freeze on the last pose
+```
+
+⚠ The loop command **ignores its operand** — the interpreter is `stz $07,X`, so it
+always restarts at step 0. (An extractor in `tools/` records the operand as a
+target; it is never used.)
+
+**The pose record is where a move's hitboxes actually come from.** Its first byte
+is the class that lands in struct `+0x18` — the "this is an attack" bit — and the
+other three are the box indices copied into `+0x40/41/42` every frame.
+
+#### The whole chain, in one move
+
+Uranus's crouching light punch (act `0x53`), read end to end out of the ROM:
+
+```
+1. act table for id 6      $C0:0000 + 6*2        -> $C0:0FF1
+2. script for act 0x53     $C0:0FF1 + 0x53*2     -> $C0:122C
+                                                    02 35 | 03 36 | 80
+                                                    3f pose $35, 4f pose $36, hold
+3. pose record 0x36        $84:809C + 6*2 -> $84:8A44, + 0x36*4
+                                                    09 0A 2C 02
+                                                    class 9 · hit $0A · hurt $2C · coll $02
+4. hit box 0x0A            $8A:C1F1 + 6*2 -> $8A:E3E1, + 0x0A*8
+                                                    FC 37 CD 37 CC 14 03 00
+                                                    x -4 w 55 · y -52 h 20 · hits high+low
+```
+
+Four table reads, no code. Pose `0x35` — the startup — carries hit index `00`,
+which is exactly how a startup frame is expressed: **a pose with no attack box.**
+Change the `02` in step 1 and you have changed her startup; that is the entire
+mechanism behind this project's frame-data patches.
+
+**Cel records** (the graphics) are 5 bytes, `[src24][size16]` — a raw CHR block
+and its length, DMA'd straight to VRAM. **Sprite-layout lists** are a count byte
+followed by 6-byte records, `[x, x_flipped, y, attr, tile, attr_flipped]`. That
+leading count is why a bad pose id is catastrophic rather than merely wrong: the
+emitter reads a garbage length and floods OAM — the signature of the Saturn throw
+corruption.
+
+⚠ Byte 3 of a sprite record is **not unused**, as `annotations.md` has it: the
+unflipped emitter reads bytes 3-4 as (attr, tile), the flipped one reads bytes 4-5
+as (tile, attr). Two emitters, two attribute bytes.
 
 ### The two compression codecs
 
@@ -604,7 +736,7 @@ rather than merely wrong: the emitter reads a garbage length and floods OAM.
 |---|---|---|
 | entry | `$C0:916B` / `$80:927D` | `$80:8E9A` |
 | used for | movelists, menu tilemaps, font blocks, stage art | the bank-`$DF` screen engine's tilemaps |
-| status | **fully decoded and re-encodable** (`tools/saturn/sms_lz.py`; all nine vanilla movelists round-trip to exactly `0x800`) | **partially decoded** — tile-unit, XOR row filters, a 2-bit command stream. Nothing shipped needs it |
+| status | **fully decoded and re-encodable** (`tools/saturn/sms_lz.py`; all nine vanilla movelists round-trip to exactly `0x800`) | **not decoded.** The whole record is one sentence — tile-unit, XOR row filters, a 2-bit command stream — and no implementation exists. Nothing shipped needs it |
 
 ⚠ Our encoder is weaker than the original's: even an *untouched* block re-encodes
 larger. So an edited block is always **relocated into an appended bank** and its
@@ -709,6 +841,7 @@ measured:
 | VRAM menu tiles `$5C0-$5FF` | 64 tiles | Free on every menu screen, overwritten at match load. Patch 16's half-width alphabet |
 | VRAM menu tiles `$738-$7BF` | 136 tiles | Free in every capture; unused so far |
 | CGRAM OBJ row 7 | 16 colours | Never loaded, never drawn — the Saturn port's projectile palette |
+| ROM hole `$E4:D297` | **9,334 bytes** | The **largest zero region in the image**, by a factor of 24, and in no project doc until now. Unclaimed: by this project's own discipline it needs a read-watch before anyone builds on it |
 | **ARAM** | **~0** | The largest zero run in the APU's 64 KB is 64 bytes. Audio is the one hard wall; adding a voice means displacing one |
 
 ⚠ Two rules this project learned the expensive way, both about "free":
@@ -742,3 +875,28 @@ at them:
    corruption bug that survived four sessions.
 
 ---
+
+---
+
+## 13. The holes — what is genuinely not known
+
+A map that hides its gaps is worse than no map. These are the parts of the
+cartridge this project cannot yet read, listed so nobody re-derives the same
+dead ends:
+
+| What | Where | State |
+|---|---|---|
+| **Codec 2** | `$80:8E9A` | **Not decoded.** Everything known fits in a sentence: tile-unit, XOR row filters, a 2-bit command stream. No implementation exists. It carries the report-card tilemap, the bracket VS-names blob and the win-card portraits, and it is the reason patch 16's last two screens are blocked. The shipped workaround is to edit its output in WRAM, between decompress and upload |
+| **The variable-text engine** | blitter `$80:9583`, staging `$7F:DC00+` | No record format, no opcode set, no string encoding recovered. This is the machinery that substitutes a character's name into the A.C.S. prompt — and, presumably, that drives story dialogue. The staging area is filled by a block move, which per-byte watches never see |
+| ~180 KB of graphics | `$DC:3D80` – `$DE:FFFF` | After the last fighter cel. Almost certainly object/effect/hitspark cels, but the cel pointer table is roster-only, so object cels resolve through some other path |
+| 21.5 KB of sparse data | `$C0:2800-7FFF` | A strict `0x80`-byte texture; rendered and checked — not CHR, not code. The tail of bank `$C1` has the identical texture. Same producer, unidentified format |
+| Bank `$E3` | most of it | Data, 87% `00`/`FF`, and no pointer into it has been found |
+| A second BRR directory | `$E4:F70D` | A byte-identical restart of character 1's record. Purpose unknown |
+| One `$DF` screen script | `$DF:9B27` | Which screen it draws is unidentified |
+| ~a third of the object struct | `+0x19-0x1F`, `+0x2B-0x2F`, `+0x3B-0x3F`, `+0x57-0x5A`, `+0x69-0x6F`, `+0x79-0x7F` | Unmapped |
+| WRAM | `$0100-$01F9`, `$0420-$07FF`, `$0C00-$0FFF`, most of `$1200-$1FFF` | Unmapped, including the object pool's slots 4-15 — nothing in the project names a user for them |
+
+Two smaller ones worth recording because they look like answers and are not: the
+seven orphan bytes at `$C3:BD93` sit inside the asset-record pool and are
+referenced by nothing, and the `$E4` zero hole above is *inferred from bytes
+alone* — this project has been wrong about exactly that kind of evidence before.

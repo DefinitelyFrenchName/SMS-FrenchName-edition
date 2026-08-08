@@ -164,7 +164,17 @@ to write to, and the codec (`sms_lz.py`) already encodes as well as decodes.
 
 The compressed-asset job table is at **`$C3:BE02`** — 10-byte records,
 `[src24][dest24][u16][u16]`, **59 of them**, listing every compressed asset with
-its destination. (The earlier note said `$C3:BEE0`; that address lands mid-record.
+its destination.
+
+> ⚠ **CORRECTED TWICE since this was written (2026-08-08).** The record layout is
+> `[vram16][len16][src24][dest24]` (see "The upload length — SOLVED" below), **and
+> the count and base are both artifacts of the flat scan**: there are **74
+> records** spanning `$C3:BD61-$C3:C04B`, reached through two pointer tables —
+> `$C3:BCCD` (25 entries, all `0x800` tilemaps) and `$C3:BCFF` (49 entries, CHR
+> and text sheets), disjoint, 25 + 49 = 74. Scanning at a 10-byte stride from
+> `$BE02`/`$BE08` finds only the last stretch and silently misses the 16 records
+> before it. Walk the pointer tables. (`mkpatch16.py`'s `REC0`/`NRECS` is that
+> same scan window; it works because the records it needs are inside it.) (The earlier note said `$C3:BEE0`; that address lands mid-record.
 The kana/kanji/tilemap sources all fall on the `$BE02` stride, which is what pins
 it.) Walking the table beats brute-forcing a bank: it found **21 blocks that
 decode to exactly 0x800** — a 32x32 tilemap, i.e. a screen — where a single-bank
