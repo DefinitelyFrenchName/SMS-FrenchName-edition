@@ -15,8 +15,29 @@ builder knobs, resolved "open unknowns", the no-RNG-in-damage correction).
 was out of date and `tools/build_rev.sh` preflights `mkindex --check`, so
 `build_rev.sh both` aborted before building anything. Regenerated.
 
-**NEXT SESSION CONTINUES PATCH 16 (menu translation).** It is the only
-active work item. **2026-08-06 (this session) shipped:** Options labels +
+**2026-08-08 — A REAL DEFECT CAME OUT OF THAT AUDIT: patch 14's `--all-grabs`
+knob needs going over.** Writing the data-architecture doc corrected five ROM
+facts, which raised the fair question "did any shipped patch believe the wrong
+one?". Four were docs-only (details in `HANDOFF.md` §0). The fifth line of
+enquiry found this, measured on `clean + 13 + 14 --all-grabs` at Guts L3 using
+patch 13's own throw phases:
+
+| | patch 13 alone | + `--all-grabs` |
+|---|---|---|
+| throw that LANDS | 24 | **10** (scaled ✓) |
+| throw that is **TECHED** | 12 | **12** (not scaled ✗) |
+
+`$C1:0823` splits on the victim's mash count into two branches that both take
+damage from DP `$05`, and only the landing one (`$C1:082F`) is hooked. So at high
+Guts levels **teching costs the victim more than eating the throw**. **No shipped
+build is affected** — every recipe calls `mkpatch14.py` bare — and this is
+correct, deliberate behaviour for patch 13 alone. It is an incompleteness only in
+patch 14's wider claim. Detail: `docs/patch_notes.md` § Patch 14.
+
+**NEXT SESSION: TWO items — patch 16 is still the main work; patch 14 needs a
+ruling before any code moves.** Patch 16 remains the active feature work;
+patch 14 is a correctness review whose first step is a decision, not a patch.
+**2026-08-06 shipped:** Options labels +
 values (`SMS_P16_OPTIONS`), tournament select names + REPORT CARD labels
 (`SMS_P16_DF`), stage names in caps + the char-select/config glyph delivery
 (`SMS_P16_STAGES`) — all verified in-emulator, regression 45/45 at every
@@ -119,6 +140,56 @@ out of scope):**
   kanji `+$300`. The FULL-width alphabet is 22/26 (missing J Q S Z).
 
 ---
+
+## Patch 14 — what "going over it" means
+
+**Start with the decision, not the code.** The bug report writes itself, but the
+fix does not: *should a teched command grab be scaled by Guts at all?* Both
+answers are defensible — scaling it keeps the nerf honest, not scaling it keeps
+teching a pure reward — and the code cannot choose. Nothing below is worth doing
+until that is settled.
+
+Then, in this order:
+
+1. **Measure the one thing still inferred.** The default scope (command grabs
+   only) *looks* unexposed because Uranus's SPD scripts toss immediately with no
+   mash-sampling steps, so `+0x56` should never reach 2. That is read off the
+   scripts, **not measured**. Drive an SPD and try to tech it. If it can be
+   teched, the default build is exposed too and this stops being an optional-knob
+   issue. (Related loose end found while reading: several per-character sites
+   *set* `+0x56` to small constants — `a9 01 95 56` in Uranus's block at
+   `$C1:8891`, `a9 04` in Moon's, `a9 06` in Mars's. That does not fit a plain
+   mash counter and is not explained anywhere. Understand it before trusting any
+   reasoning about when the tech branch is reachable.)
+2. **Re-census the damage paths for patch 14's OWN scope** rather than inheriting
+   patch 13's list — that inheritance is the root cause. Every writer of the HP
+   field in the ROM, measured 2026-08-08, is: the 8 strike/chip sites patch 13
+   hooks (`$C0:C09C/C16F/C216/C2C5/C47E/C551/C5F8/C6A7`), the throw toss
+   (`$C1:0839`), **the throw tech (`$C1:085B`) — unhooked**, the drain tick's two
+   stores (`$C1:0D5E` and its zero-clamp at `$C1:0D65`), and a scripted zeroing at
+   **`$C1:0A62`** (`lda #$00 / sta $0049,Y`, next to a `$1E08` compare and a
+   `+0x16 |= 0x20`) which **nobody has identified** — find out what it is before
+   deciding it does not matter.
+3. **If the ruling is "scale it":** the tech branch's tail (`$C1:0857 cmp #$90 /
+   bcs / sta $0049,Y`) has the same 7-byte shape as the two tails patch 14 already
+   hooks, so the existing stub pattern applies almost unchanged. Mind that the
+   tech path *adds* a negated half rather than subtracting, so the stub's
+   "recover dmg from hp_before − A" arithmetic needs its sign checked, not
+   copied.
+4. **Fix the test, don't break it.** `test_p13_guts.lua`'s `tech-immune` phase
+   asserts `dealt == 12` and is *correct* for patch 13 alone. It must become
+   dual-mode (12 without patch 14 or without `--all-grabs`, scaled with it) —
+   the same shape as the suite's other dual-mode rows. A fix that simply makes
+   that phase fail has broken a true assertion.
+5. **Prove the shipped builds did not move.** The default (no `--all-grabs`) path
+   must rebuild **byte-identically**: Rev. S-02 `41d93a53…`, Rev. SS-02
+   `b96f3fe8…`. That is the gate that says this was a knob fix and not a
+   balance change.
+
+**The rule this came from, worth carrying:** patch 14 inherited patch 13's site
+list instead of re-deriving one for its own, wider claim. **A patch that widens
+another patch's scope must re-census the paths for the new scope.** It is trap 5
+(count the sites in the image you ship) applied to scope rather than to banks.
 
 ## State of everything else (2026-08-06, end of the remediation session)
 

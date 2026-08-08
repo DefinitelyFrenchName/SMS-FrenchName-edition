@@ -45,6 +45,41 @@ generated check caught real drift, and it caught it by refusing to build.
 what ships. Both reference builds and both releases carry patch **1b** (gate `0x05`,
 true combo), never patch 1.
 
+**2026-08-08 — NEW REFERENCE DOC: `docs/sms_data_architecture.md`** (maintainer
+request) — where the game's data lives and what shape it is, organised by the four
+memories (cartridge, work RAM, video RAM, audio RAM) rather than by discovery
+order: the bank map, the object struct byte by byte, box data, manifests, the
+record catalogue, the four pipelines, an inventory of free space, and §13, an
+explicit list of what is **not** decoded. A visual companion renders the memory
+maps as SVG (`tools/mkarchpage.py`, published as an Artifact). Censusing the ROM
+for it disproved five doc claims, each re-verified by hand: the asset job table is
+**74 records** across two pointer tables (not 58 — a flat-scan artifact); there are
+**ten** on-hit variant tables (`$C0:CED5` was missing everywhere); the manifest is
+**16 bytes, five pointers, two palettes** (not 22/four); the **first-hit-defense
+census is complete** (Jupiter 1, Neptune 2, rest 0); and bank `$C1` is carved by a
+previously undocumented **28-entry proc dispatch at `$C1:00A6`** that gives every
+character's proc block an exact address.
+
+**AND THAT AUDIT FOUND A REAL DEFECT — patch 14's `--all-grabs` misses the throw
+TECH branch.** The fair question after correcting five ROM facts is "did a shipped
+patch believe a wrong one?". Four were docs-only: the ten-table correction could
+not have hidden a Guts hook (proved by enumerating **every** HP writer in the ROM —
+13 sites, all accounted for), and patch 3 never indexes the manifest with a slot
+≥ 2 because it replaces the vanilla palette fetch outright. But re-censusing the
+grab paths showed `$C1:0823` splits on the mash count into two branches that both
+read damage from DP `$05`, and **only the landing branch is hooked**. Measured at
+Guts L3: a throw that lands scales **24 → 10**, a throw that is **teched stays
+12** — so teching costs the victim more than eating it. Correct and deliberate for
+patch 13 alone (its `tech-immune` test pins it); an incompleteness only in patch
+14's wider claim. **No shipped build passes `--all-grabs`**, so Rev. S-02 /
+SS-02 / REF v.1 / v.2 / v0.22 are unaffected. **Not fixed — it needs a maintainer
+ruling first** (should a teched command grab be scaled at all?); the full brief is
+`docs/NEXT_SESSION.md` § "Patch 14 — what going over it means", detail in
+`docs/patch_notes.md` § Patch 14.
+⚠ **Trap 19, and it is trap 5 applied to scope:** patch 14 inherited patch 13's
+apply-site list instead of re-deriving one for its own, wider claim. **A patch
+that widens another patch's scope must re-census the paths for the new scope.**
+
 **Numbering (2026-08-04, maintainer):** the whole Super S body of work is
 **patch 100**, and the voice-pitch correction is **patch 101**. The gap from 16
 is deliberate — 100+ is a different CATEGORY of work, built and gated by
@@ -403,9 +438,9 @@ would actually cost). Short version: ROM is not scarce (384 KB spare), ARAM is
 the only hard wall, and the real constraint is per-character tables sized to nine
 and immediately followed by live data.
 
-**Eighteen traps this project paid for — they generalise** (12-18 are the
-2026-08-06 issue-remediation programme's distillate; per-issue evidence in
-the `Fixes #NN` commits):
+**Nineteen traps this project paid for — they generalise** (12-18 are the
+2026-08-06 issue-remediation programme's distillate, per-issue evidence in
+the `Fixes #NN` commits; 19 came out of the 2026-08-08 data-architecture audit):
 
 1. **Per-character fixes must be tested with at least TWO shells.** Saturn can
    be summoned over Uranus, Neptune or Pluto (over any of the nine before
@@ -523,6 +558,19 @@ the `Fixes #NN` commits):
    ~2.2 µs/frame), because its own bar forbade landing unmeasured
    optimization. Measure the knob, then keep it, fix it, or delete it —
    never leave it documented and dead.
+19. **A patch that widens another patch's scope must RE-CENSUS the paths for the
+   new scope.** Patch 13 hooks the damage-apply sites for specials and
+   desperations, and its site list is complete for that. Patch 14 reused that
+   list while claiming something wider ("`--all-grabs` nerfs EVERY grab path"),
+   and the throw-TECH branch — a *separate* branch of `$C1:0823` that never
+   passes through the hooked site — was never in patch 13's scope to begin with,
+   so it was never in the inherited list. Measured result: at Guts L3 a landed
+   throw scales 24 → 10 while a teched one stays 12, inverting the incentive to
+   tech. This is trap 5 ("count the sites in the image you SHIP") applied to
+   scope instead of to banks, and it is worth stating separately because the
+   inherited list was *correct* — correct for a smaller claim. When you widen a
+   claim, re-derive the evidence for it; do not inherit evidence gathered for
+   the narrower one. (Found 2026-08-08; unfixed pending a maintainer ruling.)
 
 ---
 
