@@ -47,6 +47,35 @@ rotted address. The extractors get the same treatment on synthetic lines each
 run, since a family that has stopped matching passes every claim it no longer
 finds.
 
+**The same treatment was then applied to the PATCH documents, which are checked
+against the artifacts rather than the cartridge.** Two more tools, both in
+`health.sh`:
+
+* **`tools/checkpatchmap.py`** — applies all 19 tracked standalone `.bps` and
+  re-derives the edit-region map from the diffs: every documented range is
+  exactly a changed run and every changed run is documented, both ways. It also
+  proves the two things the section exists to say — **the in-place regions are
+  pairwise disjoint** (measured across all 19, not asserted), and **every
+  bank-appending standalone starts its bank at `0x280000`**, which is the whole
+  reason a bundle must be built by chaining the BUILDERS and never by applying
+  standalone BPS in sequence (§5). And it re-derives every *"this .bps gives
+  this ROM"* hash in the registry documents — 47 of them.
+* **`tools/checkknobs.py`** — reads every builder's `add_argument` statically
+  (`ast`; the parsers live under `if __name__ == "__main__":`, so there is
+  nothing to import) and checks the knobs table both ways: documented flags
+  exist, builder options are documented, defaults match. Needs no ROM, so
+  unlike almost everything here it runs in CI.
+
+⚠ **They found four more wrong things.** Patch 3 was described as three "hooks"
+when two of them are **~97-byte in-place rewrites**; patch 15 changes **7 bytes,
+not 6**; patches **10/10b stamp the header title** and were not documented as
+touching the header; and **patch 4's recorded SHA-1 was stale in four places**
+(`7f9e8c76…`, not `f5337f9a…`). The last two are one story: patch 4's builder
+never changed, its **default subtitle** did, when the bundle version became a
+single source — and the knobs table still carried the pre-centralisation default
+(`"FrenchName ver. 0.4"`). **A recorded hash is a claim about a build, and a
+build includes its defaults.**
+
 ⚠ **Five documented facts died** (re-measured by hand, then locked): a
 special-move record is **7 bytes, not 8** — the "+7 strength-ish" field is the
 next record's attackID, masked off by a 16-bit `lda $0006,Y`; the 16-bit
@@ -512,10 +541,10 @@ would actually cost). Short version: ROM is not scarce (384 KB spare), ARAM is
 the only hard wall, and the real constraint is per-character tables sized to nine
 and immediately followed by live data.
 
-**Twenty traps this project paid for — they generalise** (12-18 are the
+**Twenty-one traps this project paid for — they generalise** (12-18 are the
 2026-08-06 issue-remediation programme's distillate, per-issue evidence in
-the `Fixes #NN` commits; 19 came out of the 2026-08-08 data-architecture audit
-and 20 out of the generated doc checks the same day):
+the `Fixes #NN` commits; 19 came out of the 2026-08-08 data-architecture audit,
+and 20-21 out of the generated doc and patch checks the same day):
 
 1. **Per-character fixes must be tested with at least TWO shells.** Saturn can
    be summoned over Uranus, Neptune or Pluto (over any of the nine before
@@ -658,6 +687,16 @@ and 20 out of the generated doc checks the same day):
    nothing is indistinguishable from a family that verified everything. This is
    trap 18 ("a documented knob either works or does not exist") pointed at the
    verification layer itself.
+21. **A recorded hash is a claim about a build, and a build includes its
+   DEFAULTS.** Patch 4's standalone SHA-1 was stale in four documents and its
+   knobs row named a default subtitle from two versions earlier — and the
+   builder's behaviour had never changed. What changed was `--text`'s default,
+   when the bundle version became a single source (`f"FrenchName
+   v.{BUNDLE_VERSION}"`), which silently moved every hash of a default build.
+   Trap 15 says a builder change invalidates the recipes that contain it; this
+   is one step further out — **a default is part of the recipe**, so centralising
+   a constant is a builder change even when no code moves. Enumerate what a
+   default feeds before you make it a variable.
 
 ---
 

@@ -71,6 +71,35 @@ pointer tables (`$C3:A44F`), which had only ever existed in the patch log.
 address is not checking the address.** Writing the negative control first is
 what forced every table check to assert a shape instead of a plausibility.
 
+**Then the same treatment for the PATCH documents — checked against the
+artifacts, not the cartridge.** Two more tools, both in `health.sh`:
+
+* **`tools/checkpatchmap.py`** (needs the ROM + flips, ~1 s): applies all 19
+  tracked standalone `.bps`, re-derives the edit-region map from the diffs both
+  ways, and proves what the section is *for* — **the in-place regions are
+  pairwise disjoint**, and **every bank-appending standalone starts at
+  `0x280000`** (the reason chaining standalone BPS is forbidden). Also
+  re-derives the 47 *"this .bps gives this ROM"* hashes in the registry docs.
+* **`tools/checkknobs.py`** (needs nothing — runs in CI): reads every builder's
+  `add_argument` statically and checks the knobs table both ways — documented
+  flags exist, builder options are documented, defaults match.
+
+| Was documented | Actually |
+|---|---|
+| patch 3: three bank-`$C0` "hooks" | two of them are **~97-byte in-place rewrites** |
+| patch 15: 6 bytes | **7** (its own edit table listed 3+3+1) |
+| patches 10/10b: header not mentioned | they **stamp the header title** |
+| patch 4 standalone `f5337f9a…` (4 places) | **`7f9e8c76…`** (`--no-credit`: `1ac091e7…`) |
+| knobs: patch 4 `--text` default `"FrenchName ver. 0.4"` | **`FrenchName v.0.22`** — `f"FrenchName v.{BUNDLE_VERSION}"` |
+
+⚠ **The last two are one story, and it generalises: a recorded hash is a claim
+about a build, and a build includes its DEFAULTS.** Patch 4's builder never
+changed behaviour; its default subtitle did, when the bundle version became a
+single source. Everything downstream — the standalone hash in four documents,
+the knobs row — kept the pre-centralisation values. This is trap 15 (a builder
+change invalidates every recorded recipe that contains it) reaching one step
+further: *a default is part of the recipe.*
+
 ## What changed this session (2026-08-08)
 
 * **`docs/` is split in two.** `docs/game/` is analysis of the retail ROM and is
