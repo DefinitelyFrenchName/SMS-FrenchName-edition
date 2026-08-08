@@ -27,6 +27,7 @@ rather than described — is published at
 | every character's specials and desperations | [`sms_specials.md`](sms_specials.md) |
 | how menus, fonts and text are drawn | [`menu_system.md`](menu_system.md) — the glyph format, both font sheets, the two screen engines, the runtime text writers, the VRAM rules |
 | hitbox / hurtbox / push-box data | [`sms_all_boxes.json`](sms_all_boxes.json) — extracted, all nine characters |
+| **the addresses for ONE character** | [`characters/`](characters/) — a generated page per fighter: manifest, palettes, box tables, animation layers, proc block, throws, voice ids |
 
 `te_halfwidth.json` holds the half-width Latin font extracted from the Big Zam
 **Tournament Edition** ROM, kept as reference; `sailormoon_colors_psa_web.pdf` is

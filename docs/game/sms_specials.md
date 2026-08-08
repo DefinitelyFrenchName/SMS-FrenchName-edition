@@ -25,7 +25,7 @@ so the ochame stat and the patch-12 taunts are structurally projectile-special-o
 Dispatcher (projectile) special counts: Moon 2, Mercury 2, Mars 2, Jupiter 2, Venus 2,
 Uranus 1, Neptune 1, Pluto 1, Chibi 1.
 
-**Movement classification — the guard-cancel criterion (maintainer's rule, verified):**
+**Movement classification — the guard-cancel criterion**
 a movement tool is a SPECIAL iff it can be guard-canceled into (performed directly out
 of blockstun); otherwise it is a command/universal movement. Tested with a block-then-
 input rig (blockstun act 0x0C/0x0E → move act = GC):
@@ -57,8 +57,8 @@ act:
   so no free-cancel exploit exists. (The test also caught a new act: 0x16, the
   hit-out-of-forward-dash reaction — dashing out of the pose straight into the active
   punch.)
-So the gate checks precisely "in post-contact guard stun" — the two blockstun act
-pairs — and nothing else. No janky alternate GC trigger exists.
+  So the gate checks precisely "in post-contact guard stun" — the two blockstun act
+  pairs — and nothing else. No janky alternate GC trigger exists.
 
 **Refinements from the system-wide wiki page (cross-checked 2026-07-19):**
 - The GC gate accepts: any special, any desperation, **the backdash** (VERIFIED — act
@@ -792,7 +792,7 @@ Fire, close Deep Submerge at −30). Low, knockdown, 8 damage (wiki).
   active window of ~40 frames (hitbox 0x0E) carrying her **~102px forward** — longer
   than Uranus's slide (67-79px). 9 damage wiki-exact, low, knockdown.
 
-### 5LP — the double-play quirk (maintainer's hypothesis, CONFIRMED)
+### 5LP — the double-play quirk (wiki documented, confirmed)
 
 The fastest normal in the game (2f startup, wiki) really does **play twice**: the move
 runs act 0x40 with an active hitbox window (t+1..t+3), then chains into act 0x41 and
@@ -820,17 +820,3 @@ consistency check of the whole document.
   a 27f guaranteed action, EATS projectiles in flight, chips 1×N, blockable by either
   guard, and — as an air move — is backdash-cancelable. The wiki's matchup notes list
   the counterplays (GC specials, invincible moves threading through).
-
----
-
-## Template for the remaining characters
-
-For each named special: LP/HP variant acts, melee/projectile path, stand/crouch/chip
-damage, misfire acts (cross-check the record tables), Guts coverage, and any recognizer
-quirks. **No characters pending — the compendium is complete.** Remaining open items
-live in the per-character sections (wiki gaps, triangle-jump and double-jump rig tests).
-The "missing desperation records" question is **closed**: those five pure strike/grab
-desperations fire NO record — verified live; they never existed. DPs/command grabs are NOT in the record tables, so
-each character may also hide a 623/360-style move the tables can't reveal — ask the
-community list per character. (Neptune's "super" turned out to be her DP; there may be
-no true supers besides desperations.)

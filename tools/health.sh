@@ -34,6 +34,13 @@ echo "== generated artifacts are in sync with their sources =="
 if out="$(python3 tools/mksigs.py --check 2>&1)"; then ok "$out"; else bad "mksigs: $out"; fi
 if out="$(python3 tools/mkrelease.py --check 2>&1)"; then ok "$out"; else bad "mkrelease: $out"; fi
 if out="$(python3 tools/mkindex.py --check 2>&1)"; then ok "$out"; else bad "mkindex: $out"; fi
+# mkcharmap reads the ROM, so it can only be checked where the ROM exists; a
+# hosted runner has none and must SKIP rather than silently pass (#24).
+if python3 -c 'import sys;sys.path.insert(0,"tools");from smspaths import clean_rom;clean_rom()' >/dev/null 2>&1; then
+  if out="$(python3 tools/mkcharmap.py --check 2>&1)"; then ok "$out"; else bad "mkcharmap: $out"; fi
+else
+  skip "character maps (needs the clean ROM)"
+fi
 
 echo "== every Python tool parses, and imports cleanly enough to be introspected =="
 syn=0
