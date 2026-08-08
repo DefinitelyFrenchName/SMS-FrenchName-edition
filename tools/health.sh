@@ -39,6 +39,10 @@ if out="$(python3 tools/mkindex.py --check 2>&1)"; then ok "$out"; else bad "mki
 # does not exist).
 if out="$(python3 tools/checkknobs.py 2>&1)"; then ok "knobs table vs builders: $(printf '%s' "$out" | grep -aoE '\([0-9]+ documented knobs.*\)' | tr -d '()')"
 else printf '%s\n' "$out" | sed 's/^/    /'; bad "checkknobs: the knobs table disagrees with the builders"; fi
+# Same class, same reason (trap 18): the training docs describe a UI whose
+# hotkeys, menu rows and labels are all literals in tools/training/.
+if out="$(python3 tools/checktrainingdocs.py 2>&1)"; then ok "training docs vs the Lua: $(printf '%s' "$out" | grep -aoE '\([0-9]+ checks[^)]*\)' | tr -d '()')"
+else printf '%s\n' "$out" | sed 's/^/    /'; bad "checktrainingdocs: the training docs disagree with tools/training/"; fi
 # mkcharmap reads the ROM, so it can only be checked where the ROM exists; a
 # hosted runner has none and must SKIP rather than silently pass (#24).
 # Guard on the ROM FILE EXISTING, not on clean_rom() merely returning: it hands

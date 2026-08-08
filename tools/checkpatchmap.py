@@ -146,7 +146,7 @@ def measure(rows, clean, tmp, verbose=False):
 
 REGISTRIES = ("README.md", "docs/project/patch_notes.md", "docs/project/patch_notes_title.md",
               "docs/project/patch_notes_dashfix.md", "docs/project/patch_notes_palettes.md",
-              "docs/project/patch_index.md")
+              "docs/project/patch_index.md", "docs/project/trainingplus.md")
 HASH_CLAIM = re.compile(r"`?build/([a-z0-9_.]+)\.bps`?(.{0,200})")
 SHA8 = re.compile(r"`([0-9a-f]{8})[…`]")
 

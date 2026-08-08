@@ -40,7 +40,6 @@ Everything below assumes the script is running (see `training_install.md`).
 | wakeup | off / block / jab / backdash / throw / slot | One-shot action on the first actionable frame after knockdown/throw; `slot` plays the current recording (reversal timing) |
 | rec slot | 1–4 (length) | Active recording slot |
 | trigger | manual / loop / wakeup / blockstun / hitstun / random / gc | When playback fires; `random` picks any non-empty slot (mixup training); `gc` fires the slot on **blockstun entry** — the GC trainer (see below) |
-| gc chance | 100 / 75 / 50 / 25 % | Probability the `gc` trigger fires per blockstun entry — lower it to practice hit-confirming against random guard cancels |
 | hud mode | 1–4 | Same as key `9` |
 | hud scale | 1–4 | ScriptHud overlay resolution |
 | hitboxes | on/off | Same as key `8` |
@@ -49,6 +48,7 @@ Everything below assumes the script is running (see `training_install.md`).
 | timer | frozen / running | Round timer freeze (frozen by default) |
 | hp regen | 2s to max / off | Restore the dummy to its character's max HP after 2 s without taking damage (waits until it's actionable and no combo is open); the life bar refills with it |
 | ko reset | on / off | On any KO, instantly reload the position state (`Q`) instead of letting the round end — a baseline is auto-captured at session start if you never saved one |
+| gc chance | 100 / 75 / 50 / 25 % | Probability the `gc` trigger fires per blockstun entry — lower it to practice hit-confirming against random guard cancels |
 | status | both / combo / meter / off | Where event labels (GC, REVERSAL, PUNISH…) appear: under the combo counter on the earning player's side, as popups above the frame meter, both, or hidden |
 
 Settings persist to `traces/training_settings.lua` when the menu closes.
@@ -118,13 +118,18 @@ player's side (`status` menu row picks the placement; default both).
 
 | Label | Fires when |
 |---|---|
-| MEATY | A hit connects within 2 frames of the defender leaving stun/knockdown — includes the 1-frame meaty that lands on their first exit frame (hit beats same-frame block) |
 | REVERSAL | A move starts on the defender's first actionable frame (±1) after stun/knockdown |
 | PUNISH | A hit connects while the victim is in **recovery** of their own move |
 | GC | **Guard cancel** — a special canceling blockstun directly (a move starting straight out of a blockstun frame). The game-defining SMS mechanic: if you're new, this is the thing to learn |
 | THROW TECH | Throw escaped by mashing (half damage) |
 | THROWN | Throw completed (full damage) |
 | TRADE | Both players' hits connect on the same frame |
+
+⚠ **There is no MEATY label.** One existed through v0.20 and was removed on
+2026-07-20 — it read as noise in live play (`labels.lua` header). The meaty
+*timing* is still on the frame meter and in the combo counter's magenta `1F` tag;
+this table listed a label that had not fired for weeks, which is what
+`tools/checktrainingdocs.py` now prevents.
 
 ## Combo counter (on-screen overlay)
 
