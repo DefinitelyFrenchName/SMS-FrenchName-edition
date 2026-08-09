@@ -107,6 +107,11 @@ Combined builds:
 
 ### Edit-region map (why they're disjoint)
 
+> New to the pipeline? [`how_patches_are_built.md`](how_patches_are_built.md)
+> explains what produces these regions — builders, hooks, appended banks — and
+> why chaining standalone `.bps` files corrupts them.
+
+
 **Measured from the tracked `.bps`, not from the builders' intentions**, and
 re-measured by `tools/checkpatchmap.py` — which also *proves* the disjointness
 this table is here to claim, rather than asserting it in prose. Every range is

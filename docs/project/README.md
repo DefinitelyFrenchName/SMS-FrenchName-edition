@@ -11,6 +11,7 @@ so that half can be lifted by anyone working on this ROM.
 |---|---|
 | **see every patch at a glance** | [`patch_index.md`](patch_index.md) — the one-page registry, with status and lifecycle |
 | know what a patch changed, and why | [`patch_notes.md`](patch_notes.md) — mechanism, changed bytes, verification, per patch |
+| **understand how a patch is BUILT** | [`how_patches_are_built.md`](how_patches_are_built.md) — the pipeline end to end: builders, the assembler, hooks and appended banks, what flips actually does |
 | pick up where the last session stopped | [`NEXT_SESSION.md`](NEXT_SESSION.md) |
 | build, test, or avoid a known trap | [`../../HANDOFF.md`](../../HANDOFF.md) — the operational map (kept at the repo root) |
 | set up the toolchain | [`toolchain.md`](toolchain.md) — what the repo does not ship and where to get it |

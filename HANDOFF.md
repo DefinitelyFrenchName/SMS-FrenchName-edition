@@ -959,6 +959,12 @@ The historical cumulative BPS these rows name (`sms_full*`, the v1.x line, all-p
 
 ## 2. How to build
 
+> **The mechanics, explained**: `docs/project/how_patches_are_built.md` — what a
+> `mkpatchN.py` actually does to the ROM, what `tools/asm65816.py` is for, how a
+> hook and its appended bank work, and what `flips` does (it diffs; it does not
+> inject). Read it before writing patch 19.
+
+
 All builders are Python, run from any cwd, and take `(src, out)` positionals (stacking
 onto any input ROM). `mkpatch.py` reads the clean ROM only. BPS via `tools/Flips/flips`.
 

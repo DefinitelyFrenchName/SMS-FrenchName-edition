@@ -184,6 +184,48 @@ def hash_claims(clean, tmp, verbose=False):
     return seen, fails
 
 
+PIPELINE_DOC = REPO / "docs" / "project" / "how_patches_are_built.md"
+
+
+def worked_example(clean, tmp):
+    """The pipeline doc explains itself with patch 12's real numbers. Re-derive
+    them, or the one document that teaches the mechanism teaches it wrong.
+
+    Everything here is quoted FROM the doc first — a fragment that has been
+    edited away fails as staleness rather than passing on a claim nobody makes.
+    """
+    if not PIPELINE_DOC.exists():
+        return ["docs/project/how_patches_are_built.md is missing"]
+    doc, fails = PIPELINE_DOC.read_text(encoding="utf-8"), []
+    for frag in ("hook  $80:8377   45 64 25 5c   →   5c 00 00 e8",
+                 "+0x13A  45 64 25 5c",
+                 "+0x13E  5c 7b 83 80",
+                 "bank  $E8 at file 0x280000, 322 bytes",
+                 "sha1 614f318e"):
+        if frag not in doc:
+            fails.append(f"the worked example no longer says {frag!r} — re-read it")
+    if fails:
+        return fails
+    patched = apply_bps("sms_taunt.bps", f"{tmp}/p12.sfc")
+    if clean[0x8377:0x837B].hex(" ") != "45 64 25 5c":
+        fails.append("the clean ROM no longer holds `45 64 25 5c` at $80:8377")
+    if patched[0x8377:0x837B].hex(" ") != "5c 00 00 e8":
+        fails.append(f"patch 12's hook writes {patched[0x8377:0x837B].hex(' ')}, "
+                     "the doc says 5c 00 00 e8")
+    b = 0x280000
+    if patched[b + 0x13A:b + 0x13E].hex(" ") != "45 64 25 5c":
+        fails.append("the stub no longer replays the displaced bytes at +0x13A")
+    if patched[b + 0x13E:b + 0x142].hex(" ") != "5c 7b 83 80":
+        fails.append("the stub no longer jumps back to $80:837B at +0x13E")
+    used = max((i for i in range(b, b + 0x10000) if patched[i]), default=b - 1) - b + 1
+    if used != 322:
+        fails.append(f"the appended bank holds {used} bytes, the doc says 322")
+    if not hashlib.sha1(patched).hexdigest().startswith("614f318e"):
+        fails.append(f"patch 12 now hashes {hashlib.sha1(patched).hexdigest()[:8]}…, "
+                     "the doc says 614f318e…")
+    return fails
+
+
 def disjointness(sets):
     """The claim the map exists to make. Variants (1b of 1, 10b of 10) are
     alternatives by naming convention and edit the same bytes deliberately."""
@@ -238,7 +280,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         sets, fails = measure(rows, clean, tmp, args.verbose)
         claims, claim_fails = hash_claims(clean, tmp, args.verbose)
-        fails += disjointness(sets) + claim_fails
+        fails += disjointness(sets) + claim_fails + worked_example(clean, tmp)
         fails += [f"SELF-TEST: {b}" for b in selftests(rows, clean, tmp)]
 
     appending = {p for p, _, _, a, _ in rows if a is not None}
@@ -251,6 +293,7 @@ def main():
           f"{sum(len(s) for s in sets.values())} changed bytes accounted for)")
     print(f"  in-place regions are pairwise disjoint (variants 1/1b and 10/10b aside)")
     print(f"  {claims} \"this .bps gives this ROM\" claims in the registry documents re-derived")
+    print("  the pipeline doc's worked example (patch 12: hook, stub, bank, hash) re-derived")
     print(f"  {len(appending)} bank-appending patches, all starting at 0x{APPENDED:X} — "
           "which is why standalone BPS must never be chained (HANDOFF §5)")
 

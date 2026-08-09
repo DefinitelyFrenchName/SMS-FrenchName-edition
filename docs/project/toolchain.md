@@ -39,3 +39,7 @@ says so. **A green tick there is not a verified build.** The real gates are loca
 ROM=build/SailorMoonS_Rev_S-NN.sfc  tools/run.sh tools/test_regression.lua 900
 ROM=build/SailorMoonS_Rev_SS-NN.sfc tools/saturn/verify_saturn.sh
 ```
+
+How these pieces fit together — what a builder does with the ROM, what the
+assembler is for and what `flips` does with the result — is
+[`how_patches_are_built.md`](how_patches_are_built.md).
