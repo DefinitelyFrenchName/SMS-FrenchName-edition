@@ -6,25 +6,35 @@ sections further down are this session's detail.
 
 ## Where to pick up
 
-1. **Saturn's round-won badge** (maintainer, 2026-08-09) — she has no win icon
-   under the life bar, so winning a round shows nothing on her side. Expected to
-   be cheap. What is already known, measured today:
-   * **The badge is per-character manifest data.** The manifest's third pointer
-     (`+7`) is the win-icon palette: 8 bytes each, `$E0:08DE` + `(charID-1)*8`
-     across the SMS roster. **Saturn's exists in the donor** — her Super S
-     manifest `$E0:AC6A` carries icon `$E0:B270` — and
-     `tools/saturn/extract_saturn_unit.py` already extracts it (`PALETTES["icon"]`).
-   * **Not yet located**: the icon TILES (SMS side and hers), and the code that
-     draws the badge under the life bar. Start from the round-end path — the
-     frame loop's `$C0:DB35` round-state stage and the HUD producer `$C0:D5E8`
-     (`sms_data_architecture.md` §10B has the loop) — and from what the char
-     loader does with the icon palette at `$C0:879B`.
-   * ⚠ Two traps this project has already paid for apply here: test on **at
-     least two shells** (trap 1), and if the tiles ride a per-character DMA,
-     check what SIZED that transfer (trap 6 — a per-player override is only as
-     complete as the transfer that carries it, which is exactly how her 214P
-     projectile lost 15 tiles).
-2. **Patch 16 — menu translation.** Still the active feature work. Two surfaces
+1. **Saturn's round-won badge is DONE** (v0.17.0, hidden `3dee7316…`) — closed
+   the same day it was raised. Detail: `saturn/PROJECT.md` § "DONE — her
+   round-won badge", `saturn/BUILDS.md` 0.17.0, and the game-side mechanism in
+   `../game/annotations.md` § "Round-won badge". Three things worth carrying:
+   * the badge table at `$C0:E166` has **eight read sites**, six of them P2 or
+     redraw paths — the count was taken first, so traps 5/19 were paid forward
+     rather than paid for;
+   * her tiles were in the donor all along, **stored RAW** at `$E0:D2B8` while
+     SMS compresses the same sheet at `$E0:21E6` (503 of 512 tiles identical) —
+     which is why every compressed-stream search found nothing;
+   * `sms_lz` gained **`encode_lz`**, an optimal parse that beats the vanilla
+     stream. `encode` is untouched on purpose (patch 16's hashes), but any future
+     sheet edit should reach for the new one.
+
+   **One thing needs a maintainer decision, not work:** the fix is in the Saturn
+   builder, so shipping it to players means a **Rev. SS-03** — a superseded
+   revision gets a new number, never a redefinition. Rev. SS-02 still embeds
+   v0.16.1 and is untouched.
+
+   **And one pre-existing overlap it drew out — cosmetic, one frame, not a
+   ruling:** patch 10b's left status label sits at `$10E5-$10EC`, and a player's
+   **second** round-won badge occupies `$10C4/$10C5/$10E4/$10E5`; they share
+   `$10E5`. But a player has **at most one badge in normal play** — winning the
+   second round ends the match (best-of-3, or one round in tournament) — so the
+   second badge only exists for the deciding-win frame, at match end. It can
+   surface only on **v0.22** (the only bundle with 10b) and only if a status
+   label is live at that exact instant. No Saturn build carries 10b. Noted for
+   completeness, not as open work.
+2. **Patch 16 — menu translation.** Now the active feature work. Two surfaces
    left: the **bracket VS names** (codec-2 blob `$C7:3BBD` + an unfound runtime
    builder) and the **A.C.S. name card + prompt** (the variable-text glyph
    blitter `$80:9583`, fed from `$7F:DC00+`, filler unfound). Detail below and in
@@ -33,8 +43,8 @@ sections further down are this session's detail.
    TECHED throw, so at Guts L3 teching costs more than eating the throw (12 vs
    10, measured). No shipped build passes the flag. The question is yours:
    *should a teched command grab be scaled by Guts at all?* Full brief below.
-4. **`checkdocs` — the generated increment is DONE** (76 checks; see below). The
-   next one, if it is wanted: **149 of `docs/game/`'s 254 ROM addresses are
+4. **`checkdocs` — the generated increment is DONE** (**87 checks**; see below).
+   The next one, if it is wanted: **183 of `docs/game/`'s 299 ROM addresses are
    still not re-derived**, and nearly all of them are *code* addresses carrying
    prose claims ("routine X does Y"), which no census can decide. Two ways
    forward, in order of cheapness — (a) adopt the convention that documenting a
@@ -46,8 +56,15 @@ sections further down are this session's detail.
 
 ## What changed this session (2026-08-09)
 
-Four things, all documentation and checking — **no ROM artifact moved**, and the
-one builder edited (a comment in `mkpatch16.py`) rebuilds byte-identically.
+**Saturn v0.17.0 — her round-won badge**, raised and closed the same day; the
+detail is in item 1 above, `saturn/PROJECT.md` and `saturn/BUILDS.md` 0.17.0.
+`SATURN_BADGE=0` differs from v0.16.1 by exactly the two version-string bytes,
+patch 16 rebuilds byte-identical on both its recorded hashes, and the gate is
+**ALL PASS (60 checks)** with seven new ones. Two systems nobody had written
+down came out of it and are now in `docs/game/`: the **in-match asset job table
+at `$E0:0000`** and the **HUD CHR sheet at `$E0:21E6`**. `checkdocs` is at **87**.
+
+Before that, four things that were documentation and checking only:
 
 * **`docs/game/sms_sound_system.md`** — the audio system, game-side, re-measured.
   The APU upload, the SPC driver (**stored in ROM at `ARAM + 0x23F804`**, which is
@@ -452,7 +469,7 @@ another patch's scope must re-census the paths for the new scope.** It is trap 5
 tools/build_rev.sh both                                 # the two RELEASE builds
 tools/build_ref_v2.sh                                   # REF v.2 (Saturn base)
 SATURN_HIDDEN=1 bash tools/saturn/build_refsaturn.sh    # Saturn on REF v.2
-tools/saturn/verify_saturn.sh                           # 53 checks (QUICK=1 ~4 min)
+tools/saturn/verify_saturn.sh                           # 60 checks (QUICK=1 ~4 min)
 ROM=<rom> tools/run.sh tools/test_regression.lua 900    # 60/60 (45 on clean)
 tools/health.sh                                         # no ROM/emulator needed
 python3 tools/mkpatch16.py <out.sfc>                    # patch 16 (font install)

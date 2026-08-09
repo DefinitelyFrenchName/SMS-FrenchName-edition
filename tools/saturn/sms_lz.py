@@ -180,6 +180,105 @@ def encode(payload):
     return _emit(ops)
 
 
+# ---------------------------------------------------------------- encode_lz --
+# Cost of each form, in bits: control bits + stream bytes x 8. This is the whole
+# reason an optimal parse is worth writing — a 2-byte short reference costs 12
+# bits against 18 for two literals, and the greedy choice of "longest match"
+# regularly picks a 26-bit escape where two 18-bit long references are cheaper.
+_C_LIT, _C_SHORT, _C_LONG, _C_ESC = 9, 12, 18, 26
+_MAXD_SHORT, _MAXD_LONG = 256, 8192
+
+
+def _match_table(payload):
+    """Per position: (short_len, short_dist, long_len, long_dist).
+
+    Two candidates rather than one, because the short form's window is 256 bytes
+    and the long form's is 8192: the longest match overall is frequently NOT
+    reachable by the cheap encoding, and the nearer, shorter one wins on cost.
+    """
+    n = len(payload)
+    out = [(0, 0, 0, 0)] * n
+    index = {}
+    for i in range(n):
+        sl = sd = ll = ld = 0
+        key = bytes(payload[i:i + 2])
+        for p in reversed(index.get(key, ())):
+            d = p - i
+            if -d > _MAXD_LONG:
+                break
+            m = 0
+            while i + m < n and m < 256 and payload[p + m] == payload[i + m]:
+                m += 1
+            if -d <= _MAXD_SHORT and m > sl:
+                sl, sd = m, d
+            if m > ll:
+                ll, ld = m, d
+            if ll >= 256 and sl >= 5:
+                break
+        out[i] = (sl, sd, ll, ld)
+        if i + 2 <= n:
+            index.setdefault(key, []).append(i)
+    return out
+
+
+def encode_lz(payload):
+    """A real compressor for this format: back-references, parsed optimally.
+
+    `encode` above emits literals plus one distance-2 RLE trick, which is enough
+    for a tilemap (mostly one repeated blank word) and poor at tile ART — it
+    expanded the in-match HUD sheet from `0xF31` bytes to `0x1B95`. This does a
+    shortest-path parse over the bit costs above and gets that sheet to `0xED4`,
+    i.e. smaller than the vanilla stream, which is what lets a sheet be edited
+    IN PLACE instead of relocated.
+
+    NOTE `encode` is deliberately left alone. It is what `mkpatch16.py` and
+    `mkmovelist.py` call, and their outputs have recorded hashes — a default is
+    part of a recipe (HANDOFF trap 21), so this is a new entry point rather than
+    a better implementation of the old one.
+    """
+    n = len(payload)
+    mt = _match_table(payload)
+    inf = float("inf")
+    cost = [inf] * (n + 1)
+    move = [None] * (n + 1)
+    cost[n] = 0
+    for i in range(n - 1, -1, -1):
+        best, bmove = cost[i + 1] + _C_LIT, ("lit", 1, 0)
+        sl, sd, ll, ld = mt[i]
+        for length in range(2, min(sl, 5) + 1):
+            c = cost[i + length] + _C_SHORT
+            if c < best:
+                best, bmove = c, ("short", length, sd)
+        for length in range(3, min(ll, 9) + 1):
+            c = cost[i + length] + _C_LONG
+            if c < best:
+                best, bmove = c, ("long", length, ld)
+        for length in range(3, min(ll, 256) + 1):
+            c = cost[i + length] + _C_ESC
+            if c < best:
+                best, bmove = c, ("esc", length, ld)
+        cost[i], move[i] = best, bmove
+
+    ops, i = [], 0
+    while i < n:
+        kind, length, dist = move[i]
+        d16 = (dist + 0x10000) & 0xFFFF
+        if kind == "lit":
+            ops.append(([1], bytes((payload[i],))))
+        elif kind == "short":
+            c = length - 2                              # 0..3, high bit sent first
+            ops.append(([0, 0, (c >> 1) & 1, c & 1], bytes((d16 & 0xFF,))))
+        elif kind == "long":
+            hi = (((d16 >> 8) & 0x1F) << 3) | ((length - 2) & 7)
+            ops.append(([0, 1], bytes((d16 & 0xFF, hi))))
+        else:                                           # escape-length form
+            hi = ((d16 >> 8) & 0x1F) << 3
+            ops.append(([0, 1], bytes((d16 & 0xFF, hi, length - 1))))
+        i += length
+    ops.append(TERMINATOR)
+    return _emit(ops)
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         raise SystemExit("usage: sms_lz.py <rom> <hex src offset> [expected.bin]")

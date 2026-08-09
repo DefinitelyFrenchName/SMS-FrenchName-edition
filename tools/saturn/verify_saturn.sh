@@ -180,6 +180,34 @@ else
   bad "palettes distinct across buttons $palbtns" "$paln distinct rows" "$paluniq distinct"
 fi
 
+echo "== her round-won badge (both sides, every shell) =="
+# v0.17.0. Taking a round showed nothing on her side: the badge's tile word comes
+# from a TEN-entry table at $C0:E166 indexed by charID*2, and id $1C reads 0x38
+# past it into code. The badge is drawn from EIGHT read sites, and six of them
+# are P2 or redraw paths -- so this runs both sides and wins TWO rounds, because
+# a fix that patched only the two first-draw sites passes a one-round P1 test.
+# Negative-controlled: on v0.16.1 every dimension reports BAD (the cells hold
+# $1E0A, the CHR tiles are blank and CGRAM holds the SHELL's icon palette).
+bshells="6 7 8"; [ "$QUICK" = 1 ] && bshells="6"
+bsums=""
+for side in p1 p2; do for sh in $bshells; do
+  run "$T/winbadge_v_${side}_$sh.txt" env SIDE=$side SHELL_ID=$sh TAG=v_${side}_$sh \
+    ROM="$ROM" tools/run.sh tools/saturn/probe_saturn_winbadge.lua 2600
+  check "round-won badge, $side on shell $sh" "FINAL PASS" \
+    "$T/winbadge_v_${side}_$sh.txt" "FINAL|PRECONDITION|TIMEOUT"
+  s=""; [ "$rc" -eq 0 ] && s="$(grep -E '^FINAL' "$T/winbadge_v_${side}_$sh.txt" 2>/dev/null | tail -1)"
+  case "$s" in *chrsum=*) bsums="$bsums${s##*chrsum=} ";; *) bsums="$bsums MISSING ";; esac
+done; done
+# Trap 6, the question her 214P projectile answered the hard way: her tiles ride
+# the HUD sheet's transfer, so assert the sheet arrives IDENTICALLY on every
+# shell rather than merely arriving on the one that was tested.
+buniq="$(printf '%s\n' $bsums | sort -u | wc -l | tr -d ' ')"
+if [ "$buniq" = 1 ] && [ "${bsums%% *}" != "MISSING" ] && [ "${bsums%% *}" != "0" ]; then
+  ok "badge tiles identical across sides/shells (chrsum $(printf '%s' $bsums | head -c 6))"
+else
+  bad "badge tiles identical across sides/shells" "one non-zero checksum" "$bsums"
+fi
+
 echo "== her ground throws: right button, right direction =="
 # v0.16.0. Both faults were INHERITED FROM SUPER S, so nothing in the port would
 # have caught them: the two throws sat on each other's buttons, and the shoulder

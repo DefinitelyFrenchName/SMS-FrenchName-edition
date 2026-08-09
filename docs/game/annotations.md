@@ -418,7 +418,26 @@ Tools: tools/techsweep.lua (window/threshold measurement), tools/techfind.lua (i
 | $7E:0806-$0815 | hud_stage | staging: $0806/$0808 P1-bar (addr,tile), $080A/$080C P2-bar, $080E-$0815 timer (2 digits × top/bottom) |
 | $7E:0816-$08FF | FREE WRAM | HUD page tail, **zero accesses** over probe — patch-10 combo state + staging |
 | digit tiles | 0x2C50+N (top) / 0x2C60+N (bottom) | big 2-tall digits 0-9, palette 0x2C, in BG1 HUD CHR; timer draws them via `adc #$2C50`/`adc #$0010` |
-| HUD tilemap | VRAM word $1000 base | rows 3-4 HP bars, row 5 nameplates, timer at cells $10AF/B0 (top) $10CF/D0 (bottom); **rows 0,1,2,7 and most of row 6 are blank (tile $2000)** — free cells for a combo counter |
+| HUD tilemap | VRAM word $1000 base | rows 3-4 HP bars, row 5 nameplates, timer at cells $10AF/B0 (top) $10CF/D0 (bottom); rows 0,1,2 are blank (tile $2000) — free cells for a combo counter. ⚠ **CORRECTED 2026-08-09: rows 6 AND 7 carry the round-won badges** — 2x2 blocks at cols 2-3 / 4-5 (P1) and 26-27 / 28-29 (P2). They are only drawn once a round has been won, which is why a mid-round census reported them blank |
+
+## Round-won badge (v0.17.0 RE, 2026-08-09)
+The medallion under each life bar. Per-character 2x2 BG3 tile block, one word per character.
+| Address | Label | Comment |
+|---|---|---|
+| $C0:E166 (file 0x00E166) | badge_tile_words | **10 entries**, index charID*2, word = `prio<<13 \| palette<<10 \| tile`. Ids 1-8 = `$38E0 + (id-1)*2` (prio 1, **BG3 palette 6**, tiles $0E0-$0EE); **id 9 reuses id 1's word** — Chibi Moon wears Moon's crescent. The drawing code derives the other three cells as T+1 / T+$10 / T+$11, so the sheet is read 16 tiles wide. ⚠ The table ENDS at $C0:E179; $C0:E17A is code |
+| eight read sites | $C0:DCC1, $DCFC (descriptor, first draw) · $C0:DE4D, $DE5D, $DE79, $DE8C (direct $2118 redraw) · $C0:DFF9, $E034 (descriptor, match end) | all `BD 66 E1` = `lda $E166,X`; **six of the eight are P2 or redraw paths**. P2 ORs `#$0400` after the read, moving palette 6 -> 7, so one table entry serves both players |
+| cells | P1 `$10C2`/`$10C4`, P2 `$10DA`/`$10DC` | win 1 / win 2; each is the top-left of a 2x2, second row at +$20 |
+| $7E:1E02 / $1E03 | badges_drawn_p1/p2 | how many are already on screen; the draw picks the cell from this |
+| colours | manifest `+7` -> 8 bytes -> CGRAM shadow **$0530** (P1) / **$0538** (P2) | = BG3 palettes 6 and 7. Written at char load by $C0:888E / $C0:89DB via $80:8ADD. Palette table is contiguous at `$E0:08DE + (charID-1)*8` |
+| tiles | BG3 CHR, sheet tiles $0E0-$0FF | eight 16x16 medallions; **the window $0C7-$0DF is genuinely empty in the SHEET**, re-derived from ROM rather than from a VRAM census |
+
+## In-match asset job table (2026-08-09)
+Not the `$C3:BCCD`/`$BCFF` record system — a second, simpler one, and the only place the in-match HUD CHR comes from.
+| Address | Label | Comment |
+|---|---|---|
+| $E0:0000 (file 0x200000) | match_job_table | **6-byte entries** `[src16][srcbank][vram16][flags]` — the same shape `tools/saturn/supers_lz.py` documents for Super S's `$80:EEF1`. Entry 0 = the HUD CHR sheet -> VRAM word $5000; entry 1 = the HUD tilemap -> word $1000 |
+| $E0:21E6 | hud_chr_sheet | the in-match BG3 CHR, **sms_lz-compressed**, `0xF31` in -> `0x2000` out (512 tiles). No length field anywhere in the record — the DMA is sized by what the decoder wrote |
+| Super S $E0:D2B8 | hud_chr_sheet (donor) | **the same 512-tile sheet, stored RAW.** 503 of 512 tiles byte-identical to SMS's; of the nine that differ, four are Saturn's medallion at tiles $CE/$CF/$DE/$DF (Super S's table has `$38CE` at id 10) and three more are tiles SMS leaves blank |
 Combo/status counting logic proven in tools/training/{combo,labels}.lua (reads +0x01 act, +0x49 HP; true-chain = defender never actionable between hits). Probes: tools/probe_hudre/hudnmi/upl/ctx/vram.lua.
 
 ## In-match status labels (patch 10 --events labels)

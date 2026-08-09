@@ -41,12 +41,13 @@ import hashlib  # noqa: E402
 import extract_saturn_unit as X  # noqa: E402  (source addresses + script parser)
 import asm65816 as A  # noqa: E402  (two-pass assembler for the char-select/win/card stubs)
 import mkpatch17  # noqa: E402  (patch 17, folded in — see SATURN_ALLSTAGES)
+import sms_lz  # noqa: E402  (the $C0:916B codec — the HUD sheet, see BADGE_TILES)
 
 # Build version (semver). Bump MINOR per feature batch, PATCH per fix; registry
 # with per-version contents + ROM SHAs: docs/project/saturn/BUILDS.md. The version is
 # embedded at $EE:C040 (ASCII, 0-terminated) and shown on-screen by
 # tools/saturn/saturn_test.lua — the naked-eye tell for regression reports.
-SATURN_VERSION = "0.16.1"
+SATURN_VERSION = "0.17.0"
 
 # PATCH 17 (the hidden tenth stage) is available here but **OFF** — the
 # maintainer tested v0.15.0 and ruled the stage "a bit distracting visually",
@@ -718,6 +719,60 @@ EE_WINSTUB_QT = 0xC540
 EE_WIN_NP = 0xC5A0
 EE_WIN_QARR = 0xC620
 EE_WIN_QREC = 0xC630
+# v0.17.0 — ROUND-WON BADGE (maintainer report 2026-08-09): taking a round showed
+# nothing on her side of the HUD. The badge is a 2x2 BG3 tile block whose top-left
+# cell comes from a TEN-entry table at $C0:E166 (index charID*2, word =
+# prio<<13 | palette<<10 | tile); the drawing code derives the other three cells
+# as T+1 / T+$10 / T+$11, and P2 ORs #$0400 to move palette 6 -> 7. Saturn's id
+# $1C indexes 0x38 past the end, into CODE at $C0:E19E, which reads back $1E0A =
+# tile $20A -- past the end of the 512-tile HUD sheet, so her cells draw whatever
+# VRAM happens to hold. "Nothing" is what the field saw; garbage is equally
+# possible, which is why this is a fix and not a cosmetic addition.
+#
+# ⚠ THERE ARE EIGHT READS OF THAT TABLE, NOT TWO, and the count was taken before
+# a line of this was written (HANDOFF traps 5/19). Two build the $0820 descriptor
+# at first draw, FOUR write the VRAM port directly on the redraw, two more
+# rebuild the descriptor at match end. Six of the eight are P2 or redraw paths --
+# a two-site fix would have looked correct in exactly the case anyone tests first
+# (P1, one round).
+BADGE_TBL = 0x00E166           # $C0:E166, 10 words, ids 0-9 (id 9 reuses id 1's)
+BADGE_TBL_N = 29               # relocated width: ids 0-28, 28 = Saturn ($1C)
+BADGE_WORD = 0x38CE            # prio 1, BG3 palette 6, tile $0CE -- Super S's own
+# The four sites where X is 8-bit (`sep #$10`): the whole index computation is
+# re-encoded so the long read fits in the original 11 bytes. `ldx` with 8-bit X
+# reads only the charID byte and `txa` into a 16-bit A zero-extends, which is
+# exactly what `lda / and #$00FF` was doing in two more bytes.
+BADGE_SITES = (0x00DCB9, 0x00DCF4, 0x00DFF1, 0x00E02C)
+BADGE_OLD = {0x00DCB9: bytes.fromhex("AD001029FF000AAABD66E1"),
+             0x00DCF4: bytes.fromhex("AD801029FF000AAABD66E1"),
+             0x00DFF1: bytes.fromhex("AD001029FF000AAABD66E1"),
+             0x00E02C: bytes.fromhex("AD801029FF000AAABD66E1")}
+# The two blocks where X is 16-bit (`rep #$10` at $C0:DE40) read the table twice
+# off one index and write $2118 directly. There is no room to re-encode in place,
+# so each block becomes one JSL to a stub that reproduces it verbatim.
+BADGE_BLK_P1 = (0x00DE45, 0x26, bytes.fromhex("AD001029FF000AAABD66E1"))
+BADGE_BLK_P2 = (0x00DE71, 0x2C, bytes.fromhex("AD801029FF000AAABD66E1"))
+EE_BADGETBL = 0xC110                # BADGE_TBL_N words
+EE_BADGE_P1 = 0xCE00                # the two redraw-block stubs
+EE_BADGE_P2 = 0xCE60
+# Her badge colours. The four-colour palette is per character: manifest +7, 8
+# bytes, loaded at char load to CGRAM shadow $0530 (P1 -> BG3 palette 6) by
+# $C0:888E and $0538 (P2 -> palette 7) by $C0:89DB. The char loader runs with the
+# SHELL's manifest, so without this her medallion would take Uranus's, Neptune's
+# or Pluto's colours and change with the shell.
+SUP_ICONPAL = 0x20B270        # her Super S manifest ($E0:AC6A) +7
+EE_ICONPAL = 0xC100           # 8 bytes
+CGRAM_ICON_P1, CGRAM_ICON_P2 = 0x30, 0x38     # low byte; page $05
+# Her tiles. SMS ships the in-match HUD sheet sms_lz-compressed at $E0:21E6
+# (0x2000 out, VRAM word $5000); Super S ships THE SAME 512-tile sheet RAW at
+# $E0:D2B8 -- 503 of 512 tiles byte-identical, which is why every compressed-
+# stream search for her badge came back empty. Of the nine that differ, four are
+# her medallion, in slots SMS leaves blank.
+SMS_HUD_SHEET = 0x2021E6
+SMS_HUD_SHEET_LIMIT = 0x203126 - 0x2021E6     # the next stream in bank $E0
+SUP_HUD_SHEET = 0x20D2B8
+BADGE_TILES = (0xCE, 0xCF, 0xDE, 0xDF)        # Super S's own slots for her
+SATURN_BADGE = os.environ.get("SATURN_BADGE", "1") != "0"
 # Box tables: appended bank $F0 = full bank-$8A copy read via WRAM-mirror $B0
 # (6x plb #$8A -> #$B0); widened ptr tables (0x30 entries) + Saturn's box data
 # grafted into the copy's upper half; 7 table-read operands repointed.
@@ -1423,6 +1478,30 @@ cl{tag}:
   dey
   bpl cl{tag}"""
 
+    # v0.17.0 — the round-won badge's colours, tacked onto the same copier.
+    # It reads its four colours from CGRAM shadow $0530 (P1) / $0538 (P2), which
+    # is page $05, not the $06 page the two loops above write, so this needs its
+    # own destination rather than another `_copy_loop`. $0E still holds the
+    # player hint set by the helper (0x00 P1 / 0x20 P2).
+    _icon_copy = f"""
+  lda_dp $0E
+  bne pi2
+  lda #${CGRAM_ICON_P1:02X}
+  bra pigot
+pi2:
+  lda #${CGRAM_ICON_P2:02X}
+pigot:
+  sta_dp $0C
+  lda #$05
+  sta_dp $0D           ; $0C/0D -> the win-icon palette, BG3 row 6 / 7
+  ldy #$0007
+picl:
+  tyx
+  lda_lx ${B_MISC:02X}{EE_ICONPAL:04X}
+  sta_idpy $0C
+  dey
+  bpl picl""" if SATURN_BADGE else ""
+
     # dispatch: cmp/beq per slot, then the slot-0 loop falls through
     slot_cases = "".join(f"""
   cmp #${i:02X}
@@ -1447,7 +1526,7 @@ palgot:
   phx{slot_cases}{slot_loops}
 palfx:
   lda #${SAT_PROJ_PAL * 0x20:02X}
-  sta_dp $0C           ; -> her proj row{_copy_loop("fx", 0xC060)}
+  sta_dp $0C           ; -> her proj row{_copy_loop("fx", 0xC060)}{_icon_copy}
   plx
   rtl
 """
@@ -1627,6 +1706,63 @@ orig:
         raise SystemExit(f"win quote stub too big: {len(w2)} > "
                          f"{EE_WIN_NP - EE_WINSTUB_QT}")
     ee[EE_WINSTUB_QT:EE_WINSTUB_QT + len(w2)] = w2
+
+    # -- round-won badge: her icon palette, the widened tile-word table, and the
+    # two redraw-block stubs (v0.17.0, see BADGE_TBL) --
+    if SATURN_BADGE:
+        _ipal = sup[SUP_ICONPAL:SUP_ICONPAL + 8]
+        if not (_ipal[:2] == bytes.fromhex("AD35")):
+            # every one of SMS's nine icon palettes opens with the same shared
+            # colour 0; a donor read that does not is a wrong address, not a
+            # differently-coloured badge.
+            raise ValueError(f"icon palette at {SUP_ICONPAL:#x} looks wrong: "
+                             f"{_ipal.hex()}")
+        if not (ee[EE_ICONPAL:EE_ICONPAL + 8] == bytes(8)):
+            raise SystemExit(f"icon-palette slot {EE_ICONPAL:#06x} is not free")
+        ee[EE_ICONPAL:EE_ICONPAL + 8] = _ipal
+        # ids 0-9 are copied from the live table rather than hardcoded, so a
+        # stacked base that edited it stays honoured; 10-27 are unreachable ids.
+        _tbl = bytearray(data[BADGE_TBL:BADGE_TBL + 20])
+        _tbl += bytes(2 * (BADGE_TBL_N - 10))
+        _tbl[SAT_ID * 2:SAT_ID * 2 + 2] = bytes((BADGE_WORD & 0xFF, BADGE_WORD >> 8))
+        if not (len(_tbl) == 2 * BADGE_TBL_N):
+            raise ValueError(f"badge table is {len(_tbl)} bytes")
+        if not (ee[EE_BADGETBL:EE_BADGETBL + len(_tbl)] == bytes(len(_tbl))):
+            raise SystemExit(f"badge-table slot {EE_BADGETBL:#06x} is not free")
+        ee[EE_BADGETBL:EE_BADGETBL + len(_tbl)] = _tbl
+        # The two redraw blocks, verbatim apart from the table they read. Entered
+        # by JSL with A and X 16-bit and DB = $00 (the block's own `sta $2118`
+        # needs it), the VRAM address port already pointing at the top-left cell.
+        for _slot, _struct, _pal, _row2, _limit in (
+                (EE_BADGE_P1, 0x1000, "", 0x10E2, EE_BADGE_P2 - EE_BADGE_P1),
+                (EE_BADGE_P2, 0x1080, "\n  ora #$0400", 0x10FA, 0x100)):
+            _asm = f"""
+  assume m=0, x=0
+  lda ${_struct:04X}
+  and #$00FF
+  asl_a
+  tax
+  lda_lx ${B_MISC:02X}{EE_BADGETBL:04X}{_pal}
+  sta $2118
+  inc_a
+  sta $2118
+  lda #${_row2:04X}
+  sta $2116
+  lda_lx ${B_MISC:02X}{EE_BADGETBL:04X}{_pal}
+  clc
+  adc #$0010
+  sta $2118
+  inc_a
+  sta $2118
+  rtl
+"""
+            _b, _ = A.assemble(_asm.splitlines(), 0, 0)
+            if not (len(_b) <= _limit):
+                raise SystemExit(f"badge stub {_slot:#06x} too big "
+                                 f"({len(_b)} > {_limit})")
+            if not (ee[_slot:_slot + len(_b)] == bytes(len(_b))):
+                raise SystemExit(f"badge-stub slot {_slot:#06x} is not free")
+            ee[_slot:_slot + len(_b)] = _b
 
     # v0.11.4: effect tiles decompressed straight from the Super S ROM — no
     # more fixture dependency, and the FULL 0x1040-byte sheet (the old 0xC00
@@ -2624,6 +2760,66 @@ go:
                               (SITE_NP_P2, NP_P2_OLD, EE_NPHOOK2)):
         expect(_site, _old, f"nameplate charID read {_site:#x}")
         data[_site:_site + 5] = bytes((0x22, _tgt & 0xFF, _tgt >> 8, B_MISC, 0xEA))
+
+    if SATURN_BADGE:
+        # (a) her four medallion tiles into the HUD sheet's blank window.
+        _sheet = bytearray(sms_lz.decompress(data, SMS_HUD_SHEET, 0x2000))
+        if not (len(_sheet) == 0x2000):
+            raise ValueError(f"HUD sheet expands to {len(_sheet):#x}, not 0x2000")
+        for _t in BADGE_TILES:
+            if not (not any(_sheet[_t * 16:_t * 16 + 16])):
+                raise SystemExit(f"HUD sheet tile ${_t:02X} is not blank — the "
+                                 f"badge would overwrite something")
+            _sheet[_t * 16:_t * 16 + 16] = \
+                sup[SUP_HUD_SHEET + _t * 16:SUP_HUD_SHEET + _t * 16 + 16]
+        _packed = sms_lz.encode_lz(bytes(_sheet))
+        # ⚠ Trap 6: the job record at $E0:0000 ([src16][srcbank][vram16][flags])
+        # carries NO length — the DMA is sized by how much the decoder wrote. So
+        # "still exactly 0x2000 out" is the assertion that keeps the transfer the
+        # size it was, and "still shorter than the vanilla stream" is what keeps
+        # the edit in place instead of needing a relocation + a repointed entry.
+        if not (sms_lz.decompress(_packed, 0, 0x2000) == bytes(_sheet)):
+            raise ValueError("HUD sheet re-encode does not round-trip")
+        if not (len(_packed) <= SMS_HUD_SHEET_LIMIT):
+            raise SystemExit(
+                f"re-encoded HUD sheet is {len(_packed):#x} bytes, over the "
+                f"{SMS_HUD_SHEET_LIMIT:#x} to the next stream — relocate it to an "
+                f"appended bank and repoint the job entry at $E0:0000 (3 bytes)")
+        data[SMS_HUD_SHEET:SMS_HUD_SHEET + len(_packed)] = _packed
+
+        # (b) the eight table reads. Four re-encode in place; two blocks become
+        # one JSL each. See BADGE_TBL for why there are eight and not two.
+        for _site in BADGE_SITES:
+            expect(_site, BADGE_OLD[_site], f"badge index/read {_site:#x}")
+            _struct = BADGE_OLD[_site][1] | (BADGE_OLD[_site][2] << 8)
+            _b, _ = A.assemble(f"""
+  assume m=0, x=1
+  ldx ${_struct:04X}
+  txa
+  asl_a
+  tax
+  lda_lx ${B_MISC:02X}{EE_BADGETBL:04X}
+  nop
+""".splitlines(), 0, 0)
+            if not (len(_b) == len(BADGE_OLD[_site])):
+                raise ValueError(f"badge re-encode is {len(_b)} bytes, need "
+                                 f"{len(BADGE_OLD[_site])}")
+            data[_site:_site + len(_b)] = _b
+        for (_at, _len, _head), _tgt in ((BADGE_BLK_P1, EE_BADGE_P1),
+                                        (BADGE_BLK_P2, EE_BADGE_P2)):
+            expect(_at, _head, f"badge redraw block {_at:#x}")
+            data[_at:_at + _len] = \
+                bytes((0x22, _tgt & 0xFF, _tgt >> 8, B_MISC)) + b"\xEA" * (_len - 4)
+
+        # (c) Tripwire, the throw fix's discipline applied here: after patching,
+        # NO read of the ten-entry table may survive anywhere in the image — the
+        # clean ROM's count is a claim about the clean ROM, not about what ships.
+        _left = [i for i in range(len(data) - 3)
+                 if data[i] == 0xBD and data[i + 1] == (BADGE_TBL & 0xFF)
+                 and data[i + 2] == (BADGE_TBL >> 8)]
+        if not (not _left):
+            raise ValueError("badge table read left unhooked at " + ", ".join(
+                f"${0xC0 | (i >> 16):02X}:{i & 0xFFFF:04X}" for i in _left))
 
     expect(SITE_PROC_HOOK, PROC_HOOK_OLD, "main proc-dispatch head")
     data[SITE_PROC_HOOK:SITE_PROC_HOOK + 7] = \

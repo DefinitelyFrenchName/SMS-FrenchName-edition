@@ -453,13 +453,15 @@ VRAM word
 $0000  ┌─────────────────────────────┐
        │ BG1 tilemap (stage)         │
 $0800  │ BG2 tilemap (stage)         │
-$1000  │ BG3 tilemap ── THE HUD ──   │ rows 3-4 bars, 5 nameplates + timer
+$1000  │ BG3 tilemap ── THE HUD ──   │ rows 3-4 bars, 5 nameplates + timer,
+       │                             │ 6-7 the round-won badges
 $2000  ├─────────────────────────────┤
        │ BG1 + BG2 CHR (stage art)   │ 4bpp
 $5000  ├─────────────────────────────┤
        │ BG3 CHR (2bpp): digits at   │ tile 0x50/0x60 = the timer's glyphs
        │ 0x50-0x69, A-Z at 0x70-0x89 │ ⚠ the full alphabet IS resident
-       │ ── 0xC7-0xDF FREE (25) ──   │ patches 10 and 11 put fonts here
+       │ ── 0xC7-0xDF FREE (25) ──   │ patches 10/11 put fonts here; Saturn's
+       │ 0xE0-0xFF round-won badges  │ badge takes 0xCE/CF/DE/DF (Super S's own)
 $6000  ├─────────────────────────────┤  ← OBJ name base
        │ P1 cels $6000  P2 cels $6500│ DMA'd from ROM per frame, uncompressed
        │ P1 fx $6A00    P2 fx $7300  │ per-character effect sheets
@@ -632,6 +634,35 @@ and `$C3:BCFF` (49 entries, the CHR and big text sheets). The two are disjoint �
 artifact of the discovery method**: a flat 10-byte-stride scan from `$BE08`
 finds the last contiguous stretch and silently misses the 16 records before it.
 Walk the pointer tables instead.
+
+### The OTHER job table — in-match assets, `$E0:0000`
+
+⚠ **The `$C3` records are not the only asset system, and the in-match HUD does not
+come from them.** A second, simpler table sits at **`$E0:0000`** with **6-byte
+entries**:
+
+```
+[src16][srcbank][vram16][flags]
+```
+
+It is the same shape `tools/saturn/supers_lz.py` documents for Super S's
+`$80:EEF1`. Entry 0 is the **in-match BG3 CHR sheet** — `sms_lz`-compressed at
+**`$E0:21E6`**, `0xF31` bytes in, `0x2000` out (512 tiles), uploaded to VRAM word
+`$5000`; entry 1 is the HUD tilemap, to word `$1000`.
+
+⚠ **There is no length field in the record.** The transfer is sized by how much
+the decoder wrote, so editing one of these sheets means the re-encoded stream
+must still expand to exactly the same size — the size is the contract, not the
+compressed length. (`tools/saturn/sms_lz.py`'s `encode_lz` exists for this: the
+older `encode` is literals plus one RLE trick and *expanded* this sheet from
+`0xF31` to `0x1B95`, which would have forced a relocation.)
+
+Two facts worth having when hunting art in this game: this sheet is where the
+timer digits (`$50`-`$69`), the nameplate alphabet (`$70`-`$89`) and the eight
+round-won medallions (`$E0`-`$FF`) live, and the free window `$C7`-`$DF` is
+**empty in the sheet itself**, not merely empty in VRAM. And **Super S ships the
+same 512-tile sheet RAW at `$E0:D2B8`** — 503 of 512 tiles byte-identical — which
+is why no compressed-stream search finds the donor's copy.
 
 ⚠ **An asset can be named by more than one record**, which matters to anything
 that relocates one. Ten sources are referenced twice — including **`$C3:48D0`,

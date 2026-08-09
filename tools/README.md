@@ -68,6 +68,7 @@ See HANDOFF.md §4 for the harness.
 - `saturn/probe_saturn_throwshot.lua` — capture Saturn MID-THROW as raw VRAM + OAM +
 - `saturn/probe_saturn_unblockable.lua` — verify Super S Saturn's notorious property: her FAR
 - `saturn/probe_saturn_variant.lua` — map Saturn's close/far normals: press HK or HP
+- `saturn/probe_saturn_winbadge.lua` — the round-won badge under her life bar (v0.17.0).
 - `saturn/probe_sms_5lk.lua` — 5LK regression: does an id-0x1C object appear in the
 - `saturn/probe_sms_airspecial.lua` — repro the field-reported j.632K crash: transform
 - `saturn/probe_sms_animtables.lua` — live-verify SMS's three animation-layer tables

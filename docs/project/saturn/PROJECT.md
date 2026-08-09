@@ -143,22 +143,56 @@ the on-screen version string stay: every recorded hash and doc reference uses
 them, and they are a continuity tell. History: `docs/project/saturn/BUILDS.md`
 0.10.0/0.11.0, and git.
 
-## Open — her round-won badge (maintainer, 2026-08-09)
+## DONE — her round-won badge (v0.17.0, 2026-08-09)
 
-She has no **win icon** under the life bar, so taking a round shows nothing on her
-side. Expected to be cheap; nobody has tried it. Measured while writing this note:
+She had no **win icon** under the life bar. Fixed: her medallion is Super S's own,
+in her own colours, on both players and every shell. Mechanism, as a game fact:
+`../../game/annotations.md` § "Round-won badge"; the port's side is below.
 
-* The badge is **per-character manifest data** — the manifest's `+7` pointer is
-  the win-icon palette, 8 bytes each, `$E0:08DE + (charID-1)*8` across the SMS
-  roster. **Hers exists in the donor** (`$E0:AC6A` → icon `$E0:B270`) and
-  `extract_saturn_unit.py` already pulls it as `PALETTES["icon"]`.
-* **Not located yet:** the icon TILES, on either side, and the code that draws the
-  badge. Leads: the round-state stage `$C0:DB35` and the HUD producer `$C0:D5E8`
-  in the frame loop (`../../game/sms_data_architecture.md` §10B), and what the
-  char loader `$C0:879B` does with the icon palette once it has it.
-* ⚠ The two traps that fit this shape: **test on at least two shells** (trap 1),
-  and if her tiles ride a per-character DMA, check what SIZED that transfer
-  (trap 6 — the 214P projectile lost 15 tiles to exactly this).
+**Why nothing showed.** The badge's top-left cell comes from a **ten-entry table
+at `$C0:E166`** indexed by `charID*2`; id `$1C` reads `0x38` past it into CODE at
+`$C0:E19E`, which yields `$1E0A` → tile `$20A`, past the end of the 512-tile HUD
+sheet. Measured on the unfixed build, the four cells really do hold
+`1E0A 1E0B 1E1A 1E1B` and the CHR they point at is blank — so "nothing" was luck,
+and garbage was equally available.
+
+⚠ **There are EIGHT reads of that table, not two**, and the count was taken before
+anything was written: `$DCC1`/`$DCFC` (descriptor, first draw), `$DE4D`/`$DE5D`/
+`$DE79`/`$DE8C` (direct `$2118` redraw), `$DFF9`/`$E034` (descriptor, match end).
+**Six are P2 or redraw paths** — a two-site fix passes a one-round P1 test, which
+is exactly the test anyone writes first. The gate therefore wins TWO rounds on
+both sides.
+
+**What ships** (`SATURN_BADGE=0` restores the old behaviour):
+
+* the table is relocated to bank `$EE` as **29 entries**, id 28 = `$38CE`; the
+  four 8-bit-X sites re-encode in place (`ldx`/`txa` zero-extends in two fewer
+  bytes than `lda`/`and #$00FF`, which is what makes the long read fit), and the
+  two 16-bit-X redraw blocks become one `jsl` each to a stub that reproduces them
+  verbatim. A build-time tripwire asserts **zero** surviving reads anywhere in the
+  image — the throw corruption's lesson, applied before it could cost anything.
+* her four tiles go into the HUD sheet's blank window at **`$CE`/`$CF`/`$DE`/`$DF`
+  — Super S's own slots**. The donor stores that sheet RAW at `$E0:D2B8` while SMS
+  compresses it at `$E0:21E6`, and **503 of its 512 tiles are byte-identical**, so
+  this is a graft into the same sheet rather than a port.
+* her icon palette (`$E0:B270`, already extracted as `PALETTES["icon"]`) is copied
+  to CGRAM shadow `$0530`/`$0538` by the existing transform palette copier.
+  Without it her medallion would wear Uranus's, Neptune's or Pluto's colours and
+  change with the shell — measured on the unfixed build, which shows Uranus's.
+
+⚠ **Trap 6 came up and was answered:** her tiles ride the HUD sheet's transfer,
+and the job record at `$E0:0000` carries **no length** — the DMA is sized by what
+the decoder wrote. So the builder asserts the re-encoded sheet still expands to
+exactly `0x2000`, and the gate asserts the tiles arrive identically on both sides
+and every shell rather than merely arriving on the one that was tested.
+
+⚠ **The stock encoder could not do this.** `sms_lz.encode` is literals plus one
+distance-2 RLE trick and *expanded* the sheet from `0xF31` to `0x1B95`, which
+would have forced a relocation and a repointed job entry. `encode_lz` (new, an
+optimal parse over the format's real back-references) gets it to `0xF0E` — under
+the vanilla stream — so the edit stays in place. `encode` is deliberately
+untouched: patch 16 and the movelist call it and their hashes are recorded
+(trap 21), and both were rebuilt byte-identical to prove it.
 
 ## Parked — not open work, worth revisiting (2026-08-04)
 

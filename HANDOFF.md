@@ -49,9 +49,11 @@ WRITTEN DOWN.** Four things landed after the checking programme below:
   hook, stub, bank and hash) is re-derived by `checkpatchmap.py`.
 * **Saturn's round-won badge is now recorded as open work** (below).
 
-Checkers at session close: **`checkdocs` 83**, `checkpatchmap` (19 patches + 48
-hash claims + the pipeline example), `checkknobs` 15, `checktrainingdocs` 11,
-`saturn/checksaturndocs` 17. All in `health.sh`, all negative-controlled.
+Checkers at session close: **`checkdocs` 87** (+4 from the badge work: the
+tile-word table and the `$E0:0000` job table, both negative-controlled at a wrong
+base), `checkpatchmap` (19 patches + 48 hash claims + the pipeline example),
+`checkknobs` 15, `checktrainingdocs` 11, `saturn/checksaturndocs` 17. All in
+`health.sh`, all negative-controlled.
 
 
 **2026-08-08 (later) — THE DOC CHECKS ARE NOW GENERATED, AND FIVE MORE ROM FACTS
@@ -369,7 +371,7 @@ resolved a sprite's tiles as `tile * 32`; the OBJ name base is word `$6000` with
 the second name table at `$7000`. Correctly resolved, all 12 sprites always
 pointed at valid tiles. It did name the right sprites, though — that part stands.
 
-**Gate before shipping anything: `tools/saturn/verify_saturn.sh`** — 53 checks
+**Gate before shipping anything: `tools/saturn/verify_saturn.sh`** — 60 checks
 (regression suite, L+R arming across modes x shells incl. flag/latch, story lock,
 2P VS on both pads, throws normal + command with OAM-flood and stage-VRAM
 assertions, the projectile palette split, **her effect sheet's cross-shell
@@ -481,10 +483,55 @@ issue thread). For
 the remaining batches: build the failing case BEFORE the fix, and prove the
 working path is unchanged after.
 
-**Saturn's round-won badge is open (maintainer, 2026-08-09)** — no win icon under
-her life bar. Her icon palette is already in the donor and already extracted; the
-tiles and the drawing code are not located. Brief:
-`docs/project/saturn/PROJECT.md` § "Open — her round-won badge".
+**SATURN'S ROUND-WON BADGE IS DONE (v0.17.0, 2026-08-09)** — her medallion is
+Super S's own, in her own colours, on both players and every shell.
+`3dee7316…` (hidden, on REF v.2). Brief: `docs/project/saturn/PROJECT.md`
+§ "DONE — her round-won badge"; the game-side mechanism is now in
+`docs/game/annotations.md` § "Round-won badge".
+
+The badge's top-left cell comes from a **ten-entry table at `$C0:E166`**
+(`charID*2`; the code derives the other three cells as `T+1`/`T+$10`/`T+$11`, and
+P2 ORs `#$0400` to move BG3 palette 6 to 7). Id `$1C` read **0x38 past the end,
+into code** — measured, her cells held `1E0A 1E0B 1E1A 1E1B`, pointing at a tile
+past the 512-tile sheet whose CHR happens to be blank. "Nothing" was luck.
+
+⚠ **EIGHT read sites, not two, and six of them are P2 or redraw paths** — so a
+two-site fix would pass the one-round P1 test anyone writes first. The count was
+taken before a line of the fix was written, and a build-time tripwire asserts
+zero surviving reads anywhere in the image. That is traps 5/19 being *paid
+forward* instead of paid for.
+
+⚠ **Her tiles were in the donor all along, stored RAW** — Super S keeps the
+in-match HUD sheet uncompressed at `$E0:D2B8` while SMS compresses it at
+`$E0:21E6`, and **503 of the two sheets' 512 tiles are byte-identical**. Every
+compressed-stream search came back empty for that reason alone. Her medallion
+goes into SMS's own sheet at `$CE`/`$CF`/`$DE`/`$DF` — Super S's own slots, blank
+in SMS. Two previously undocumented systems fell out and are now in `docs/game/`:
+the **in-match asset job table at `$E0:0000`** (6-byte `[src16][srcbank][vram16]
+[flags]`, nothing to do with the `$C3` records) and that sheet.
+
+⚠ **Trap 6 applied and answered:** the job record carries **no length** — the DMA
+is sized by what the decoder wrote — so the builder asserts the re-encoded sheet
+still expands to exactly `0x2000`, and the gate asserts the tiles arrive
+identically on both sides and every shell rather than on the one that was tested.
+
+⚠ **A new compressor was needed and the old one was left alone.**
+`sms_lz.encode` is literals plus one distance-2 RLE trick; it *expanded* the
+sheet from `0xF31` to `0x1B95`, which would have forced a relocation. New
+`encode_lz` (an optimal parse over the format's real back-references) reaches
+`0xF0E` — smaller than the vanilla stream — so the edit stays in place. `encode`
+is deliberately untouched because patch 16 and the movelist call it and their
+hashes are recorded (trap 21); both patch-16 hashes rebuild byte-identical.
+`SATURN_BADGE=0` differs from v0.16.1 by **exactly the two version-string bytes**.
+
+**One pre-existing overlap this drew out — cosmetic, one frame, not open work:**
+patch 10b's left status label occupies `$10E5-$10EC`, and a player's **second**
+round-won badge occupies `$10C4/$10C5/$10E4/$10E5`; they share `$10E5`. But a
+player holds **at most one badge in normal play** — the second round win ends the
+match (best-of-3, or one round in tournament) — so the second badge exists only
+for the deciding-win frame at match end. It can surface only on **v0.22** (the
+one bundle with 10b) with a status label live at that instant; no Saturn build
+carries 10b. Recorded for completeness.
 
 **Open work — patch 16 is the ONLY active item (next session is dedicated to
 it; full brief in `docs/project/NEXT_SESSION.md`). Dormant maintainer options, not

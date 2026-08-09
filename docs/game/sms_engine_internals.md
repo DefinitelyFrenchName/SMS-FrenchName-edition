@@ -178,8 +178,20 @@ palette<<10 | tile`; HUD text uses `0x2C00 | tile` (priority + palette 3).
 - rows 0–2: blank (above the bars — may be off the top of the visible area)
 - rows 3–4: HP bars
 - row 5: character nameplates (e.g. "VENUS" = tiles at cells `$10A2+`) + timer digits
-- row 6: mostly blank; timer bottom at `$10CF/D0`
-- row 7: blank (visible, below nameplates)
+- row 6: timer bottom at `$10CF/D0`; **round-won badges** at cols 2-3 / 4-5 (P1) and 26-27 / 28-29 (P2)
+- row 7: the badges' bottom halves, same columns — **not blank**, whatever a mid-round census says
+
+**The round-won badge.** The medallion under a life bar is a 2x2 BG3 block whose top-left
+cell comes from a **ten-entry table at `$C0:E166`** (index `charID*2`, word =
+`prio<<13 | palette<<10 | tile`); the code derives the other three as `T+1`, `T+$10`,
+`T+$11`. Ids 1-8 are tiles `$0E0`-`$0EE`, **id 9 reuses id 1's** — Chibi Moon wears Moon's
+crescent. P2 ORs `#$0400` after the read, moving BG3 palette 6 to 7, so one entry serves
+both players; the four colours come from the manifest's `+7` pointer, loaded at char load
+into CGRAM shadow `$0530` (P1) / `$0538` (P2).
+⚠ **The table is read from EIGHT sites** — two build the `$0820` descriptor at first draw,
+four write `$2118` directly on the redraw, two rebuild the descriptor at match end. Six of
+the eight are P2 or redraw paths, so anything keyed on charID must patch all eight or it
+will work in exactly the case you test first. Full census: `annotations.md`.
 
 **Resident HUD glyph tiles (CHR at word 0x5000):**
 - **Digits 0–9**: big 2-tall glyphs, tile `0x50+N` (top) / `0x60+N` (bottom). Always present

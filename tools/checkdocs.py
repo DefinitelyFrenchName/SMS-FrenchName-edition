@@ -796,6 +796,67 @@ def _(shift):
             raise Fail(f"row {i} {rows[i]}: the moves are not mutual inverses")
 
 
+# ------------------------------------------------------------------ HUD ---
+@table(name="round-won badge tile words — 10 entries, one per charID",
+       snes=0xC0E166, docs=("annotations.md", "sms_engine_internals.md"),
+       parsed_by="mksaturn_smoke.py")
+def _(shift):
+    says("annotations.md", "**10 entries**, index charID*2",
+         "**id 9 reuses id 1's word**")
+    base = f(0xC0E166) + shift
+    e = [r16(base + i * 2) for i in range(10)]
+    eq("index 0 (charID is never 0)", 0, e[0])
+    # Shape, not plausibility: nine words that are one stride-2 run of tiles in
+    # ONE palette at ONE priority, with id 9 folded back onto id 1. Two bytes
+    # over, the run breaks — which is the whole point of the negative control.
+    for i, w in enumerate(e[1:9], start=1):
+        if w != 0x38E0 + (i - 1) * 2:
+            raise Fail(f"id {i}: {w:#06x} is not $38E0 + {(i - 1) * 2:#x}")
+    eq("id 9 reuses id 1's word (Chibi Moon wears Moon's crescent)", e[1], e[9])
+    for i, w in enumerate(e[1:10], start=1):
+        eq(f"id {i} priority", 1, (w >> 13) & 1)
+        eq(f"id {i} BG3 palette", 6, (w >> 10) & 7)
+    # the badge is 2x2 in a 16-wide sheet, so the eight blocks must tile
+    # $E0-$EF over $F0-$FF exactly, leaving nothing spare
+    eq("tiles used by the eight badges", set(range(0xE0, 0x100)),
+       {t for w in e[1:9] for base_t in (w & 0x3FF,)
+        for t in (base_t, base_t + 1, base_t + 0x10, base_t + 0x11)})
+    # ...and the table ENDS here: $C0:E17A is code, which is exactly why
+    # Saturn's id $1C read garbage instead of a missing entry.
+    if r16(base + 20) == 0x38F0:
+        raise Fail("there is an 11th entry — the table is wider than documented")
+    derived(0xC0E17A)
+
+
+@table(name="in-match asset job table — 6-byte [src16][srcbank][vram16][flags]",
+       snes=0xE00000, docs=("annotations.md", "sms_data_architecture.md"),
+       parsed_by="mksaturn_smoke.py", covers=(0xE021E6,))
+def _(shift):
+    says("annotations.md", "**6-byte entries**")
+    says("sms_data_architecture.md", "[src16][srcbank][vram16][flags]")
+    base = f(0xE00000) + shift
+    rec = [(r16(base + i * 6), r8(base + i * 6 + 2), r16(base + i * 6 + 3),
+            r8(base + i * 6 + 5)) for i in range(3)]
+    for i, (_src, bank, _vram, _fl) in enumerate(rec):
+        if not 0xC0 <= bank <= 0xE7:
+            raise Fail(f"entry {i}: source bank ${bank:02X} is not cartridge")
+    eq("entry 0 destination (BG3 CHR base)", 0x5000, rec[0][2])
+    eq("entry 1 destination (the HUD tilemap)", 0x1000, rec[1][2])
+    eq("entry 0 source", 0xE021E6, (rec[0][1] << 16) | rec[0][0])
+    # and the sheet it names really is a 512-tile sms_lz stream whose free
+    # window is empty IN THE SHEET, not merely empty in VRAM
+    sys.path.insert(0, str(REPO / "tools" / "saturn"))
+    import sms_lz
+    sheet, packed = sms_lz.decompress_ex(ROM, f((rec[0][1] << 16) | rec[0][0]), 0x2000)
+    eq("decompressed HUD sheet", 0x2000, len(sheet))
+    eq("compressed length", 0xF31, packed)
+    for t in range(0xC7, 0xE0):
+        if any(sheet[t * 16:t * 16 + 16]):
+            raise Fail(f"sheet tile ${t:02X} is not blank — the free window is not free")
+    if not all(any(sheet[t * 16:t * 16 + 16]) for t in range(0xE0, 0x100)):
+        raise Fail("a badge tile in $E0-$FF is blank")
+
+
 def _scan_bank_c1(routine, cid):
     """Every `ldy #imm / jsr <routine>` inside charID `cid`'s proc block.
 
