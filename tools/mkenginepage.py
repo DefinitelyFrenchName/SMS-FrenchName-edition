@@ -57,29 +57,25 @@ ROUND = [
     (0xE263, "jsr", 0x9633, 0xC0, "input + camera snapshot",
      "copies $A3/$A5 aside, indexes on joy1 held ($5C)", "unknown"),
     (0xE266, "jsl", 0x0E26, 0xC1, "apply reactions",
-     "consumes the pending-hit code left on +0x47 LAST frame and turns it "
-     "into an act, through the posture x level dispatch $C1:0E85", "combat"),
+     "the code left on +0x47 LAST frame becomes an act", "combat"),
     (0xE26A, "jsl", 0xA05C, 0x80, "animation scripts",
-     "walks each object's act script: duration into +0x06, pose into +0x05", "always"),
+     "duration into +0x06, pose into +0x05", "always"),
     (0xE26E, "jsl", 0x9C96, 0x80, "poses to boxes",
-     "pose record -> class +0x18 and the hit/hurt/coll indices +0x40/41/42 "
-     "(the `sta $41,X` at $C0:9CCD)", "always"),
+     "class +0x18, box indices +0x40/41/42 ($C0:9CCD)", "always"),
     (0xE272, "jsl", 0x2584, 0xC1, "effect pool", "the $1200 object slots", "combat"),
     (0xE276, "jsl", 0x16EE, 0xC1, "projectile pool", "the $1100/$1180 slots", "combat"),
     (0xE27A, "jsl", 0x0000, 0xC1, "object update",
-     "the dispatch — `jsr ($00A6,X)` by object id, into each character's own "
-     "proc block. Hits are detected in here, not out here", "always"),
+     "jsr ($00A6,X) by id — hits are detected in here", "always"),
     (0xE27E, "jsl", 0x9FB8, 0x80, "resolve cels",
-     "pose -> cel records -> the ROM address and size the DMA will stream", "always"),
+     "the ROM address and size the DMA will stream", "always"),
     (0xE282, "jsr", 0x8BCB, 0xC0, "world to screen",
-     "+0x21 - camera $0A00 + 0x2C -> +0x28, the on-screen position", "always"),
+     "+0x21 - camera $0A00 + 0x2C -> +0x28", "always"),
     (0xE285, "jsr", 0x9CE2, 0xC0, "build draw order",
-     "walks the object slots and lists the live ones at $0B00", "always"),
+     "the live object slots, listed at $0B00", "always"),
     (0xE288, "jsl", 0x9A0E, 0x80, "emit sprites",
-     "draw list -> per-pose sprite records -> the OAM shadow at $7E:0200", "always"),
+     "sprite records -> the OAM shadow $7E:0200", "always"),
     (0xE28C, "jsr", 0xD5E8, 0xC0, "HUD producer",
-     "bars and timer into the staging block $0806-$0815. Never runs in "
-     "Practice — hook it and your code is dead in the mode people train in", "combat"),
+     "staging $0806-$0815 — never runs in Practice", "combat"),
     (0xE28F, "jsr", 0xDB35, 0xC0, "round state", "reads $1E3D, sets $71/$1E04", "unknown"),
     (0xE292, "jsr", 0xB321, 0xC0, "stage scroll",
      "`ldx $8E / jmp ($B32B,X)` — one scroll routine per stage", "always"),
@@ -102,11 +98,11 @@ NMI = [
 ]
 NMI_BODY = [
     (0xD4CC, 0x8448, "jsr", "queued transfers"),
-    (0xD4CF, 0x9EF5, "jsl", "OAM + CGRAM shadows -> the PPU"),
+    (0xD4CF, 0x9EF5, "jsl", "OAM + CGRAM -> the PPU"),
     (0xD4D3, 0x8C4D, "jsr", "unidentified"),
     (0xD4D6, 0xD56F, "jsr", "HUD uploader -> VRAM"),
     (0xD4D9, 0xB3D7, "jsr", "unidentified"),
-    (0xD4DC, 0x8353, "jsr", "read the pads -> $5C-$5F held, $60/$62 edges"),
+    (0xD4DC, 0x8353, "jsr", "read the pads"),
 ]
 
 # Call-site censuses: the numbers that say WHERE a thing is called from.
@@ -121,19 +117,19 @@ CENSUS = [(0x80, 0xBFBB, 192, "hit resolution", "called by the characters' procs
 # tools/checkpatchmap.py re-derives from the shipped .bps files. This table only
 # says which stage a patch's hook belongs to, and why.
 PATCH_STAGE = {
-    "1": (0xE27A, "gates 2HP's dash cancel inside Uranus's proc"),
+    "1": (0xE27A, "gates the 2HP dash cancel"),
     "1b": (0xE27A, "the same gate, one frame tighter"),
-    "2": (0xE27A, "clears the lingering untargetable flag in the dash's init"),
+    "2": (0xE27A, "clears the stale invuln flag"),
     "5": (0xE27A, "the dash's X-speed operand"),
-    "6": (0xE26E, "overrides the hurtbox index AFTER the writer sets it"),
-    "7": (0xE26E, "one box-height byte the writer indexes"),
-    "8": (0xE27A, "one byte of the throw-hold script the proc walks"),
-    "9": (0xE27A, "the fireball's box, read during collision"),
-    "10": (0xE28C, "hooks the producer, and the uploader on the NMI side"),
-    "10b": (0xE28C, "same pair, plus the label glyphs"),
-    "11": (0xE25C, "rides the joy_read chain in the NMI"),
-    "12": (0xE25C, "the next link in the same chain"),
-    "13": (0xE27A, "the eight damage-apply sites, inside the procs"),
+    "6": (0xE26E, "overrides the hurtbox index"),
+    "7": (0xE26E, "one box-height byte"),
+    "8": (0xE27A, "one byte of the hold script"),
+    "9": (0xE27A, "the fireball's box"),
+    "10": (0xE28C, "producer here, uploader in the NMI"),
+    "10b": (0xE28C, "the same pair, plus glyphs"),
+    "11": (0xE25C, "rides the joy_read chain"),
+    "12": (0xE25C, "the next link in that chain"),
+    "13": (0xE27A, "the eight damage-apply sites"),
     "14": (0xE27A, "the 7-byte tails of two of them"),
 }
 
@@ -223,13 +219,27 @@ def text_w(s, size, mono=False):
     return w * size
 
 
+CLIPPED = []
+
+
 def clip(s, room, size, mono=False):
-    """Trim to what actually fits, with an ellipsis — never past the box edge."""
+    """Trim to what actually fits — and REPORT it.
+
+    An ellipsis in a diagram is not a design decision, it is the safety net
+    firing: it means a label was written longer than the space it was given, and
+    the reader loses the end of a sentence with no way to know what was there.
+    The trim still happens (an overflowing label is worse), but every one is
+    recorded and the build refuses to finish while any remain, so the fix lands
+    on the STRING or the BOX rather than on the reader.
+    """
     if text_w(s, size, mono) <= room:
         return s
+    full = s
     while s and text_w(s + "…", size, mono) > room:
         s = s[:-1]
-    return (s.rstrip(" ,;-") + "…") if s else ""
+    out = (s.rstrip(" ,;-") + "…") if s else "…"
+    CLIPPED.append((full, room))
+    return out
 
 
 class Fig:
@@ -272,9 +282,9 @@ def fig_frame():
     lane_x = 36
     addr_w = max(text_w(f"{k.upper()} ${b:02X}:{t:04X}", 11, True) for _s, k, t, b, *_ in ROUND)
     name_w = max(text_w(nm, 12.5) for *_x, nm, _nt, _r in ROUND)
-    lane_w = int(26 + max(name_w, 330) + 24 + addr_w + 26)
+    lane_w = int(26 + max(name_w, 330) + 24 + addr_w + 26) + 2
     nmi_label_w = max(text_w(lb, 11.5) for _s, _t, _k, lb in NMI_BODY)
-    nmi_w = int(24 + nmi_label_w + 18 + text_w("$D56F", 11, True) + 24)
+    nmi_w = int(24 + nmi_label_w + 18 + text_w("$D56F", 11, True) + 24) + 4
     nmi_x = lane_x + lane_w + 64
     w = nmi_x + nmi_w + 36
     h = 96 + n * ROW_H + 46
@@ -375,7 +385,7 @@ def fig_hits():
     """Where a hit actually happens — the answer to 'why a frame later'."""
     bw, colgap = 250, 70
     cols = [30, 30 + bw + colgap, 30 + 2 * (bw + colgap)]
-    w, h = cols[2] + bw + 30, 330
+    w, h = cols[2] + bw + 150, 330
     f = Fig(w, h, "Hit resolution is called from inside each character proc, 192 times; "
             "the reaction it causes is applied at the top of the next frame.")
     f.add('<defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" '
@@ -401,7 +411,7 @@ def fig_hits():
         f.add(f'<line class="flow" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" marker-end="url(#ar2)"/>')
     f.place("JSL", cols[0] + bw + 12, 242, "edge", 11, colgap - 16, mono=True)
     f.place("writes", cols[1] + bw + 8, 242, "edge", 11, colgap - 10, mono=True)
-    back = cols[2] + bw - 40
+    back = cols[2] + bw - 30
     f.add(f'<path class="flow next" d="M{back} 220 L{back} 118" marker-end="url(#ar2)"/>')
     f.place("one frame later", back + 10, 170, "edge next", 11, w - back - 18, mono=True)
     return (f.done(),
@@ -422,7 +432,7 @@ def fig_patches():
     for patch, (stage, why) in PATCH_STAGE.items():
         by_stage.setdefault(stage, []).append((patch, why, regions.get(patch, [])))
     rows = [s for s in ROUND if s[0] in by_stage]
-    stage_w, pin_w, pin_h, pin_gap = 300, 300, 22, 5
+    stage_w, pin_w, pin_h, pin_gap = 300, 330, 22, 5
     pin_x = 24 + stage_w + 30
     w = pin_x + 2 * pin_w + 20 + 30
     pitch = []
@@ -679,6 +689,7 @@ if __name__ == "__main__":
     if "--check" in sys.argv:
         problems = check()
         problems += audit(build()) + [f"SELF-TEST: {b}" for b in audit_selftest()]
+        problems += [f"clipped: {t!r} (had {room:.0f}px)" for t, room in CLIPPED]
         for line in problems:
             print("  FAIL ", line)
         if problems:
@@ -688,7 +699,7 @@ if __name__ == "__main__":
               "layout audit clean")
         sys.exit(0)
     page = build()
-    problems = audit(page)
+    problems = audit(page) + [f"clipped: {t!r} (had {room:.0f}px)" for t, room in CLIPPED]
     if problems:
         for line in problems:
             print("  LAYOUT ", line)
