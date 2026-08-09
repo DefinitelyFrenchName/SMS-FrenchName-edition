@@ -479,10 +479,16 @@ CSS_EXTRA = """
 .lane-bg{fill:var(--sunken);stroke:var(--rule)}
 .lane-bg.nmi{fill:var(--gfx);fill-opacity:.07;stroke:var(--gfx);stroke-opacity:.45}
 .stage rect{fill:var(--surface);stroke:var(--rule)}
-.stage .sname{font:600 12.5px/1 ui-sans-serif,system-ui,sans-serif;fill:var(--ink)}
-.stage .snote{font:11px/1 ui-sans-serif,system-ui,sans-serif;fill:var(--ink-3)}
-.stage .saddr{font:600 11px/1 ui-monospace,Menlo,monospace;fill:var(--code)}
-.stage .ssite{font:10.5px/1 ui-monospace,Menlo,monospace;fill:var(--ink-3)}
+/* Text classes carry their own fill at the TOP level, not scoped to a container.
+   `.sname`/`.snote` used to be styled only inside `.stage`, so the same classes
+   inside `.node` fell back to SVG's default fill — black — which is invisible on
+   the dark theme's surface and was only legible by accident in light mode. A
+   token fill also means each theme resolves as a set instead of one hardcoded
+   grey that is wrong in the other. */
+.sname{font:600 12.5px/1 ui-sans-serif,system-ui,sans-serif;fill:var(--ink)}
+.snote{font:11px/1 ui-sans-serif,system-ui,sans-serif;fill:var(--ink-3)}
+.saddr{font:600 11px/1 ui-monospace,Menlo,monospace;fill:var(--code)}
+.ssite{font:10.5px/1 ui-monospace,Menlo,monospace;fill:var(--ink-3)}
 .s-combat rect{stroke:var(--code)}
 .s-unknown rect{fill:var(--sunken);stroke-dasharray:4 3}
 .s-unknown .sname{fill:var(--ink-3);font-style:italic}
@@ -503,11 +509,10 @@ CSS_EXTRA = """
 .pcell.on.s-unknown{fill:var(--ink-3);fill-opacity:.18;stroke:var(--rule)}
 .node rect{fill:var(--surface);stroke:var(--rule)}
 .node.hit rect{stroke:var(--data);fill:var(--data);fill-opacity:.12}
-.node .saddr{font:600 11px/1 ui-monospace,Menlo,monospace;fill:var(--code)}
 .node.hit .saddr{fill:var(--data)}
 .pin rect{fill:var(--data);fill-opacity:.14;stroke:var(--data)}
-.pin .pnum{font:600 11px/1 ui-monospace,Menlo,monospace;fill:var(--data)}
-.pin .pwhy{font:11px/1 ui-sans-serif,system-ui,sans-serif;fill:var(--ink-2)}
+.pnum{font:600 11px/1 ui-monospace,Menlo,monospace;fill:var(--data)}
+.pwhy{font:11px/1 ui-sans-serif,system-ui,sans-serif;fill:var(--ink-2)}
 .asm{background:var(--sunken);border:1px solid var(--rule);border-radius:10px;
   padding:1rem 1.2rem;margin:1.4rem 0;overflow-x:auto}
 .asm table{width:100%;border-collapse:collapse;font:12.5px/1.7 ui-monospace,Menlo,monospace}
@@ -615,6 +620,9 @@ AUDIT_SIZE = {"sname": 12.5, "snote": 11, "saddr": 11, "ssite": 10.5, "lane": 10
 AUDIT_MONO = {"saddr", "ssite", "lane", "edge", "paddr", "pdelta", "pnum"}
 
 
+STYLE = ""  # the stylesheet the audit checks text fills against; set by build()
+
+
 def audit(page):
     """Read back the drawing and refuse to ship one that overlaps or overflows.
 
@@ -648,6 +656,13 @@ def audit(page):
                         and y1 < y2 + h2 - .5 and y2 < y1 + h1 - .5:
                     bad.append(f"figure {fig}: boxes overlap at ({x1:.0f},{y1:.0f}) "
                                f"and ({x2:.0f},{y2:.0f})")
+        for cls in {t.group(1).split()[0] for t in re.finditer(r'<text class="([^"]*)"', body)}:
+            # the class must be styled ON ITS OWN, not only inside some container:
+            # `.s-unknown .sname{fill:…}` is a conditional rule and leaves the
+            # class black everywhere else, which is the bug this catches
+            if not re.search(r"(?:^|[,}])\s*\.%s\s*\{[^{}]*fill:" % re.escape(cls), STYLE, re.M):
+                bad.append(f"figure {fig}: text class {cls!r} has no fill — it will render "
+                           "black, which is invisible on the dark theme's surface")
         for t in re.finditer(r'<text class="([^"]*)" x="([-\d.]+)" y="([-\d.]+)"'
                              r'( text-anchor="end")?>([^<]*)</text>', body):
             cls, x, y, end, txt = (t.group(1), float(t.group(2)), float(t.group(3)),
@@ -682,6 +697,12 @@ def audit_selftest():
         bad.append("the audit no longer notices a box past the viewBox")
     if audit(f'<svg viewBox="0 0 200 60">{box}{fits}</svg>'):
         bad.append("the audit flags a figure that is fine")
+    global STYLE
+    keep, STYLE = STYLE, STYLE.replace(".sname{font:600 12.5px/1 ui-sans-serif,"
+                                       "system-ui,sans-serif;fill:var(--ink)}", "")
+    if not audit(f'<svg viewBox="0 0 200 60">{box}{fits}</svg>'):
+        bad.append("the audit no longer notices a text class with no fill")
+    STYLE = keep
     return bad
 
 
@@ -703,8 +724,10 @@ STANDALONE = """<!doctype html>
 
 
 def build():
+    global STYLE
+    STYLE = mkarchpage.CSS + CSS_EXTRA
     figs = [fig_frame(), fig_phases(), fig_hits(), fig_patches()]
-    out = [f"<style>{mkarchpage.CSS}{CSS_EXTRA}</style>"]
+    out = [f"<style>{STYLE}</style>"]
     out.append('<article>')
     out.append('<p class="eyebrow">Sailor Moon S · Jougai Rantou!? · SFC</p>')
     out.append("<h1>One frame, as the cartridge runs it</h1>")
