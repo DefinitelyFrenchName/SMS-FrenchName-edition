@@ -489,6 +489,7 @@ See HANDOFF.md §4 for the harness.
 - `menutext_check.py` — validate proposed menu/stage strings against the font and
 - `mkarchpage.py` — Render docs/game/sms_data_architecture.md's diagrams as a standalone HTML page.
 - `mkcharmap.py` — Generate one per-character ROM map per fighter, measured from the clean ROM.
+- `mkenginepage.py` — Render the in-match frame — the engine loop — as a standalone HTML page.
 - `mkhalfwidth.py` — build a half-width (8x16) Latin alphabet for patch 16 from
 - `smoke.lua` — smoke test: boot ROM, run 120 frames, read some WRAM, exit with code 42
 - `te_halfwidth.py` — harvest the Tournament Edition's HALF-WIDTH Latin font.

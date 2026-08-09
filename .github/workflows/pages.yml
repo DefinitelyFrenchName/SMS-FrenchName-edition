@@ -19,6 +19,7 @@ on:
     branches: [main]
     paths:
       - "tools/mkarchpage.py"
+      - "tools/mkenginepage.py"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -44,6 +45,10 @@ jobs:
         run: |
           mkdir -p site
           python3 tools/mkarchpage.py --standalone site/index.html
+          # the companion page: one in-match frame, drawn from the disassembly.
+          # Rendering needs no ROM (the call list is baked and --check-gated
+          # where the ROM exists), so it builds on a hosted runner too.
+          python3 tools/mkenginepage.py --standalone site/frame.html
           # Pages serves the artifact verbatim; no Jekyll pass wanted.
           touch site/.nojekyll
       - name: Sanity-check what we are about to publish
@@ -53,7 +58,11 @@ jobs:
           grep -q '<meta charset="utf-8">' site/index.html
           # the katakana in the cartridge-header table must survive the round trip
           grep -q 'ｾｰﾗｰﾑｰﾝ' site/index.html
-          echo "rendered $(wc -c < site/index.html) bytes"
+          test -s site/frame.html
+          grep -q '<!doctype html>' site/frame.html
+          # the frame page is worthless without its addresses: spot-check the loop head
+          grep -q 'C0:E255' site/frame.html
+          echo "rendered $(wc -c < site/index.html) + $(wc -c < site/frame.html) bytes"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

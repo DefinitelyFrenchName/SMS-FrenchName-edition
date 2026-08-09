@@ -819,30 +819,53 @@ which is why editing bank `$8A` changes the game with no hooks at all.
 
 ### B. One frame
 
+Disassembled 2026-08-09, not inferred — the loop is straight-line code and this is
+its call list. Six sibling phase loops share it (`$C0:E21A` entrance, **`$C0:E255`
+the round**, `E2E2`, `E30F`, `E41E`, `E8D3`); a phase differs by which stages it
+leaves out.
+
 ```
-NMI ── joy read $80:8353 ──► $5C-$5F held, $60/$62 press edges
- │                             └─ 30 Hz latch ──► struct +0x50
- │
-main loop
- ├─ JSL $C1:0000  per-object update
- │    └─ state proc walks the action script ──► sets pose, duration, and
- │       $C0:9CCD writes +0x40/41/42 (hit/hurt/coll indices) for every object
- ├─ hit check $C0:BFC0  (boxes read live from bank $8A, DB=$8A)
- │    └─ on hit: on-hit record ──► modifier handlers (0xCAED-0xCD6D)
- │               ──► matrix lookup $80:D055 ──► one of 8 apply sites
- │               ──► reaction dispatch $C1:0E85 (posture × hit level)
- │                    └─ sets pushback/launch velocity, +0x46, and the
- │                       reaction act via $10A9
- ├─ HUD producer $C0:D5E8   computes bars/timer into $0806-$0815
- └─ sprite emitter $C0:9A0E walks the draw order ──► OAM shadow $7E:0200
-NMI ── HUD uploader $C0:D56F flushes staging ──► VRAM
-    └─ OAM + CGRAM shadows DMA'd whole
+NMI  $00:FFEA ─► $C0:FFA6 ─► $80:98DB ─► jmp ($98FD,X)  per game state
+ └─ in match, $C0:D4C9:  queued transfers $8448 · OAM+CGRAM shadows $80:9EF5
+                         · HUD uploader $D56F · pads $8353 ─► $5C-$5F, $60/$62
+                         · sets DP $6C ────────────────────────────┐
+                                                                   │ releases
+main loop $C0:E255, one pass = one frame                           ▼
+ ├─ $80:8386  wait for vblank (spins on DP $6C)
+ ├─ $C0:E071  pause / start          ├─ $C0:9633  input + camera snapshot
+ ├─ $C1:0E26  APPLY REACTIONS  ── the pending code left on +0x47 LAST frame,
+ │             through the posture x level dispatch $C1:0E85 ─► an act
+ ├─ $80:A05C  animation scripts ─► duration +0x06, pose +0x05
+ ├─ $80:9C96  poses ─► boxes    ─► class +0x18, indices +0x40/41/42 ($C0:9CCD)
+ ├─ $C1:2584  effect pool ($1200)     ├─ $C1:16EE  projectile pool ($1100/$1180)
+ ├─ $C1:0000  OBJECT UPDATE ── jsr ($00A6,X) by id ─► each character's proc,
+ │             and it is IN THERE that hits are detected (below)
+ ├─ $80:9FB8  resolve cels      ├─ $C0:8BCB  world ─► screen (+0x28)
+ ├─ $C0:9CE2  build the draw list at $0B00
+ ├─ $80:9A0E  emit sprites ─► OAM shadow $7E:0200
+ ├─ $C0:D5E8  HUD producer ─► staging $0806-$0815   (never runs in Practice)
+ ├─ $C0:DB35  round state   ├─ $C0:B321  stage scroll (jmp ($B32B,X) on $8E)
+ ├─ $C0:8CAF  ─  ├─ $C0:8BF9  advance the RNG (DP $90)
+ └─ bra $E255
 ```
 
-Two things to know before hooking anything here. **The HUD producer never runs in
+⚠ **Hit resolution is not a stage of the loop.** `$80:BFBB` (whose body is the
+`$C0:BFC0` this doc used to call the hit check) has **192 call sites and every one
+of them is in bank `$C1`** — the characters' own procs call it while they run,
+inside stage 9. The same holds for projectile collision `$80:C352` (22 sites) and
+push `$80:C745` (1, from the update's head). That is the mechanism behind the two
+things everyone trips over: an attack is resolved by the attacker's code, and the
+victim's reaction is applied at the TOP OF THE NEXT PASS, one frame later. The
+damage the hit does is subtracted at one of the **8 apply sites** (§9), which are
+inside that same stage for the same reason.
+
+Two more things to know before hooking here. **The HUD producer never runs in
 Practice mode** — hook it and your code is dead in the mode people train in. And
 **attacks are not processed on an action's step 0**, so the engine's effective
 timing is one frame later than the action's start.
+
+A drawn version, generated from the same disassembly:
+`tools/mkenginepage.py`.
 
 ### C. Building a menu screen
 

@@ -75,6 +75,20 @@ and findings made in this project (marked NEW, with evidence).
 - $C1:0000 per-frame object update (state procs ≈ $C1:122A, $C1:15BD).
 - $C0:879B char load; manifest ptrs $E0:0238+id*2; $C0:916B copies/expands one payload to $7E:6A00.
 
+## The frame loop (NEW 2026-08-09, disassembled with tools/Dispel)
+
+| Address | Label | Comment |
+|---|---|---|
+| $C0:E255 | **round_frame_loop** | the in-match frame: waits on the NMI, then 16 calls, then `bra $E255`. Five siblings for the other match phases ($C0:E21A entrance, E2E2, E30F, E41E, E8D3) run the same stage list minus the combat stages. Drawn: `tools/mkenginepage.py` |
+| $C0:D4C9 | **nmi_body_match** | the in-match NMI handler: queued transfers $8448, OAM+CGRAM $80:9EF5, HUD uploader $D56F, pads $8353. Reached from the vector $00:FFEA → $C0:FFA6 → `jmp $80:98DB` → `jmp ($98FD,X)` (one handler per game state) |
+| $C0:8386 | **wait_vblank** | `stz $6C / lda $6C / beq -` — the frame gate every phase loop opens with; the NMI writes $6C |
+| $80:BFBB | **hit_resolve (entry)** | `phb / rep #$10 / sep #$20` then falls into the documented $C0:BFC0. **192 call sites, all in bank $C1** — an attack is resolved by the ATTACKER's proc, not by the frame loop |
+| $C0:8BCB | world_to_screen | `+0x21 − camera $0A00 + 0x2C → +0x28` (and Y), per object |
+| $C0:9CE2 | build_draw_list | walks the object slots and writes the live ones to $0B00 — the list the emitter reads |
+| $C0:8BF9 | rng_advance | stirs DP $90 once per frame, last stage of the loop; the byte the ochame roll reads |
+| $C0:B321 | stage_scroll_dispatch | `jsr $B33F / ldx $8E / jmp ($B32B,X)` — the per-stage scroll routines ($C0:B40A/B42F/B454) hang off this table |
+| $C0:9633 / $C0:DB35 / $C0:8CAF | **unidentified** | three loop stages nobody has named: $9633 copies $A3/$A5 aside and indexes on joy1 held, $DB35 reads $1E3D and writes $71/$1E04, $8CAF reads flag $B1 bit 1 |
+
 ## Harness notes (Mesen2 2.1.1, macOS arm64, testrunner mode)
 - `Mesen --testrunner --timeout=N <rom> <script.lua> [--debug.scriptWindow.allowIoOsAccess=true] [--snes.port1.type=SnesController --snes.port2.type=SnesController]`
   Config switches use reflection over the C# Configuration tree (case-insensitive).
@@ -398,7 +412,7 @@ Tools: tools/techsweep.lua (window/threshold measurement), tools/techfind.lua (i
 | Address | Label | Comment |
 |---|---|---|
 | $C0:D5E8 (file 0x00D5E8) | hud_producer | main-loop HUD tick, **scanline 101, once/frame (0 misses/200f)**: animates displayed HP $0800/$0801 toward struct HP $1049/$10C9, computes bar+timer tiles into WRAM staging $0806-$0815, decrements timer $0802. First bytes `C2 10 E2 20` (rep#$10;sep#$20). |
-| $C0:D56F (file 0x00D56F) | hud_uploader | **NMI/vblank, scanline 237**, called via JSL from NMI ($E0:D4xx): flushes staging entries ($0806/$080A/$080E, each = VRAM addr + tiles) to VRAM port $2116/$2118, zeroes the addr after. First bytes `C2 30 AD 06 08` (rep#$30;lda $0806). |
+| $C0:D56F (file 0x00D56F) | hud_uploader | **NMI/vblank, scanline 237**: flushes staging entries ($0806/$080A/$080E, each = VRAM addr + tiles) to VRAM port $2116/$2118, zeroes the addr after. First bytes `C2 30 AD 06 08` (rep#$30;lda $0806). Its only caller is `jsr $D56F` at **$C0:D4D6**, inside the in-match NMI body (frame-loop table below) — the old note said "JSL from $E0:D4xx", wrong bank and wrong opcode; corrected 2026-08-09. |
 | $7E:0800 / $0801 | disp_hp_p1/p2 | displayed HP (drains toward struct HP); written only by hud_producer $C0:D5FD/$D643 |
 | $7E:0802 | timer_bcd | round timer; decremented at $C0:D68D |
 | $7E:0806-$0815 | hud_stage | staging: $0806/$0808 P1-bar (addr,tile), $080A/$080C P2-bar, $080E-$0815 timer (2 digits × top/bottom) |

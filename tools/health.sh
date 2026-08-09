@@ -51,6 +51,9 @@ else printf '%s\n' "$out" | sed 's/^/    /'; bad "checktrainingdocs: the trainin
 # this file exists to prevent — a check that cannot run must SKIP, never fail.
 if python3 -c 'import os,sys;sys.path.insert(0,"tools");from smspaths import clean_rom;sys.exit(0 if os.path.exists(clean_rom()) else 1)' >/dev/null 2>&1; then
   if out="$(python3 tools/mkcharmap.py --check 2>&1)"; then ok "$out"; else bad "mkcharmap: $out"; fi
+  # the engine page draws instructions by address; --check re-reads every one of
+  # them, so a stage that moves cannot stay on the diagram.
+  if out="$(python3 tools/mkenginepage.py --check 2>&1)"; then ok "$out"; else bad "mkenginepage: $out"; fi
   # match on the count, not on "ALL PASS": the tool colourises, so an ANSI escape
   # sits between the words and the parenthesis and a naive pattern never matches.
   if cd_out="$(python3 tools/checkdocs.py 2>&1)"; then
