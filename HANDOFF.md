@@ -22,7 +22,37 @@ ported from Super S and is playable in the **Rev. SS** builds only (§0).
 
 ---
 
-## 0. Current state (2026-08-08) — SMS + Saturn = PATCH 100, and the issue backlog
+## 0. Current state (2026-08-09) — SMS + Saturn = PATCH 100, and the issue backlog
+
+**2026-08-09 (session close) — TWO NEW GAME DOCS, A DRAWN FRAME, AND THE PIPELINE
+WRITTEN DOWN.** Four things landed after the checking programme below:
+
+* **`docs/game/sms_sound_system.md`** — the audio path end to end, game-side and
+  re-measured: the IPL upload (`$C0:EBD4`/`$C0:EC5E`, a **40-record** block table
+  at `$C0:ECE7` whose ids 22-30 are the nine character-select voices), the SPC
+  driver — which is **stored in ROM at `ARAM + 0x23F804`**, so its tables are
+  ordinary ROM addresses — the sfx table (**95** usable ids), and the pitch
+  pipeline. ⚠ **Pitch is per-sound and character-specific**: voices are
+  instruments `≥ $30`, which skip the instrument record entirely (SRCN = the
+  byte, ADSR and tuning hardcoded), so the only pitch control is a **signed
+  transpose byte in each sound's own sequence** — the roster spans −6..+4
+  semitones and no two fighters share a set. The doc carries the full census and
+  `checkdocs` re-derives every cell of it. Three older numbers were corrected on
+  the way (22→40 records, 94→95 ids, and "36 blocks" was counting IPL chunks).
+* **A drawn frame page** (`tools/mkenginepage.py`, published at `/frame.html`) —
+  see the entry below; its finding, that **hit resolution is not a stage of the
+  loop**, corrected `sms_data_architecture.md` §10B.
+* **`docs/project/how_patches_are_built.md`** — the build pipeline explained,
+  because it was my tooling and documented nowhere. The correction it exists to
+  make: a builder writes a COMPLETE patched `.sfc` and **flips DIFFS** it against
+  clean to make the `.bps` — it never injects. Its worked example (patch 12's
+  hook, stub, bank and hash) is re-derived by `checkpatchmap.py`.
+* **Saturn's round-won badge is now recorded as open work** (below).
+
+Checkers at session close: **`checkdocs` 83**, `checkpatchmap` (19 patches + 48
+hash claims + the pipeline example), `checkknobs` 15, `checktrainingdocs` 11,
+`saturn/checksaturndocs` 17. All in `health.sh`, all negative-controlled.
+
 
 **2026-08-08 (later) — THE DOC CHECKS ARE NOW GENERATED, AND FIVE MORE ROM FACTS
 WERE WRONG.** `checkdocs` went from 31 hand-written checks to **76**, because

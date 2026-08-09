@@ -1,4 +1,4 @@
-# Next-session handoff — 2026-08-08 (session close)
+# Next-session handoff — 2026-08-09 (session close)
 
 **Read this, then `../game/README.md` if the work is about the ROM, or
 `patch_index.md` if it is about a patch.** Everything below is current; the
@@ -43,6 +43,37 @@ sections further down are this session's detail.
    disassembler and check that each documented address is an instruction
    boundary something actually calls. `tools/checkdocs.py --uncovered` prints
    the list.
+
+## What changed this session (2026-08-09)
+
+Four things, all documentation and checking — **no ROM artifact moved**, and the
+one builder edited (a comment in `mkpatch16.py`) rebuilds byte-identically.
+
+* **`docs/game/sms_sound_system.md`** — the audio system, game-side, re-measured.
+  The APU upload, the SPC driver (**stored in ROM at `ARAM + 0x23F804`**, which is
+  what makes any of it checkable), the sfx table, and the pitch pipeline. The
+  headline: **voices are instruments `≥ $30`**, which skip the instrument record
+  entirely, so the only pitch control is a **signed transpose byte per sound** —
+  character-specific, −6..+4 across the roster, full census in the doc and every
+  cell of it re-derived by `checkdocs`. Corrected three carried-forward numbers:
+  the block table has **40** records (not 22), there are **95** usable sfx ids
+  (not 94), and "36 blocks in bank `$E7`" was counting IPL chunks, not records.
+* **A drawn frame page** — `tools/mkenginepage.py`, published at `/frame.html`,
+  and the disassembly behind it corrected `sms_data_architecture.md` §10B: the
+  loop is `$C0:E255`, and **hit resolution is not one of its stages** (192 call
+  sites, all in bank `$C1` — the attacker's own proc calls it, which is why a
+  reaction lands a frame later). Seven routines gained names; three stages are
+  recorded as unidentified.
+* **`docs/project/how_patches_are_built.md`** — the pipeline, end to end, with a
+  worked example that `checkpatchmap.py` re-derives from the shipped patch.
+* **Saturn's round-won badge** recorded as open work (above).
+
+Two page-craft lessons worth keeping, both from the frame page: **SVG text
+neither wraps nor shrinks**, so the generator now measures every string and
+refuses to emit a figure that overlaps, overflows or silently ellipsises; and **a
+text class styled only inside a container renders black elsewhere**, which is
+invisible on the dark theme — the audit now requires every text class to be
+styled on its own.
 
 ## What changed this session (2026-08-08, later — the generated checks)
 
