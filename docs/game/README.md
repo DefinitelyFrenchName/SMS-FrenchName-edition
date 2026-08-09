@@ -30,8 +30,7 @@ rather than described — is published at
 | **the addresses for ONE character** | [`characters/`](characters/) — a generated page per fighter: manifest, palettes, box tables, animation layers, proc block, throws, voice ids |
 
 `te_halfwidth.json` holds the half-width Latin font extracted from the Big Zam
-**Tournament Edition** ROM, kept as reference; `sailormoon_colors_psa_web.pdf` is
-an external colour reference.
+**Tournament Edition** ROM, kept as reference.
 
 ## The house rules these were written under
 

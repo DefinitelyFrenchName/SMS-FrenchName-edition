@@ -1269,6 +1269,11 @@ vendor/   sms-training-mode (RAM map + palette patcher)
   unexposed (those scripts toss with no mash sampling — inferred, not measured). Fixing
   it needs a maintainer ruling first: should a teched command grab be scaled at all?
   Detail: `docs/project/patch_notes.md` § Patch 14.
+- **The A.C.S. screen's POINT BUDGET was never censused** — how many points the
+  customization screen hands out, and what it lets you spend them on. Everything else
+  about the system is measured (`docs/game/sms_acs_system.md`); this one line of it is
+  not. Recorded here 2026-08-09 because the game doc's resolved-unknowns section was
+  trimmed and this was the only open item hiding in it.
 - **Dash distance** (patch 5): maintainer said −1/3 "feels much better" but *may* retune later.
   One flag: `mkpatch5.py --speed`. Infinite is unaffected by dash speed (dash stops on contact).
 - **Patch 6 (dash i-frames)**, **patch 7 (Pluto 5HP)** and **patch 8 (Venus throw tech)** are

@@ -8,11 +8,11 @@ system without re-deriving anything. Clean-ROM SHA-1 `bc0e29ee383574443226695215
 file offset = SNES address & 0x3FFFFF (HiROM).
 
 **Provenance.** Probe-verified on this exact game (2026-07-17/18 sessions; probe scripts
-listed in §9). The stat *names* come from the vendor Super-S Lua (commented-out reads,
+listed in §8). The stat *names* come from the vendor Super-S Lua (commented-out reads,
 `vendor/sms-training-mode/SailorMoonS.lua:1650-55`); every *effect* below was measured
 here. An earlier note ("ACS stats show no damage-time effect", patch-13 phase-1) was
 **wrong** — that sweep was drowned by the damage variance; the identical-roll methodology
-(§8) shows real effects and supersedes it.
+(§7) shows real effects and supersedes it.
 
 ---
 
@@ -31,7 +31,10 @@ Six bytes per fighter inside the 0x80-byte player struct (P1 `$7E:1000`, P2 `$7E
 
 - All six are **0 in every normal mode** (VS, Practice, story vs-COM as observed) — 0 is
   the baseline, not "off". They are presumably populated by the A.C.S. customization
-  screen (its menu location / mode value is still unmapped, §7).
+  screen, which is reached with **SELECT on the VS button-config screen** — the per-mode
+  dispatcher `$C3:BB60` (`jsr ($BB6D,x)` on `$8D`, at `$C3:BB69`) sets menu state `$05`,
+  and that state has exactly two writers ROM-wide. Its **point budget is still
+  uncensused**.
 - **⚠ Column-wrap hazard:** the column math is `(modifier+8) & 15` with **no clamp**
   (`and #$000F` at $80:D062). Defense 7 applied to a hit already rolling a weak column
   (≥9) pushes `mod+8` past 15 and WRAPS to the strong end: a heavy normal measured
@@ -119,7 +122,7 @@ Guts nerf compose multiplicatively.
 
 ## 3. Measured effects — the data
 
-Identical-roll methodology (§8): each sample reloads the same savestate and lands the
+Identical-roll methodology (§7): each sample reloads the same savestate and lands the
 same move at the same frame, so the RNG roll is identical and deltas are pure stat
 effect. State `neptune_vs_jupiter.mss` (Neptune P1); jab base roll = **2**, 214LP
 fireball base roll = **8**.
@@ -154,7 +157,7 @@ as out-of-range, consistent with 4-bit column wrap.)
   EXECUTES from bank $80 ($80:D055; matrix read at $80:D07B) — exec-watch $80:D055,
   not $C0:D055.
 
-## 4b. Where ACS selections LIVE (the screen question, solved 2026-07-19)
+## 4b. Where ACS selections LIVE
 
 The customization screen stores selections in WRAM staging blocks that the char
 loaders copy into the fighter structs at match start:
@@ -174,7 +177,7 @@ pipeline — including max HP.** Bonus decode: projectile spawns copy the caster
 +0x70/+0x73 into the slot struct ($C1:0BC0-0BDB), which is how projectiles carry
 ACS scaling.
 
-## 5. The ochame / misfire system (fully reverse-engineered)
+## 5. The ochame / misfire system (reverse-engineered)
 
 **Trigger point:** the special-move dispatcher `$C1:0B49` (file 0x10B49) runs for every
 *recognized* special, X = fighter struct, Y = the special's 7-byte record (bank $C1,
@@ -401,44 +404,7 @@ so ACS defense and the Guts patch scale it like any matrix hit.
   never block Mars (32 either way — dodge/jump instead); Pluto must be avoided by
   position or interrupt, but blocking costs only 1.
 
-## 7. Open unknowns (probe before relying on)
-
-1. ~~Where the ACS screen lives~~ — **MAPPED by patch 18** (2026-08-05): it is opened
-   with **SELECT on the VS button-config screen**, through the per-mode dispatcher
-   `$C3:BB60` (`jsr ($BB6D,x)` on `$8D`, at `$C3:BB69`) which sets menu state `$05`; that state has
-   exactly two writers ROM-wide. Reachable in 2P VS, vs-COM and story — patch 18 closes
-   the 2P VS door only. Its wheel labels are translated by patch 16 (`SMS_P16_ACS`).
-   Still uncensused: the screen's **point budget**.
-2. ~~+0x74 buff_secret~~ — **RESOLVED**: boosts desperation damage (strike component
-   only). Desperation motions provided by the maintainer (numpad, HP=X HK=A):
-   Moon 2363214HK · Mercury 632146HK · Mars 6321412HK · Jupiter 2141236HP ·
-   Venus 4123632HP · Uranus 632141236HK · Neptune 6236236HP · Pluto 632146HP ·
-   Chibi j.63214HP. Gate: performer HP ≤ 0x18 **or <10 s on the clock** (per the
-   maintainer; the HP path is verified — poke struct hp AND display `$0800`).
-   **Desperation anatomy (Pluto traced end-to-end):** attack-class +0x44 = 0x18
-   (≥0x12 ✓); a *cinematic grab*: initial strike hit through the normal apply sites,
-   then victim act 0x1C (HELD) drained 3-4 HP per ~12 frames through the hold-throw
-   tick site `$C1:0D54-0D6F` (write ≈ $C1:0D61; per-tick damage in DP $05, mode-4
-   gated, hp-underflow death path at $C1:0D63) — ~48 of ~51 total damage is drain.
-   Patch 13 v3.1 hooks the tick site with a holder-class ≥0x12 gate (normal
-   Moon/Mars/Chibi hold-throws pass through untouched, verified byte-identical).
-   **All 9 desperations are now typed and measured — see §6b** (incl. stand-vs-crouch
-   damage). Desperation record question CLOSED: the dispatcher is the projectile
-   system — only the four projectile-component desperations have records; the five
-   strike/grab ones verifiably fire none. Corollary for ochame: **only projectile
-   specials can misfire** (misfire acts live in projectile records). Remaining
-   sub-question: the <10 s clock trigger path is untested for everyone.
-3. ~~+0x72 buff_health~~ — SOLVED (max-HP formula, §1/§4b). Original text:
-   **+0x72 buff_health** — needs testing at character load, not mid-match.
-4. ~~+0x76~~ — **SOLVED, and not ACS**: it is the per-entity update-vector selector (§1).
-5. ~~The exact modifier-composition code~~ — **RESOLVED**: 11 handlers at file
-   `0xCAED-0xCD6D`, fully disassembled in `sms_damage_system.md` §3 (and there is no RNG
-   in the composition; the matrix READ is `$80:D07B`).
-6. ~~+0x48 first_hit_defense~~ — **RESOLVED** (§1): manifest-loaded, worth +1 column
-   until the defender's first hit, cleared by the 16-bit `stz $47,X` at `$C1:0E4F`. It
-   is the source of every historical "damage variance" reading.
-
-## 8. Methodology (reuse this)
+## 7. Methodology for consistency in analysis and tests
 
 **Identical-roll sampling:** the damage variance is deterministic from reset given fixed
 input timing. To isolate a variable: reload the same savestate per sample, poke the
@@ -447,7 +413,7 @@ any damage delta is the variable's effect. Naive sweeps without reloads (differe
 = different rolls) produce noise that can hide effects entirely — this is exactly the
 error that produced the earlier wrong "stats are inert" conclusion.
 
-## 9. Tooling index
+## 8. Tooling index
 
 - `tools/probe_p13d_stats.lua` (+`_cfg`) — the controlled stat sweeper (MEASURES list).
 - `tools/probe_p13b_acs.lua` — the first (uncontrolled) specials sweep; superseded.
