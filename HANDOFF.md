@@ -138,7 +138,12 @@ It found one error on its first run — **mine, in the check, not in the docs**.
 Two other generated things joined the same discipline: `tools/mkcharmap.py`
 (`--check`) and the GitHub Pages workflow, which renders
 `tools/mkarchpage.py` on every push rather than committing a built page
-(<https://definitelyfrenchname.github.io/SMS-FrenchName-edition/>).
+(<https://definitelyfrenchname.github.io/SMS-FrenchName-edition/>). **A second
+page joined it 2026-08-09** — `tools/mkenginepage.py` at `/frame.html`, one
+in-match frame disassembled stage by stage with every patch pinned to the stage
+it hooks; it is linked from `docs/game/README.md`, the quickref card,
+`sms_engine_internals.md` §3 and `sms_data_architecture.md` §10B, because a page
+nothing links to is a page nobody finds.
 
 ⚠ **Six documented ROM facts were wrong and are corrected** (all re-verified by
 hand, then locked by `checkdocs`): the asset job table is **74 records** across

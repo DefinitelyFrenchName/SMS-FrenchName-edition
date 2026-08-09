@@ -71,6 +71,7 @@ tiles `$5C0-$5FF` on a menu · CGRAM OBJ row 7 · **ARAM: none**.
 
 | Question | Document |
 |---|---|
+| what happens in one frame | [`sms_data_architecture.md` §10B](sms_data_architecture.md) — or [drawn](https://definitelyfrenchname.github.io/SMS-FrenchName-edition/frame.html) |
 | where data lives, what shape it is | [`sms_data_architecture.md`](sms_data_architecture.md) |
 | how a subsystem behaves and why | [`sms_engine_internals.md`](sms_engine_internals.md) |
 | the exact address of anything | [`annotations.md`](annotations.md) |

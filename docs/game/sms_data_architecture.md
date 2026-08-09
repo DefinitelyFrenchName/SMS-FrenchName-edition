@@ -864,8 +864,8 @@ Practice mode** — hook it and your code is dead in the mode people train in. A
 **attacks are not processed on an action's step 0**, so the engine's effective
 timing is one frame later than the action's start.
 
-A drawn version, generated from the same disassembly:
-`tools/mkenginepage.py`.
+A drawn version of everything above, generated from the same disassembly:
+<https://definitelyfrenchname.github.io/SMS-FrenchName-edition/frame.html> (`tools/mkenginepage.py`).
 
 ### C. Building a menu screen
 

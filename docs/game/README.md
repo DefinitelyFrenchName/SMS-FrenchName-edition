@@ -10,9 +10,14 @@ Ground truth for every file here: clean Japanese ROM, SHA-1
 `bc0e29ee383574443226695215496eb0d09aaa1c`, HiROM + FastROM, headerless, and the
 one rule the whole map hangs on — **file offset = SNES address & 0x3FFFFF**.
 
-A rendered version of `sms_data_architecture.md` — with the memory maps drawn
-rather than described — is published at
-[definitelyfrenchname.github.io/SMS-FrenchName-edition](https://definitelyfrenchname.github.io/SMS-FrenchName-edition/).
+Two of these documents are also published as drawn pages:
+
+* **[the data architecture](https://definitelyfrenchname.github.io/SMS-FrenchName-edition/)**
+  — `sms_data_architecture.md` with the memory maps drawn rather than described.
+* **[one frame, as the cartridge runs it](https://definitelyfrenchname.github.io/SMS-FrenchName-edition/frame.html)** — the in-match loop
+  `$C0:E255` stage by stage, the NMI that releases it, where a hit is actually
+  resolved, and the stage each patch hooks. The text version is
+  `sms_data_architecture.md` §10B and `sms_engine_internals.md` §3.
 
 ## Where to start
 

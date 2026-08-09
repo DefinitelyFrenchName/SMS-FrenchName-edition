@@ -44,11 +44,15 @@ combination — see the warning in the release notes about chaining them.
 
 Setting up (what the repo does not ship, and where to get it): [docs/project/toolchain.md](docs/project/toolchain.md) — then run `tools/health.sh`.
 
-**The game's data architecture is readable in a browser:**
-[definitelyfrenchname.github.io/SMS-FrenchName-edition](https://definitelyfrenchname.github.io/SMS-FrenchName-edition/)
-— memory maps, the object struct byte by byte, and the record formats the engine
-walks. Generated from `tools/mkarchpage.py`; the same material as text is in
-[docs/game/sms_data_architecture.md](docs/game/sms_data_architecture.md).
+**Two of the game docs are readable in a browser, drawn:**
+
+* [the data architecture](https://definitelyfrenchname.github.io/SMS-FrenchName-edition/)
+  — memory maps, the object struct byte by byte, and the record formats the engine
+  walks (`tools/mkarchpage.py`; as text,
+  [docs/game/sms_data_architecture.md](docs/game/sms_data_architecture.md)).
+* [one frame, as the cartridge runs it](https://definitelyfrenchname.github.io/SMS-FrenchName-edition/frame.html) — the in-match loop
+  disassembled stage by stage, and every patch pinned to the stage it changes
+  (`tools/mkenginepage.py`; as text, that file's §10B).
 
 Docs come in two halves: **[docs/game/](docs/game/)** is analysis of the
 **original ROM** — useful to anyone hacking this game, whatever they think of
