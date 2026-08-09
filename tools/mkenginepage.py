@@ -192,7 +192,72 @@ def patch_regions():
 
 
 # ------------------------------------------------------------------ drawing --
-ROW_H, PAD_X = 46, 18
+# SVG text neither wraps nor shrinks: a label that is too long simply runs out of
+# its box and over whatever is next to it. Both formatting bugs in the first cut
+# of this page were that — an NMI label past the end of its pill, and patch pins
+# stacked into the row below. So nothing here is eyeballed: every string is
+# measured, boxes are sized or strings clipped to fit, row pitch is computed from
+# the tallest row's contents, and `place()` ASSERTS containment at build time.
+ROW_H = 46
+
+# Per-character advance as a fraction of the font size. Monospace is exact
+# (Menlo/SF Mono are 0.60em); the sans figures are a deliberate over-estimate, so
+# the check errs toward clipping a label rather than letting one overflow.
+NARROW = set("ijltfrI.,:;'|!()[]{} ")
+WIDE = set("mwMW@")
+
+
+def text_w(s, size, mono=False):
+    if mono:
+        return len(s) * size * 0.60
+    w = 0.0
+    for ch in s:
+        if ch in NARROW:
+            w += 0.34
+        elif ch in WIDE:
+            w += 0.92
+        elif ch.isupper() or ch.isdigit() or ch == "$":
+            w += 0.66
+        else:
+            w += 0.55
+    return w * size
+
+
+def clip(s, room, size, mono=False):
+    """Trim to what actually fits, with an ellipsis — never past the box edge."""
+    if text_w(s, size, mono) <= room:
+        return s
+    while s and text_w(s + "…", size, mono) > room:
+        s = s[:-1]
+    return (s.rstrip(" ,;-") + "…") if s else ""
+
+
+class Fig:
+    """Collects the SVG and refuses to hand back a drawing whose text escapes a
+    box. `place` takes the room available; if a caller passes room the parent
+    rect does not have, that is the caller's bug and it fails loudly here."""
+
+    def __init__(self, w, h, label):
+        self.w, self.h, self.label, self.bad = w, h, label, []
+        self.p = [f'<svg viewBox="0 0 {w} {h}" role="img" aria-label="{esc(label)}">']
+
+    def add(self, markup):
+        self.p.append(markup)
+
+    def place(self, s, x, y, cls, size, room, mono=False, anchor="start"):
+        s = clip(s, room, size, mono)
+        w = text_w(s, size, mono)
+        left = x if anchor == "start" else x - w
+        if left < -1 or left + w > self.w + 1:
+            self.bad.append(f"{self.label[:28]}: {s!r} runs outside the viewBox")
+        a = ' text-anchor="end"' if anchor == "end" else ""
+        self.p.append(f'<text class="{cls}" x="{x}" y="{y}"{a}>{esc(s)}</text>')
+        return w
+
+    def done(self):
+        if self.bad:
+            raise SystemExit("layout: " + "; ".join(self.bad))
+        return "".join(self.p) + "</svg>"
 
 
 def esc(s):
@@ -201,86 +266,103 @@ def esc(s):
 
 def fig_frame():
     """The spine: the loop's stages as a ladder, the NMI beside it, and the one
-    handshake that ties them together."""
+    handshake that ties them together. Column widths are derived from the widest
+    string that has to sit in them."""
     n = len(ROUND)
-    h = 96 + n * ROW_H + 40
-    w = 980
-    lane_x, lane_w = 36, 560
-    nmi_x, nmi_w = 660, 284
-    p = [f'<svg viewBox="0 0 {w} {h}" role="img" aria-label="One in-match frame: '
-         f'the main loop at $C0:E255 runs {n} stages, the NMI at $C0:D4C9 runs six, '
-         'and the loop waits on DP $6C for it.">']
-    p.append('<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" '
-             'markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/>'
-             '</marker></defs>')
-    p.append(f'<text class="lane" x="{lane_x}" y="26">MAIN LOOP · $C0:E255 · one pass = one frame</text>')
-    p.append(f'<text class="lane" x="{nmi_x}" y="26">NMI · $C0:D4C9</text>')
-    p.append(f'<rect class="lane-bg" x="{lane_x}" y="40" width="{lane_w}" height="{n * ROW_H + 20}" rx="10"/>')
-    p.append(f'<rect class="lane-bg nmi" x="{nmi_x}" y="40" width="{nmi_w}" '
-             f'height="{len(NMI_BODY) * 34 + 30}" rx="10"/>')
+    lane_x = 36
+    addr_w = max(text_w(f"{k.upper()} ${b:02X}:{t:04X}", 11, True) for _s, k, t, b, *_ in ROUND)
+    name_w = max(text_w(nm, 12.5) for *_x, nm, _nt, _r in ROUND)
+    lane_w = int(26 + max(name_w, 330) + 24 + addr_w + 26)
+    nmi_label_w = max(text_w(lb, 11.5) for _s, _t, _k, lb in NMI_BODY)
+    nmi_w = int(24 + nmi_label_w + 18 + text_w("$D56F", 11, True) + 24)
+    nmi_x = lane_x + lane_w + 64
+    w = nmi_x + nmi_w + 36
+    h = 96 + n * ROW_H + 46
+    f = Fig(w, h, f"One in-match frame: the main loop at $C0:E255 runs {n} stages, "
+            "the NMI at $C0:D4C9 runs six, and the loop waits on DP $6C for it.")
+    f.add('<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" '
+          'markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/>'
+          '</marker></defs>')
+    f.place("MAIN LOOP · $C0:E255 · one pass = one frame", lane_x, 26, "lane", 10.5, lane_w)
+    f.place("NMI · $C0:D4C9", nmi_x, 26, "lane", 10.5, nmi_w)
+    f.add(f'<rect class="lane-bg" x="{lane_x}" y="40" width="{lane_w}" height="{n * ROW_H + 20}" rx="10"/>')
+    f.add(f'<rect class="lane-bg nmi" x="{nmi_x}" y="40" width="{nmi_w}" '
+          f'height="{len(NMI_BODY) * 34 + 30}" rx="10"/>')
 
+    box_x, box_w = lane_x + 12, lane_w - 24
+    txt_room = box_w - 28 - addr_w - 24            # what is left beside the addresses
     for i, (site, kind, target, bank, name, note, role) in enumerate(ROUND):
         y = 58 + i * ROW_H
-        p.append(f'<g class="stage r-{role}">')
-        p.append(f'<rect x="{lane_x + 12}" y="{y}" width="{lane_w - 24}" height="{ROW_H - 10}" rx="6"/>')
-        p.append(f'<text class="sname" x="{lane_x + 26}" y="{y + 17}">{esc(name)}</text>')
-        p.append(f'<text class="snote" x="{lane_x + 26}" y="{y + 31}">{esc(note[:76])}</text>')
-        p.append(f'<text class="saddr" x="{lane_x + lane_w - 36}" y="{y + 17}" text-anchor="end">'
-                 f'{kind.upper()} ${bank:02X}:{target:04X}</text>')
-        p.append(f'<text class="ssite" x="{lane_x + lane_w - 36}" y="{y + 31}" text-anchor="end">'
-                 f'at ${site:04X}</text>')
-        p.append('</g>')
+        f.add(f'<g class="stage s-{role}">')
+        f.add(f'<rect x="{box_x}" y="{y}" width="{box_w}" height="{ROW_H - 10}" rx="6"/>')
+        f.place(name, box_x + 14, y + 17, "sname", 12.5, txt_room)
+        f.place(note, box_x + 14, y + 31, "snote", 11, txt_room)
+        f.place(f"{kind.upper()} ${bank:02X}:{target:04X}", box_x + box_w - 14, y + 17,
+                "saddr", 11, addr_w + 8, mono=True, anchor="end")
+        f.place(f"at ${site:04X}", box_x + box_w - 14, y + 31,
+                "ssite", 10.5, addr_w + 8, mono=True, anchor="end")
+        f.add("</g>")
         if i < n - 1:
-            p.append(f'<line class="flow" x1="{lane_x + 22}" y1="{y + ROW_H - 10}" '
-                     f'x2="{lane_x + 22}" y2="{y + ROW_H}" marker-end="url(#ar)"/>')
+            f.add(f'<line class="flow" x1="{lane_x + 22}" y1="{y + ROW_H - 10}" '
+                  f'x2="{lane_x + 22}" y2="{y + ROW_H}" marker-end="url(#ar)"/>')
 
     back_y = 58 + n * ROW_H
-    p.append(f'<path class="flow back" d="M{lane_x + 22} {back_y - 8} '
-             f'L{lane_x - 8} {back_y - 8} L{lane_x - 8} 62 L{lane_x + 6} 62" marker-end="url(#ar)"/>')
-    p.append(f'<text class="edge" x="{lane_x - 4}" y="{back_y + 8}">bra $E255 — next frame</text>')
+    f.add(f'<path class="flow back" d="M{lane_x + 22} {back_y - 8} L{lane_x - 8} {back_y - 8} '
+          f'L{lane_x - 8} 62 L{lane_x + 6} 62" marker-end="url(#ar)"/>')
+    f.place("bra $E255 — the next frame", lane_x + 30, back_y + 12, "edge", 11, lane_w - 40, mono=True)
 
+    nb_x, nb_w = nmi_x + 12, nmi_w - 24
+    nmi_addr_w = text_w("$D56F", 11, True) + 6
     for i, (site, target, kind, label) in enumerate(NMI_BODY):
         y = 58 + i * 34
-        p.append('<g class="stage r-nmi">')
-        p.append(f'<rect x="{nmi_x + 12}" y="{y}" width="{nmi_w - 24}" height="26" rx="5"/>')
-        p.append(f'<text class="sname" x="{nmi_x + 24}" y="{y + 17}">{esc(label)}</text>')
-        p.append(f'<text class="saddr" x="{nmi_x + nmi_w - 24}" y="{y + 17}" text-anchor="end">'
-                 f'${target:04X}</text>')
-        p.append('</g>')
+        f.add('<g class="stage s-nmi">')
+        f.add(f'<rect x="{nb_x}" y="{y}" width="{nb_w}" height="26" rx="5"/>')
+        f.place(label, nb_x + 12, y + 17, "sname", 11.5, nb_w - 24 - nmi_addr_w - 12)
+        f.place(f"${target:04X}", nb_x + nb_w - 12, y + 17, "saddr", 11,
+                nmi_addr_w, mono=True, anchor="end")
+        f.add("</g>")
 
-    hs_y = 58 + len(NMI_BODY) * 34 + 26
-    p.append(f'<path class="flow hand" d="M{nmi_x + 60} {hs_y} L{nmi_x + 60} {hs_y + 26} '
-             f'L{lane_x + lane_w + 40} {hs_y + 26} L{lane_x + lane_w + 40} 74 '
-             f'L{lane_x + lane_w - 14} 74" marker-end="url(#ar)"/>')
-    p.append(f'<text class="edge hand" x="{nmi_x + 66}" y="{hs_y + 20}">sets DP $6C — releases the wait</text>')
-    p.append("</svg>")
-    return ("".join(p),
+    hs_y = 58 + len(NMI_BODY) * 34 + 22
+    f.add(f'<path class="flow hand" d="M{nb_x + 40} {hs_y} L{nb_x + 40} {hs_y + 24} '
+          f'L{lane_x + lane_w + 30} {hs_y + 24} L{lane_x + lane_w + 30} 74 '
+          f'L{lane_x + lane_w - 14} 74" marker-end="url(#ar)"/>')
+    f.place("sets DP $6C", nb_x + 48, hs_y + 18, "edge hand", 11, nmi_w - 60, mono=True)
+    return (f.done(),
             "<b>One frame.</b> The loop does not poll a timer: it spins in "
-            "<code>$80:8386</code> until the NMI writes DP <code>$6C</code>, then runs "
-            "its stages in this order and branches back. Every address is the "
-            "instruction's own site, so a stage that moves fails <code>--check</code>.")
+            "<code>$80:8386</code> until the NMI writes DP <code>$6C</code>, then runs its "
+            "stages in this order and branches back. The pad read at the bottom of the NMI "
+            "leaves the held state in <code>$5C-$5F</code> and the press edges in "
+            "<code>$60</code>/<code>$62</code>. Every address is the instruction's own site, "
+            "so a stage that moves fails <code>--check</code>.")
 
 
 def fig_phases():
     """Two loops, same spine — the round loop is the entrance loop plus combat."""
     rows = [(s[2], s[4], s[6]) for s in ROUND]
-    w, h = 900, 90 + len(rows) * 30
-    p = [f'<svg viewBox="0 0 {w} {h}" role="img" aria-label="The entrance loop and the '
-         'round loop run the same stage list; the round loop adds the combat stages.">']
-    p.append('<text class="lane" x="392" y="26">ENTRANCE $C0:E21A</text>')
-    p.append('<text class="lane" x="622" y="26">ROUND $C0:E255</text>')
+    name_w = max(text_w(nm, 12.5) for _t, nm, _r in rows)
+    name_x, addr_x = 24, int(24 + name_w + 28)
+    col_w, gap = 150, 80
+    col1 = addr_x + 60
+    col2 = col1 + col_w + gap
+    delta_x = col2 + col_w + 22
+    w = int(delta_x + text_w("added by the round", 11, True) + 24)
+    h = 52 + len(rows) * 30
+    f = Fig(w, h, "The entrance loop and the round loop run the same stage list; "
+            "the round loop adds the combat stages.")
+    f.place("ENTRANCE $C0:E21A", col1, 26, "lane", 10.5, col_w)
+    f.place("ROUND $C0:E255", col2, 26, "lane", 10.5, col_w)
     for i, (target, name, role) in enumerate(rows):
-        y = 48 + i * 30
+        y = 44 + i * 30
         in_entrance = target in ENTRANCE
-        p.append(f'<text class="prow" x="24" y="{y + 14}">{esc(name)}</text>')
-        p.append(f'<text class="paddr" x="300" y="{y + 14}" text-anchor="end">${target:04X}</text>')
-        for cx, present in ((392, in_entrance), (622, True)):
+        f.place(name, name_x, y + 14, "prow", 12.5, name_w + 4)
+        f.place(f"${target:04X}", addr_x, y + 14, "paddr", 11, 60, mono=True)
+        for cx, present in ((col1, in_entrance), (col2, True)):
             cls = "on" if present else "off"
-            p.append(f'<rect class="cell {cls} r-{role}" x="{cx}" y="{y}" width="150" height="20" rx="4"/>')
+            f.add(f'<rect class="pcell {cls} s-{role}" x="{cx}" y="{y}" '
+                  f'width="{col_w}" height="20" rx="4"/>')
         if not in_entrance:
-            p.append(f'<text class="pdelta" x="790" y="{y + 14}">added by the round</text>')
-    p.append("</svg>")
-    return ("".join(p),
+            f.place("added by the round", delta_x, y + 14, "pdelta", 11, w - delta_x - 12, mono=True)
+    return (f.done(),
             "<b>Six phase loops, one stage list.</b> The engine has a loop per match phase "
             "(<code>$C0:E21A</code>, <code>E255</code>, <code>E2E2</code>, <code>E30F</code>, "
             "<code>E41E</code>, <code>E8D3</code>). They call the same routines in the same "
@@ -291,69 +373,88 @@ def fig_phases():
 
 def fig_hits():
     """Where a hit actually happens — the answer to 'why a frame later'."""
-    w, h = 940, 330
-    p = [f'<svg viewBox="0 0 {w} {h}" role="img" aria-label="Hit resolution is called from '
-         'inside each character proc, 192 times; the reaction it causes is applied at the '
-         'top of the next frame.">']
-    p.append('<defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" '
-             'markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/>'
-             '</marker></defs>')
-    box = [(30, 60, 250, "object update", "$C1:0000", "stage 9 of the frame"),
-           (30, 140, 250, "proc dispatch", "$C1:0080", "jsr ($00A6,X) by object id"),
-           (30, 220, 250, "the character's proc", "$C1:79F2", "Uranus, 5040 bytes of it"),
-           (350, 220, 250, "hit resolution", "$80:BFBB", "192 call sites, all in bank $C1"),
-           (660, 220, 250, "pending code", "+0x47", "written on the VICTIM"),
-           (660, 60, 250, "apply reactions", "$C1:0E26", "stage 4 — NEXT frame")]
-    for x, y, bw, name, addr, note in box:
-        cls = "hit" if addr in ("$80:BFBB", "+0x47") else "obj"
-        p.append(f'<g class="node {cls}"><rect x="{x}" y="{y}" width="{bw}" height="58" rx="7"/>'
-                 f'<text class="sname" x="{x + 16}" y="{y + 23}">{esc(name)}</text>'
-                 f'<text class="snote" x="{x + 16}" y="{y + 41}">{esc(note)}</text>'
-                 f'<text class="saddr" x="{x + bw - 16}" y="{y + 23}" text-anchor="end">{esc(addr)}</text></g>')
-    for x1, y1, x2, y2, label, lx, ly in (
-            (155, 118, 155, 140, "", 0, 0),
-            (155, 198, 155, 220, "", 0, 0),
-            (280, 249, 350, 249, "JSL", 300, 242),
-            (600, 249, 660, 249, "writes", 604, 242)):
-        p.append(f'<line class="flow" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" marker-end="url(#ar2)"/>')
-        if label:
-            p.append(f'<text class="edge" x="{lx}" y="{ly}">{label}</text>')
-    p.append('<path class="flow next" d="M785 220 L785 118" marker-end="url(#ar2)"/>')
-    p.append('<text class="edge next" x="795" y="175">one frame later</text>')
-    p.append('<text class="edge next" x="795" y="192">the reaction becomes an act</text>')
-    p.append("</svg>")
-    return ("".join(p),
+    bw, colgap = 250, 70
+    cols = [30, 30 + bw + colgap, 30 + 2 * (bw + colgap)]
+    w, h = cols[2] + bw + 30, 330
+    f = Fig(w, h, "Hit resolution is called from inside each character proc, 192 times; "
+            "the reaction it causes is applied at the top of the next frame.")
+    f.add('<defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" '
+          'markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/>'
+          '</marker></defs>')
+    nodes = [(cols[0], 60, "object update", "$C1:0000", "stage 9 of the frame", "obj"),
+             (cols[0], 140, "proc dispatch", "$C1:0080", "jsr ($00A6,X) by object id", "obj"),
+             (cols[0], 220, "the character's proc", "$C1:79F2", "Uranus, 5040 bytes", "obj"),
+             (cols[1], 220, "hit resolution", "$80:BFBB", "192 call sites, all bank $C1", "hit"),
+             (cols[2], 220, "pending code", "+0x47", "written on the VICTIM", "hit"),
+             (cols[2], 60, "apply reactions", "$C1:0E26", "stage 4 — NEXT frame", "obj")]
+    for x, y, name, addr, note, cls in nodes:
+        aw = text_w(addr, 11, True) + 8
+        f.add(f'<g class="node {cls}"><rect x="{x}" y="{y}" width="{bw}" height="58" rx="7"/>')
+        f.place(name, x + 16, y + 23, "sname", 12.5, bw - 32 - aw)
+        f.place(note, x + 16, y + 41, "snote", 11, bw - 32)
+        f.place(addr, x + bw - 16, y + 23, "saddr", 11, aw, mono=True, anchor="end")
+        f.add("</g>")
+    mid = cols[0] + bw // 2
+    for x1, y1, x2, y2 in ((mid, 118, mid, 140), (mid, 198, mid, 220),
+                           (cols[0] + bw, 249, cols[1], 249),
+                           (cols[1] + bw, 249, cols[2], 249)):
+        f.add(f'<line class="flow" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" marker-end="url(#ar2)"/>')
+    f.place("JSL", cols[0] + bw + 12, 242, "edge", 11, colgap - 16, mono=True)
+    f.place("writes", cols[1] + bw + 8, 242, "edge", 11, colgap - 10, mono=True)
+    back = cols[2] + bw - 40
+    f.add(f'<path class="flow next" d="M{back} 220 L{back} 118" marker-end="url(#ar2)"/>')
+    f.place("one frame later", back + 10, 170, "edge next", 11, w - back - 18, mono=True)
+    return (f.done(),
             "<b>Nothing in the frame list checks a hitbox.</b> Detection lives in the "
-            "attacker's own proc — <code>JSL $80:BFBB</code>, 192 sites, every one of them "
-            "in bank <code>$C1</code> — and it leaves a code on the victim's <code>+0x47</code>. "
+            "attacker's own proc — <code>JSL $80:BFBB</code>, 192 sites, every one of them in "
+            "bank <code>$C1</code> — and it leaves a code on the victim's <code>+0x47</code>. "
             "The loop's fourth stage turns that into an act on the FOLLOWING pass, which is "
             "the whole reason this engine's timing reads one frame late and why a move "
             "announced only on its first active frame loses the guard race.")
 
 
 def fig_patches():
-    """The same ladder, with every shipped patch pinned to the stage it changes."""
+    """The same ladder, with every shipped patch pinned to the stage it changes.
+    Row height is computed from the busiest stage — patch 13 and friends all hang
+    off the object update, and a fixed pitch is what stacked them into each other."""
     regions = patch_regions()
     by_stage = {}
     for patch, (stage, why) in PATCH_STAGE.items():
         by_stage.setdefault(stage, []).append((patch, why, regions.get(patch, [])))
     rows = [s for s in ROUND if s[0] in by_stage]
-    w, h = 940, 40 + len(rows) * 74
-    p = [f'<svg viewBox="0 0 {w} {h}" role="img" aria-label="Each shipped patch pinned to the '
-         'loop stage it changes, with the file offsets it edits.">']
-    for i, (site, _k, target, bank, name, _n, role) in enumerate(rows):
-        y = 20 + i * 74
-        p.append(f'<g class="stage r-{role}"><rect x="24" y="{y}" width="300" height="{56}" rx="6"/>'
-                 f'<text class="sname" x="40" y="{y + 22}">{esc(name)}</text>'
-                 f'<text class="saddr" x="308" y="{y + 22}" text-anchor="end">${bank:02X}:{target:04X}</text>'
-                 f'<text class="snote" x="40" y="{y + 40}">stage {ROUND.index(next(s for s in ROUND if s[0] == site)) + 1}</text></g>')
-        for j, (patch, why, offs) in enumerate(sorted(by_stage[site], key=lambda t: (len(t[0]), t[0]))):
-            px, py = 360 + (j % 2) * 290, y + (j // 2) * 26
-            p.append(f'<g class="pin"><rect x="{px}" y="{py}" width="272" height="22" rx="11"/>'
-                     f'<text class="pnum" x="{px + 14}" y="{py + 15}">patch {esc(patch)}</text>'
-                     f'<text class="pwhy" x="{px + 78}" y="{py + 15}">{esc(why[:44])}</text></g>')
-    p.append("</svg>")
-    return ("".join(p),
+    stage_w, pin_w, pin_h, pin_gap = 300, 300, 22, 5
+    pin_x = 24 + stage_w + 30
+    w = pin_x + 2 * pin_w + 20 + 30
+    pitch = []
+    for site, *_ in rows:
+        lines = -(-len(by_stage[site]) // 2)                # ceil
+        pitch.append(max(60, lines * (pin_h + pin_gap) + 16))
+    h = 28 + sum(pitch) + 12
+    f = Fig(w, h, "Each shipped patch pinned to the loop stage it changes.")
+    y = 22
+    for row, (site, _k, target, bank, name, _n, role) in zip(pitch, rows):
+        f.add(f'<g class="stage s-{role}"><rect x="24" y="{y}" width="{stage_w}" '
+              f'height="{row - 12}" rx="6"/>')
+        aw = text_w(f"${bank:02X}:{target:04X}", 11, True) + 8
+        f.place(name, 40, y + 22, "sname", 12.5, stage_w - 32 - aw)
+        f.place(f"${bank:02X}:{target:04X}", 24 + stage_w - 16, y + 22, "saddr", 11,
+                aw, mono=True, anchor="end")
+        f.place(f"stage {ROUND.index(next(r for r in ROUND if r[0] == site)) + 1}",
+                40, y + 40, "snote", 11, stage_w - 60)
+        f.add("</g>")
+        pins = sorted(by_stage[site], key=lambda t: (len(t[0]), t[0]))
+        for j, (patch, why, offs) in enumerate(pins):
+            px = pin_x + (j % 2) * (pin_w + 20)
+            py = y + (j // 2) * (pin_h + pin_gap)
+            f.add(f'<g class="pin"><rect x="{px}" y="{py}" width="{pin_w}" '
+                  f'height="{pin_h}" rx="11"/>')
+            lab = f"patch {patch}"
+            lw = f.place(lab, px + 14, py + 15, "pnum", 11, 76, mono=True)
+            f.place(why, px + 14 + max(lw, 62) + 10, py + 15, "pwhy", 11,
+                    pin_w - 28 - max(lw, 62) - 10)
+            f.add("</g>")
+        y += row
+    return (f.done(),
             "<b>Every hook, on the stage it changes.</b> Patches 11 and 12 ride the pad read "
             "the NMI performs before the loop wakes; 10 and 10b bracket the HUD, producer on "
             "this side and uploader on the NMI's; 6 and 7 change what the pose writer puts in "
@@ -372,11 +473,11 @@ CSS_EXTRA = """
 .stage .snote{font:11px/1 ui-sans-serif,system-ui,sans-serif;fill:var(--ink-3)}
 .stage .saddr{font:600 11px/1 ui-monospace,Menlo,monospace;fill:var(--code)}
 .stage .ssite{font:10.5px/1 ui-monospace,Menlo,monospace;fill:var(--ink-3)}
-.r-combat rect{stroke:var(--code)}
-.r-unknown rect{fill:var(--sunken);stroke-dasharray:4 3}
-.r-unknown .sname{fill:var(--ink-3);font-style:italic}
-.r-nmi rect{stroke:var(--gfx)}
-.r-nmi .saddr{fill:var(--gfx)}
+.s-combat rect{stroke:var(--code)}
+.s-unknown rect{fill:var(--sunken);stroke-dasharray:4 3}
+.s-unknown .sname{fill:var(--ink-3);font-style:italic}
+.s-nmi rect{stroke:var(--gfx)}
+.s-nmi .saddr{fill:var(--gfx)}
 .flow{stroke:var(--ink-3);stroke-width:1.4;fill:none;color:var(--ink-3)}
 .flow.back{stroke-dasharray:5 4}
 .flow.hand{stroke:var(--gfx);color:var(--gfx)}
@@ -387,9 +488,9 @@ CSS_EXTRA = """
 .prow{font:12.5px/1 ui-sans-serif,system-ui,sans-serif;fill:var(--ink)}
 .paddr{font:11px/1 ui-monospace,Menlo,monospace;fill:var(--ink-3)}
 .pdelta{font:11px/1 ui-monospace,Menlo,monospace;fill:var(--code)}
-.cell{fill:var(--sunken);stroke:var(--rule)}
-.cell.on{fill:var(--code);fill-opacity:.28;stroke:var(--code)}
-.cell.on.r-unknown{fill:var(--ink-3);fill-opacity:.18;stroke:var(--rule)}
+.pcell{fill:var(--sunken);stroke:var(--rule)}
+.pcell.on{fill:var(--code);fill-opacity:.28;stroke:var(--code)}
+.pcell.on.s-unknown{fill:var(--ink-3);fill-opacity:.18;stroke:var(--rule)}
 .node rect{fill:var(--surface);stroke:var(--rule)}
 .node.hit rect{stroke:var(--data);fill:var(--data);fill-opacity:.12}
 .node .saddr{font:600 11px/1 ui-monospace,Menlo,monospace;fill:var(--code)}
@@ -417,6 +518,85 @@ ASM_ROWS = [
     ("...", "...", ""),
     ("$C0:E29B", "bra $E255", "two bytes, and the frame starts again"),
 ]
+
+
+# Sizes and families have to be repeated here because the audit reads the emitted
+# markup, not the code that produced it — the point is to catch a figure whose
+# geometry drifted from its CSS, which is exactly what "the label is wider than
+# its pill" was.
+AUDIT_SIZE = {"sname": 12.5, "snote": 11, "saddr": 11, "ssite": 10.5, "lane": 10.5,
+              "edge": 11, "prow": 12.5, "paddr": 11, "pdelta": 11, "pnum": 11, "pwhy": 11}
+AUDIT_MONO = {"saddr", "ssite", "lane", "edge", "paddr", "pdelta", "pnum"}
+
+
+def audit(page):
+    """Read back the drawing and refuse to ship one that overlaps or overflows.
+
+    SVG will happily render a label straight through the box next to it, and no
+    amount of care while writing coordinates catches that reliably — the first
+    cut of this page shipped both faults. So the emitted markup is parsed and
+    three things are asserted: no two boxes overlap, every string fits inside the
+    box it sits in, and nothing runs past the viewBox.
+    """
+    def attr(tag, name):
+        m = re.search(rf'\b{name}="([-\d.]+)"', tag)
+        return float(m.group(1)) if m else None
+
+    bad = []
+    for fig, m in enumerate(re.finditer(r'<svg viewBox="0 0 (\d+) (\d+)"(.*?)</svg>',
+                                        page, re.S), 1):
+        W, H, body = int(m.group(1)), int(m.group(2)), m.group(3)
+        rects = []
+        for tag in re.findall(r"<rect [^>]*>", body):
+            x, y, w, h = (attr(tag, k) for k in ("x", "y", "width", "height"))
+            cls = (re.search(r'class="([^"]*)"', tag) or [None, ""])[1]
+            if None in (x, y, w, h):
+                continue
+            if x + w > W + 0.5 or y + h > H + 0.5:
+                bad.append(f"figure {fig}: a box runs past the viewBox at ({x:.0f},{y:.0f})")
+            if "lane-bg" not in (cls or ""):
+                rects.append((x, y, w, h))
+        for i, (x1, y1, w1, h1) in enumerate(rects):
+            for x2, y2, w2, h2 in rects[i + 1:]:
+                if x1 < x2 + w2 - .5 and x2 < x1 + w1 - .5 \
+                        and y1 < y2 + h2 - .5 and y2 < y1 + h1 - .5:
+                    bad.append(f"figure {fig}: boxes overlap at ({x1:.0f},{y1:.0f}) "
+                               f"and ({x2:.0f},{y2:.0f})")
+        for t in re.finditer(r'<text class="([^"]*)" x="([-\d.]+)" y="([-\d.]+)"'
+                             r'( text-anchor="end")?>([^<]*)</text>', body):
+            cls, x, y, end, txt = (t.group(1), float(t.group(2)), float(t.group(3)),
+                                   bool(t.group(4)), t.group(5))
+            key = cls.split()[0]
+            wid = text_w(txt, AUDIT_SIZE.get(key, 11), key in AUDIT_MONO)
+            left = x - wid if end else x
+            host = [r for r in rects if r[0] <= x <= r[0] + r[2] and r[1] <= y <= r[1] + r[3] + 4]
+            if not host:
+                continue
+            rx, _ry, rw, _rh = host[0]
+            if left < rx - 1 or left + wid > rx + rw + 1:
+                bad.append(f"figure {fig}: {txt[:34]!r} is wider than the box it sits in")
+    return bad
+
+
+def audit_selftest():
+    """The audit is a parser, and a parser that has stopped matching passes
+    everything. `place()` clips, so a real figure can no longer produce an
+    overlong label — which means the only way to know the audit still has teeth
+    is to hand it markup that is deliberately broken."""
+    box = '<rect x="10" y="10" width="80" height="20" rx="4"/>'
+    over = '<rect x="40" y="14" width="80" height="20" rx="4"/>'
+    long_text = '<text class="sname" x="18" y="24">a label far too long for that box</text>'
+    fits = '<text class="sname" x="18" y="24">short</text>'
+    bad = []
+    if not audit(f'<svg viewBox="0 0 200 60">{box}{long_text}</svg>'):
+        bad.append("the audit no longer notices a label wider than its box")
+    if not audit(f'<svg viewBox="0 0 200 60">{box}{over}</svg>'):
+        bad.append("the audit no longer notices two boxes overlapping")
+    if not audit('<svg viewBox="0 0 100 40"><rect x="10" y="10" width="200" height="20"/></svg>'):
+        bad.append("the audit no longer notices a box past the viewBox")
+    if audit(f'<svg viewBox="0 0 200 60">{box}{fits}</svg>'):
+        bad.append("the audit flags a figure that is fine")
+    return bad
 
 
 STANDALONE = """<!doctype html>
@@ -451,7 +631,7 @@ def build():
 
     out.append("<h2>The frame</h2>")
     svg, cap = figs[0]
-    out.append(f'<figure><div class="scroll">{svg}</div><figcaption>{cap}</figcaption></figure>')
+    out.append(f'<figure><div class="scroller">{svg}</div><figcaption>{cap}</figcaption></figure>')
 
     out.append("<h2>Reading it as assembly</h2>")
     out.append("<p>Three idioms account for most of the surprise. <strong>JSL</strong> is a "
@@ -470,15 +650,15 @@ def build():
 
     out.append("<h2>Phases share the list</h2>")
     svg, cap = figs[1]
-    out.append(f'<figure><div class="scroll">{svg}</div><figcaption>{cap}</figcaption></figure>')
+    out.append(f'<figure><div class="scroller">{svg}</div><figcaption>{cap}</figcaption></figure>')
 
     out.append("<h2>Where a hit happens</h2>")
     svg, cap = figs[2]
-    out.append(f'<figure><div class="scroll">{svg}</div><figcaption>{cap}</figcaption></figure>')
+    out.append(f'<figure><div class="scroller">{svg}</div><figcaption>{cap}</figcaption></figure>')
 
     out.append("<h2>Where the patches attach</h2>")
     svg, cap = figs[3]
-    out.append(f'<figure><div class="scroll">{svg}</div><figcaption>{cap}</figcaption></figure>')
+    out.append(f'<figure><div class="scroller">{svg}</div><figcaption>{cap}</figcaption></figure>')
 
     out.append('<div class="callout"><span class="tag">HONEST GAPS</span>'
                '<p>Three stages are drawn in grey because they are not identified: '
@@ -498,14 +678,21 @@ def build():
 if __name__ == "__main__":
     if "--check" in sys.argv:
         problems = check()
+        problems += audit(build()) + [f"SELF-TEST: {b}" for b in audit_selftest()]
         for line in problems:
             print("  FAIL ", line)
         if problems:
             sys.exit(1)
         print(f"engine page in sync with the ROM ({len(ROUND)} loop stages, "
-              f"{len(NMI_BODY)} NMI stages, {len(CENSUS)} call-site censuses)")
+              f"{len(NMI_BODY)} NMI stages, {len(CENSUS)} call-site censuses); "
+              "layout audit clean")
         sys.exit(0)
     page = build()
+    problems = audit(page)
+    if problems:
+        for line in problems:
+            print("  LAYOUT ", line)
+        sys.exit(1)
     out = OUT_DEFAULT
     if "--standalone" in sys.argv:
         sys.argv.remove("--standalone")
