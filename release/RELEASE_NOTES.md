@@ -15,8 +15,8 @@ Start here. Each is a complete build; you do not stack anything onto it.
 
 | Build | What it is | Patch file | Patched ROM SHA-1 |
 |---|---|---|---|
-| **Rev. S-02** | the reference build, **no Super S content**<br>1b + 2 + 3 + 4 + 5 + 7 + 8 + 9 + 12 + 13 + 14 + 15 + 18 | `release/Rev.S-02.bps` (`e5682512…`) | `41d93a53…` |
-| **Rev. SS-03** | the same, **plus Sailor Saturn**<br>1b + 2 + 3 + 4 + 5 + 7 + 8 + 9 + 12 + 13 + 14 + 15 + 18 + Saturn (patch 100/101 + her ported stage) | `release/Rev.SS-03.bps` (`87739023…`) | `f71421d8…` |
+| **Rev. S-02** | the reference build, **no Super S content, fully tested**<br>1b + 2 + 3 + 4 + 5 + 7 + 8 + 9 + 12 + 13 + 14 + 15 + 18 | `release/Rev.S-02.bps` (`e5682512…`) | `41d93a53…` |
+| **Rev. SS-03** | EXPERIMENTAL (basically Rev.S, **plus Sailor Saturn**)<br>1b + 2 + 3 + 4 + 5 + 7 + 8 + 9 + 12 + 13 + 14 + 15 + 18 + Saturn (patch 100/101 + her ported stage) | `release/Rev.SS-03.bps` (`87739023…`) | `f71421d8…` |
 
 The title screen reads **FrenchName Rev. S-02** /
 **FrenchName Rev. SS-03** —
