@@ -451,6 +451,11 @@ issue thread). For
 the remaining batches: build the failing case BEFORE the fix, and prove the
 working path is unchanged after.
 
+**Saturn's round-won badge is open (maintainer, 2026-08-09)** — no win icon under
+her life bar. Her icon palette is already in the donor and already extracted; the
+tiles and the drawing code are not located. Brief:
+`docs/project/saturn/PROJECT.md` § "Open — her round-won badge".
+
 **Open work — patch 16 is the ONLY active item (next session is dedicated to
 it; full brief in `docs/project/NEXT_SESSION.md`). Dormant maintainer options, not
 tasks: §8's fold-6/7/8-into-canonical and dash-distance retune.**

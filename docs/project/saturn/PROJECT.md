@@ -143,6 +143,23 @@ the on-screen version string stay: every recorded hash and doc reference uses
 them, and they are a continuity tell. History: `docs/project/saturn/BUILDS.md`
 0.10.0/0.11.0, and git.
 
+## Open — her round-won badge (maintainer, 2026-08-09)
+
+She has no **win icon** under the life bar, so taking a round shows nothing on her
+side. Expected to be cheap; nobody has tried it. Measured while writing this note:
+
+* The badge is **per-character manifest data** — the manifest's `+7` pointer is
+  the win-icon palette, 8 bytes each, `$E0:08DE + (charID-1)*8` across the SMS
+  roster. **Hers exists in the donor** (`$E0:AC6A` → icon `$E0:B270`) and
+  `extract_saturn_unit.py` already pulls it as `PALETTES["icon"]`.
+* **Not located yet:** the icon TILES, on either side, and the code that draws the
+  badge. Leads: the round-state stage `$C0:DB35` and the HUD producer `$C0:D5E8`
+  in the frame loop (`../../game/sms_data_architecture.md` §10B), and what the
+  char loader `$C0:879B` does with the icon palette once it has it.
+* ⚠ The two traps that fit this shape: **test on at least two shells** (trap 1),
+  and if her tiles ride a per-character DMA, check what SIZED that transfer
+  (trap 6 — the 214P projectile lost 15 tiles to exactly this).
+
 ## Parked — not open work, worth revisiting (2026-08-04)
 
 Reviewed with the maintainer and explicitly **not** open items. Listed so they

@@ -6,16 +6,34 @@ sections further down are this session's detail.
 
 ## Where to pick up
 
-1. **Patch 16 — menu translation.** Still the active feature work. Two surfaces
+1. **Saturn's round-won badge** (maintainer, 2026-08-09) — she has no win icon
+   under the life bar, so winning a round shows nothing on her side. Expected to
+   be cheap. What is already known, measured today:
+   * **The badge is per-character manifest data.** The manifest's third pointer
+     (`+7`) is the win-icon palette: 8 bytes each, `$E0:08DE` + `(charID-1)*8`
+     across the SMS roster. **Saturn's exists in the donor** — her Super S
+     manifest `$E0:AC6A` carries icon `$E0:B270` — and
+     `tools/saturn/extract_saturn_unit.py` already extracts it (`PALETTES["icon"]`).
+   * **Not yet located**: the icon TILES (SMS side and hers), and the code that
+     draws the badge under the life bar. Start from the round-end path — the
+     frame loop's `$C0:DB35` round-state stage and the HUD producer `$C0:D5E8`
+     (`sms_data_architecture.md` §10B has the loop) — and from what the char
+     loader does with the icon palette at `$C0:879B`.
+   * ⚠ Two traps this project has already paid for apply here: test on **at
+     least two shells** (trap 1), and if the tiles ride a per-character DMA,
+     check what SIZED that transfer (trap 6 — a per-player override is only as
+     complete as the transfer that carries it, which is exactly how her 214P
+     projectile lost 15 tiles).
+2. **Patch 16 — menu translation.** Still the active feature work. Two surfaces
    left: the **bracket VS names** (codec-2 blob `$C7:3BBD` + an unfound runtime
    builder) and the **A.C.S. name card + prompt** (the variable-text glyph
    blitter `$80:9583`, fed from `$7F:DC00+`, filler unfound). Detail below and in
    `../game/menu_system.md`.
-2. **Patch 14 — needs a RULING, not a patch.** `--all-grabs` does not scale a
+3. **Patch 14 — needs a RULING, not a patch.** `--all-grabs` does not scale a
    TECHED throw, so at Guts L3 teching costs more than eating the throw (12 vs
    10, measured). No shipped build passes the flag. The question is yours:
    *should a teched command grab be scaled by Guts at all?* Full brief below.
-3. **`checkdocs` — the generated increment is DONE** (76 checks; see below). The
+4. **`checkdocs` — the generated increment is DONE** (76 checks; see below). The
    next one, if it is wanted: **149 of `docs/game/`'s 254 ROM addresses are
    still not re-derived**, and nearly all of them are *code* addresses carrying
    prose claims ("routine X does Y"), which no census can decide. Two ways
