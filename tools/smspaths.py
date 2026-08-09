@@ -29,12 +29,20 @@ BUNDLE_VERSION = "0.22"
 # Release revision for the two REFERENCE builds (maintainer, 2026-08-05):
 #   Rev. S-XX   — the reference build, no Super S content
 #   Rev. SS-XX  — the same plus Saturn (patch 100/101 + the stage port)
-# Both carry XX on the title screen, which is the naked-eye tell a pad tester
-# reports back. Two digits is the whole namespace; bump it here (or pass
-# SMS_REV=NN) and rebuild — `tools/build_rev.sh` is the single recipe.
-# 01 was superseded before release (it predates patch 18); a revision names one
-# set of bytes for good, which is the point of printing it on the title screen.
-REV = "02"
+# Each carries its XX on the title screen, which is the naked-eye tell a pad
+# tester reports back. Bump the relevant side here (or pass SMS_REV_S / SMS_REV_SS)
+# and rebuild — `tools/build_rev.sh` is the single recipe.
+#
+# ⚠ The two revisions are INDEPENDENT (2026-08-09). They were both 02 while every
+# byte was shared; the round-won badge (Saturn v0.17.0) changed the SS side and
+# not the S side, so SS advances to 03 and S stays 02. This is the versioning
+# rule working, not drift — a revision names one set of bytes for good, and only
+# the side whose bytes moved gets a new number. The shared patch chain
+# (1b+2+…+18) is still byte-identical in both, which is what `build_rev.sh`
+# guarantees; the numbers differ only because SS carries content S does not.
+# 01 was superseded before release (it predates patch 18).
+REV_S = "02"
+REV_SS = "03"
 
 
 def rom_dir():

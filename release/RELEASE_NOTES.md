@@ -1,4 +1,4 @@
-# Releases — Rev. S-02 and Rev. SS-02
+# Releases — Rev. S-02 and Rev. SS-03
 
 Apply a `.bps` to the **clean Japanese ROM** with Flips (or any BPS
 patcher). Clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`
@@ -16,16 +16,20 @@ Start here. Each is a complete build; you do not stack anything onto it.
 | Build | What it is | Patch file | Patched ROM SHA-1 |
 |---|---|---|---|
 | **Rev. S-02** | the reference build, **no Super S content**<br>1b + 2 + 3 + 4 + 5 + 7 + 8 + 9 + 12 + 13 + 14 + 15 + 18 | `release/Rev.S-02.bps` (`e5682512…`) | `41d93a53…` |
-| **Rev. SS-02** | the same, **plus Sailor Saturn**<br>1b + 2 + 3 + 4 + 5 + 7 + 8 + 9 + 12 + 13 + 14 + 15 + 18 + Saturn (patch 100/101 + her ported stage) | `release/Rev.SS-02.bps` (`1ee98150…`) | `b96f3fe8…` |
+| **Rev. SS-03** | the same, **plus Sailor Saturn**<br>1b + 2 + 3 + 4 + 5 + 7 + 8 + 9 + 12 + 13 + 14 + 15 + 18 + Saturn (patch 100/101 + her ported stage) | `release/Rev.SS-03.bps` (`87739023…`) | `f71421d8…` |
 
-The title screen of each reads **FrenchName Rev. S-02** /
-**FrenchName Rev. SS-02** —
+The title screen reads **FrenchName Rev. S-02** /
+**FrenchName Rev. SS-03** —
 that string is the naked-eye tell; quote it (or the ROM SHA-1) in any
 report. `Rev. SS` also answers to L+R held while confirming a Uranus,
 Neptune or Pluto slot: that is how Saturn is summoned.
 
-**They are the same bytes** up to the subtitle and the Super S additions —
-`tools/build_rev.sh` builds both from one patch chain so they cannot drift.
+**The shared patch chain is the same bytes in both** — `tools/build_rev.sh`
+builds them from one chain, so the non-Saturn common part cannot drift.
+The revisions differ (**S-02 vs SS-03**) only because a change to
+Saturn — her round-won badge — moved the SS bytes and not the S bytes; a
+revision names one set of bytes for good, so only the side that changed
+gets a new number.
 
 ## The individual patches
 
@@ -62,7 +66,7 @@ ROM.
 ```bash
 tools/build_rev.sh both                                  # rebuild both references
 ROM=build/SailorMoonS_Rev_S-02.sfc tools/run.sh tools/test_regression.lua 900
-ROM=build/SailorMoonS_Rev_SS-02.sfc tools/saturn/verify_saturn.sh
+ROM=build/SailorMoonS_Rev_SS-03.sfc tools/saturn/verify_saturn.sh
 ```
 
 The first is the engine + per-patch regression suite; the second is the

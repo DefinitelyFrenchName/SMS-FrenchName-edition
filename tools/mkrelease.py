@@ -11,8 +11,8 @@ What it does NOT do: build anything. Run `tools/build_rev.sh both` first; this
 reads `release/Rev.S-XX.bps` / `release/Rev.SS-XX.bps` and the per-patch
 standalones in `build/`, then writes the notes.
 
-  python3 tools/mkrelease.py            # render for smspaths.REV
-  python3 tools/mkrelease.py --rev 02
+  python3 tools/mkrelease.py            # render for smspaths.REV_S / REV_SS
+  python3 tools/mkrelease.py --rev-s 02 --rev-ss 03
   python3 tools/mkrelease.py --check    # exit 1 if the notes are out of date
 """
 import argparse
@@ -58,10 +58,10 @@ def sha1(p):
     return hashlib.sha1(p.read_bytes()).hexdigest()
 
 
-def render(rev):
+def render(rev_s, rev_ss):
     rel = REPO / "release"
-    s, ss = rel / f"Rev.S-{rev}.bps", rel / f"Rev.SS-{rev}.bps"
-    out = [f"# Releases — Rev. S-{rev} and Rev. SS-{rev}", "",
+    s, ss = rel / f"Rev.S-{rev_s}.bps", rel / f"Rev.SS-{rev_ss}.bps"
+    out = [f"# Releases — Rev. S-{rev_s} and Rev. SS-{rev_ss}", "",
            "Apply a `.bps` to the **clean Japanese ROM** with Flips (or any BPS",
            "patcher). Clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`",
            "(HiROM+FastROM, headerless, **2.5 MB** — 40 banks, $C0-$E7; the patched",
@@ -73,7 +73,7 @@ def render(rev):
            "Start here. Each is a complete build; you do not stack anything onto it.", "",
            "| Build | What it is | Patch file | Patched ROM SHA-1 |", "|---|---|---|---|"]
 
-    def refrow(path, name, what, content):
+    def refrow(path, name, what, content, rev):
         if not path.exists():
             return f"| **{name}** | {what} | **MISSING** | run `tools/build_rev.sh` |"
         romname = ("SailorMoonS_Rev_S-" if "SS" not in name else "SailorMoonS_Rev_SS-") + rev + ".sfc"
@@ -82,18 +82,22 @@ def render(rev):
         return (f"| **{name}** | {what}<br>{content} | "
                 f"`{path.relative_to(REPO)}` (`{sha1(path)[:8]}…`) | {romsha} |")
 
-    out.append(refrow(s, f"Rev. S-{rev}",
-                      "the reference build, **no Super S content**", REV_S_CONTENT))
-    out.append(refrow(ss, f"Rev. SS-{rev}",
-                      "the same, **plus Sailor Saturn**", REV_SS_CONTENT))
+    out.append(refrow(s, f"Rev. S-{rev_s}",
+                      "the reference build, **no Super S content**", REV_S_CONTENT, rev_s))
+    out.append(refrow(ss, f"Rev. SS-{rev_ss}",
+                      "the same, **plus Sailor Saturn**", REV_SS_CONTENT, rev_ss))
     out += ["",
-            f"The title screen of each reads **FrenchName Rev. S-{rev}** /",
-            f"**FrenchName Rev. SS-{rev}** —",
+            f"The title screen reads **FrenchName Rev. S-{rev_s}** /",
+            f"**FrenchName Rev. SS-{rev_ss}** —",
             "that string is the naked-eye tell; quote it (or the ROM SHA-1) in any",
             "report. `Rev. SS` also answers to L+R held while confirming a Uranus,",
             "Neptune or Pluto slot: that is how Saturn is summoned.", "",
-            "**They are the same bytes** up to the subtitle and the Super S additions —",
-            "`tools/build_rev.sh` builds both from one patch chain so they cannot drift.",
+            "**The shared patch chain is the same bytes in both** — `tools/build_rev.sh`",
+            "builds them from one chain, so the non-Saturn common part cannot drift.",
+            f"The revisions differ (**S-{rev_s} vs SS-{rev_ss}**) only because a change to",
+            "Saturn — her round-won badge — moved the SS bytes and not the S bytes; a",
+            "revision names one set of bytes for good, so only the side that changed",
+            "gets a new number.",
             "", "## The individual patches", "",
             "For building your own combination. Chain the *builders* (each re-detects",
             "the next free bank) — **never chain the standalone `.bps` files**, since",
@@ -109,8 +113,8 @@ def render(rev):
             out.append(f"| {pid} | {title} | `tools/{builder}` | **MISSING** | — |")
     out += ["", "## Verifying a build", "", "```bash",
             f"tools/build_rev.sh both                                  # rebuild both references",
-            f"ROM=build/SailorMoonS_Rev_S-{rev}.sfc tools/run.sh tools/test_regression.lua 900",
-            f"ROM=build/SailorMoonS_Rev_SS-{rev}.sfc tools/saturn/verify_saturn.sh",
+            f"ROM=build/SailorMoonS_Rev_S-{rev_s}.sfc tools/run.sh tools/test_regression.lua 900",
+            f"ROM=build/SailorMoonS_Rev_SS-{rev_ss}.sfc tools/saturn/verify_saturn.sh",
             "```", "",
             "The first is the engine + per-patch regression suite; the second is the",
             "Saturn gate, which runs that suite first and then the Super S matrix.", ""]
@@ -119,11 +123,13 @@ def render(rev):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--rev", default=None, help="revision to render (default: smspaths.REV)")
+    ap.add_argument("--rev-s", default=None, help="S revision (default: smspaths.REV_S)")
+    ap.add_argument("--rev-ss", default=None, help="SS revision (default: smspaths.REV_SS)")
     ap.add_argument("--check", action="store_true", help="exit 1 if the notes are stale")
     a = ap.parse_args()
-    rev = a.rev or smspaths.REV
-    text = render(rev)
+    rev_s = a.rev_s or smspaths.REV_S
+    rev_ss = a.rev_ss or smspaths.REV_SS
+    text = render(rev_s, rev_ss)
     notes = REPO / "release" / "RELEASE_NOTES.md"
     if a.check:
         if not notes.exists():
@@ -139,17 +145,17 @@ def main():
             def strip_rom_rows(t):
                 return [ln for ln in t.splitlines() if "| **Rev. " not in ln]
             if strip_rom_rows(have) == strip_rom_rows(text):
-                print(f"release notes in sync (Rev. {rev}) — except the two ROM SHA-1 "
+                print(f"release notes in sync (Rev. S-{rev_s} / SS-{rev_ss}) — except the two ROM SHA-1 "
                       "cells, which need the built .sfc files (absent here)")
                 return
             sys.stderr.write("error: release/RELEASE_NOTES.md is out of date — "
                              "run: python3 tools/mkrelease.py\n")
             raise SystemExit(1)
-        print(f"release notes in sync (Rev. {rev})")
+        print(f"release notes in sync (Rev. S-{rev_s} / SS-{rev_ss})")
         return
     notes.parent.mkdir(exist_ok=True)
     notes.write_text(text)
-    print(f"wrote {notes.relative_to(REPO)} for revision {rev}")
+    print(f"wrote {notes.relative_to(REPO)} for Rev. S-{rev_s} / SS-{rev_ss}")
 
 
 if __name__ == "__main__":

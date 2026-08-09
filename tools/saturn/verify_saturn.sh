@@ -18,8 +18,8 @@ cd "$(dirname "$0")/../.."
 # Default ROM: the SHIPPED artifact for the current release revision (#79). It used
 # to be a hardcoded intermediate that had to be hand-edited at every version bump —
 # and was, three times in one day — so a stale default silently verified an obsolete
-# build. smspaths.REV is the single source the release recipe uses.
-REV="${SMS_REV:-$(python3 -c 'import sys;sys.path.insert(0,"tools");import smspaths;print(smspaths.REV)')}"
+# build. smspaths.REV_SS is the single source the SS release recipe uses.
+REV="${SMS_REV_SS:-$(python3 -c 'import sys;sys.path.insert(0,"tools");import smspaths;print(smspaths.REV_SS)')}"
 ROM="${ROM:-build/SailorMoonS_Rev_SS-$REV.sfc}"
 [ -f "$ROM" ] || { echo "verify_saturn: ROM not found: $ROM" >&2
                    echo "  (default is the Rev. SS-$REV release build; pass ROM=<file> for another)" >&2

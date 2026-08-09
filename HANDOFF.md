@@ -411,21 +411,27 @@ so the two things anyone actually applies now live in **`release/`**:
 | **Rev. S-NN** | the reference build, no Super S content (REF v.2's patch set + 18) |
 | **Rev. SS-NN** | the same, plus Saturn (patch 100/101 + her ported stage) |
 
-**Rev. 02** is current (`41d93a53…` / `b96f3fe8…`); **01 was superseded before
-release** — it predates patch 18, and a revision names one set of bytes for good,
-which is the whole point of printing it on the title screen. Its `.bps` are gone
-from `release/` so there is only ever one thing to apply.
+**Current: Rev. S-02 (`41d93a53…`) and Rev. SS-03 (`f71421d8…`).** ⚠ **The two
+revisions are now INDEPENDENT** (2026-08-09). They were both 02 while every byte
+was shared; **Saturn's round-won badge (v0.17.0) changed the SS side and not the
+S side, so SS advanced to 03 and S stays 02.** That is the versioning rule
+working, not drift — a revision names one set of bytes for good, and only the side
+whose bytes moved gets a new number. **Rev. SS-02's `.bps` was deleted** when 03
+landed (it embedded v0.16.1, no badge), exactly as **Rev. 01** was before release
+— so `release/` holds only one thing to apply per side.
 
-`NN` comes from `smspaths.REV` (override `SMS_REV=NN`) and is printed on the
-**title screen** — the naked-eye tell a pad tester quotes back. One recipe builds
-both, `tools/build_rev.sh s|ss|both`, so the two cannot drift apart: they are the
-same patch chain up to the subtitle and the Super S additions. Release notes are
-**generated** (`tools/mkrelease.py`, `--check` in CI-style use) because this
-project has already shipped three stale doc hashes; every hash there is measured
-from the file it names. REF v.1 and v.2 keep their own recipes — published
-artifacts are never redefined. Rev. 01 was REF v.2 / Saturn v0.16.1 retitled and
-nothing else — measured, the whole diff being patch 4's bank `$E9` plus the
-checksum; Rev. 02 adds patch 18 (12 bytes) on top of that.
+Each side's `NN` comes from `smspaths.REV_S` / `REV_SS` (override `SMS_REV_S` /
+`SMS_REV_SS`) and is printed on the **title screen** — the naked-eye tell a pad
+tester quotes back. One recipe builds both, `tools/build_rev.sh s|ss|both`, and
+the **shared patch chain** is built once so the non-Saturn common part cannot
+drift; the numbers differ only because SS carries content S does not. Release
+notes are **generated** (`tools/mkrelease.py`, `--check` in CI-style use) because
+this project has already shipped three stale doc hashes; every hash there is
+measured from the file it names. REF v.1 and v.2 keep their own recipes —
+published artifacts are never redefined. Rev. 01 was REF v.2 / Saturn v0.16.1
+retitled and nothing else — measured, the whole diff being patch 4's bank `$E9`
+plus the checksum; the S-02/SS chain adds patch 18 (12 bytes) on top of that, and
+SS-03 adds the badge on the Saturn side.
 **Patch 17 is in NEITHER** (maintainer, 2026-08-05): it stays an optional
 standalone in `build/sms_allstages.bps`. If it is ever wanted in the Super S
 reference, `SATURN_ALLSTAGES=1` on the Saturn step is the whole change.

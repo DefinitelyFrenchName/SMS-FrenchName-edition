@@ -85,8 +85,9 @@ done
 [ "$shn" = 0 ] && ok "$(git ls-files 'tools/*.sh' 'tools/**/*.sh' | wc -l | tr -d ' ') shell scripts parse"
 
 echo "== the release folder is complete and self-consistent =="
-REV="${SMS_REV:-$(python3 -c 'import sys;sys.path.insert(0,"tools");import smspaths;print(smspaths.REV)' 2>/dev/null)}"
-for f in "release/Rev.S-$REV.bps" "release/Rev.SS-$REV.bps" release/RELEASE_NOTES.md; do
+REV_S="${SMS_REV_S:-$(python3 -c 'import sys;sys.path.insert(0,"tools");import smspaths;print(smspaths.REV_S)' 2>/dev/null)}"
+REV_SS="${SMS_REV_SS:-$(python3 -c 'import sys;sys.path.insert(0,"tools");import smspaths;print(smspaths.REV_SS)' 2>/dev/null)}"
+for f in "release/Rev.S-$REV_S.bps" "release/Rev.SS-$REV_SS.bps" release/RELEASE_NOTES.md; do
   [ -f "$f" ] && ok "$f present" || bad "$f missing (tools/build_rev.sh both)"
 done
 # every build/ or release/ path the NOTES name must exist: those are instructions
@@ -112,14 +113,15 @@ SUP="$(python3 -c 'import sys;sys.path.insert(0,"tools");from smspaths import su
 echo "== round-trip: each release patch reproduces its recorded ROM =="
 if [ -f "$CLEAN" ] && [ -x tools/Flips/flips ]; then
   for r in "S" "SS"; do
-    bps="release/Rev.$r-$REV.bps"; rom="build/SailorMoonS_Rev_$r-$REV.sfc"
+    rev="$REV_S"; [ "$r" = "SS" ] && rev="$REV_SS"
+    bps="release/Rev.$r-$rev.bps"; rom="build/SailorMoonS_Rev_$r-$rev.sfc"
     if [ -f "$bps" ] && [ -f "$rom" ]; then
       tmp="$(mktemp)"; ./tools/Flips/flips --apply "$bps" "$CLEAN" "$tmp" >/dev/null 2>&1
       a="$(shasum "$tmp" | cut -d' ' -f1)"; b="$(shasum "$rom" | cut -d' ' -f1)"; rm -f "$tmp"
-      [ "$a" = "$b" ] && ok "Rev. $r-$REV round-trips to ${b:0:8}…" \
-        || bad "Rev. $r-$REV: patch yields ${a:0:8}… but the ROM is ${b:0:8}…"
+      [ "$a" = "$b" ] && ok "Rev. $r-$rev round-trips to ${b:0:8}…" \
+        || bad "Rev. $r-$rev: patch yields ${a:0:8}… but the ROM is ${b:0:8}…"
     else
-      skip "Rev. $r-$REV: no local ROM to compare (tools/build_rev.sh)"
+      skip "Rev. $r-$rev: no local ROM to compare (tools/build_rev.sh)"
     fi
   done
 else

@@ -20,10 +20,12 @@ sections further down are this session's detail.
      stream. `encode` is untouched on purpose (patch 16's hashes), but any future
      sheet edit should reach for the new one.
 
-   **One thing needs a maintainer decision, not work:** the fix is in the Saturn
-   builder, so shipping it to players means a **Rev. SS-03** — a superseded
-   revision gets a new number, never a redefinition. Rev. SS-02 still embeds
-   v0.16.1 and is untouched.
+   **Shipped as Rev. SS-03** (`f71421d8…`, `release/Rev.SS-03.bps`). The fix is
+   Saturn-only, so **S stays at 02** (`41d93a53…`, unchanged) and **SS advances
+   to 03** — the two revisions are now independent (`smspaths.REV_S` / `REV_SS`).
+   The superseded Rev. SS-02 `.bps` (v0.16.1, no badge) was deleted, so `release/`
+   holds one thing to apply per side. Rev. S / SS may diverge again the same way:
+   only the side whose bytes move gets a new number.
 
    **And one pre-existing overlap it drew out — cosmetic, one frame, not a
    ruling:** patch 10b's left status label sits at `$10E5-$10EC`, and a player's
@@ -425,8 +427,8 @@ Then, in this order:
    the same shape as the suite's other dual-mode rows. A fix that simply makes
    that phase fail has broken a true assertion.
 5. **Prove the shipped builds did not move.** The default (no `--all-grabs`) path
-   must rebuild **byte-identically**: Rev. S-02 `41d93a53…`, Rev. SS-02
-   `b96f3fe8…`. That is the gate that says this was a knob fix and not a
+   must rebuild **byte-identically**: Rev. S-02 `41d93a53…`, Rev. SS-03
+   `f71421d8…`. That is the gate that says this was a knob fix and not a
    balance change.
 
 **The rule this came from, worth carrying:** patch 14 inherited patch 13's site
