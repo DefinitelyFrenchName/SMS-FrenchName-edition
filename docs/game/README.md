@@ -30,6 +30,7 @@ Two of these documents are also published as drawn pages:
 | how damage is computed, end to end | [`sms_damage_system.md`](sms_damage_system.md) — and note its headline: **there is no RNG in damage** |
 | the A.C.S. stat system + the damage matrix | [`sms_acs_system.md`](sms_acs_system.md) |
 | every character's specials and desperations | [`sms_specials.md`](sms_specials.md) |
+| **the sound system**, end to end | [`sms_sound_system.md`](sms_sound_system.md) — the APU upload, the SPC driver (which lives in ROM), sound ids, and why every fighter's voice carries its own transpose byte |
 | how menus, fonts and text are drawn | [`menu_system.md`](menu_system.md) — the glyph format, both font sheets, the two screen engines, the runtime text writers, the VRAM rules |
 | hitbox / hurtbox / push-box data | [`sms_all_boxes.json`](sms_all_boxes.json) — extracted, all nine characters |
 | **the addresses for ONE character** | [`characters/`](characters/) — a generated page per fighter: manifest, palettes, box tables, animation layers, proc block, throws, voice ids |

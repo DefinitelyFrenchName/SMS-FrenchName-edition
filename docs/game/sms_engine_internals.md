@@ -19,6 +19,8 @@ game, not just look up an address.
 - `docs/project/patch_notes.md` — per-patch detail (what each patch changed and why; the count grows — docs/project/patch_index.md is the registry).
 - `docs/game/sms_all_boxes.json` — extracted per-character/​object hit/hurt/coll box tables.
 - `docs/game/sms_acs_system.md` — the A.C.S. stat system, damage matrix and misfire mechanic, complete.
+- `docs/game/sms_sound_system.md` — the audio path: APU upload, the SPC driver (stored in
+  ROM), sound ids, and the per-sound transpose byte that tunes every fighter's voice.
 
 **Ground truth.** Clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`, **HiROM +
 FastROM**, headerless. **File offset = SNES address & 0x3FFFFF.** Banks $C0–$FF map to file

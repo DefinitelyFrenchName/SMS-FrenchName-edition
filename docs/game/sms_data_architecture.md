@@ -522,6 +522,10 @@ character colours.
 
 ## 8. Map 4 — audio memory
 
+> The audio system end to end — how these 64 KB get filled, how a sound id becomes
+> a note, and where each fighter's voice pitch is decided — is
+> [`sms_sound_system.md`](sms_sound_system.md).
+
 The APU has its own 64 KB, and it is **full**: the largest run of zeros in the
 whole of ARAM is 64 bytes.
 

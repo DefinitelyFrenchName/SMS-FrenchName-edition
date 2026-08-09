@@ -350,6 +350,104 @@ def _():
         raise Fail(f"{len(bad)} reaction pointers land outside the handler region: {[hex(b) for b in bad[:4]]}")
 
 
+# ------------------------------------------------------------------ sound --
+# The audio system lives on the other side of the APU port, but its driver and
+# every table it uses are STORED in the cartridge at a fixed offset — so most of
+# what reads like an ARAM fact is checkable here. What genuinely is not (what is
+# in ARAM at runtime) the doc marks [live], and this file does not touch it.
+SPC = 0x23F804                       # file offset of ARAM $0000 for the driver image
+
+
+@check("sms_sound_system.md", "the APU handshake and the block loader")
+def _():
+    says("sms_sound_system.md", "`$C0:EBD4` writes `$E2E2` to `$2142`",
+         "computes `A*6`")
+    eq("handshake", "c2 30 a2 00 10 a0 aa bb a9 e2 e2",
+       ROM[0xEBD4:0xEBDF].hex(" "))                       # ldy #$BBAA / lda #$E2E2
+    eq("the loader multiplies by six", "0a 85 00 0a 18 65 00",
+       ROM[0xEC66:0xEC6D].hex(" "))                       # asl / sta $00 / asl / clc / adc $00
+
+
+@check("sms_sound_system.md", "the block table: 40 records, and ids 22-30 are the select voices")
+def _():
+    says("sms_sound_system.md", "**The table has 40 records** (`$C0:ECE7-$EDD6`)",
+         "id = `21 + charID`")
+    p24 = lambda o: ROM[o] | ROM[o + 1] << 8 | ROM[o + 2] << 16
+    n = 0
+    while p24(0xECE7 + n * 6) in (0x00FFFF, 0xFFFFFF) or \
+            0xE50000 <= p24(0xECE7 + n * 6) <= 0xE7FFFF:
+        n += 1
+    eq("records", 40, n)
+    eq("the table ends at $EDD6", 0xEDD6, 0xECE7 + 40 * 6 - 1)
+    # the select-voice ids are the ones $C0:AE75 hands out, and each loads a block
+    ids = [r8(f(0xC0AE75) + cid) for cid in range(1, 10)]
+    eq("select-voice bank ids", [21 + cid for cid in range(1, 10)], ids)
+    for i in ids:
+        if not 0xE50000 <= p24(0xECE7 + i * 6) <= 0xE7FFFF:
+            raise Fail(f"select-voice bank id {i} does not point at audio data")
+
+
+@check("sms_sound_system.md", "the driver's ROM home, pinned by the semitone table")
+def _():
+    says("sms_sound_system.md", "file offset = ARAM address + 0x23F804",
+         "2143 2270 2405 2548 2700 2860 3030 3211 3402 3604 3818 4045 4286")
+    tbl = [r16(SPC + 0x0DF5 + i * 2) for i in range(13)]
+    eq("semitone table", [2143, 2270, 2405, 2548, 2700, 2860, 3030, 3211,
+                          3402, 3604, 3818, 4045, 4286], tbl)
+    eq("thirteenth entry is an octave up", 2 * tbl[0], tbl[12])
+    for a, b in zip(tbl, tbl[1:]):                        # 2^(1/12) within rounding
+        if not 1.058 <= b / a <= 1.061:
+            raise Fail(f"the semitone table is not equal-tempered: {b}/{a}")
+
+
+@check("sms_sound_system.md", "the instrument split at $0C35, and its fixed bytes")
+def _():
+    says("sms_sound_system.md", "CMP A,#$30", "MOV $0280+X,A      ; SRCN = the instrument byte ITSELF",
+         "the bytes are `$17` and `$02`")
+    eq("cmp #$30 / bcc", "68 30 90 1e", ROM[SPC + 0x0C39:SPC + 0x0C3D].hex(" "))
+    eq("srcn = the instrument byte", "d5 80 02", ROM[SPC + 0x0C3D:SPC + 0x0C40].hex(" "))
+    eq("fixed ADSR", ("ff", "e0"), (ROM[SPC + 0x0C41:SPC + 0x0C42].hex(),
+                                    ROM[SPC + 0x0C46:SPC + 0x0C47].hex()))
+    eq("fixed tuning bytes", ("02", "17"), (ROM[SPC + 0x0C50:SPC + 0x0C51].hex(),
+                                            ROM[SPC + 0x0C55:SPC + 0x0C56].hex()))
+
+
+@check("sms_sound_system.md", "every fighter's five voices: ids, directory entries, transposes")
+def _():
+    says("sms_sound_system.md", "sound ids           49 + (charID-1)*5",
+         "directory entries   48 + (charID-1)*8",
+         "| 6 | Uranus | 74-78 | `$58 $59 $5A $5B` `$30` | `-2 -2 -2 -5` `+1` |")
+    doc = doc_text("sms_sound_system.md")
+    rows = re.findall(r"^\| (\d) \| ([\w ]+?) \| (\d+)-(\d+) \| `([^`]+)` `([^`]+)` \| "
+                      r"`([^`]+)` `([^`]+)` \|$", doc, re.M)
+    eq("rows in the voice table", 9, len(rows))
+    for cid, _name, lo, hi, insts, inst5, trs, tr5 in rows:
+        cid, lo, hi = int(cid), int(lo), int(hi)
+        eq(f"charID {cid} sound ids", (49 + (cid - 1) * 5, 53 + (cid - 1) * 5), (lo, hi))
+        want_i = [int(x.strip("$"), 16) for x in insts.split()] + [int(inst5.strip("$"), 16)]
+        want_t = [int(x) for x in trs.split()] + [int(tr5)]
+        got_i, got_t = [], []
+        for k in range(5):
+            e = SPC + 0x13D6 + (lo - 1 + k) * 4
+            seq = SPC + (ROM[e] | ROM[e + 1] << 8)
+            t = ROM[seq + 3]
+            got_t.append(t - 256 if t > 127 else t)
+            got_i.append(ROM[seq + 4])
+        eq(f"charID {cid} instruments", want_i, got_i)
+        eq(f"charID {cid} transposes", want_t, got_t)
+        eq(f"charID {cid} owns directory entries {48 + (cid - 1) * 8}+",
+           list(range(48 + (cid - 1) * 8, 52 + (cid - 1) * 8)), got_i[:4])
+
+
+@check("sms_sound_system.md", "the sfx table's usable range")
+def _():
+    says("sms_sound_system.md", "95 usable ids; past that the table runs into sequence data")
+    ok = [i for i in range(1, 129)
+          if 0x1400 <= (ROM[SPC + 0x13D6 + (i - 1) * 4] |
+                        ROM[SPC + 0x13D6 + (i - 1) * 4 + 1] << 8) <= 0x2FFF]
+    eq("usable ids", list(range(1, 96)), ok)
+
+
 # =============================================================================
 # THE TABLE REGISTRY — one entry per documented table this project parses
 # =============================================================================

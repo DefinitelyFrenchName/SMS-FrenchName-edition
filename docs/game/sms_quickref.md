@@ -61,6 +61,19 @@ there changes every character's move of that class.
 | animation layers | scripts `$C0:0000` · poses `$84:809C` · cels `$CB:0000` · OAM lists `$84:8000` |
 | decompress / DMA | `$80:927D` / `$80:92AD`; asset job records via `$C3:BCCD` and `$C3:BCFF` |
 
+## Sound
+
+| | |
+|---|---|
+| APU handshake / block loader | `$C0:EBD4` / `$C0:EC5E`, block table `$C0:ECE7` (40 records) |
+| the SPC driver, in ROM | **file offset = ARAM + `0x23F804`** — every audio table is patchable |
+| sfx table | ARAM `$13D6 + (id-1)*4` — `[seq_lo, seq_hi, prio, chan]`, 95 usable ids |
+| a fighter's voices | sound ids `49 + (charID-1)*5`; BRR directory `48 + (charID-1)*8` |
+| pitch | one signed **transpose byte** per sound, in its sequence — voices share one fixed tuning |
+| character-select voice | a whole block: bank id `21 + charID` via `$C0:AE75` |
+
+Detail: [`sms_sound_system.md`](sms_sound_system.md).
+
 ## Free space
 
 `$C1:BE09` (63 B) and `$C1:BE85` (69 B) in ROM · appended banks from **`$E8`** ·
@@ -78,6 +91,7 @@ tiles `$5C0-$5FF` on a menu · CGRAM OBJ row 7 · **ARAM: none**.
 | damage, end to end | [`sms_damage_system.md`](sms_damage_system.md) |
 | A.C.S. stats and the matrix | [`sms_acs_system.md`](sms_acs_system.md) |
 | menus, fonts, text | [`menu_system.md`](menu_system.md) |
+| sound, samples and pitch | [`sms_sound_system.md`](sms_sound_system.md) |
 | one fighter's addresses | [`characters/`](characters/) |
 
 ## Provenance
