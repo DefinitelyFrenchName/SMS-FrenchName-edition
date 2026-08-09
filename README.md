@@ -24,13 +24,10 @@ play; nothing is stacked on top:
 
 | | |
 |---|---|
-| **Rev. S-NN** | the reference build, no Super S content |
-| **Rev. SS-NN** | the same, plus **Sailor Saturn** (hold L+R while confirming Uranus, Neptune or Pluto) |
+| **Rev. S-NN** | The reference build (no Super S content, surgical patches, fully tested in memory and by humans) |
+| **Rev. SS-NN** | **EXPERIMENTAL Super S assets** the same, plus **Sailor Saturn** (hold L+R while confirming Uranus, Neptune or Pluto) |
 
-`NN` is the revision, and it is printed on the title screen — quote it (or the
-ROM SHA-1) in any bug report. Hashes and contents:
-[`release/RELEASE_NOTES.md`](release/RELEASE_NOTES.md), which is generated from
-the files themselves so it cannot go stale.
+`NN` is the revision, and it is printed on the title screen — quote it (or the ROM SHA-1) in any bug report. Hashes and contents:[`release/RELEASE_NOTES.md`](release/RELEASE_NOTES.md), which is generated from the files themselves so it cannot go stale.
 
 1. Obtain the clean ROM: *Bishoujo Senshi Sailor Moon S: Jougai Rantou!?* (SFC, Japan) —
    verify SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`. ROMs are never distributed here.
@@ -111,7 +108,7 @@ v0.22 and REF v.1 rebuilt 2026-07-30 with the patch-4 "©MOONLIGHT FIGHT SOCIETY
 (the visible tell vs the pre-credit builds `52bc7e38…` / `bd1104ee…`).
 `build/sms_ref_v2_allstages.bps` = REF v.2 + patch 17, ROM SHA-1 `e8fc6045…`.
 
-**Sailor Saturn** (ported from *Sailor Moon Super S*) is the 100-series and is built
+**Sailor Saturn** (ported from *Sailor Moon Super S*) is the patch 100-series and is built
 by `tools/saturn/`, not by a `mkpatchN.py` — she rides in **Rev. SS** only. Her patches
 are deliberately **not** tracked as `.bps`, because they embed ported game content;
 rebuild from source (`tools/saturn/build_refsaturn.sh`, gate
