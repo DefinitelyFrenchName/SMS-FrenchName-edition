@@ -515,6 +515,20 @@ CSS_EXTRA = """
 .asm td.why{white-space:normal;font-family:ui-sans-serif,system-ui,sans-serif;
   color:var(--ink-2);font-size:.86rem}
 .asm td.op{color:var(--code)}
+.gloss-h{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.72rem;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);font-weight:600;
+  margin:1.6rem 0 .4rem}
+.gloss{display:grid;grid-template-columns:minmax(9rem,13rem) 1fr;gap:.1rem 1.4rem;
+  margin:0;padding:.2rem 0}
+.gloss dt{font:600 .86rem/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:var(--ink);padding:.35rem 0;border-top:1px solid var(--rule)}
+.gloss dd{margin:0;padding:.35rem 0;color:var(--ink-2);font-size:.92rem;
+  border-top:1px solid var(--rule)}
+.gloss dt:first-of-type,.gloss dt:first-of-type + dd{border-top:0}
+@media (max-width:44rem){
+  .gloss{grid-template-columns:1fr;gap:0}
+  .gloss dd{padding:0 0 .6rem;border-top:0}
+}
 """
 
 ASM_ROWS = [
@@ -534,6 +548,68 @@ ASM_ROWS = [
 # markup, not the code that produced it — the point is to catch a figure whose
 # geometry drifted from its CSS, which is exactly what "the label is wider than
 # its pill" was.
+# A page that sits between two audiences needs both their vocabularies: the
+# console terms a fighting-game player has no reason to know, and the engine
+# terms an assembly reader has no reason to know. Definitions are specific to
+# THIS cartridge wherever they can be — a generic dictionary entry would be
+# padding, and the address in it is what makes the term findable.
+GLOSSARY = [
+    ("The console", [
+        ("NMI", "the interrupt the PPU raises once per frame, at the start of vblank. "
+                "Here it is the whole reason the loop advances: it writes DP $6C and the "
+                "loop is spinning on that byte"),
+        ("vblank", "the gap between drawing the last scanline and the first of the next "
+                   "frame — the only safe window to write video memory"),
+        ("DMA", "the chip that copies a block without the CPU. Sprites, palettes and the "
+                "HUD all reach the PPU this way, which is why they are written to shadow "
+                "copies in RAM first"),
+        ("OAM", "the 544 bytes the PPU reads to know where every sprite is. This game "
+                "keeps a shadow at $7E:0200 and sends the whole thing every frame"),
+        ("CGRAM / VRAM / WRAM", "the palette memory, the video memory and the console's "
+                                "128 KB of work RAM"),
+        ("DP (direct page)", "a movable 256-byte window the CPU can address in one byte "
+                             "instead of two — this engine parks its per-frame flags there "
+                             "($6C, $88, $90)"),
+        ("bank", "a 64 KB slice of the 24-bit address space. `$C1:0000` means offset "
+                 "$0000 in bank $C1"),
+        ("FastROM mirror", "the same cartridge visible again at banks $80-$BF, where the "
+                           "console reads it a third faster. `$80:A05C` and `$C0:A05C` are "
+                           "one routine, which is why a breakpoint on the wrong one never "
+                           "fires"),
+        ("jsr / JSL / RTL", "call within a bank, call across banks, and the return that "
+                            "matches the long one. A `jsr` operand is two bytes and a "
+                            "`JSL` three — which decides how much room a hook has"),
+        ("jsr ($00A6,X)", "an indirect call: the address is looked up in a table at "
+                          "$00A6. One instruction, twenty-eight different characters"),
+        ("hook / stub", "how every patch here works — overwrite a call with one to your "
+                        "own code (the stub), do the extra work, then do what the "
+                        "original instruction did and return"),
+    ]),
+    ("The engine", [
+        ("object", "anything the update loop drives: the two fighters, projectiles, "
+                   "effects. All of them are 128-byte structs with the same layout"),
+        ("act", "the object's current state number, at +0x01 — walking, 2LP's startup, "
+                "hitstun. Everything else follows from it"),
+        ("pose", "one drawn frame, at +0x05. The act's script picks poses; a pose record "
+                 "picks the boxes and the sprite list"),
+        ("hitbox / hurtbox", "the rectangle that hits and the rectangle that can be hit, "
+                             "chosen per pose by the indices at +0x40/41. **Invulnerable "
+                             "means hurtbox index 0** — an empty box, not a flag"),
+        ("hitstun / blockstun", "the frames a defender cannot act after being hit, or "
+                                "after blocking. The difference between them is most of "
+                                "what makes a combo a combo"),
+        ("guard cancel (GC)", "cancelling blockstun directly into a special. This game's "
+                              "defining mechanic, and why the reaction stage runs where it "
+                              "does"),
+        ("meaty", "an attack timed so it becomes active exactly as the defender leaves "
+                  "stun. At one frame of margin it cannot be blocked on reaction — the "
+                  "Uranus infinite is built on this"),
+        ("proc block", "one character's own code, ~4-5 KB of it, reached through the "
+                       "dispatch table. Uranus's is $C1:79F2"),
+    ]),
+]
+
+
 AUDIT_SIZE = {"sname": 12.5, "snote": 11, "saddr": 11, "ssite": 10.5, "lane": 10.5,
               "edge": 11, "prow": 12.5, "paddr": 11, "pdelta": 11, "pnum": 11, "pwhy": 11}
 AUDIT_MONO = {"saddr", "ssite", "lane", "edge", "paddr", "pdelta", "pnum"}
@@ -678,6 +754,15 @@ def build():
                '(reads flag <code>$B1</code>). Naming them would make a nicer diagram and a '
                'worse document.</p></div>')
 
+    out.append("<h2>Glossary</h2>")
+    out.append('<p>Two vocabularies meet on this page, and nobody arrives with both.</p>')
+    for group, terms in GLOSSARY:
+        out.append(f'<h3 class="gloss-h">{esc(group)}</h3><dl class="gloss">')
+        for term, meaning in terms:
+            meaning = re.sub(r"`([^`]+)`", r"<code>\1</code>", esc(meaning))
+            meaning = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", meaning)
+            out.append(f"<dt>{esc(term)}</dt><dd>{meaning}</dd>")
+        out.append("</dl>")
     out.append('<p class="foot">Generated by <code>tools/mkenginepage.py</code> from the clean '
                'ROM <code>bc0e29ee…</code>. <code>--check</code> re-reads every instruction '
                'drawn here and fails if one moved. Companion page: the data architecture.</p>')
