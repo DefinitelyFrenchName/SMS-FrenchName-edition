@@ -1,4 +1,4 @@
-# The sound system — how a Super Famicom cartridge makes a fighter shout
+# The sound system (and its quirks in SMS)
 
 **What this is.** How *Bishoujo Senshi Sailor Moon S: Jougai Rantou!?* gets audio
 out of a cartridge and into the SPC700: where the sample data lives, how it
