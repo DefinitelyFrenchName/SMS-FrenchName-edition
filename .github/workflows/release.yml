@@ -1,0 +1,65 @@
+# Publish a GitHub Release when a release tag is pushed.
+#
+# Cutting a release becomes three steps you already do plus one:
+#   tools/build_rev.sh both          # build the two references
+#   python3 tools/mkrelease.py       # regenerate release/RELEASE_NOTES.md
+#   git commit ... && git push       # land the .bps + notes on main
+#   git tag release-ss-03            # <-- the new step
+#   git push origin release-ss-03
+#
+# The tag NAME is only a label (GitHub shows it as the release title). Everything
+# the release CONTAINS — its description and its attached files — is read from
+# what is committed in `release/` at that tag, never retyped. So the published
+# notes are always the generated `RELEASE_NOTES.md`, and they cannot drift from
+# the patches, because they are the same file this repo already gates in health.
+#
+# Why a file in the repo did NOT already show up on a release: GitHub does not
+# treat `RELEASE_NOTES.md` specially. It renders when you click it in the tree,
+# but a Release's body is a separate text field, and attaching assets is a
+# separate action again. This workflow is what wires the committed file to the
+# release body (`body_path`) and the committed patches to the assets (`files`).
+#
+# What this CANNOT do, same as the health check: build or verify a patched ROM.
+# The clean ROM, the Super S donor and Mesen are absent from a hosted runner by
+# design, so the real gates stay local and must pass BEFORE you tag:
+#   ROM=build/SailorMoonS_Rev_S-NN.sfc  tools/run.sh tools/test_regression.lua 900
+#   ROM=build/SailorMoonS_Rev_SS-NN.sfc tools/saturn/verify_saturn.sh
+# CI can only prove the notes match the committed patches, which it does below.
+name: release
+
+on:
+  push:
+    tags:
+      - "release-*"          # e.g. release-ss-03, release-2026-08-09
+  # Change the pattern above to your convention — "v*" and "rev-*" are common.
+  # It is the ONLY line that decides which tags trigger a release.
+
+# Creating a release writes to the repo, so the token needs write. This is the
+# one permission softprops/action-gh-release requires; everything else stays read.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # A tag must not publish stale notes. `--check` re-renders RELEASE_NOTES.md
+      # from the committed files and fails if the checked-in copy differs. On a
+      # hosted runner the two ROM-SHA cells can't be recomputed (the .sfc are
+      # gitignored), so the check compares everything else and says so — exit 0.
+      - name: Notes are in sync with the committed patches
+        run: python3 tools/mkrelease.py --check
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}          # the tag is the title
+          body_path: release/RELEASE_NOTES.md    # the generated notes ARE the body
+          files: release/*.bps                   # attach whatever is committed
+          fail_on_unmatched_files: true          # empty glob = fail loudly, not a silent empty release
+          # draft: true                          # uncomment to review before it goes public
