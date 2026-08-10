@@ -119,6 +119,20 @@ what the guard handlers pass to the starter.
 | Venus | `$C1:6C1F` | 10 | | | | |
 
 One **word** per entry: **high byte = the act to start, low byte = gating flags**.
+
+⚠ **It is the ENTRY act that is declared, not every act the move uses.** Multi-part
+moves chain internally, and their later acts are neither in the table nor startable
+from it: Uranus's SPD enters at `0x67`/`0x68` and tosses at `0x71`; Jupiter's Giant
+Swing enters at `0x6D`/`0x6E` and carries at `0x6F`/`0x70`. Both toss/carry acts have
+their own handlers and neither appears in a cancel table. Measured by comparing each
+table against every act in `0x5B-0x79` that has a distinct handler — Uranus declares
+7 of ~30, Jupiter 10. So the table is an *identity list of moves*, not a list of acts
+a special occupies, which is what makes "declared in the table" the right test.
+
+Command grabs ARE in it (they are simply specials with a grab start), even though
+they are absent from the 7-byte `$C1:0B49` records. Normals and throws are not:
+normals live below this range and throws come from the separate table the same
+handler passes to `$C1:055A`.
 The entry count is not a guess — each table is bounded below by the throw table the
 same handler passes to `$C1:055A` (Uranus's is `$C1:7B39`, giving 0x14 bytes = 10
 entries). Reading past that bound yields `00FF`/`0000` rows that are not entries.
