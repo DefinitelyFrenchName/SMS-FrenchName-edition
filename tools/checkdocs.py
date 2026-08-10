@@ -56,6 +56,7 @@ REPO = _P(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "tools"))
 sys.path.insert(0, str(REPO / "tools" / "saturn"))
 from smspaths import clean_rom  # noqa: E402
+import dis65816  # noqa: E402
 
 ROM = open(clean_rom(), "rb").read()
 GAME = REPO / "docs" / "game"
@@ -503,6 +504,63 @@ def derived(*snes):
 # dropped: a claim nobody checked must not be mistaken for one that held.
 UNENCODABLE = []
 
+# Instruction claims that hold somewhere inside the routine but do NOT pin the
+# address the doc names — the quote still matches at base+1 or base+2, so it is
+# the ROUTINE that is being identified, not the byte. A legitimate way to write
+# documentation ("the renderer `$C0:9A0E` (`lda $05,x`)"), and it must not be
+# counted as if it pinned an address. Reported, never fatal.
+ROUTINE_LEVEL = []
+
+
+def instruction_sites(base, quoted, window=128):
+    """Where each `/`-separated part of `quoted` decodes, as offsets from `base`.
+
+    -> ([offset per part], (m, x)) or (None, None).
+
+    Each part must sit at an INSTRUCTION BOUNDARY of the stream starting at
+    `base`, in order. Two properties are load-bearing:
+
+    * **Boundary, not substring.** The old check was `ROM[a:a+128].find(bytes)`,
+      which matches just as happily inside another instruction's operand or in
+      a pointer table. Bytes that happen to appear are not an instruction.
+    * **Ordered subsequence, not contiguous run.** `annotations.md:89` quotes
+      `jsr $B33F / ldx $8E / jmp ($B32B,X)` and the ROM has a `sep #$30` between
+      the first two — the doc is ABRIDGING, correctly and usefully. Demanding
+      contiguity would fail a true claim, so the parts need only appear in order.
+
+    Both flag seedings are tried because the docs do not state one, and an
+    immediate's width depends on it.
+    """
+    import docaddrs
+    parts = [docaddrs.encode(p.strip()) for p in quoted.split("/")]
+    if not all(parts):
+        return None, None
+    for mx in ((1, 1), (0, 0)):
+        starts = sorted(a for a, _op, _ln, _m, _x in dis65816.walk(
+            ROM, base, min(base + window, len(ROM)), *mx))
+        pos, found = base, []
+        for cands in parts:
+            hit = next((a for a in starts if a >= pos
+                        and any(ROM[a:a + len(c)] == c for c in cands)), None)
+            if hit is None:
+                break
+            found.append(hit - base)
+            pos = hit + 1
+        else:
+            return found, mx
+    return None, None
+
+
+def PINS_ADDRESS(base, quoted):
+    """True if the quote identifies THIS address rather than its neighbourhood.
+
+    Trap 20 applied to the extracted family: a claim that still matches two
+    bytes over is describing the routine, not the address the doc published.
+    """
+    return (instruction_sites(base, quoted)[0] is not None
+            and instruction_sites(base + 1, quoted)[0] is None
+            and instruction_sites(base + 2, quoted)[0] is None)
+
 
 def ascending(vals, label, strict=True):
     for a, b in zip(vals, vals[1:]):
@@ -935,22 +993,48 @@ def register_claims():
         CHECKS.append((doc, f"${snes:06X} = {want.hex(' ')[:23]}…", run))
         claimed.add(snes)
 
-    # Instructions the docs quote beside an address. The claim checked is "these
-    # bytes are AT that address, or inside the routine that starts there" — the
-    # window is 128 bytes, and the offset found is printed, because "$C0:9A0E
-    # (`lda $05,x`)" names a routine and its instruction, not a byte.
+    # Instructions the docs quote beside an address, and the disassembly listing
+    # rows. Both are matched at instruction BOUNDARIES — see instruction_sites().
     for doc, line_no, snes, quoted, cands in docaddrs.instruction_claims(game):
         if not cands:
             UNENCODABLE.append(f"{doc}:{line_no} `{quoted}`")
             continue
+        off, _mx = instruction_sites(f(snes), quoted)
+        # If the quote sits further along and THE LINE ITSELF names that address,
+        # the doc's claim is about the address it named, not the one the
+        # proximity rule happened to bind. `$C3:BB60 (`jsr ($BB6D,x)` … at
+        # `$C3:BB69`)` is the live case: the instruction is 9 bytes on, the doc
+        # says so, and only the old 128-byte substring window hid the mismatch.
+        if off and off[0] and docaddrs.token(snes + off[0]) in docaddrs.line_at(doc, line_no):
+            snes += off[0]
+
+        def run(snes=snes, quoted=quoted, doc=doc, line_no=line_no):
+            got, _ = instruction_sites(f(snes), quoted)
+            if got is None:
+                raise Fail(f"{doc}:{line_no} puts `{quoted}` at ${snes:06X}, which holds "
+                           f"{ROM[f(snes):f(snes) + 6].hex(' ')} and does not decode to it "
+                           "at any instruction boundary in the next 128 bytes")
+        CHECKS.append((doc, f"${snes:06X} `{quoted}`", run))
+        claimed.add(snes)
+        if not PINS_ADDRESS(f(snes), quoted):
+            ROUTINE_LEVEL.append(f"{doc}:{line_no} ${snes:06X} `{quoted}`")
+
+    # Hand-transcribed listing rows: `C0/D055  rep #$30`. The address and the
+    # instruction are two INDEPENDENT readings by a human, so unlike a generated
+    # fact this one can be wrong today — which is exactly what makes it worth
+    # checking. Required at offset 0: a listing row states what is AT the
+    # address, with no routine-scoped slack to hide in.
+    for doc, line_no, snes, quoted, cands in docaddrs.listing_claims(game):
+        if not cands:
+            UNENCODABLE.append(f"{doc}:{line_no} `{quoted}` (listing)")
+            continue
 
         def run(snes=snes, quoted=quoted, cands=cands, doc=doc, line_no=line_no):
-            win = ROM[f(snes):f(snes) + 128]
-            if not any(win.find(c) >= 0 for c in cands):
-                raise Fail(f"{doc}:{line_no} puts `{quoted}` at ${snes:06X}, which holds "
-                           f"{ROM[f(snes):f(snes) + 6].hex(' ')} and does not contain it "
-                           "in its first 128 bytes")
-        CHECKS.append((doc, f"${snes:06X} `{quoted}`", run))
+            here = ROM[f(snes):f(snes) + max(len(c) for c in cands)]
+            if not any(here.startswith(c) for c in cands):
+                raise Fail(f"{doc}:{line_no} lists `{quoted}` at ${snes:06X}, which holds "
+                           f"{ROM[f(snes):f(snes) + 6].hex(' ')}")
+        CHECKS.append((doc, f"${snes:06X} listing `{quoted}`", run))
         claimed.add(snes)
     return claimed
 
@@ -990,6 +1074,76 @@ def claim_selftests():
         bad.append("byte-run extractor: the true run is not found, or does not match the ROM")
     if len(miss) != 1 or ROM[f(miss[0][2]):f(miss[0][2]) + 4] == miss[0][3]:
         bad.append("byte-run extractor: a falsified run is not caught")
+    return bad + instruction_selftests()
+
+
+def instruction_selftests():
+    """The instruction and listing extractors, negative-controlled.
+
+    These two had NO synthetic control until 2026-08-10, which made them the
+    weakest families here: an extractor that quietly stops matching passes every
+    claim it no longer finds, and nothing would have said so. Anchored on
+    `$C1:0E4F`, whose bytes a hand check above already pins.
+
+    ⚠ `mid_operand` is the case that separates a BOUNDARY check from the
+    substring search this replaced, and it had to be found in the ROM rather
+    than imagined. At `$C0:9CB2` the bytes `b5 05` (`lda $05,x`) do occur within
+    128 bytes — at file `0x09CB6`, straddling the operand of the `bpl` at
+    `$C0:9CB5` and the opcode after it. Substring says yes; there is no
+    instruction there. Without this case the upgrade would have no control at
+    all, because on the fourteen claims the docs currently make, substring and
+    boundary agree on all fourteen — measured. The upgrade's present value is
+    that it derives the OFFSET (which is what exposed `$C3:BB60`'s quote living
+    at `$C3:BB69`, and what separates address-pinning claims from routine-level
+    ones); the mid-operand protection is prophylactic, and this control is what
+    keeps it honest.
+
+    The `shifted` case pins the historical `$C1:0E51` bug. Note it is NOT
+    evidence for the upgrade: the old substring check rejected that claim too,
+    because its window opened at the claimed address and the real instruction is
+    two bytes EARLIER. Measured, after the opposite was assumed.
+    """
+    import docaddrs
+    bad = []
+
+    def insns(line):
+        return docaddrs.instruction_claims_in("synthetic", line)
+
+    def listings(line):
+        return docaddrs.listing_claims_in("synthetic", line)
+
+    def matches(line):
+        got = insns(line)
+        return got and instruction_sites(f(got[0][2]), got[0][3])[0] is not None
+
+    if not matches("the clear is at `$C1:0E4F` (`stz $47,X`)"):
+        bad.append("instruction extractor: the true claim is not found, or does not match")
+    if matches("the clear is at `$C1:0E4F` (`stz $48,X`)"):
+        bad.append("instruction extractor: a falsified operand is not caught")
+    if matches("the clear is at `$C1:0E51` (`stz $47,X`)"):
+        bad.append("instruction extractor: the historical two-byte-late address "
+                   "($C1:0E51 for $C1:0E4F) is NOT caught")
+    if matches("the renderer `$C0:9CB2` (`lda $05,x`)"):
+        bad.append("instruction extractor: matched `lda $05,x` at $C0:9CB2, where those "
+                   "bytes appear only INSIDE another instruction's operand — the "
+                   "boundary check has regressed to a substring search")
+    # an instruction sitting in a later table cell, describing what a PATCH
+    # writes, must never bind to the row's subject
+    if any(q == "lda $14" for _d, _n, _s, q, _c
+           in insns("| `$C0:9EA6` | x | `lda $66,X` — patched to `lda $14` |")):
+        bad.append("instruction extractor: bound a PATCHED instruction from a later cell")
+    # a documented ABSENCE must not become an assertion of presence
+    if insns("step-0 init MISSING the engine-standard `stz $46,X`"):
+        bad.append("instruction extractor: bound a claim the doc makes NEGATIVELY")
+
+    right = listings("C1/0E4F  stz $47,X")
+    wrong = listings("C1/0E51  stz $47,X")
+    if len(right) != 1 or not ROM[f(right[0][2]):].startswith(right[0][4][0]):
+        bad.append("listing extractor: the true row is not found, or does not match the ROM")
+    if len(wrong) != 1 or ROM[f(wrong[0][2]):].startswith(wrong[0][4][0]):
+        bad.append("listing extractor: a two-byte-late address is not caught")
+    if listings("the value 0x1234  lda $05 is not a listing row"):
+        bad.append("listing extractor: matched a line that is not a listing row")
     return bad
 
 
@@ -1057,9 +1211,14 @@ def main():
     print(f"\n\033[32mALL PASS\033[0m ({len(CHECKS)} checks across {docs} documents)")
     print(f"  {hand} written by hand · {len(TABLES)} table structures, each re-run at a wrong "
           f"base and required to fail · {len(CHECKS) - hand - len(TABLES)} claims extracted from "
-          f"the prose (file offsets, quoted bytes, quoted instructions)")
+          f"the prose (file offsets, quoted bytes, quoted instructions, listing rows)")
     for u in UNENCODABLE:
         print(f"  note  quoted instruction outside the encoder's subset, NOT checked: {u}")
+    if ROUTINE_LEVEL:
+        print(f"  note  {len(ROUTINE_LEVEL)} instruction claims identify the ROUTINE, not the "
+              "address — they still match two bytes over:")
+        for r in ROUTINE_LEVEL:
+            print(f"          {r}")
     import docaddrs
     docaddrs.report(covered=covered, show_uncovered=args.uncovered)
     print("Checks facts decidable by reading the cartridge. It does NOT check prose,")

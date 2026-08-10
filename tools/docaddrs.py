@@ -51,6 +51,12 @@ TOKEN = re.compile(r"\$([0-9A-F]{2}):([0-9A-F]{4})")
 FILE_CLAIM = re.compile(r"files?\s*`?0x([0-9A-Fa-f]{4,6})`?")
 # a backticked run of >=4 hex bytes
 RUN_CLAIM = re.compile(r"`((?:[0-9A-Fa-f]{2} ){3,}[0-9A-Fa-f]{2})`")
+# a hand-transcribed disassembly listing row: `C0/D055  rep #$30`, DisPel's own
+# output format. Deliberately strict — line start, two spaces, a three-letter
+# LOWERCASE mnemonic — because a looser pattern also matches the file-offset
+# arithmetic lines (`-> 0xC0D055 & 0x3FFFFF -> c2 30 …`), a DMA table row and
+# stretches of ordinary prose. All of those were checked by hand.
+LISTING = re.compile(r"^\s*\$?([0-9A-F]{2})[/:]([0-9A-F]{4})\s\s+([a-z]{3}[ /;].*)$")
 
 # docs/game/characters/ is written by tools/mkcharmap.py, which reads every
 # address it prints out of the cartridge and is `--check`-gated in health.sh.
@@ -112,8 +118,26 @@ def docs_files():
     return sorted(p for p in DOCS.rglob("*.md"))
 
 
+_LINES = {}
+
+
+def line_at(doc, line_no):
+    """The raw text of one documented line — for checks that need to ask what
+    else the doc said on it (e.g. whether it already names the true address)."""
+    if doc not in _LINES:
+        _LINES[doc] = (DOCS / doc).read_text(encoding="utf-8").splitlines()
+    return _LINES[doc][line_no - 1]
+
+
 def census(paths=None):
-    """Every address token in the docs, with the line it was written on."""
+    """Every address token in the docs, with the line it was written on.
+
+    Both spellings count. `$C1:0AF5` is the prose form; `C1/0AF5` is the form
+    a hand-transcribed disassembly listing uses, and until 2026-08-10 the census
+    could not see those at all — 25 documented addresses were invisible to the
+    coverage report, which is the one number here that is supposed to be honest
+    about what nobody checked.
+    """
     out = []
     for p in paths or docs_files():
         doc = str(p.relative_to(DOCS))
@@ -121,6 +145,10 @@ def census(paths=None):
             for m in TOKEN.finditer(line):
                 snes = (int(m.group(1), 16) << 16) | int(m.group(2), 16)
                 out.append(Mention(doc, n, line, snes))
+            m = LISTING.match(line)
+            if m:
+                out.append(Mention(doc, n, line,
+                                   (int(m.group(1), 16) << 16) | int(m.group(2), 16)))
     return out
 
 
@@ -183,18 +211,45 @@ _IMPLIED = {"sec": 0x38, "clc": 0x18, "phb": 0x8B, "plb": 0xAB, "pha": 0x48,
             "pla": 0x68, "php": 0x08, "plp": 0x28, "phk": 0x4B, "rtl": 0x6B,
             "rts": 0x60, "tax": 0xAA, "txa": 0x8A, "tay": 0xA8, "tya": 0x98,
             "xba": 0xEB, "nop": 0xEA, "inx": 0xE8, "dex": 0xCA, "iny": 0xC8,
-            "dey": 0x88, "asl": 0x0A, "lsr": 0x4A, "rol": 0x2A, "ror": 0x6A}
+            "dey": 0x88, "asl": 0x0A, "lsr": 0x4A, "rol": 0x2A, "ror": 0x6A,
+            "phd": 0x0B, "pld": 0x2B, "phx": 0xDA, "plx": 0xFA, "phy": 0x5A,
+            "ply": 0x7A, "tcd": 0x5B, "tdc": 0x7B, "tcs": 0x1B, "tsc": 0x3B,
+            "txs": 0x9A, "tsx": 0xBA, "txy": 0x9B, "tyx": 0xBB, "clv": 0xB8,
+            "sei": 0x78, "cli": 0x58, "sed": 0xF8, "cld": 0xD8, "rti": 0x40,
+            "wai": 0xCB, "xce": 0xFB, "inc": 0x1A, "dec": 0x3A}
+# the accumulator form, when the doc writes the operand out: `lsr a`
+_ACCUM = {"asl": 0x0A, "lsr": 0x4A, "rol": 0x2A, "ror": 0x6A,
+          "inc": 0x1A, "dec": 0x3A}
 _MODES = {                       # mnemonic -> {mode: opcode}
     "lda": {"imm": 0xA9, "dp": 0xA5, "dpx": 0xB5, "abs": 0xAD, "absx": 0xBD, "absy": 0xB9},
     "sta": {"dp": 0x85, "dpx": 0x95, "abs": 0x8D, "absx": 0x9D, "absy": 0x99},
     "stz": {"dp": 0x64, "dpx": 0x74, "abs": 0x9C, "absx": 0x9E},
-    "ldx": {"imm": 0xA2, "dp": 0xA6, "abs": 0xAE},
-    "ldy": {"imm": 0xA0, "dp": 0xA4, "abs": 0xAC},
-    "cmp": {"imm": 0xC9, "dp": 0xC5, "abs": 0xCD, "absy": 0xD9},
-    "sbc": {"imm": 0xE9, "dp": 0xE5}, "adc": {"imm": 0x69, "dp": 0x65},
-    "and": {"imm": 0x29, "dp": 0x25, "dpx": 0x35, "abs": 0x2D},
-    "ora": {"imm": 0x09, "dp": 0x05}, "eor": {"imm": 0x49, "dp": 0x45},
-    "jsr": {"abs": 0x20, "iabsx": 0xFC}, "jmp": {"abs": 0x4C, "iabsx": 0x7C},
+    "ldx": {"imm": 0xA2, "dp": 0xA6, "dpy": 0xB6, "abs": 0xAE, "absy": 0xBE},
+    "ldy": {"imm": 0xA0, "dp": 0xA4, "dpx": 0xB4, "abs": 0xAC, "absx": 0xBC},
+    "stx": {"dp": 0x86, "dpy": 0x96, "abs": 0x8E},
+    "sty": {"dp": 0x84, "dpx": 0x94, "abs": 0x8C},
+    "cmp": {"imm": 0xC9, "dp": 0xC5, "dpx": 0xD5, "abs": 0xCD, "absx": 0xDD, "absy": 0xD9},
+    "cpx": {"imm": 0xE0, "dp": 0xE4, "abs": 0xEC},
+    "cpy": {"imm": 0xC0, "dp": 0xC4, "abs": 0xCC},
+    "sbc": {"imm": 0xE9, "dp": 0xE5, "dpx": 0xF5, "abs": 0xED, "absx": 0xFD, "absy": 0xF9},
+    "adc": {"imm": 0x69, "dp": 0x65, "dpx": 0x75, "abs": 0x6D, "absx": 0x7D, "absy": 0x79},
+    "and": {"imm": 0x29, "dp": 0x25, "dpx": 0x35, "abs": 0x2D, "absx": 0x3D, "absy": 0x39},
+    "ora": {"imm": 0x09, "dp": 0x05, "dpx": 0x15, "abs": 0x0D, "absx": 0x1D, "absy": 0x19},
+    "eor": {"imm": 0x49, "dp": 0x45, "dpx": 0x55, "abs": 0x4D, "absx": 0x5D, "absy": 0x59},
+    "bit": {"imm": 0x89, "dp": 0x24, "dpx": 0x34, "abs": 0x2C, "absx": 0x3C},
+    "inc": {"dp": 0xE6, "dpx": 0xF6, "abs": 0xEE, "absx": 0xFE},
+    "dec": {"dp": 0xC6, "dpx": 0xD6, "abs": 0xCE, "absx": 0xDE},
+    "tsb": {"dp": 0x04, "abs": 0x0C}, "trb": {"dp": 0x14, "abs": 0x1C},
+    "asl": {"dp": 0x06, "dpx": 0x16, "abs": 0x0E, "absx": 0x1E},
+    "lsr": {"dp": 0x46, "dpx": 0x56, "abs": 0x4E, "absx": 0x5E},
+    "rol": {"dp": 0x26, "dpx": 0x36, "abs": 0x2E, "absx": 0x3E},
+    "ror": {"dp": 0x66, "dpx": 0x76, "abs": 0x6E, "absx": 0x7E},
+    "jsr": {"abs": 0x20, "iabsx": 0xFC}, "jmp": {"abs": 0x4C, "iabsx": 0x7C,
+                                                 # $5C is JML; "jmp $BB:AAAA" is
+                                                 # the conventional spelling (DisPel
+                                                 # prints $22 as `jsr` for the same
+                                                 # reason) and the docs use it.
+                                                 "long": 0x5C},
     "jsl": {"long": 0x22}, "jml": {"long": 0x5C},
     "rep": {"imm8": 0xC2}, "sep": {"imm8": 0xE2},
 }
@@ -215,8 +270,8 @@ def encode(text):
         if mn in _IMPLIED and not op:
             out = [o + bytes([_IMPLIED[mn]]) for o in out]
             continue
-        if mn == "lsr" and op == "a":
-            out = [o + b"\x4a" for o in out]
+        if mn in _ACCUM and op == "a":
+            out = [o + bytes([_ACCUM[mn]]) for o in out]
             continue
         table = _MODES.get(mn)
         if not table:
@@ -282,6 +337,39 @@ def instruction_claims_in(doc, text):
     return out
 
 
+def listing_claims_in(doc, text):
+    """(doc, line_no, snes, quoted, candidates) for `BB/AAAA  <insn>` rows.
+
+    The best-anchored family here, and the only one besides the quoted-byte runs
+    that can catch an address which is wrong TODAY rather than one that rots
+    later: a human read the address off a disassembler and typed the instruction
+    beside it, so the two halves are independent measurements and a slip in
+    either shows up as a mismatch. The prose families bind by proximity and
+    guess; this one does not have to — the address is first on the line and the
+    instruction follows it.
+
+    The body stops at the first `;` comment, `->` annotation or `(` aside, and
+    ` ; ` inside the body separates a sequence exactly as `/` does.
+    """
+    out = []
+    for n, line in enumerate(text.splitlines(), 1):
+        m = LISTING.match(line)
+        if not m:
+            continue
+        snes = (int(m.group(1), 16) << 16) | int(m.group(2), 16)
+        if not is_rom(snes):
+            continue
+        body = re.split(r";|->|\(", m.group(3))[0].strip().rstrip(",")
+        body = body.replace(" ; ", " / ")
+        if body:
+            out.append((doc, n, snes, body, encode(body)))
+    return out
+
+
+def listing_claims(paths=None):
+    return _over_files(listing_claims_in, paths)
+
+
 def instruction_claims(paths=None):
     return _over_files(instruction_claims_in, paths)
 
@@ -328,7 +416,11 @@ def report(covered=None, show_uncovered=False, out=print):
     game = classify([m for m in all_m if m.area == "game"])
     proj = classify([m for m in all_m if m.area == "project"])
     rom, covered = game["rom"], covered or set()
-    # a check may name an address either way round — `$C0:9CCD` or `0x9CCD`
+    # A check may name an address either way round — `$C0:9CCD` or `0x9CCD` —
+    # and HiROM maps `$80:9A0E` and `$C0:9A0E` to the SAME cartridge byte, so a
+    # check that re-derives one has re-derived the other. Normalising both sides
+    # to the file offset is the only spelling-independent comparison.
+    covered = set(covered) | {f(a) for a in covered}
     seen = lambda a: a in covered or f(a) in covered
     hit = {a for a in rom if seen(a)}
     miss = sorted(a for a in rom if not seen(a))
