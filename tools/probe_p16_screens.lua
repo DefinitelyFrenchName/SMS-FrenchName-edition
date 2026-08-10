@@ -192,6 +192,29 @@ end
 
 -- DUMP7F: write the $DF system's staging areas — the sheet at $7F:0000 and
 -- the row records at $7F:8000 — so text blocks can be rendered offline
+-- DECOMPWATCH=1: which ROM blob feeds each decompression? The DMA only ever
+-- reports the staging buffer ($7F:0000), so it cannot say which asset entry ran
+-- -- which is exactly what a font repoint needs to know.
+-- ⚠ MEASURED 2026-08-10: this hook does NOT fire on the tournament route. The
+-- $DF screen engine does not reach codec 1 through $80:91A0 (the entry
+-- probe_menu_font.lua uses for the $C3 clusters) -- it has its own path, and
+-- finding it is step one of closing the bracket names. A silent hook here is
+-- the instrument, not evidence about the game (trap 9).
+if os.getenv("DECOMPWATCH") == "1" then
+  emu.addMemoryCallback(function()
+    local ok, st = pcall(function() return emu.getState().cpu end)
+    if not ok or not st then return end
+    local lo = emu.read(0x00, emu.memType.snesWorkRam) or 0
+    local hi = emu.read(0x01, emu.memType.snesWorkRam) or 0
+    local bk = emu.read(0x02, emu.memType.snesWorkRam) or 0
+    local dl = emu.read(0x03, emu.memType.snesWorkRam) or 0
+    local dh = emu.read(0x04, emu.memType.snesWorkRam) or 0
+    local db = emu.read(0x05, emu.memType.snesWorkRam) or 0
+    log(string.format("f%d DECOMP src=$%02X:%02X%02X dest=$%02X:%02X%02X",
+        frames, bk, hi, lo, db, dh, dl))
+  end, emu.callbackType.exec, 0x8091A0, 0x8091A0, emu.cpuType.snes, emu.memType.snesMemory)
+end
+
 local function dump7f(tag)
   local f = assert(io.open(string.format("%sp16_7f_%s_%s.bin", ENV.TRACE, ROUTE, tag), "wb"))
   local chunk = {}

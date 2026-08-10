@@ -44,9 +44,21 @@ sections further down are this session's detail.
      sides, stride `$46`) — **no runtime builder, and not inside the codec-2
      blob** (`$C7:3BBD` is the bracket's map). The records render live; the
      extended 256-tile small font is correct in the ROM but never reaches VRAM.
-     **One measurement finishes it:** log which script id the `$DF` loader
-     (`$9F:83CE`) runs for the bracket and repoint that script's font entry
-     instead of `$DF:A446`.
+     **What is left, and what was ruled out.** The ROM is right: `$DF:A446` is
+     repointed, the relocated stream decompresses to 256 tiles and the new glyphs
+     are non-blank *in the ROM*. The CHR base is `$200`, measured (the vanilla
+     blob matches live VRAM 135/135 at offset 0), so record id N really is sheet
+     tile N. Yet the tiles arrive blank. So the bracket's font upload does not
+     come from the entry that was repointed — even though `$DF:A43E` is certainly
+     the bracket script (its entry [4] is the `$C7:3BBD` map that is demonstrably
+     on screen).
+     ⚠ **The obvious next instrument does not work:** a hook on `$80:91A0` — the
+     codec-1 entry `probe_menu_font.lua` uses for the `$C3` clusters — **never
+     fires on the tournament route** (`DECOMPWATCH=1`, added to
+     `probe_p16_screens.lua`). The `$DF` engine reaches codec 1 by its own path.
+     **Step one is therefore to find that path** (`$9F:84E7` is the DMA site; walk
+     back from it), then log its source and repoint whichever entry actually feeds
+     the bracket.
    * **A.C.S. name card + prompt** — untouched, and still a session of its own:
      find the `$7F:DC00+` filler, then the font source, string encoding and
      name-substitution site, and only then census a glyph window.
