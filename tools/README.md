@@ -279,6 +279,7 @@ See HANDOFF.md §4 for the harness.
 - `test_p13_guts_cfg.lua`
 - `test_patch10.lua` — verify the in-ROM combo counter (patch 10). Run on a patched ROM:
 - `test_regression.lua` — unified regression suite (base game + per-patch).
+- `test_regression_cfg.lua`
 - `training_test.lua` — headless test harness for the training-mode modules.
 - `training_test_cfg.lua`
 

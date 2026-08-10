@@ -24,6 +24,38 @@ ported from Super S and is playable in the **Rev. SS** builds only (§0).
 
 ## 0. Current state (2026-08-10) — SMS + Saturn = PATCH 100, and the issue backlog
 
+**2026-08-10 (session close) — THREE THINGS: the doc-check coverage increment,
+the act/start-route system written down and drawn, and patch 16's bracket
+surface solved but not landed.**
+
+* **`checkdocs` 87 → 228 checks**, coverage **116/299 → ~190/325** hand-written
+  ROM addresses re-derived. A shared 65816 decoder (`tools/dis65816.py`,
+  validated against **DisPel** on 5051 consecutive instructions) plus three new
+  families: **listing rows** (`C0/D055  rep #$30` — 25 addresses the census could
+  not even see), **structural checks** for prose-only code addresses (three tiers,
+  each enrolled only if its own predicate fails at base+1 AND base+2), and
+  **table-row binding**. ⚠ It found that `port_saturn_proc.py`'s private decode
+  table had `00` (BRK) as 1 byte and **seven opcodes in no table at all**;
+  Saturn's block reaches none of them (measured), and `--check` now gates the
+  ported block byte-identical.
+* **The act system is documented and drawn** — `sms_engine_internals.md` §2.x
+  (act table, handler anatomy, and how moves CHAIN via `$C1:0224`/`$C1:0204`) and
+  §7.x (the five **start routes** a handler offers). ⚠ Act tables are **107-122
+  entries, not 128** — 128 is the Super S figure the Saturn port uses. `$C1:022C`
+  was documented as where `$1001` is written; the store is at **`$C1:022A`**.
+* **Patch 16 bracket VS names: mechanism SOLVED, records shipped behind
+  `SMS_P16_BRACKET`, gate OFF because glyph delivery does not work yet.** They
+  are **18 ordinary `$80:8C43` records in ROM** (`$DF:E119` / `$DF:E38F`, 9 chars
+  × 2 sides) — **no runtime builder and not inside the codec-2 blob**, both of
+  which the docs had asserted for four days. It stayed unsolved because three
+  instruments all watched `$70xx` while the data is at `$7CE0`.
+
+⚠ **Trap 24 — an undocumented knob is as bad as a documented one that does not
+exist, and only one direction was checked.** `checkknobs` has always verified
+argparse options both ways, but its **env gates ran documented → builder only**,
+so `SMS_P16_BRACKET` shipped undocumented and the gate passed. The reverse
+direction is now in, and negative-controlled. Trap 18 with the arrow reversed.
+
 **2026-08-10 — `checkdocs` COVERAGE: 87 → 207 checks, 116/299 → 190/325
 addresses re-derived** (0.30 s). The handoff offered two routes; measurement
 chose. Route (a), "make the doc quote its entry instruction", is **not** the
