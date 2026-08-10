@@ -436,6 +436,44 @@ That per-character-code split is why neither appears in any table, and therefore
 neither is a special: the special-start table is one of the four menu items, and it
 is the only one a blockstun act passes.
 
+**Blockstun's menu is exactly one item long** — measured on all nine characters, acts
+`0x0E`/`0x0F` call `jsr $0958` and nothing else: no normals table, no throws. That is
+the whole of the guard-cancel rule, and it is why *table membership* rather than
+anything about the move itself decides what can be guard-cancelled into. Compare
+guard-HELD `0x0C`, which offers all three.
+
+#### "Special" is encoded TWICE, and the two could disagree
+
+Two independent things in this engine both mean "special", they are written by
+different code in different places, and in the retail data they always coincide:
+
+| | where it is decided | what consumes it |
+|---|---|---|
+| **startable from guard** | membership in the special-start table (§ above) | the special starter `$C1:0958`, i.e. the guard-cancel rule |
+| **strength class** | `+0x44`, written by the ACT HANDLER at its step 0 | the on-hit tables and the damage path (§6; ≥`0x08` = special class) |
+
+Nothing links them. A handler sets its own `+0x44` regardless of which menu item
+started the act — Uranus's 2LP opens `lda #$03 / sta $45,X` … `lda #$00 / sta $44,X`
+— and the tables carry no class information at all.
+
+**The consequence is worth stating because it is a property of the design, not an
+observation about the retail ROM** (nothing below has been built or tested; it is
+what the code permits): moving a move's act out of the special-start table and into
+a stance's normals table would make it un-guard-cancellable — and therefore not a
+special by the game's own criterion — while leaving `+0x44` untouched, so it would
+still hit with special-class damage. It would be a normal by input and by guard
+rules, and a special by damage. Two further asymmetries fall out of the same split:
+
+* **What follows the act** is everything the handler owns — animation, boxes,
+  damage `+0x45`, `+0x44`.
+* **What follows the table** is only the gating flags, and the normals record has no
+  flags field. Ground/air restriction, the desperation gate, and in particular the
+  projectile-slot check (flag `0x04` → `$C1:04E8`) would simply cease to apply.
+
+Also note the special-start table is indexed positionally, `(nibble − 2) × 2`, so
+removing an entry shifts every later one; and `$C1:0459`'s four records sit at fixed
+offsets `+0/+3/+6/+9`, so a stance has exactly four slots and no room for a fifth.
+
 ---
 
 ## 8. Throw system
