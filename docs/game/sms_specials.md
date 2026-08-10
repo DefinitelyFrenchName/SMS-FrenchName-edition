@@ -35,7 +35,7 @@ input rig (blockstun act 0x0C/0x0E → move act = GC):
 | Uranus Shadow Dash 66 (act 0x60) | **cancels blockstun** (verified) | **SPECIAL** |
 | Moon Dash Jump 66 (act 0x60) | **cancels blockstun** (verified) | **SPECIAL** |
 | Ordinary forward dash (Jupiter control) | input eaten, stun runs full | universal movement |
-| Backdash 44 (act 0x26) | **GC-able — VERIFIED** (act 0x26 fires straight out of blockstun) | **SPECIAL**, and also a universal mechanic — the two are orthogonal, see below (maintainer's ruling, 2026-08-10; the ROM agrees: act `0x26` is in every character's cancel table, nibbles 2/3) |
+| Backdash 44 (act 0x26) | **GC-able — VERIFIED** (act 0x26 fires straight out of blockstun) | **SPECIAL**, and also a universal mechanic — the two are orthogonal, see below (maintainer's ruling, 2026-08-10; the ROM agrees: act `0x26` is in every character's special-start table, nibbles 2/3) |
 | Mercury Triangle Jump (wall 7/9) | untested (wall-dependent); her listed GC option is HP Bubble, not this | command movement (presumed) |
 | Chibi Double Jump j.7/8/9 | air-only, GC n/a | command movement |
 | Slides (Uranus/Chibi 2HK), Neptune c.HK etc. | normals | command normals |
@@ -93,7 +93,7 @@ act:
   backdash row (154/15f, identical to her forward dash) is a suspected data-entry
   duplication — our measured GC backdash for her is ~83px.
 
-## Where "special" is encoded — the cancel table and the guard handlers
+## Where "special" is encoded — the special-start table and the guard handlers
 
 **There is no "is a special" flag on a move.** The criterion above is not a
 convention this project adopted for classifying moves; it is a description of the
@@ -108,7 +108,7 @@ behavioural half is locked by `base-gc-gate-immediate` and `base-gc-backdash` in
 are the PROJECTILE system. The special *set* lives in the tables below, which are
 what the guard handlers pass to the starter.
 
-### 1. The move set — a per-character `[flags, act]` word table in bank `$C1`
+### 1. The move set — the per-character special-start table in bank `$C1`
 
 | character | table | entries | | character | table | entries |
 |---|---|---|---|---|---|---|
@@ -124,7 +124,7 @@ One **word** per entry: **high byte = the act to start, low byte = gating flags*
 moves chain internally, and their later acts are neither in the table nor startable
 from it: Uranus's SPD enters at `0x67`/`0x68` and tosses at `0x71`; Jupiter's Giant
 Swing enters at `0x6D`/`0x6E` and carries at `0x6F`/`0x70`. Both toss/carry acts have
-their own handlers and neither appears in a cancel table. Measured by comparing each
+their own handlers and neither appears in a special-start table. Measured by comparing each
 table against every act in `0x5B-0x79` that has a distinct handler — Uranus declares
 7 of ~30, Jupiter 10. So the table is an *identity list of moves*, not a list of acts
 a special occupies, which is what makes "declared in the table" the right test.
@@ -174,7 +174,7 @@ engine's own structure it is a special, in all nine characters.
 different questions.** The backdash is *universal* in the sense that every
 character has it, on the same universal act `0x26`, with no per-character entry in
 the 0x2B+ space — it is an engine-wide mechanic. It is *special* in the sense this
-page classifies by: it is an entry in the cancel table, so the guard state can start
+page classifies by: it is an entry in the special-start table, so the guard state can start
 it. Both are true. The earlier row that recorded it as GC-able and then filed it
 under "universal movement" was reading the two as mutually exclusive; they are
 orthogonal, and only the second one is what "special" means in this game.
@@ -195,7 +195,7 @@ Every character's guard handlers end with the same two instructions (Uranus, act
 `0x0E`, at `$C1:8104`):
 
 ```
-ldy #$7B25      ; her cancel table
+ldy #$7B25      ; her special-start table
 jsr $0958       ; the starter, connected-check skipped
 ```
 
@@ -204,7 +204,7 @@ dispatch `$C1:00A6` → per-character act table → handler: acts `0x0C`/`0x0D` 
 held) and `0x0E`/`0x0F` (blockstun) all call `jsr $0958` with their own table,
 unconditionally, every frame they run.
 
-| character | act table | `0x0E` handler | starter call | cancel table |
+| character | act table | `0x0E` handler | starter call | special-start table |
 |---|---|---|---|---|
 | Moon | `$C1:271A` | `$C1:31A6` | `jsr $0958` @`$31D1` | `$C1:282C` |
 | Mercury | `$C1:3788` | `$C1:3D14` | `jsr $0958` @`$3D3F` | `$C1:389A` |
@@ -215,6 +215,24 @@ unconditionally, every frame they run.
 | Neptune | `$C1:8DB1` | `$C1:932E` | `jsr $0958` @`$9359` | `$C1:8EC9` |
 | Pluto | `$C1:9E19` | `$C1:A48E` | `jsr $0958` @`$A4B9` | `$C1:9F23` |
 | ChibiMoon | `$C1:AE56` | `$C1:B394` | `jsr $0958` @`$B3BF` | `$C1:AF62` |
+
+⚠ **Guard cancel is one consumer of this table among many — which is why it is a
+"special-start" table and not a "cancel" table** (it was called `uranus_cancel_tbl`
+until 2026-08-10). Censused for Uranus: **22 of the 43 universal acts** hand it to
+the starter, and they include the plainly neutral ones — `0x00` idle, `0x01`/`0x02`
+walk, `0x03` crouch, `0x04` stand-up, `0x05` prejump, `0x09` land. Nothing is being
+cancelled there; the table is simply *what you can start*. The 21 that do **not**
+pass it are as informative: the three jump acts (see below), `0x1D` thrown, `0x23`
+tech, `0x26` backdash, `0x27` taunt and `0x2A` the recovery tail — the last matching
+the measured "0x2A recovery tail: NOT cancelable" above.
+
+**Whether the jump acts pass it is per character, and it tracks the air specials.**
+Measured across all nine: Moon, Jupiter and ChibiMoon have air-only entries
+(flag bit 1) and their acts `0x06`/`0x07`/`0x08` do pass the table; Mercury, Mars,
+Uranus, Neptune and Pluto have no air entry and do not. **Venus is the one
+exception** — her jump acts pass the table although every one of her entries is
+ground-flagged, so from the air they would all be rejected by the flag test anyway.
+Harmless, and recorded rather than tidied away.
 
 ### 3. Why hitstun is not cancellable, though it contains the same call
 

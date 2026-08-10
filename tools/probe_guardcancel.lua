@@ -11,7 +11,7 @@
 -- Phase A: P1 (Jupiter) crouch-jabs; P2 (Venus) crouch-blocks. Every act change on both
 --   sides is logged. Result: P2 enters act 0x0F (crouch blockstun) / 0x0E (stand
 --   blockstun) with +0x46 = 0x20 and HP unchanged — i.e. blocked, not hit.
--- Phase B: P2 jumps, to settle what +0x16 bit7 means. The per-character cancel table's
+-- Phase B: P2 jumps, to settle what +0x16 bit7 means. The special-start table's
 --   flag byte gates on it (bit0 of the flags requires it SET, bit1 requires it CLEAR)
 --   and two write-ups in this repo disagree about which of those means "ground".
 --   Measured: grounded = bit7 SET (0x80/0x90/0xC0, y=192), airborne = clear (0x40,
@@ -115,7 +115,7 @@ emu.addEventCallback(function()
       seenGuard[a2] = (seenGuard[a2] or 0) + 1
     end
   end
-  -- Phase B: what IS +0x16 bit7? The cancel-table flag byte gates on it (bit0 of the
+  -- Phase B: what IS +0x16 bit7? The special-start table's flag byte gates on it (bit0 of the
   -- flags requires it SET, bit1 requires it CLEAR) and the two write-ups disagree about
   -- which of those means "ground". Jump and read it — the cartridge can settle this.
   if t > 300 and t <= 420 then
