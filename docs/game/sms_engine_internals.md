@@ -47,7 +47,7 @@ Low WRAM (`$7E:0000–$1FFF`, mirrored in bank $00):
 | `$008D` | **game_mode** — **0 = Story**, **1 = VS (1P-vs-2P)**, **2 = 1P-vs-COM**, **4 = Practice (no HP subtraction)**, **5 = Practice with damage / attract demo** (§10). Full map measured 2026-08-03 (`probe_sms_menurows.lua`) after a wrong "0=VS" annotation cost two field bugs — a `$8D == 1` gate hits **2P VS**, not story. The producer self-gates to matches; a strict mode gate reads `$008D` |
 | `$01FA` | screen state: 0x80 = match running, **0xE4 = movelist open** (Start in Practice) |
 | `$0800` / `$0801` | **displayed** HP bar value P1 / P2 (drains toward struct HP; written only by the HUD producer) |
-| `$0802` | round timer (BCD; decremented by the producer) |
+| `$0802` / `$0803` / `$0804` | **the round clock is THREE bytes**: `$0802` is a 60-frame tick (reloaded `#$3C`), `$0803` the units digit, `$0804` the **tens** digit; both digits index HUD tiles at `+$2C50`. `$C0:D6A6` raises `$1F5C` when `$0804` underflows, and the clock routine skips itself while that is set. So **`$0804 == 0` means under ten seconds left** — the condition the desperation gate reads (§7.x). Measured 2026-08-10; three other rows called `$0802` "the round timer", which it is not |
 | `$0806–$0815` | **HUD tile staging** — (VRAM addr, tile) entries the NMI uploader flushes: P1 bar, P2 bar, timer digits |
 | `$0816–$08FF` | FREE **in VS matches only** (patch 10 state lives here) — **native Practice mode touches the whole `$0816–$09FF` range**; do not use it for training-mode state (patch 11 found this the hard way) |
 | `$0900–$09FF` | FREE in VS only (patch 10 labels) — same Practice caveat as above |

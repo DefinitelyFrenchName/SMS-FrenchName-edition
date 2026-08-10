@@ -164,7 +164,7 @@ ChibiMoon  26/01 26/01 5F/05 60/05 65/02 66/02 6B/0E 6B/0E
 | `0x01` | ground only — `+0x16` bit7 must be SET (and `+0x32` not negative) |
 | `0x02` | air only — `+0x16` bit7 must be CLEAR |
 | `0x04` | this fighter's projectile slot must be free (checked via `$C1:04E8`) |
-| `0x08` | desperation gate: mode `$8D` ≠ 4, else clock `$1F5C` / `$0804`, else HP ≤ `0x18` |
+| `0x08` | desperation gate: allowed in practice (`$8D` == 4), **or when the clock's tens digit `$0804` is 0 — under ten seconds left** — otherwise requires HP ≤ `0x18`. `$1F5C`, tested first, is the timer-EXPIRED flag and not the clock |
 
 ⚠ `+0x16` bit7 SET = **grounded**, measured on the running game
 (`probe_guardcancel.lua` phase B: grounded reads `80`/`90`/`C0` at y=192, airborne
