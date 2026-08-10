@@ -360,6 +360,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_exp_bdsafety.lua` — is the GROUND backdash still invulnerable, on every
 - `probe_fontdma.lua` — find the code that uploads the menu FONT to VRAM.
 - `probe_fontdma2.lua` — read the DMA parameters from DIRECT PAGE at the trigger.
+- `probe_fwdtap.lua` — why does a FORWARD double-tap arm for Uranus and not Venus?
 - `probe_gate.lua`
 - `probe_gc_shot.lua`
 - `probe_guardcancel.lua` — what act IDs is a BLOCKING fighter in, and what runs there?

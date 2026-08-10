@@ -133,25 +133,44 @@ STUB_ADDR = 0xBF80
 # point at it. Its animation is her own jump-forward script. That is question 2's
 # answer built rather than argued.
 #
-# Reaching it needs an INPUT, and that is per-character data: the 7-byte record
-# at $C1:16AF + (charID-1)*7 maps each motion to the command id the recognizer
-# emits, and slot $09 (forward double-tap) is 00 for everyone except Moon and
-# Uranus — a zero is rejected outright at $C1:167B. Venus's becomes 0x0C.
+# Reaching it needs an INPUT, and motions are a DATA-DRIVEN SCRIPT SYSTEM:
+# $C1:13C7 + charID*2 gives a per-character list of motion scripts, walked by the
+# interpreter at $C1:128B; motion N owns the state pair at +0x5B + N*2. A script
+# is 2-byte steps `[timeout][input mask]` terminated by $FF — mask bit0 forward,
+# bit1 back, bit2 down, high nibble buttons. The shared motion 0 is
+# `(00,00)(00,02)(00,00)(00,02)` = neutral-back-neutral-back, the 44.
 #
-# Command id 0x0C indexes special-start entry 10, and her table only has 10
-# entries (0-9), bounded immediately by her throw table — so the table is copied
-# to free space with two entries appended and all 32 `ldy #$6C1F` sites
-# repointed. The appended entries carry flag 0x02 = AIR ONLY, which is what keeps
-# the ground honest: a forward double-tap on the ground indexes them and the
-# starter rejects it, so grounded behaviour is unchanged by construction rather
-# than by hope.
+# ⚠ THE COMMAND ID IS NOT STORED — it is COMPUTED from the motion's position:
+# $C1:1338 takes the state pointer, subtracts 0x5B and the object base, adds 2,
+# and ORs the result into +0x51. So motion N produces id 2N+2, which the starter
+# turns into special-start entry 2N. That is why the two tables are positionally
+# aligned on every character: motion 0 -> entry 0 -> the backdash, everywhere.
+#
+# Two consequences this build rests on. Uranus's 66 script ($C1:1535,
+# `(00,00)(00,01)(00,00)(00,01)`) can be reused VERBATIM, because it carries no
+# id of its own. And Venus has 5 motions, so a 6th lands on entries 10/11 —
+# exactly the pair appended here, carrying flag 0x02 = AIR ONLY, which is what
+# keeps the ground honest: a forward double-tap on the ground indexes them and
+# the starter rejects it.
+#
+# ⚠ An earlier version of this file patched a byte at $C1:16CB+1, in a table of
+# per-character motion->id records at $C1:169B read by a routine at $C1:15C4.
+# That routine IS NEVER EXECUTED — measured, an exec hook over $C1:1400-$16FF saw
+# only $C1:16EE-$16FE — and the correlation that made the table look right (its
+# slot $09 is non-zero exactly for Moon and Uranus, the two with forward dashes)
+# is real but incidental. Dead code that agrees with the truth is the most
+# expensive kind to find.
 FWD_ACT = 0x2C
 FWD_SCRIPT_SLOT = 0x000D80      # $C0:0D28 + 0x2C*2
 JUMPFWD_SCRIPT = 0x0E29         # her act-0x07 script
 FWD_ACT_SLOT = 0x016B71         # $C1:6B19 + 0x2C*2
 URANUS_DASH_HANDLER = 0x88C8    # borrowed wholesale
-INPUT_REC_FWD = 0x0116CC        # $C1:16CB + 1 — Venus's forward-double-tap id
-FWD_CMD_ID = 0x0C
+MOTION_LIST_PTR = 0x0113D1      # $C1:13C7 + 5*2 — Venus's entry in the motion-list table
+MOTION_LIST_SRC = 0x01140F      # $C1:140F, her 5 motions then $FFFF
+MOTION_ENTRIES = 5
+MOTION_DST = 0x01BF18           # 14 bytes, after the relocated special-start table
+MOTION_DST_ADDR = 0xBF18
+SCRIPT_66 = 0x1535              # Uranus's 66 script, reusable VERBATIM (see below)
 TABLE_SRC = 0x016C1F            # $C1:6C1F, 10 entries
 TABLE_ENTRIES = 10
 TABLE_DST = 0x01BF00            # $C1:BF00, 24 bytes of zeros
@@ -232,10 +251,18 @@ def build(src, out, keep_air_invuln=False, front=False):
         if LDY_OLD in bytes(rom[0x010000:0x020000]):
             raise ValueError("a reference to the old table survives somewhere in bank $C1")
 
-        # and the input: give her forward double-tap a command id at all
-        if rom[INPUT_REC_FWD] != 0x00:
-            raise ValueError(f"0x{INPUT_REC_FWD:06X}: expected 00, found {rom[INPUT_REC_FWD]:02X}")
-        rom[INPUT_REC_FWD] = FWD_CMD_ID
+        # THE INPUT. Append a 6th motion — Uranus's 66 script, unmodified — to her
+        # motion list, which has to move because Uranus's list follows it immediately.
+        if rom[MOTION_LIST_PTR:MOTION_LIST_PTR + 2] != (MOTION_LIST_SRC & 0xFFFF).to_bytes(2, "little"):
+            raise ValueError(f"0x{MOTION_LIST_PTR:06X}: not Venus's motion-list pointer")
+        old = bytes(rom[MOTION_LIST_SRC:MOTION_LIST_SRC + MOTION_ENTRIES * 2])
+        if rom[MOTION_LIST_SRC + MOTION_ENTRIES * 2:MOTION_LIST_SRC + MOTION_ENTRIES * 2 + 2] != b"\xff\xff":
+            raise ValueError("Venus's motion list is not 5 entries + $FFFF")
+        new = old + SCRIPT_66.to_bytes(2, "little") + b"\xff\xff"
+        if any(rom[MOTION_DST:MOTION_DST + len(new)]):
+            raise ValueError(f"0x{MOTION_DST:06X}: motion-list target is not free")
+        rom[MOTION_DST:MOTION_DST + len(new)] = new
+        rom[MOTION_LIST_PTR:MOTION_LIST_PTR + 2] = MOTION_DST_ADDR.to_bytes(2, "little")
 
     fix_checksum(rom)
     open(out, "wb").write(rom)

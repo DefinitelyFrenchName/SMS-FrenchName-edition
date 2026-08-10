@@ -470,12 +470,47 @@ trip — the RNG's actual consumer in combat code). Act 0x0A = turn-around (obse
 
 ## 7. Movement and input recognizers
 
-Motion inputs are recognized by per-object state machines in the `+0x5B–0x68` timer/state
-pairs. The **66 forward dash** ("Shadow Dash", act 0x60) uses `$105D`(timer)/`$105E`(state):
-1→2 on forward, →3 on release, dash commits on a second forward. **+0x5D doubles as the dash
-frame counter (1..14)** during the dash. From a fresh savestate the recognizer needs a couple
-frames to settle — tap fwd/release/fwd around frames 58/60, not immediately after load, or you
-get a walk.
+Motion inputs are **data-driven scripts**, not hand-written state machines
+(measured 2026-08-10; the earlier description of `$105D`/`$105E` as a bespoke
+66-recognizer with states 1→2→3 was wrong, and the pair is not the dash's — see
+below). From a fresh savestate the recognizer needs a couple of frames to settle
+— tap fwd/release/fwd around frames 58/60, not immediately after load, or you get
+a walk.
+
+### 7.y Motion recognition — one interpreter, per-character script lists
+
+`$C1:13C7 + charID*2` gives a **list of motion-script pointers**, walked by the
+interpreter at `$C1:128B` (`lda $0000,Y`); the list ends at `$FFFF` and a `$0000`
+entry is skipped. The driver at `$C1:1266` (`lda $13C7,Y`) sets the state pointer
+to `object + 0x5B` and advances it two bytes per entry, so **motion N owns the
+state pair `+0x5B + N*2`** — a timer and a step index.
+
+A script is **2-byte steps `[timeout][input mask]`**, terminated by `$FF`. The
+mask is bit0 forward, bit1 back, bit2 down, bit3 up, high nibble buttons; a
+`timeout` of 0 means the default window (the step expires at `0x0F`, checked by
+`cmp #$0F`). The shared motion 0 — every character's, byte-identical — is
+`$C1:1445`: `(00,00) (00,02) (00,00) (00,02)`, i.e. neutral-back-neutral-back,
+the **44 backdash**. Uranus's motion 1 (`$C1:1535`) is the same shape with mask
+`01`: the **66**. Venus's motion 1 (`$C1:150B`) is `(00,04) (00,05) (00,01)
+(00,50)` — a 236+P.
+
+⚠ **The command id is not stored anywhere — it is computed from POSITION.** On
+completion `$C1:1338` takes the state pointer, subtracts `0x5B` and the object
+base and adds 2, then ORs the result into `+0x51`; a button in the mask ORs a
+further 1 (`$C1:1355`). So **motion N yields id 2N+2**, and since the special
+starter indexes `(id − 2)` entries in (§ `sms_specials.md`), **motion N maps to
+special-start entry 2N**. The two per-character tables are positionally aligned
+by construction, which is why motion 0 is the backdash and special-start entry 0
+is act `0x26` on all nine characters. It also means a motion script is
+character-independent data: the same 66 script produces a different move purely
+by where it sits in a list.
+
+⚠ **`$C1:15C4` is DEAD CODE and it agrees with the truth, which is what makes it
+dangerous.** It is a second, hand-rolled recognizer reading 7-byte
+motion→id records at `$C1:169B + charID*2`, whose forward-double-tap slot is
+non-zero for exactly Moon and Uranus — the two characters with a forward dash. It
+is never executed: an exec hook over `$C1:1400-$16FF` during a live match sees
+only `$C1:16EE-$16FE`. A patch written against it changes nothing at all.
 
 The reversal-dash bug (patch 2) was here: Uranus's forward-dash handler `$C1:88C8` omitted the
 `stz $46,X` step-0 init every other volitional handler has, so a reversal dash out of knockdown
