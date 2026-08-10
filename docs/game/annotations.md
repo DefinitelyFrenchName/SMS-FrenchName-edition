@@ -229,7 +229,9 @@ TRIGGER code's gate (script durations don't gate it — dash cancels mid-active)
 ## Dash-cancel machinery (NEW — the patch surface)
 | Address | Label | Comment |
 |---|---|---|
-| $C1:0224 | set_action | universal action setter (A = new actionID); all $1001 writes at $C1:022C |
+| $C1:0224 | set_action | universal action setter (A = new actionID). The act store is `sta $01,X` at `$C1:022A` — every write to `$1001`/`$1081` in normal play comes from there — immediately followed by `stz $02,X` at `$C1:022C`. ⚠ **Setting an act ALWAYS resets the step**, which re-arms the next handler's step-0 init; that one `stz` is what makes a multi-act move chain. (This row read "all $1001 writes at $C1:022C" until 2026-08-10, two bytes late — the address of the `stz`, not of the store. `checkdocs` caught it the moment the instruction was quoted beside it.) |
+| $C1:0204 | **action_tail** | the `jmp $0204` every act handler ends with. `lda $02,X / bne` — so its body runs only when the step is still 0, i.e. only on a frame where something set a new act — then `lda $01,X / sta $04,X` and `stz $07,X / stz $06,X`: point the animation at the new act and rewind its tick/frame. `+0x04` is the act the ANIMATION plays, `+0x01` the act the logic is in |
+| per-character act table | proc + 0x0F | 16-bit handler pointers indexed by `+0x01`, e.g. Uranus `$C1:7A01` after her dispatch `$C1:79F2`. **107-122 entries, bounded by that character's standing normals table** — NOT 128, which is the Super S figure. 21 null (`$0000`) slots in every character; in Uranus the contiguous block `0x2B-0x3F`, so her own acts start at `0x40`. Sibling acts share handlers (hitstun `0x10-0x13`; the light-recovery pairs `42/48`, `54/58`) — full census in `sms_engine_internals.md` §2.x |
 | $C1:04DA | anim_advance_or | A=next action; returns A = step tick ($06,X) if ≥0, else switches action |
 | $C1:04E8 | own_projectile_alive | carry set if $1100/$1180 object active |
 | $C1:0439 | fighter_distance | `abs(opponent +0x21 − self +0x21)` in A — the close/far test for proximity normals |

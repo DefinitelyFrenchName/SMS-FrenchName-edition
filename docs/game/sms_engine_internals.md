@@ -67,7 +67,7 @@ Fighters at `$1000`/`$1080`, projectiles at `$1100`/`$1180`, all share this layo
 | +0x00 | **charID / object id** | 1–9 fighters; **10–27 projectile/object types** (e.g. 0x18 = Neptune Deep Submerge); 0 or ≥0x80 = empty/despawned |
 | +0x01 | **actionID** | current state/move (see §3) |
 | +0x02 | action step | 0 on an action's first frame; **attacks are not processed on step 0** |
-| +0x04 | actionID mirror | written with +0x01 |
+| +0x04 | actionID the ANIMATION is playing | latched from +0x01 by the handler tail `$C1:0204`, and only on a transition frame (step still 0), together with zeroing +0x06/+0x07 — see §2.x. Differs from +0x01 only within that frame |
 | +0x05 | action sprite | |
 | +0x06/07 | anim tick / frame | per-step duration counters |
 | +0x09 | facing (flip X) | nonzero = facing left |
@@ -120,6 +120,106 @@ attack" by **+0x18 bit0**, not the ID range (char-specific space mixes attacks a
   Moon {42,48,54,58} · Mercury {41,46,53,57} · Mars {42,49,55,59} · Jupiter {42,47,53,57} ·
   Venus {41,45,51,55} · Uranus {42,48,54,58} · Neptune {41,45,56,5A} · Pluto {41,49,55,59} ·
   ChibiMoon {41,47,53,57}. (No Saturn.)
+
+### 2.x The act table, handler anatomy, and how moves CHAIN (measured 2026-08-10)
+
+**One handler per ACT, in a per-character table** — not one per move, and not one
+shared for all of a character's moves. Each character's proc block opens with a
+dispatch, and the table sits immediately after it at **proc + 0x0F**:
+
+```
+C1/79F2:  rep #$10 / ldx $88 / lda $01,X / asl A / tax / jmp ($7A01,X)
+```
+
+| character | proc | act table | ends at | slots | null | implemented | distinct handlers |
+|---|---|---|---|---|---|---|---|
+| Moon | `$C1:270B` | `$C1:271A` | `$C1:27FC` | 113 | 21 | 92 | 79 |
+| Mercury | `$C1:3779` | `$C1:3788` | `$C1:386A` | 113 | 21 | 92 | 78 |
+| Mars | `$C1:47A6` | `$C1:47B5` | `$C1:48A1` | 118 | 21 | 97 | 81 |
+| Jupiter | `$C1:5886` | `$C1:5895` | `$C1:597F` | 117 | 21 | 96 | 84 |
+| Venus | `$C1:6B0A` | `$C1:6B19` | `$C1:6BEF` | 107 | 21 | 86 | 72 |
+| Uranus | `$C1:79F2` | `$C1:7A01` | `$C1:7AF5` | 122 | 21 | 101 | 87 |
+| Neptune | `$C1:8DA2` | `$C1:8DB1` | `$C1:8E99` | 116 | 21 | 95 | 79 |
+| Pluto | `$C1:9E0A` | `$C1:9E19` | `$C1:9EF3` | 109 | 21 | 88 | 73 |
+| ChibiMoon | `$C1:AE47` | `$C1:AE56` | `$C1:AF32` | 110 | 21 | 89 | 75 |
+
+⚠ **The table is 107-122 entries, NOT 128** — it ends where that character's standing
+normals table begins (§7.x), and reading past that end returns normals records
+misparsed as pointers. 128 is the **Super S** figure the Saturn port uses
+(`tools/saturn/port_saturn_proc.py`), and it does not hold here.
+
+⚠ **Every character has exactly 21 null (`$0000`) slots**, and in Uranus they are the
+contiguous block `0x2B-0x3F` — so although the per-character space nominally starts
+at `0x2B`, *her* character-specific acts actually begin at `0x40`.
+
+**Sharing is deliberate, and it tells you what the acts are.** Uranus's 101
+implemented acts use 87 handlers:
+
+```
+$C1:813E <- 0x10 0x11 0x12 0x13   the hitstun quad
+$C1:81F0 <- 0x17 0x18 0x19        $C1:8442 <- 0x44 0x46 0x4A
+$C1:8254 <- 0x14 0x15             $C1:823C <- 0x1A 0x1B
+$C1:83D7 <- 0x42 0x48   \
+$C1:86EA <- 0x54 0x58    >  her cancellable light-recovery set {42,48,54,58} above:
+$C1:8756 <- 0x56 0x5A   /   the pairs share a handler BECAUSE they are one routine
+$C1:8957 <- 0x63 0x64   |   entered at two points
+$C1:8974 <- 0x65 0x66   |   LP/HP strength variants
+```
+
+Blockstun `0x0E`/`0x0F` do **not** share — they are different stances and pass
+different normals tables (§7.x).
+
+#### Handler anatomy
+
+Every handler has the same shape, gated on the step byte `+0x02`:
+
+```
+rep #$10 / ldx $88 / sep #$20
+lda $02,X / bne <body>        ; already running? skip the init
+  inc $02,X                   ; step 0 -> 1, so the init runs exactly once
+  <STEP-0 INIT>               ; stz $46,X, stz $43,X, +0x44 class, +0x45 damage,
+                              ; +0x54 script, velocities, +0x78 sound …
+<body>                        ; per-frame work
+<the menu>                    ; jsr $0459 / $0958 / $055A  (§7.x)
+jmp $0204                     ; the tail
+```
+
+⚠ **The step-0 init is a per-handler CONTRACT, enforced by nothing.** With ~87
+hand-written handlers per character and no shared prologue, an omission survives —
+which is exactly patch 2: Uranus's dash handler `$C1:88C8` lacks the `stz $46,X`
+that Moon's `$C1:3419` has at `$C1:3425`, so a dash out of knockdown keeps
+`+0x46 = 0xA0` and stays untargetable for its whole duration (§6).
+
+#### Chaining — two primitives
+
+**`$C1:0224`, the act setter**, is how every transition happens:
+
+```
+C1/0224:  rep #$10 / ldx $88 / sep #$20 / sta $01,X / stz $02,X / rts
+```
+
+Setting an act **always resets the step to 0**, which re-arms the next handler's
+step-0 init. That single `stz $02,X` is what makes a chain of acts work.
+
+**`$C1:0204`, the tail** every handler jumps to, re-latches the animation:
+
+```
+C1/0204:  lda $02,X / bne done      ; only when the step is still 0 …
+          lda $01,X / sta $04,X     ; … latch the act into +0x04
+          stz $07,X / stz $06,X     ; … and restart the anim tick/frame
+```
+
+Step is 1 by the time a handler reaches the tail *unless* something set a new act
+during this frame (the setter zeroed it). So the tail fires precisely on a
+transition, and its job is to point the animation at the new act and rewind it.
+`+0x04` is therefore the act the ANIMATION is playing, and `+0x01` the act the
+logic is in; they differ only within the transition frame.
+
+**A move is therefore a chain of acts, not one handler.** Uranus's SPD runs
+`0x67`/`0x68` (start) → `0x71` (toss); Jupiter's Giant Swing `0x6D`/`0x6E` →
+`0x6F`/`0x70` (carry). Only the entry act is in the special-start table (§7.x);
+the later acts are reached by their predecessor calling the setter, which is why
+they are neither startable nor guard-cancellable on their own.
 
 ---
 
