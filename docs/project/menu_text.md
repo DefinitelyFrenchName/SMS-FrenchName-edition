@@ -1221,19 +1221,55 @@ references the blank \$5C0 tiles through another BG's CHR base, so NO glyph
 hook on that screen (raster labels need none). Deferred: ACS name card +
 prompt, and the bracket VS names. PLAYER SELECT shipped (queued 19th row
 record); Saturn stage name shipped behind `SMS_P16_SATURN=1` (default off).
-**Bracket VS names, state of knowledge (2026-08-06):** the line is MAP
-CELLS at rows 4-5 of the bracket's `$7000` map, in the SMALL font (attr
-`$14xx`), baked as Moon-vs-Moon inside the codec-2 blob `$C7:3BBD` (a
-plain byte search cannot find them — the blob is compressed) and rewritten
-per entrant by an unfound runtime builder. A VRAM write-watch on the map
-rows caught nothing at screen entry — codec 2 flushes via DMA, which the
-watch misses. NEXT: play a tournament round to force a bracket-advance
-redraw with the watch armed then (the rewrite should be port-writes), or
-find the builder statically from the small-font code mapping. Translating
-them also needs glyph delivery on the bracket screen — its script `$A43E`
-loads NO big sheet; the plan is to extend the SMALL font blob (`$C227E0`)
-with the half-width set and bump ONLY `$A43E`'s len field (bumping the
-report screen's would collide with its big sheet at tile `$2A0`).
+**Bracket VS names — SOLVED 2026-08-10, and the 08-06 hypothesis below was
+wrong in every particular.** There is **no runtime builder**, the names are
+**not in the codec-2 blob**, and they are **not at rows 4-5 of the `$7000`
+map**. They are eighteen ordinary `$80:8C43` records in ROM, drawn straight
+from bank `$DF`:
+
+| | left side | right side |
+|---|---|---|
+| first record | `$DF:E119` | `$DF:E38F` |
+| vmadd | `$7CE0` | `$7CF0` |
+| count / stride | 9 chars, `$46` | 9 chars, `$46` |
+
+Header `[vmadd][len $0020][rows 2]`, attr `$20xx`, and a glyph is **8×16 —
+top tile `t`, bottom `t+$10`**, the same shape as our half-width set. The
+left name is right-aligned, the right one left-aligned, and tiles
+`4A`/`4B`/`4C` (+`5A`/`5B`/`5C`) are the **VS graphic** spanning the two
+16-column blocks. Measured live on the bracket at f1897, matching the ROM
+records byte for byte:
+
+```
+$7CE0 .. .. .. .. .. .. .. 01 02 03 04 05 06 07 .. 4A
+$7D00 .. .. .. .. .. .. .. 11 12 13 14 15 16 17 .. 5A
+$7CF0 4B 4C .. 01 02 03 04 05 06 07 .. .. .. .. .. ..
+$7D10 5B 5C .. 11 12 13 14 15 16 17 .. .. .. .. .. ..
+```
+
+⚠ **Why it stayed unsolved for four days: every instrument was pointed at the
+wrong address.** `VSWATCH` watches VRAM words `$7040-$70DF` and the names are
+at `$7CE0`; `dump7f` captured map words `$7000-$77FF`, which also excludes
+them. A write watch cannot see them either way — they arrive by DMA — but the
+dumps would have shown them at any time. `dump7f` now also captures words
+`$7C00-$7DFF`, the font region `$200-$33F`, and logs the four name rows
+directly (`NAMEROW` lines).
+
+`$C7:3BBD` **is** the bracket map (script `$DF:A43E` entry [4], codec 2 →
+`$7000`) — the blob is real, it simply does not contain the names; the records
+overlay it afterwards. The old "baked as Moon-vs-Moon" reading came from
+observing Moon vs Moon on a bracket nobody had seeded: both entrants really
+are character 0 there, so both records really do hold tiles `01-07`.
+
+**Glyph delivery, confirmed as planned:** script `$DF:A43E` entry [1] is
+`codec1 src $C2:27E0 vmadd $2000 len $1400` — the small font, 320 tiles at
+VRAM tile `$200`. The blob decompresses to **135 tiles**, so the upload's tail
+is whatever the staging buffer already held; the live font region measures 222
+non-blank tiles across `$201-$29F` and `$301-$33F`. **Still to measure before
+authoring:** the BG CHR base (every "tile `$2xx`" statement so far assumes
+`$200`) and which of those tiles are genuinely free. `$C2:27E0` is referenced
+four times — `$DF:96C4` (`$2000`), `$DF:9B2F` (`$1000`), `$DF:A446` (`$2000`)
+and a codec-2 use at `$C3:BD9E` — so bumping only `$A43E`'s len still holds.
 
 **Earlier same-day status: tournament select names AND the REPORT CARD
 labels DONE** — built by `mkpatch16.py` under `SMS_P16_DF=1`, verified

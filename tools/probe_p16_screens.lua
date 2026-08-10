@@ -221,6 +221,31 @@ local function dump7f(tag)
     chunk[#chunk + 1] = string.char(emu.read(a, VRAM) or 0)
   end
   f:write(table.concat(chunk)); f:close()
+  -- The bracket VS names live at map words $7CE0/$7CF0 (+$20 for their bottom
+  -- rows), which is OUTSIDE the $7000-$77FF window above — which is exactly why
+  -- they were never seen in a dump. Capture words $7C00-$7DFF and the whole font
+  -- region (tiles $200-$33F) that their tile ids index into.
+  f = assert(io.open(string.format("%sp16_names_%s_%s.bin", ENV.TRACE, ROUTE, tag), "wb"))
+  chunk = {}
+  for a = 0xF800, 0xFBFF do
+    chunk[#chunk + 1] = string.char(emu.read(a, VRAM) or 0)
+  end
+  f:write(table.concat(chunk)); f:close()
+  f = assert(io.open(string.format("%sp16_font_%s_%s.bin", ENV.TRACE, ROUTE, tag), "wb"))
+  chunk = {}
+  for a = 0x4000, 0x67FF do
+    chunk[#chunk + 1] = string.char(emu.read(a, VRAM) or 0)
+    if #chunk == 4096 then f:write(table.concat(chunk)); chunk = {} end
+  end
+  f:write(table.concat(chunk)); f:close()
+  for _, mb in ipairs({ 0x7CE0, 0x7CF0, 0x7D00, 0x7D10 }) do
+    local cells = {}
+    for c = 0, 15 do
+      local w = (emu.read(mb * 2 + c * 2, VRAM) or 0) | ((emu.read(mb * 2 + c * 2 + 1, VRAM) or 0) << 8)
+      cells[#cells + 1] = ((w & 0x3FF) ~= 0) and string.format("%02X", w & 0x3FF) or ".."
+    end
+    log(string.format("f%d NAMEROW $%04X %s", frames, mb, table.concat(cells, " ")))
+  end
   log(string.format("f%d DUMP7F %s", frames, tag))
 end
 

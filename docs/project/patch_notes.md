@@ -1791,13 +1791,20 @@ positive control (0/256 bytes arrive clean, 256/256 patched).
 
 ## What remains
 
-* **Bracket VS names.** Map cells in the small font, baked as Moon-vs-Moon
-  inside the codec-2 blob `$C7:3BBD` and rewritten per entrant by a runtime
-  builder that has not been found; a VRAM write-watch at screen entry catches
-  nothing because codec 2 flushes by DMA. Next: arm the watch and force a
-  bracket-advance redraw, or find the builder statically. Translating them also
-  needs glyph delivery on that screen — the plan is to extend the small-font
-  blob (`$C2:27E0`) and bump only `$DF:A43E`'s length field.
+* **Bracket VS names — mechanism SOLVED 2026-08-10; the earlier reading was wrong
+  on every point.** No runtime builder, not in the codec-2 blob, not at rows 4-5 of
+  the `$7000` map. They are **eighteen ordinary `$80:8C43` records in ROM** — 9
+  characters x 2 sides — at `$DF:E119` (left, vmadd `$7CE0`) and `$DF:E38F` (right,
+  vmadd `$7CF0`), stride `$46`, header `[vmadd][len $20][rows 2]`, attr `$20xx`,
+  glyphs 8x16 (top `t`, bottom `t+$10`). Tiles `4A`/`4B`/`4C` are the VS graphic.
+  Verified live against the ROM records byte for byte. `$C7:3BBD` is the bracket
+  MAP (script `$DF:A43E` entry [4]); the records overlay it. It stayed unsolved
+  because every instrument pointed at the wrong address — `VSWATCH` at words
+  `$7040-$70DF`, `dump7f` at `$7000-$77FF`, and the names are at `$7CE0`.
+  Glyph delivery is as planned: entry [1] `codec1 $C2:27E0 -> vmadd $2000 len $1400`,
+  320 tiles at VRAM tile `$200` from a blob that decodes to 135. **Remaining before
+  authoring:** read the BG CHR base and census which font tiles are free, then
+  extend the blob and bump only `$A43E`'s len.
 * **The A.C.S. name card and prompt.** Not map data at all: a **dynamic glyph
   blitter** (`$80:9583`, queue-driven, `$20` bytes at a time into BG3 CHR) fed
   from a staging area at `$7F:DC00+` that per-byte write watches never see.
