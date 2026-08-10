@@ -301,6 +301,104 @@ CS_STUB_AT = 0x7F60
 CFG_MAP_SRC = 0xC37C00
 CFG_MAP_REF = 0x03BEFC            # the record's src24 field
 CFG_MAP_AT = 0x4000               # relocated packed map's offset in the blob
+# ---- bracket VS names (SMS_P16_BRACKET=1) ----------------------------------
+# SOLVED 2026-08-10. The names are NOT built at runtime and NOT in the codec-2
+# map blob $C7:3BBD (that is the bracket's MAP): they are 18 ordinary $80:8C43
+# records in ROM, 9 characters x 2 sides, drawn straight from bank $DF.
+# Verified live against the ROM byte for byte; detail in docs/project/menu_text.md.
+#
+# Glyph delivery needs NO len bump, which the earlier plan assumed it would: the
+# bracket script's font entry already uploads 320 tiles ($1400 words at vmadd
+# $2000) from a blob that only supplies 135, so the tail is whatever the staging
+# buffer held. Extending the sheet to 256 tiles makes that tail deterministic AND
+# carries the new glyphs. Only $DF:A446 -- the bracket script's own entry -- is
+# repointed, so the other three users of $C2:27E0 keep the vanilla blob and
+# cannot be disturbed.
+BRACKET_TRANSLATE = os.environ.get("SMS_P16_BRACKET") == "1"
+BR_FONT_SRC = 0x0227E0          # $C2:27E0 small font, codec 1, 135 tiles
+BR_SCRIPT_REF = 0x1FA446        # script $DF:A43E entry [1] src24 -- ONLY this one
+BR_LEFT, BR_RIGHT, BR_STRIDE = 0x1FE119, 0x1FE38F, 0x46
+BR_VMADD = (0x7CE0, 0x7CF0)     # left / right, asserted per record
+BR_TILES = 0x100                # extended sheet size, in tiles
+# Placed dynamically AFTER the $DF sheet, because that sheet is ~19.8 KB when
+# SMS_P16_DF is on and a fixed $B000 lands inside it. The first build did exactly
+# that: the repoint was correct, the stream was overwritten, and the game uploaded
+# 320 tiles of rubble -- the map cells were right and every glyph was blank.
+BR_FONT_AT = None               # computed in build(); guarded against the bank end
+# Ink: sampled from the vanilla name glyphs (tiles $01-$07), whose pixels are
+# overwhelmingly index 1 with 7/15 as highlights — so 1 is the body colour here,
+# not the 7 the menu sheet uses.
+BR_INK = 1
+BR_NAMES = ["MOON", "MERCURY", "MARS", "JUPITER", "VENUS",
+            "CHIBI", "PLUTO", "NEPTUNE", "URANUS"]
+# top ids; the bottom is always top+$10. Every one measured blank in live bracket
+# VRAM and unreferenced by any of the 18 records.
+BR_SLOTS = [0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF,
+            0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF,
+            0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF]
+
+
+def bracket_sheet(rom, glyphs, ink):
+    """The extended small-font sheet, plus {letter: top tile id}."""
+    import sms_lz
+    blob = sms_lz.decompress(rom, BR_FONT_SRC)
+    if len(blob) % 32:
+        raise SystemExit(f"small font is {len(blob)} bytes, not a whole number of tiles")
+    sheet = bytearray(BR_TILES * 32)
+    sheet[:len(blob)] = blob                      # tiles $00-$86 stay byte-identical
+    letters = sorted(set("".join(BR_NAMES)))
+    if len(letters) > len(BR_SLOTS):
+        raise SystemExit(f"{len(letters)} letters, {len(BR_SLOTS)} slots")
+    placed = {}
+    for ch, top in zip(letters, BR_SLOTS):
+        if top < len(blob) // 32 or (top + 0x10) < len(blob) // 32:
+            raise SystemExit(f"slot ${top:02X} overlaps the vanilla sheet")
+        t, b = encode_glyph(glyphs[ch], ink=ink)
+        sheet[top * 32:(top + 1) * 32] = t
+        sheet[(top + 0x10) * 32:(top + 0x11) * 32] = b
+        placed[ch] = top
+    return bytes(sheet), placed
+
+
+def bracket_records(data, placed):
+    """Rewrite the 18 name records in place. -> list of (side, name)."""
+    out = []
+    for side, (base, vm) in enumerate(zip((BR_LEFT, BR_RIGHT), BR_VMADD)):
+        for i, name in enumerate(BR_NAMES):
+            o = base + i * BR_STRIDE
+            gv = data[o] | data[o + 1] << 8
+            gl = data[o + 2] | data[o + 3] << 8
+            gr = data[o + 4] | data[o + 5] << 8
+            if (gv, gl, gr) != (vm, 0x20, 2):
+                raise SystemExit(f"bracket record {side}/{i} header is "
+                                 f"({gv:04X},{gl:04X},{gr}), expected ({vm:04X},0020,2)")
+            cells = [data[o + 6 + k] | data[o + 7 + k] << 8 for k in range(0, 0x20, 2)]
+            attr = next((c & 0xFC00 for c in cells if c & 0x3FF), 0x2000)
+            # keep the VS graphic and the blanks; replace only the name cells
+            if side == 0:                          # left: right-aligned, ends at col 13
+                span = range(14 - len(name), 14)
+            else:                                  # right: left-aligned from col 3
+                span = range(3, 3 + len(name))
+            if span.start < 0 or span.stop > 16:
+                raise SystemExit(f"'{name}' does not fit the {'left' if not side else 'right'} record")
+            keep = {c for c in range(16) if c not in range(0, 16)}
+            new = list(cells)
+            for c in range(16):
+                if (side == 0 and 0 <= c <= 13) or (side == 1 and 3 <= c <= 15):
+                    new[c] = 0                     # clear the old name span only
+            for c, ch in zip(span, name):
+                new[c] = attr | placed[ch]
+            for k, w in enumerate(new):
+                data[o + 6 + k * 2] = w & 0xFF
+                data[o + 7 + k * 2] = w >> 8
+                lo = new[k] & 0x3FF
+                bw = (attr | (lo + 0x10)) if lo else 0
+                data[o + 6 + 0x20 + k * 2] = bw & 0xFF
+                data[o + 7 + 0x20 + k * 2] = bw >> 8
+            out.append(("left" if not side else "right", name))
+    return out
+
+
 # ---- the A.C.S. screen (SMS_P16_ACS=1) -------------------------------------
 # The stat wheel's labels (必殺技/攻撃/?/体力/防御/おちゃめ) are RASTER text
 # inside the screen's art sheet $C23400 (VRAM $300-$3FF via map $C23EB0) —
@@ -844,6 +942,17 @@ def build(src_path, out_path, stacked=False):
             raise SystemExit("options stub overruns the cs stub slot")
 
     astub = packed_acs = None
+    packed_br = None
+    br_rows = []
+    if BRACKET_TRANSLATE:
+        old_src = bytes(data[BR_SCRIPT_REF:BR_SCRIPT_REF + 3])
+        if old_src != bytes.fromhex("e027c2"):
+            raise SystemExit("bracket script font entry is %s, expected e027c2" % old_src.hex())
+        bsheet, br_placed = bracket_sheet(bytes(data), glyphs, ink=BR_INK)
+        packed_br = sms_lz.encode_lz(bsheet)
+        assert sms_lz.decompress(packed_br, 0, len(bsheet)) == bsheet, \
+            "bracket sheet round-trip failed"
+        br_rows = bracket_records(data, br_placed)
     if ACS_TRANSLATE:
         if not STAGES_TRANSLATE:
             raise SystemExit("SMS_P16_ACS needs SMS_P16_STAGES (shares the glyph block)")
@@ -963,6 +1072,16 @@ def build(src_path, out_path, stacked=False):
             raise SystemExit("packed ACS sheet (%#x) overruns the stub slot"
                              % len(packed_acs))
         blob[ACS_SHEET_AT:ACS_SHEET_AT + len(packed_acs)] = packed_acs
+    if BRACKET_TRANSLATE:
+        br_at = DF_SHEET_AT + (len(packed_df) if packed_df else 0)
+        br_at = (br_at + 0xFF) & ~0xFF
+        if br_at + len(packed_br) > 0x10000:
+            raise SystemExit("bracket sheet does not fit: needs %d bytes at $%04X, "
+                             "bank ends at $10000" % (len(packed_br), br_at))
+        blob[br_at:br_at + len(packed_br)] = packed_br
+        data[BR_SCRIPT_REF + 0] = br_at & 0xFF
+        data[BR_SCRIPT_REF + 1] = br_at >> 8
+        data[BR_SCRIPT_REF + 2] = bank
     if packed_df:
         if DF_SHEET_AT + len(packed_df) > 0x10000:
             raise SystemExit("packed DF sheet (%#x) overruns the bank" % len(packed_df))
@@ -1051,6 +1170,12 @@ def build(src_path, out_path, stacked=False):
               % (len(ACS_LABELS), ", ".join(t for _, t, _, _ in ACS_LABELS)))
     else:
         print("  ACS wheel: NOT translated (SMS_P16_ACS=1 to enable)")
+    if BRACKET_TRANSLATE:
+        print("  bracket VS names: %d records rewritten (%s); small font %d -> %d tiles, "
+              "only $DF:A446 repointed"
+              % (len(br_rows), ", ".join(BR_NAMES), 135, BR_TILES))
+    else:
+        print("  bracket VS names: NOT translated (SMS_P16_BRACKET=1 to enable)")
     print("  -> %s  sha1 %s" % (out_path, hashlib.sha1(bytes(data)).hexdigest()))
     json.dump({c: placed[c] for c in sorted(placed)},
               open(os.path.join(REPO, "docs", "project", "halfwidth_tiles.json"), "w"), indent=1)
