@@ -340,6 +340,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_acs_select.lua` — does SELECT still open the ACS screen from the VS
 - `probe_adv2hp.lua` — issue #28: measure Uranus 2HP on-hit advantage by frame-advance,
 - `probe_api.lua` — one-shot Mesen 2 Lua API probe for the training-mode build (P-1).
+- `probe_backdash_census.lua` — the NEUTRAL backdash, measured, for one character.
 - `probe_bar.lua`
 - `probe_boxes.lua` — visual check of hud_boxes: load the training modules, Venus 5LP at
 - `probe_cancelgate.lua` — issue #29: measure the 2HP→66 dash-cancel gate behaviourally.
@@ -356,6 +357,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_dshit.lua`
 - `probe_dswave.lua` — whiff (no target), trace BOTH projectile slots for 300 frames; flag if +0x40 ever uses 6/7/8
 - `probe_exp_airdash.lua` — does Venus get an AIR BACKDASH, and is it vulnerable?
+- `probe_exp_bdsafety.lua` — is the GROUND backdash still invulnerable, on every
 - `probe_fontdma.lua` — find the code that uploads the menu FONT to VRAM.
 - `probe_fontdma2.lua` — read the DMA parameters from DIRECT PAGE at the trigger.
 - `probe_gate.lua`

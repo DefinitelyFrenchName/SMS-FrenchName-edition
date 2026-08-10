@@ -108,8 +108,61 @@ HOOKS = (0x016E28, 0x016E61, 0x016E9A)   # `jsr $0958` in jump up / fwd / back
 STUB = 0x01BF80
 STUB_ADDR = 0xBF80
 
+# ---------------------------------------------------------------- front dash --
+# STATUS: WIRED BUT NOT FIRING — opt-in via --front, off by default. Everything
+# below is in the ROM and asserted, and the GROUND stays clean (measured: a
+# grounded forward double-tap produces no dash act, because the appended entries
+# are air-only). What does not work is the INPUT: Venus's forward double-tap
+# never arms the recognizer's forward pair, so the id below is never looked up.
+#
+# Measured, and it is character-specific rather than a bad tap pattern: on the
+# CLEAN ROM the identical pattern fires URANUS's Shadow Dash (act 0x60, cmd 04)
+# and her +0x5D RESETS as +0x5E increments — the arming branch at $C1:165C is
+# taken. For Venus +0x5D free-runs and +0x5E stays 00, so neither branch of
+# $C1:164C is reached, which means `$6B & 3` came out zero for her.
+#
+# NEXT INSTRUMENT (do not guess at this): $6B samples as 00 from an endFrame
+# callback — it is transient — so it needs an EXEC hook at $C1:1626 logging A
+# and DP $00, run on Venus and Uranus back to back. The framing caveat applies:
+# the $1602-$1626 listing was disassembled from a mid-instruction start once
+# already this session (HANDOFF trap 22), so re-frame it from $C1:15C4.
+#
+# The forward air dash needs NO new handler code: Uranus's Shadow Dash handler
+# ($C1:88C8) is 40 bytes of generic routine — `ldx $88`, four constants, shared
+# helpers — with nothing Uranus-specific in it, so Venus's act table can simply
+# point at it. Its animation is her own jump-forward script. That is question 2's
+# answer built rather than argued.
+#
+# Reaching it needs an INPUT, and that is per-character data: the 7-byte record
+# at $C1:16AF + (charID-1)*7 maps each motion to the command id the recognizer
+# emits, and slot $09 (forward double-tap) is 00 for everyone except Moon and
+# Uranus — a zero is rejected outright at $C1:167B. Venus's becomes 0x0C.
+#
+# Command id 0x0C indexes special-start entry 10, and her table only has 10
+# entries (0-9), bounded immediately by her throw table — so the table is copied
+# to free space with two entries appended and all 32 `ldy #$6C1F` sites
+# repointed. The appended entries carry flag 0x02 = AIR ONLY, which is what keeps
+# the ground honest: a forward double-tap on the ground indexes them and the
+# starter rejects it, so grounded behaviour is unchanged by construction rather
+# than by hope.
+FWD_ACT = 0x2C
+FWD_SCRIPT_SLOT = 0x000D80      # $C0:0D28 + 0x2C*2
+JUMPFWD_SCRIPT = 0x0E29         # her act-0x07 script
+FWD_ACT_SLOT = 0x016B71         # $C1:6B19 + 0x2C*2
+URANUS_DASH_HANDLER = 0x88C8    # borrowed wholesale
+INPUT_REC_FWD = 0x0116CC        # $C1:16CB + 1 — Venus's forward-double-tap id
+FWD_CMD_ID = 0x0C
+TABLE_SRC = 0x016C1F            # $C1:6C1F, 10 entries
+TABLE_ENTRIES = 10
+TABLE_DST = 0x01BF00            # $C1:BF00, 24 bytes of zeros
+TABLE_DST_ADDR = 0xBF00
+LDY_OLD = bytes([0xA0, 0x1F, 0x6C])
+LDY_NEW = bytes([0xA0, TABLE_DST_ADDR & 0xFF, TABLE_DST_ADDR >> 8])
+VENUS_PROC = (0x016B0A, 0x0179F1)   # her proc block, where all 32 sites must lie
+EXPECT_LDY_SITES = 32
 
-def build(src, out, keep_air_invuln=False):
+
+def build(src, out, keep_air_invuln=False, front=False):
     rom = bytearray(open(src, "rb").read())
     air_act = 0x26 if keep_air_invuln else AIR_ACT
 
@@ -148,11 +201,48 @@ def build(src, out, keep_air_invuln=False):
         raise ValueError(f"0x{STUB:06X}: stub area is not free")
     rom[STUB:STUB + len(stub)] = stub
 
+    if front:
+        # act 0x2C -> Uranus's dash handler; its animation -> her jump-forward script
+        for slot, val, what in ((FWD_ACT_SLOT, URANUS_DASH_HANDLER, "act"),
+                                (FWD_SCRIPT_SLOT, JUMPFWD_SCRIPT, "script")):
+            if rom[slot:slot + 2] != b"\0\0":
+                raise ValueError(f"0x{slot:06X}: {what} slot {FWD_ACT:#04x} is not null")
+            rom[slot:slot + 2] = val.to_bytes(2, "little")
+
+        # relocate her special-start table, +2 AIR-ONLY entries for the forward dash
+        if any(rom[TABLE_DST:TABLE_DST + TABLE_ENTRIES * 2 + 4]):
+            raise ValueError(f"0x{TABLE_DST:06X}: relocation target is not free")
+        old = bytes(rom[TABLE_SRC:TABLE_SRC + TABLE_ENTRIES * 2])
+        rom[TABLE_DST:TABLE_DST + len(old)] = old              # byte-identical copy
+        rom[TABLE_DST + len(old):TABLE_DST + len(old) + 4] = bytes(
+            [0x02, FWD_ACT, 0x02, FWD_ACT])                    # flags 02 = air only
+
+        # repoint every site that hands her table to a starter — exactly 32, all
+        # inside her own proc block (asserted, so a stray data match cannot pass)
+        n, i = 0, VENUS_PROC[0]
+        while True:
+            j = rom.find(LDY_OLD, i, VENUS_PROC[1])
+            if j < 0:
+                break
+            rom[j:j + 3] = LDY_NEW
+            n += 1
+            i = j + 3
+        if n != EXPECT_LDY_SITES:
+            raise ValueError(f"expected {EXPECT_LDY_SITES} `ldy #$6C1F` sites, repointed {n}")
+        if LDY_OLD in bytes(rom[0x010000:0x020000]):
+            raise ValueError("a reference to the old table survives somewhere in bank $C1")
+
+        # and the input: give her forward double-tap a command id at all
+        if rom[INPUT_REC_FWD] != 0x00:
+            raise ValueError(f"0x{INPUT_REC_FWD:06X}: expected 00, found {rom[INPUT_REC_FWD]:02X}")
+        rom[INPUT_REC_FWD] = FWD_CMD_ID
+
     fix_checksum(rom)
     open(out, "wb").write(rom)
     print(f"wrote {out} from {src} sha1={hashlib.sha1(rom).hexdigest()}"
-          + (f"  [air backdash on act 0x26 — INVULNERABLE variant]" if keep_air_invuln
-             else f"  [air backdash on act 0x{AIR_ACT:02X} — vulnerable]"))
+          + ("  [back: act 0x26, INVULNERABLE]" if keep_air_invuln
+             else f"  [back: act 0x{AIR_ACT:02X}, vulnerable]")
+          + (f"  [front: act 0x{FWD_ACT:02X}]" if front else "  [no front dash]"))
 
 
 if __name__ == "__main__":
@@ -160,6 +250,9 @@ if __name__ == "__main__":
     ap.add_argument("out")
     ap.add_argument("src", nargs="?", default=None)
     ap.add_argument("--stacked", action="store_true")
+    ap.add_argument("--front", action="store_true",
+                    help="ALSO wire the forward air dash — INCOMPLETE, does not fire yet; "
+                         "see the FRONT DASH section of this file's docstring")
     ap.add_argument("--keep-air-invuln", action="store_true",
                     help="start act 0x26 in the air instead of the new act, i.e. keep the "
                          "backdash's own invulnerable animation, for A/B")
@@ -167,4 +260,4 @@ if __name__ == "__main__":
     src = a.src or clean_rom()
     require_source(src, stacked=a.stacked)
     check_not_inplace(src, a.out)
-    build(src, a.out, keep_air_invuln=a.keep_air_invuln)
+    build(src, a.out, keep_air_invuln=a.keep_air_invuln, front=a.front)

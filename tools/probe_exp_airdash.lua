@@ -39,15 +39,26 @@ local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 
 local P1, P2 = 0x1000, 0x1080
 local ACT, ANIM, STATUS, XPIX, YPIX, HURT = 0x01, 0x04, 0x16, 0x21, 0x25, 0x41
-local STATE = "venus_vs_jupiter_clean.mss"
+local STATE = os.getenv("SMS_STATE") or "venus_vs_jupiter_clean.mss"
+local DIR = os.getenv("SMS_DIR") or "back"   -- which air dash to test
 
 local t, loaded = -1, false
 local phase, phaseStart = "settle", 0
-local ground, air = {}, {}
+local ground, air, gfront = {}, {}, {}
 
 local function p1(o) return PL.ram(P1 + o) end
-local function backDir()                 -- derived every time it is needed
-  return PL.ram(P1 + XPIX) > PL.ram(P2 + XPIX) and "left" or "right"
+local function backDir()                 -- from the engine's own facing byte
+  return (PL.ram(P1 + 0x09) ~= 0) and "right" or "left"
+end
+-- FORWARD as the RECOGNIZER defines it: toward the opponent BY POSITION.
+-- $C1:1633 compares the two x's (with a facing tiebreak) to decide which raw
+-- direction is "forward"; the walk code uses the facing byte instead. When the
+-- two disagree — she is facing away from where the opponent actually stands —
+-- pressing the direction she walks forward in arms the BACK recognizer pair.
+-- Measured here: ground `right` walked her forward AND armed +0x5C (back).
+local function fwdDir()
+  return PL.ram(P1 + XPIX) + 256 * PL.ram(P1 + 0x22)
+       < PL.ram(P2 + XPIX) + 256 * PL.ram(P2 + 0x22) and "right" or "left"
 end
 local function airborne() return (PL.ram(P1 + STATUS) & 0x80) == 0 end
 local function setPhase(p)
@@ -71,8 +82,15 @@ end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.sn
 emu.addEventCallback(function()
   if t < 0 then return end
   local k, b = t - phaseStart, {}
-  if phase == "ground" or phase == "air" then
+  if phase == "gfront" then
+    local d = fwdDir()
+    if (k >= 0 and k < 5) or (k >= 9 and k < 14) then b[d] = true end
+  elseif phase == "ground" or phase == "air" then
     local d = backDir()
+    if phase == "air" then
+      if DIR == "front" then d = fwdDir()
+      elseif DIR == "left" or DIR == "right" then d = DIR end
+    end
     if (k >= 0 and k < 5) or (k >= 9 and k < 14) then b[d] = true end
   elseif phase == "jump" and k < 6 then
     b.up = true
@@ -85,11 +103,15 @@ end, emu.eventType.inputPolled)
 local function snap()
   return { t = t, act = p1(ACT), anim = p1(ANIM), hurt = p1(HURT),
            st = p1(STATUS), x = p1(XPIX), y = p1(YPIX),
-           step = p1(0x02), cmd = p1(0x51), held = p1(0x50) }
+           step = p1(0x02), cmd = p1(0x51), held = p1(0x50),
+           r5d = p1(0x5D), r5e = p1(0x5E), r5b = p1(0x5B), r5c = p1(0x5C),
+           ox = PL.ram(P2 + XPIX) + 256 * PL.ram(P2 + 0x22),
+           g6b = PL.ram(0x006B), p6b = PL.ram(0x106B), g6a = PL.ram(0x006A) }
 end
 local function fmt(r)
   return string.format("t=%4d act=%02X stp=%02X anim=%02X hurt=%02X st=%02X x=%3d y=%3d cmd=%02X held=%02X",
                        r.t, r.act, r.step, r.anim, r.hurt, r.st, r.x, r.y, r.cmd, r.held)
+    .. string.format(" 5B/5C=%02X/%02X 5D/5E=%02X/%02X 6B=%02X/%02X 6A=%02X", r.r5b, r.r5c, r.r5d, r.r5e, r.g6b, r.p6b, r.g6a)
 end
 
 local function report(name, rs)
@@ -98,7 +120,7 @@ local function report(name, rs)
   local acts = {}
   for _, r in ipairs(rs) do
     log("   " .. fmt(r))
-    if r.act == 0x26 or r.act == 0x2B then      -- 0x2B = the experiment's air act
+    if r.act == 0x26 or r.act == 0x2B or r.act == 0x2C then   -- 2B/2C = the new air acts
       frames = frames + 1
       acts[r.act] = (acts[r.act] or 0) + 1
       hurts[r.hurt] = (hurts[r.hurt] or 0) + 1
@@ -130,7 +152,10 @@ emu.addEventCallback(function()
     if k > 70 then setPhase("ground") end
   elseif phase == "ground" then
     if k >= 6 then ground[#ground + 1] = snap() end
-    if k > 60 then setPhase("rest") end
+    if k > 60 then setPhase("gfront") end
+  elseif phase == "gfront" then
+    gfront[#gfront + 1] = snap()
+    if k > 45 then setPhase("rest") end
   elseif phase == "rest" then
     if k > 30 then setPhase("jump") end
   elseif phase == "jump" then
@@ -142,7 +167,8 @@ emu.addEventCallback(function()
   elseif phase == "done" then
     log(""); log("probe_exp_airdash — Venus air backdash")
     report("GROUND phase (control: must be act 26 / hurt 00)", ground)
-    report("AIR phase (the experiment)", air)
+    report("GROUND forward double-tap (must produce NO dash act)", gfront)
+    report("AIR phase (" .. DIR .. ")", air)
     LOG:close(); emu.stop(0)
   end
   t = t + 1
