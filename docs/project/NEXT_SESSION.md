@@ -1,4 +1,4 @@
-# Next-session handoff — 2026-08-09 (session close)
+# Next-session handoff — 2026-08-10 (session close)
 
 **Read this, then `../game/README.md` if the work is about the ROM, or
 `patch_index.md` if it is about a patch.** Everything below is current; the
@@ -45,16 +45,85 @@ sections further down are this session's detail.
    TECHED throw, so at Guts L3 teching costs more than eating the throw (12 vs
    10, measured). No shipped build passes the flag. The question is yours:
    *should a teched command grab be scaled by Guts at all?* Full brief below.
-4. **`checkdocs` — the generated increment is DONE** (**87 checks**; see below).
-   The next one, if it is wanted: **183 of `docs/game/`'s 299 ROM addresses are
-   still not re-derived**, and nearly all of them are *code* addresses carrying
-   prose claims ("routine X does Y"), which no census can decide. Two ways
-   forward, in order of cheapness — (a) adopt the convention that documenting a
-   routine QUOTES its entry instruction, since the extractor then covers it for
-   free and the quote is what makes the address falsifiable; (b) drive a
-   disassembler and check that each documented address is an instruction
-   boundary something actually calls. `tools/checkdocs.py --uncovered` prints
-   the list.
+4. **`checkdocs` — the coverage increment is DONE** (2026-08-10): **87 → 207
+   checks**, **116/299 → 190/325** addresses re-derived, runtime 0.30 s. Route
+   (b) carried it, because route (a) turned out not to be the cheap one:
+   **164 of the 183 uncovered addresses were PROSE ONLY**, so quoting entry
+   instructions meant hand-authoring ~151 lines — and a quote stamped from the
+   currently documented address is a tautology that can never catch an address
+   already wrong. The convention is written into `../game/README.md` for NEW
+   prose instead; nothing was retrofitted. Detail below.
+   **135 remain uncovered and each now says why**: 111 "no instruction boundary
+   reachable here" (mostly genuine data — the bank-`$8A` box tables and such,
+   for which there is no honest structural check) and 24 "still holds two bytes
+   over — does not pin". That residual is the honest floor of this approach, not
+   a to-do list.
+
+## What changed this session (2026-08-10) — checkdocs coverage
+
+**87 → 207 checks; 116/299 → 190/325 addresses re-derived; 0.155 s → 0.30 s.**
+Three new families and one shared decoder, in four commits.
+
+* **`tools/dis65816.py`** — one 65816 decode table, replacing
+  `port_saturn_proc.py`'s private one, which was **wrong in two ways**: `00`
+  (BRK) was listed as 1 byte when it carries a signature byte and is 2, and
+  `02 08 0B 2B 42 C4 E4` (COP PHP PHD PLD WDM CPY-dp CPX-dp) were in **no**
+  table, so a descent meeting a `php` died on "unknown opcode". Saturn's block
+  reaches none of the eight — measured — which is why the port was never
+  affected. `tools/dis65816_oracle.py` agrees with pelrun's **DisPel** on
+  **5051 consecutive instructions across 9 ranges**; two of the nine are data on
+  purpose, since data exercises rare opcodes hand-written code never reaches.
+  `port_saturn_proc.py --check` gates the ported block byte-identical
+  (`30fcfdbb…`, 1788 reached) and is in `health.sh`.
+* **The listing family (+27)** — `docs/game/` carries hand-transcribed rows in
+  DisPel's format, `C0/D055  rep #$30`, and **the census could not see them at
+  all** because `C0/D055` is not a `$BB:AAAA` token: 25 documented addresses
+  were invisible to the very report whose job is to be honest about what nobody
+  checked. It is also one of only two families that can catch an address wrong
+  TODAY, since a human read the address and typed the instruction independently.
+* **Boundary-aware instructions** — the check was
+  `ROM[a:a+128].find(bytes)`, which matches inside another instruction's
+  operand. Now each part must sit at an instruction boundary, in order (an
+  ordered subsequence, because `annotations.md:89` **abridges** a sequence and
+  demanding contiguity would fail a true claim).
+* **The structural family (+84)** — for prose-only code addresses: three tiers
+  (**54** boundary + called/vectored, 1.1% false-pass on random nearby
+  addresses; **4** boundary + branch target, 2.1%; **26** boundary alone,
+  31.9%), each address enrolled only if its own tier predicate **fails at
+  base+1 and base+2**. Tiers print separately because they differ 30x in
+  discrimination and a weak number must not ride on a strong one.
+* **Table-row binding (+5)** and the convention in `../game/README.md`.
+
+⚠ **One live defect found, and it was the opposite of what was reported to me.**
+`sms_acs_system.md:35` says ``$C3:BB60` (`jsr ($BB6D,x)` … at `$C3:BB69`)``; the
+instruction is at `$C3:BB69`, nine bytes on. **The doc is right** — it names the
+correct address in its own text — and the *extractor* bound the quote to the
+preceding token, with the 128-byte window hiding the mismatch. The check now
+binds where the line says. Reading the ROM is what settled it.
+
+⚠ **Three negative controls were wrong before they were right, and that is the
+whole lesson of the session.** The oracle's first control seeded our walk 8-bit
+where DisPel is 16-bit — vacuous, because every sampled range opens with
+`rep #$30`, which resets both widths on instruction one. The identity gate's
+first control lengthened `AD`, an opcode the Saturn block never reaches. The
+structural family's interior-byte control was anchored on `$C0:9CB2`, which has
+**zero call sites** — the real entry is `$C0:9C96` and from there the "operand
+byte" is an ordinary `lda $05,x`. Every one of them looked like a control and
+tested nothing. **Take the victim from the workload's own reached set, and check
+the framing before trusting a verdict about a byte.**
+
+⚠ **A relaxation invented a claim, which is why guard 6 exists.** With five
+guards, the table-row rule bound `sta $0005,y` to `$C1:0881` — the throw pose
+POINTER TABLE (`00 00 95 08 aa 08 …`). The row describes code at the read sites
+it also names; the real instruction is at `$C1:0747`. The check would have gone
+**red for a reason nobody wrote**. Guard 6 — the quote must precede any other
+address token in the row — refuses exactly that row and keeps all five true
+binds, including `$80:BFBB`, whose row names a second address *after* the quote.
+
+The floor and ceilings the controls gate on are set **from the run recorded
+beside them**, never typed from a plan: a ceiling copied out of a planning
+document is a guess promoted to a gate, and would stay green while the predicate
+drifted underneath it.
 
 ## What changed this session (2026-08-09)
 

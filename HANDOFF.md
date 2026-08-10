@@ -22,7 +22,53 @@ ported from Super S and is playable in the **Rev. SS** builds only (§0).
 
 ---
 
-## 0. Current state (2026-08-09) — SMS + Saturn = PATCH 100, and the issue backlog
+## 0. Current state (2026-08-10) — SMS + Saturn = PATCH 100, and the issue backlog
+
+**2026-08-10 — `checkdocs` COVERAGE: 87 → 207 checks, 116/299 → 190/325
+addresses re-derived** (0.30 s). The handoff offered two routes; measurement
+chose. Route (a), "make the doc quote its entry instruction", is **not** the
+cheap one — **164 of the 183 uncovered addresses were prose only**, so it meant
+hand-authoring ~151 lines, and a quote stamped from the address it is meant to
+test is a tautology that can never catch one already wrong. So route (b): a
+shared 65816 decoder (`tools/dis65816.py`) and three new families —
+**listing rows** (+27; `C0/D055  rep #$30`, which the census could not see at
+all, hiding 25 addresses from the one report meant to be honest about gaps),
+**structural checks** (+84 across three tiers, each enrolled only if its own
+predicate fails at base+1 AND base+2), and **table-row binding** (+5). The
+convention went into `docs/game/README.md` for NEW prose; nothing retrofitted.
+**135 stay uncovered and each says why** — 111 are not code at all (the bank-`$8A`
+box tables and their kind), 24 do not pin. That is the honest floor, not a
+backlog.
+
+⚠ **A shipped decode table was wrong.** `tools/saturn/port_saturn_proc.py` had
+`00` (BRK) as 1 byte when it is 2, and `02 08 0B 2B 42 C4 E4` in **no** table —
+a descent meeting a `php` would have died. Saturn's block reaches none of the
+eight (measured), so the port was never affected, and `--check` now gates the
+ported block byte-identical (`30fcfdbb…`, 1788 reached). The shared table agrees
+with **DisPel** — a different author's disassembler — on **5051 consecutive
+instructions across 9 ranges**.
+
+⚠ **The one live defect was the OPPOSITE of what was reported.**
+`sms_acs_system.md:35` was flagged to me as a wrong address; reading the ROM
+showed the **doc is right** (it names `$C3:BB69`, where `fc 6d bb` actually is)
+and the **extractor** was binding the quote to the preceding token, with the
+128-byte substring window hiding it.
+
+⚠ **Trap 22 — a negative control is code, and it is wrong until it has failed
+on purpose.** Three of them here looked right and tested nothing: a flag-seed
+control on ranges that all open with `rep #$30` (which resets the seed on
+instruction one); an identity gate perturbing an opcode the workload never
+reaches; an interior-byte control anchored on `$C0:9CB2`, which has **zero call
+sites** — from the real entry `$C0:9C96` the supposed operand byte is an
+ordinary `lda $05,x`. Take the victim from the workload's own reached set, and
+check the framing before trusting a verdict about a byte.
+
+⚠ **Trap 23 — relaxing a binding rule invents claims, and an invented claim
+fails RED for a reason nobody wrote.** The table-row relaxation bound
+`sta $0005,y` to `$C1:0881`, which is the throw pose *pointer table*; the row
+describes code at the read sites it also names. Guard 6 (the quote must precede
+any other address token in the row) refuses it and keeps all five true binds.
+The general rule's strictness is not fussiness — it is this.
 
 **2026-08-09 (session close) — TWO NEW GAME DOCS, A DRAWN FRAME, AND THE PIPELINE
 WRITTEN DOWN.** Four things landed after the checking programme below:
@@ -49,10 +95,12 @@ WRITTEN DOWN.** Four things landed after the checking programme below:
   hook, stub, bank and hash) is re-derived by `checkpatchmap.py`.
 * **Saturn's round-won badge is now recorded as open work** (below).
 
-Checkers at session close: **`checkdocs` 87** (+4 from the badge work: the
-tile-word table and the `$E0:0000` job table, both negative-controlled at a wrong
-base), `checkpatchmap` (19 patches + 48 hash claims + the pipeline example),
-`checkknobs` 15, `checktrainingdocs` 11, `saturn/checksaturndocs` 17. All in
+Checkers as of 2026-08-10: **`checkdocs` 207** (37 hand · 17 tables · 69
+extracted from prose · 84 structural; was 87 at the 08-09 close, +4 of that from
+the badge work), `checkpatchmap` (19 patches + 48 hash claims + the pipeline
+example), `checkknobs` 15, `checktrainingdocs` 11, `saturn/checksaturndocs` 17,
+plus **`dis65816_oracle`** (our decode table vs DisPel) and
+**`port_saturn_proc --check`** (the ported block, byte-identical). All in
 `health.sh`, all negative-controlled.
 
 
@@ -664,10 +712,12 @@ would actually cost). Short version: ROM is not scarce (384 KB spare), ARAM is
 the only hard wall, and the real constraint is per-character tables sized to nine
 and immediately followed by live data.
 
-**Twenty-one traps this project paid for — they generalise** (12-18 are the
+**Twenty-three traps this project paid for — they generalise** (12-18 are the
 2026-08-06 issue-remediation programme's distillate, per-issue evidence in
 the `Fixes #NN` commits; 19 came out of the 2026-08-08 data-architecture audit,
-and 20-21 out of the generated doc and patch checks the same day):
+20-21 out of the generated doc and patch checks the same day, and 22-23 out of
+the 2026-08-10 coverage work — both are trap 20 turned on the checking layer
+itself):
 
 1. **Per-character fixes must be tested with at least TWO shells.** Saturn can
    be summoned over Uranus, Neptune or Pluto (over any of the nine before
@@ -820,6 +870,30 @@ and 20-21 out of the generated doc and patch checks the same day):
    is one step further out — **a default is part of the recipe**, so centralising
    a constant is a builder change even when no code moves. Enumerate what a
    default feeds before you make it a variable.
+22. **A negative control is CODE, and it is wrong until it has failed on
+   purpose.** Trap 20 says a check that cannot fail at the wrong address is not
+   checking the address; this is the next turn of the same screw — the control
+   itself needs a control. Three in one session looked right and tested nothing:
+   a flag-seed control over ranges that all open with `rep #$30`, which resets
+   the seed on instruction one, so the "wrong" seed corrected itself before it
+   could diverge; a byte-identity gate that perturbed opcode `AD`, which the
+   workload never reaches; and an interior-byte control anchored on `$C0:9CB2`,
+   an address with **zero call sites** — from the real entry `$C0:9C96` the
+   supposed operand byte is an ordinary `lda $05,x`. Two rules fall out:
+   **take the victim from the workload's own reached set** (not from a plausible
+   guess), and **check the framing before trusting any verdict about a byte** —
+   on this CPU "is there an instruction here" has no answer until you say where
+   the decoder started, and starting somewhere convenient invents one.
+23. **Relaxing a binding rule invents claims, and an invented claim fails RED
+   for a reason nobody wrote.** The docs' instruction rule binds only a quote
+   ATTACHED to its address; relaxing it for table rows (where the subject is in
+   cell 1 by construction) immediately bound `sta $0005,y` to `$C1:0881` — the
+   throw pose *pointer table*, whose bytes are `00 00 95 08 …`. The row was
+   describing code at the read sites it also names. A checker that tests a claim
+   nobody made is worse than no checker in both directions: green for the wrong
+   reason, or red for one. The fix that worked is ordering, not counting — the
+   quote must precede any other address the row names — because a row may
+   legitimately cross-reference an address AFTER its quote (`$80:BFBB` does).
 
 ---
 
