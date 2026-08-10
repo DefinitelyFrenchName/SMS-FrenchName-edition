@@ -35,7 +35,7 @@ input rig (blockstun act 0x0C/0x0E → move act = GC):
 | Uranus Shadow Dash 66 (act 0x60) | **cancels blockstun** (verified) | **SPECIAL** |
 | Moon Dash Jump 66 (act 0x60) | **cancels blockstun** (verified) | **SPECIAL** |
 | Ordinary forward dash (Jupiter control) | input eaten, stun runs full | universal movement |
-| Backdash 44 (act 0x26) | **GC-able — VERIFIED** (act 0x26 fires straight out of blockstun) | **SPECIAL** (maintainer's ruling, 2026-08-10 — the criterion is applied without exception, and the ROM agrees: act `0x26` is an entry in every character's cancel table, nibbles 2/3) |
+| Backdash 44 (act 0x26) | **GC-able — VERIFIED** (act 0x26 fires straight out of blockstun) | **SPECIAL**, and also a universal mechanic — the two are orthogonal, see below (maintainer's ruling, 2026-08-10; the ROM agrees: act `0x26` is in every character's cancel table, nibbles 2/3) |
 | Mercury Triangle Jump (wall 7/9) | untested (wall-dependent); her listed GC option is HP Bubble, not this | command movement (presumed) |
 | Chibi Double Jump j.7/8/9 | air-only, GC n/a | command movement |
 | Slides (Uranus/Chibi 2HK), Neptune c.HK etc. | normals | command normals |
@@ -153,9 +153,17 @@ opposite of what `docs/project/saturn/supers_map.md` recorded for the Super S tw
 which was corrected on 2026-08-10 after both engines' starters were compared byte
 for byte.
 
-**The universal backdash (act `0x26`) is nibbles 2 and 3 of every table** — so by
-this engine's own structure the backdash *is* a special, in all nine characters. It
-is not an exception to the guard-cancel criterion; it is an entry in the same list.
+**The backdash (act `0x26`) is nibbles 2 and 3 of every table** — so by this
+engine's own structure it is a special, in all nine characters.
+
+⚠ **"Universal" and "special" are not opposites here, and the two words answer
+different questions.** The backdash is *universal* in the sense that every
+character has it, on the same universal act `0x26`, with no per-character entry in
+the 0x2B+ space — it is an engine-wide mechanic. It is *special* in the sense this
+page classifies by: it is an entry in the cancel table, so the guard state can start
+it. Both are true. The earlier row that recorded it as GC-able and then filed it
+under "universal movement" was reading the two as mutually exclusive; they are
+orthogonal, and only the second one is what "special" means in this game.
 
 ### 2. The permission — which act handlers call the starter
 
