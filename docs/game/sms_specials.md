@@ -84,14 +84,58 @@ act:
   EDGES within the ~15f buffer — holding back long before the cancel breaks it (the
   stale hold counts as the first edge). Release and re-tap fresh: 5-4-5-4.
 - **The GC backdash is an ENHANCED backdash** (our discovery while verifying): it
-  travels ~2-2.5× the neutral backdash at the same duration — Uranus ~83px vs 36
-  neutral, Pluto ~74-90 vs 37, Chibi ~66-97 vs 36 (exact figures muddied by blockstun
-  pushback drift). The wiki's per-character "Backdash Distance" column (76-154) matches
-  the GC-enhanced values, not the neutral ones — **neutral backdash distance is ~36px
-  for every character measured**, while duration and invuln vary per character
-  (Uranus 14f, Moon 17f†, Pluto 20f, Chibi 26f; † wiki, untested). The wiki's Uranus
-  backdash row (154/15f, identical to her forward dash) is a suspected data-entry
-  duplication — our measured GC backdash for her is ~83px.
+  travels further than the neutral backdash at the same duration — Uranus ~83px,
+  Pluto ~74-90, Chibi ~66-97 (exact figures muddied by blockstun pushback drift).
+  ⚠ **The "~2-2.5×" ratio this bullet used to give is withdrawn**, because its
+  denominator was the ~36px figure corrected below; against the censused neutral
+  distances the same GC numbers give ~1.2-1.8×. Nobody has re-measured the GC
+  backdash since, so the *ratio* is unmeasured rather than revised — only the
+  neutral half of it was censused.
+
+### Neutral backdash — the census (measured 2026-08-10, clean ROM, all nine)
+
+⚠ **This supersedes a claim that stood here for months: "neutral backdash
+distance is ~36px for every character measured".** It is 47-60px. The instinct
+behind it — that the distance is roughly uniform while duration is not — was
+right, and the number was not.
+
+Measured with `tools/probe_backdash_census.lua`: a live match per character
+(char-select navigated, since the repo's clean-ROM fixtures cover only two of
+nine), neutral 44 from idle, first contiguous run of act `0x26`. Durations
+confirm what this page already recorded.
+
+| act-0x26 handler | character | duration | distance | measured | x impulse |
+|---|---|---|---|---|---|
+| `$C1:33B0` | Moon | 16f | 51px | 3.4 px/f | `lda #$FA00` |
+| `$C1:3ECD` | Mercury | 17f | 49px | 3.1 px/f | `lda #$F800` |
+| `$C1:4F36` | Mars | 23f | 57px | 2.6 px/f | `lda #$FB00` |
+| `$C1:6062` | Jupiter | 20f | 55px | 2.9 px/f | `lda #$FB80` |
+| `$C1:722C` | Venus | 15f | 50px | 3.6 px/f | `lda #$FA00` |
+| `$C1:8298` | Uranus | 14f | 47px | 3.6 px/f | `lda #$F500` |
+| `$C1:94EA` | Neptune | 26f | 60px | 2.4 px/f | `lda #$FC00` |
+| `$C1:A64A` | Pluto | 20f | 54px | 2.8 px/f | `lda #$FB00` |
+| `$C1:B550` | ChibiMoon | 26f | 53px | 2.1 px/f | `lda #$FD00` |
+
+Invulnerability is **duration − 1** frames in every row. The odd frame is the
+transition frame, which still carries the previous act's hurtbox because the box
+writer `$C0:9CCD` runs before the new act's animation is latched — true on the
+clean ROM, so it is the engine, not a patch.
+
+⚠ **The impulse is not the speed, and that is why the distances cluster.** The
+constants span 3.7× (ChibiMoon `$FD00` = −3.0 px/f, Uranus `$F500` = −11.0) while
+the measured averages span 1.7× and land in a 47-60px band, so the value passed
+to `$C1:0389` is an initial impulse that decays, not a sustained velocity. ⚠ **And
+it does not decay symmetrically**: Uranus's Shadow Dash carries the exact
+negation of her backdash impulse (`lda #$0B00`) yet the forward-dash row below
+records ~149px in the same 14 frames, i.e. no decay at all. What differs between
+the two is the state word (`$0009` forward vs `$000A` back) and the per-frame
+helper (`$C1:0336` vs `$C1:0AB9`) — **which of those causes it is not measured**,
+and the two distance figures on this page should not be reconciled by arithmetic
+until it is.
+
+The wiki's per-character "Backdash Distance" column (76-154) matches neither the
+censused neutral values nor, at its top end, anything measured here; its Uranus
+row (154/15f, identical to her forward dash) remains unexplained.
 
 ## Where "special" is encoded — the special-start table and the guard handlers
 
@@ -380,7 +424,13 @@ criterion (GC-able ⇔ special), Shadow Dash is a full special move.
 | | Act | Duration | Distance | Speed | Hurtbox | Skid |
 |---|---|---|---|---|---|---|
 | Shadow Dash 66 | **0x60** | 14f | ~149px gross / ~143 net | ~10.6 px/f | idx 0x4F (present — NOT invulnerable) | +5f (act 09), 19f total commitment |
-| Back dash 44 | 0x26 (universal) | 14f | −36px | ~2.6 px/f | **idx 0x00 all 14 frames = fully INVULNERABLE** | +5f (act 09) |
+| Back dash 44 | 0x26 (universal) | 14f | **−47px** | **~3.6 px/f** | **idx 0x00 all 14 frames = fully INVULNERABLE** | +5f (act 09) |
+
+⚠ The backdash distance and speed in that row were **−36px / ~2.6 px/f** until
+the 2026-08-10 census re-measured them on the clean ROM (§ "Neutral backdash —
+the census"). Her forward-dash figures in the row above are NOT from that census
+and are unrevised — see the note there about the two not being reconcilable by
+arithmetic yet.
 
 - The back-dash full invulnerability is the long-documented patch-2/patch-6 fact,
   now trace-confirmed frame-by-frame (hurt idx 0 throughout).
