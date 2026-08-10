@@ -36,11 +36,20 @@ sections further down are this session's detail.
    surface only on **v0.22** (the only bundle with 10b) and only if a status
    label is live at that exact instant. No Saturn build carries 10b. Noted for
    completeness, not as open work.
-2. **Patch 16 — menu translation.** Now the active feature work. Two surfaces
-   left: the **bracket VS names** (codec-2 blob `$C7:3BBD` + an unfound runtime
-   builder) and the **A.C.S. name card + prompt** (the variable-text glyph
-   blitter `$80:9583`, fed from `$7F:DC00+`, filler unfound). Detail below and in
-   `../game/menu_system.md`.
+2. **Patch 16 — menu translation.** Still the active feature work, but the
+   bracket surface is nearly done and its recorded state was **wrong**.
+   * **Bracket VS names — mechanism solved 2026-08-10, records shipped behind
+     `SMS_P16_BRACKET`, gate OFF because it is incomplete.** They are 18 ordinary
+     `$80:8C43` records in ROM (`$DF:E119` left, `$DF:E38F` right, 9 chars × 2
+     sides, stride `$46`) — **no runtime builder, and not inside the codec-2
+     blob** (`$C7:3BBD` is the bracket's map). The records render live; the
+     extended 256-tile small font is correct in the ROM but never reaches VRAM.
+     **One measurement finishes it:** log which script id the `$DF` loader
+     (`$9F:83CE`) runs for the bracket and repoint that script's font entry
+     instead of `$DF:A446`.
+   * **A.C.S. name card + prompt** — untouched, and still a session of its own:
+     find the `$7F:DC00+` filler, then the font source, string encoding and
+     name-substitution site, and only then census a glyph window.
 3. **Patch 14 — needs a RULING, not a patch.** `--all-grabs` does not scale a
    TECHED throw, so at Guts L3 teching costs more than eating the throw (12 vs
    10, measured). No shipped build passes the flag. The question is yours:

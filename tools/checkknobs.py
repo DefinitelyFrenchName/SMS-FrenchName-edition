@@ -171,9 +171,16 @@ def check(verbose=False):
                 fails.append(f"{b} has {flag}, which the knobs section never mentions")
 
     # env-var gates are knobs too, and they are the only ones with no argparse
+    src16 = (REPO / "tools" / "mkpatch16.py").read_text(encoding="utf-8")
     for env in sorted(set(re.findall(r"SMS_P16_[A-Z]+", section))):
-        if f'"{env}"' not in (REPO / "tools" / "mkpatch16.py").read_text(encoding="utf-8"):
+        if f'"{env}"' not in src16:
             fails.append(f"the table documents the gate {env}, which mkpatch16.py never reads")
+    # ...and the REVERSE, which the argparse checks above have always had and the
+    # env gates did not. A live miss showed why it matters: SMS_P16_BRACKET was
+    # added to the builder and shipped undocumented, and this file passed.
+    for env in sorted(set(re.findall(r'"(SMS_P16_[A-Z]+)"', src16))):
+        if env not in section:
+            fails.append(f"mkpatch16.py reads the gate {env}, which the knobs section never mentions")
     return fails
 
 
