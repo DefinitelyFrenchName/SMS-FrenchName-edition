@@ -108,6 +108,12 @@ behavioural half is locked by `base-gc-gate-immediate` and `base-gc-backdash` in
 are the PROJECTILE system. The special *set* lives in the tables below, which are
 what the guard handlers pass to the starter.
 
+**The special-start table is one of FOUR lists an act handler offers**, alongside the
+stance's normals table (`$C1:0459`), the close-throw table (`$C1:055A`) and, for two
+characters, a movement routine. That whole menu — and therefore what makes a normal
+a normal and a command normal a command normal — is
+`sms_engine_internals.md` §7.x; only the specials half is repeated here.
+
 ### 1. The move set — the per-character special-start table in bank `$C1`
 
 | character | table | entries | | character | table | entries |

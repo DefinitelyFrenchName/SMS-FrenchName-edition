@@ -721,6 +721,31 @@ highlight state. This is how the option values and the tournament rows are drawn
 and it is why a tilemap-only edit of a *value* gets overwritten: the tilemap holds
 the initial state, this record holds every redraw.
 
+### Normals record — 3 bytes, four per table
+
+`[distance threshold, far act, close act]`, read by `$C1:0459`. Four records per
+table, indexed by the fresh attack-button bit in the high nibble of `+0x50` (falling
+back to `+0x52`) in the **same order the throw table uses** — `0x10`→LP, `0x20`→LK,
+`0x40`→HP, `0x80`→HK. The distance is `abs(opponent +0x21 − self +0x21)` from
+`$C1:0439`; threshold ≥ distance selects the close act, else the far act, and a
+threshold of `255` means the button has no proximity variant.
+
+⚠ **One table per STANCE, not one per character.** Each act handler passes the table
+for its own stance, which is the entire mechanism behind command normals — there is
+no direction-keyed table anywhere. Uranus: standing `$C1:7AF5`, crouching `$C1:7B01`,
+neutral jump `$C1:7B0D`, directional jump `$C1:7B19` (neutral and directional jumps
+genuinely differ). Full worked example and the per-act census:
+`sms_engine_internals.md` §7.x.
+
+### Special-start entry — 1 word, 8-12 per table
+
+`[flags, act]` (low byte = flags, high byte = act), read by the special starter
+`$C1:0952`/`$C1:0958`, indexed `(pending nibble − 2) × 2`. Flags: `01` ground-only
+(`+0x16` bit7 SET), `02` air-only, `04` own projectile slot must be free, `08`
+desperation gate. **Membership in this table is what makes a move a special** — see
+`sms_specials.md` § "Where 'special' is encoded". One table per character, bounded by
+the throw table the same handler passes to `$C1:055A`.
+
 ### Throw records
 
 Three separate data structures decide what a throw does, which is why a character

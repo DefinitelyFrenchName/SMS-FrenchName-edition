@@ -378,6 +378,64 @@ The reversal-dash bug (patch 2) was here: Uranus's forward-dash handler `$C1:88C
 `stz $46,X` step-0 init every other volitional handler has, so a reversal dash out of knockdown
 carried the 0xA0 untargetable status for its whole 14 frames.
 
+### 7.x Move initiation — the MENU each act nominates (measured 2026-08-10)
+
+**There is no global "what can I do now" logic.** Every act handler ends by offering
+a fixed, ordered menu of what may be started from that state, and each item is a
+table address the handler supplies in `Y`. This is the mechanism behind the whole
+move taxonomy — what makes a normal a normal, a command normal a command normal,
+and a special a special is *which of these lists it is in and which acts pass that
+list*. Uranus's stand-guard handler shows the full menu:
+
+```
+jsr $0459    Y = $7AF5    normals, for THIS stance
+jsr $0958    Y = $7B25    special-start table            (see sms_specials.md)
+jsr $055A    Y = $7B39    close throws                   (§8)
+```
+
+plus, for the characters that have them, a per-character movement call (below).
+Order matters: **normals are read before specials, and both commit through the act
+setter `$C1:0224`**, so a special input landing on the same frame overwrites the
+normal that was just set.
+
+**Normals — `$C1:0459`, four 3-byte records `[distance threshold, far act, close act]`.**
+Selected by the fresh attack-button press in the high nibble of `+0x50`, falling
+back to `+0x52`. Button bits, measured on the running game: **Y `0x10`, B `0x20`,
+X `0x40`, A `0x80`** — so with the standard map (Y=LP, X=HP, B=LK, A=HK) the record
+order is **LP, LK, HP, HK**, *not* LP/HP/LK/HK. Close/far comes from `$C1:0439`,
+which returns `abs(opponent +0x21 − self +0x21)`: threshold ≥ distance picks the
+close act, otherwise the far act; a threshold of `255` means the move has no
+proximity variant.
+
+⚠ **The "command" in a command normal is the STANCE, not a direction+button combo.**
+There is no table keyed by direction. Holding down has already moved you into the
+crouch act, and *that act nominates a different normals table* — which is the whole
+of what makes 2HK a distinct move. Uranus has four:
+
+| table | nominated by | LP | LK | HP | HK |
+|---|---|---|---|---|---|
+| `$C1:7AF5` standing | idle, walk fwd/back, land, stand-guard, danger | thr 36: far `0x40` / close `0x41` | `0x47` | thr 36: far `0x43` / close `0x45` | `0x49` |
+| `$C1:7B01` crouching | crouch, stand-up, crouch-guard | `0x53` | `0x57` | `0x55` | `0x59` |
+| `$C1:7B0D` neutral jump | jump up | `0x4B` | `0x4C` | `0x4D` | `0x4E` |
+| `$C1:7B19` directional jump | jump fwd, jump back | `0x4F` | `0x50` | `0x51` | `0x52` |
+
+Two things fall out that are easy to miss: **neutral and directional jumps get
+DIFFERENT tables**, so j.LP in place and j.LP moving are genuinely different moves;
+and the crouch row independently reproduces the long-published Uranus IDs
+(2LP `0x53`, 2HP `0x55`, 2HK `0x59` the sliding sweep).
+
+**Command movement is per-character CODE, not data** — generic helpers in the shared
+low-`$C1` region, called only from the proc blocks that own them:
+
+| routine | callers | what it gates on |
+|---|---|---|
+| `$C1:11E2` double jump | 3, all ChibiMoon's jump acts | UP bit in `+0x50`, and an **apex window** `|+0x32| < 0x0200` so it cannot fire while rising or falling fast; picks base / base+1 / base+2 by direction vs facing |
+| `$C1:0BDD` triangle jump | 2, Mercury's jump fwd/back only — **not** neutral jump | `+0x16` bit6 (wall contact), direction held into the wall, sign of `+0x31`; flips facing `+0x09` |
+
+That per-character-code split is why neither appears in any table, and therefore why
+neither is a special: the special-start table is one of the four menu items, and it
+is the only one a blockstun act passes.
+
 ---
 
 ## 8. Throw system
