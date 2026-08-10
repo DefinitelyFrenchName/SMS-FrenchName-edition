@@ -42,9 +42,17 @@ Two of these documents are also published as drawn pages:
 
 They are worth knowing before trusting or extending anything here:
 
-* **Measure, don't infer.** Every timing and behaviour claim was validated by
-  frame-advance in an emulator, never derived from disassembly alone. Where a
-  claim is disassembly-only, it says so.
+* **Measure, don't infer — and measure hardest when you are sure.** The full
+  rule, which governs this whole corpus: *any data should come from measurements,
+  NEVER guesses. When you don't know you measure, when you think you know you
+  measure to check against the measurement, and when you're sure you don't have
+  to measure is precisely when you absolutely must measure. We do not compromise:
+  the source of truth is the original code.* Every timing and behaviour claim
+  here was validated by frame-advance in an emulator, never derived from
+  disassembly alone; where a claim is disassembly-only, it says so. Where a
+  number appears, a run produced it — `tools/checkdocs.py` re-derives what it can
+  from the cartridge on every `health.sh`, and each time that net has been widened
+  it has caught documented facts that were plausible and wrong.
 * **Find the interpreter before trusting the data.** This engine is data-driven:
   generic code walks records. A run of zeros after a string looked like a
   terminator once and was centring padding — the build made on that reading hung

@@ -3,11 +3,53 @@
 > **STATUS (2026-08-08): the original objective is DONE and the project has grown well beyond it
 > — 17 patches + 2 variants (balance, training mode, taunts/Guts, menu/config edits), plus the
 > 100-series: **Sailor Saturn ported in from Super S**. What ships is `release/` **Rev. S-02**
-> and **Rev. SS-02**. The only ACTIVE work item is **patch 16, menu translation**
+> and **Rev. SS-03** (the two sides are independent — only the side whose bytes
+> move gets a new number). The only ACTIVE work item is **patch 16, menu translation**
 > (mechanism: `docs/game/menu_system.md`; the working record: `docs/project/menu_text.md`).
 > Before doing anything, read `HANDOFF.md` (operational map), `docs/project/NEXT_SESSION.md`
 > (60-second orientation), `docs/project/patch_index.md` (registry), and `docs/project/patch_notes.md`
 > (per-patch detail). The sections below are the original brief, kept for history.**
+
+## THE MEASUREMENT RULE (non-negotiable, governs everything below)
+
+> **Any data should come from measurements, NEVER guesses. When you don't know
+> you measure, when you think you know you measure to check against the
+> measurement, and when you're sure you don't have to measure is precisely when
+> you absolutely must measure. We do not compromise: the source of truth is the
+> original code.**
+
+This is the project's first rule, and it outranks convenience, plausibility and
+prior art — including this file. The third clause is the one that bites:
+**certainty is the failure signal, not the safety signal**, because confidence is
+exactly when the check gets skipped. Every documented fact this project has lost
+was lost that way — five ROM facts died the first time the doc tables were
+re-derived, four more in the Saturn identity paragraph the entire port rested on,
+a recorded hash was stale in four documents while the builder had never changed.
+
+How it applies to code analysis, concretely:
+
+* **No number reaches a doc, a commit message, a patch or a plan without a run
+  that produced it in that session.** Inherited numbers are re-derived, not
+  carried forward. A figure in a document is a claim, and an unmeasured claim is
+  a guess wearing a citation.
+* **A number someone else reports is a filed count, not a measurement** — that
+  includes a subagent, an issue, a wiki, and this repo's own older notes. Label
+  the provenance and re-derive anything load-bearing. (Trap 17: counts are stale
+  in BOTH directions.) A report was overturned by reading the ROM as recently as
+  2026-08-10: the document it called wrong was right.
+* **A number produced with tooling later found defective is contaminated** —
+  discard and re-measure. Never adjust it.
+* **Measure the negative too.** A predicate that cannot fail where it should is
+  not evidence: re-run it at a wrong address, a wrong base, a wrong seed. And a
+  negative control is code, so it is wrong until it has failed on purpose
+  (HANDOFF traps 20, 22).
+* **Reject on measurements, not on intuition.** When an approach is dropped, say
+  what was measured and what the number was, so the rejection is auditable.
+* **Thresholds live where the run that produced them lives.** A tool recomputes
+  its own floors and ceilings; it never hardcodes a figure typed out of a plan.
+* **Check the framing before trusting a verdict about a byte.** On this CPU
+  "is there an instruction here" has no answer until you say where the decoder
+  started — and starting somewhere convenient invents one.
 
 ## Objective (REVISED 2026-07-10 — supersedes the 2LP wording below)
 Per Dustloop, the real Uranus Infinite™ is `[2LP > 2HP > 66]xN` — the load-bearing link
@@ -58,7 +100,8 @@ Deliverable = a BPS/IPS patch against the clean ROM + a writeup of what bytes ch
   tools/asm65816.py is the assembler, not a disassembler.)
 - Maintain docs/game/annotations.md (address → label/comment). Commit after each finding.
 - Never patch the ROM in place; generate patches via flips (BPS) from build/.
-- All timing claims must be validated by frame-advance in emulator, not inferred.
+- All timing claims must be validated by frame-advance in emulator, not inferred
+  (the measurement rule at the top of this file, applied to timing specifically).
 - The engine processes attacks starting the frame AFTER action start (per Lua comments);
   watch for a possible 30Hz update quirk when counting frames.
 

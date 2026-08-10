@@ -549,7 +549,12 @@ ROM=<p16 build> POKE=1 tools/run.sh tools/probe_menu_vram.lua   # step-1 verify
 
 ## Session hygiene
 
-Commit per finding; `.sfc` gitignored (rebuild from BPS); **never commit game
+**The measurement rule first — `CLAUDE.md` §"THE MEASUREMENT RULE": any data
+comes from measurements, never guesses, and being sure is the signal to measure
+rather than the licence to skip. No number reaches a doc, a commit or a plan
+without a run that produced it this session; a number someone else reports is a
+filed count, not a measurement.**
+Then: commit per finding; `.sfc` gitignored (rebuild from BPS); **never commit game
 imagery or audio** (screenshots never, savestates yes); never patch in place;
 every timing/behaviour claim emulator-verified; all Saturn/Super-S material
 stays in the `saturn/` subfolders; during multi-agent work, `git add`
