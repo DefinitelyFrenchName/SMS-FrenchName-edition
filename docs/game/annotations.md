@@ -242,7 +242,7 @@ TRIGGER code's gate (script durations don't gate it — dash cancels mid-active)
 | $C1:7B25 | **uranus_special_start_tbl** (was `uranus_cancel_tbl`) | words [flags, act]: 0x26 backdash, 0x60 dash, 0x61/0x62 World Shaking, 0x72 desperation, 0x67/0x68 SPD; flags: 1=ground (+0x16 bit7 SET), 2=air (bit7 CLEAR), 4=no-own-projectile, 8=desperation (HP≤0x18, skipped in training mode $8D==4). **10 entries**, bounded by the throw table at $C1:7B39. Holds the ENTRY act only — her SPD toss 0x71 is not here. Contents are exactly her specials; command normals (2HK) and command movement are NOT in it |
 | $C1:871C | uranus_2HP_handler | step-0 inits dmg7/atkID4/str8/flags $44, clears $43; running: jsr $04DA(→0x56), ldy #$7B25, jsr $0952, jsl $80BFBB |
 | player+0x43 | attack_connected | cleared at attack start, set on connect; gates hit-confirm cancels (NOT hitstop) |
-| player+0x51/0x53 | pending_cmd | command slot nibble from the 66/motion recognizers; expires in ~2-3 unfrozen frames |
+| player+0x51/0x53 | pending_cmd | **the LOW 4 BITS** hold the command id the 66/motion recognizers matched — the starter takes it with `and #$0F` because bit 4 (`0x10`) of the same byte is the proximity-guard threat flag ($C1:0501/$C1:0536), which is why it is a nibble and not a byte. The id names the motion AND the button: `entry = id − 2`, and entries are PAIRED, even = LP, odd = HP. Expires in ~2-3 unfrozen frames |
 | $C1:BE0E-BE47 | free_space | 58 zero bytes between data blobs; 20k-frame read-watch: never accessed. PATCH STUB at $C1:BE20 |
 
 ## PATCH (shipped): build/sms_uranus_infinite_1f.bps

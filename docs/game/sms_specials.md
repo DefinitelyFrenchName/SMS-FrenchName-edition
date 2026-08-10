@@ -126,6 +126,14 @@ normal and a command normal a command normal — are in
 
 One **word** per entry: **high byte = the act to start, low byte = gating flags**.
 
+⚠ **Entries are PAIRED — even index = LP, odd = HP.** The command id the recognizers
+leave in `+0x51`'s low nibble names the motion *and* the button, so `entry = id − 2`
+gives `move = entry >> 1` and `strength = entry & 1`. Verified across all nine
+characters: every one of the 40 consecutive pairs is either the same act twice — a
+move with no strength variant, like the backdash, the dashes and most desperations —
+or `act` / `act + 1`. So a 10-entry table is **5 moves**, not 10, and ids 2/3 are the
+backdash at either strength.
+
 ⚠ **It is the ENTRY act that is declared, not every act the move uses.** Multi-part
 moves chain internally, and their later acts are neither in the table nor startable
 from it: Uranus's SPD enters at `0x67`/`0x68` and tosses at `0x71`; Jupiter's Giant
