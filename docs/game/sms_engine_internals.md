@@ -180,7 +180,7 @@ lda $02,X / bne <body>        ; already running? skip the init
   <STEP-0 INIT>               ; stz $46,X, stz $43,X, +0x44 class, +0x45 damage,
                               ; +0x54 script, velocities, +0x78 sound …
 <body>                        ; per-frame work
-<the menu>                    ; jsr $0459 / $0958 / $055A  (§7.x)
+<start routes>                ; jsr $0459 / $0958 / $055A  (§7.x)
 jmp $0204                     ; the tail
 ```
 
@@ -478,14 +478,14 @@ The reversal-dash bug (patch 2) was here: Uranus's forward-dash handler `$C1:88C
 `stz $46,X` step-0 init every other volitional handler has, so a reversal dash out of knockdown
 carried the 0xA0 untargetable status for its whole 14 frames.
 
-### 7.x Move initiation — the MENU each act nominates (measured 2026-08-10)
+### 7.x Move initiation — the START ROUTES each act offers (measured 2026-08-10)
 
 **There is no global "what can I do now" logic.** Every act handler ends by offering
-a fixed, ordered menu of what may be started from that state, and each item is a
-table address the handler supplies in `Y`. This is the mechanism behind the whole
+a fixed, ordered set of START ROUTES — what may be begun from that state — and each
+route is a *starter* routine called with a table address in `Y`. This is the mechanism behind the whole
 move taxonomy — what makes a normal a normal, a command normal a command normal,
 and a special a special is *which of these lists it is in and which acts pass that
-list*. Uranus's stand-guard handler shows the full menu:
+list*. Uranus's stand-guard handler offers all three:
 
 ```
 jsr $0459    Y = $7AF5    normals, for THIS stance
@@ -533,10 +533,10 @@ low-`$C1` region, called only from the proc blocks that own them:
 | `$C1:0BDD` triangle jump | 2, Mercury's jump fwd/back only — **not** neutral jump | `+0x16` bit6 (wall contact), direction held into the wall, sign of `+0x31`; flips facing `+0x09` |
 
 That per-character-code split is why neither appears in any table, and therefore why
-neither is a special: the special-start table is one of the four menu items, and it
-is the only one a blockstun act passes.
+neither is a special: the special-start table is one of the routes, and it is the
+only one a blockstun act offers.
 
-**Blockstun's menu is exactly one item long** — measured on all nine characters, acts
+**Blockstun offers exactly ONE route** — measured on all nine characters, acts
 `0x0E`/`0x0F` call `jsr $0958` and nothing else: no normals table, no throws. That is
 the whole of the guard-cancel rule, and it is why *table membership* rather than
 anything about the move itself decides what can be guard-cancelled into. Compare
@@ -552,7 +552,7 @@ different code in different places, and in the retail data they always coincide:
 | **startable from guard** | membership in the special-start table (§ above) | the special starter `$C1:0958`, i.e. the guard-cancel rule |
 | **strength class** | `+0x44`, written by the ACT HANDLER at its step 0 | the on-hit tables and the damage path (§6; ≥`0x08` = special class) |
 
-Nothing links them. A handler sets its own `+0x44` regardless of which menu item
+Nothing links them. A handler sets its own `+0x44` regardless of which route
 started the act — Uranus's 2LP opens `lda #$03 / sta $45,X` … `lda #$00 / sta $44,X`
 — and the tables carry no class information at all.
 
