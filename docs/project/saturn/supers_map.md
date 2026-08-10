@@ -108,9 +108,19 @@ cleared each frame at `$C1:0280/0284`); three producers:
 3. (Universal states write acts directly via the generic act-setter `$C1:0226`.)
 
 **Special starter `$C1:096B`**: consumes the +0x51 nibble against a per-char record
-(act list + per-special 16-bit gating flags — observed bits: 0x01 air-only-ish
-(+0x16 bit7 & +0x32), 0x02 ground-only, 0x04 projectile slot must be free (checker
+(act list + per-special 16-bit gating flags — bits: **0x01 GROUND-only**
+(+0x16 bit7 must be SET, and +0x32 not negative), **0x02 AIR-only** (+0x16 bit7
+CLEAR), 0x04 projectile slot must be free (checker
 `$C1:04EA` tests $1100/$1180), 0x08 desperation gate (mode≠4, clock/$1F5C, HP≤0x18)).
+⚠ **Bits 0 and 1 were recorded here the other way round ("0x01 air-only-ish, 0x02
+ground-only") until 2026-08-10.** Corrected on a measurement taken across BOTH
+cartridges, because an SMS reading alone cannot settle a claim about this one: SMS's
+twin starter `$C1:0952` and this routine are **byte-identical over 129 bytes bar
+three shifted call targets**, their flag-test sequences included; both games' ground
+transition helpers are likewise identical (`$C1:0336` here vs `$C1:0338` there) and
+gate on +0x16 bit7 SET; and +0x16 bit7 SET was measured on the running game to mean
+GROUNDED (`tools/probe_guardcancel.lua` phase B). The SMS side of this is written up
+in `docs/game/sms_specials.md` § "Where 'special' is encoded".
 Saturn's special-act lists sit at `$C1:0940-0968` (normals 4C..59, specials
 **0x6E-0x7C**); qcf+LP verified live → act 0x6E (request nibble 04 via `$1352`).
 Projectile OBJECTS dispatch per-frame at `$C1:1755` via `jsr ($00A6,X)` by the

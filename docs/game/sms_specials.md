@@ -35,13 +35,16 @@ input rig (blockstun act 0x0C/0x0E → move act = GC):
 | Uranus Shadow Dash 66 (act 0x60) | **cancels blockstun** (verified) | **SPECIAL** |
 | Moon Dash Jump 66 (act 0x60) | **cancels blockstun** (verified) | **SPECIAL** |
 | Ordinary forward dash (Jupiter control) | input eaten, stun runs full | universal movement |
-| Backdash 44 (act 0x26) | **GC-able — VERIFIED** (act 0x26 fires straight out of blockstun; the GC gate accepts it explicitly, see below) | universal movement |
+| Backdash 44 (act 0x26) | **GC-able — VERIFIED** (act 0x26 fires straight out of blockstun) | **SPECIAL** (maintainer's ruling, 2026-08-10 — the criterion is applied without exception, and the ROM agrees: act `0x26` is an entry in every character's cancel table, nibbles 2/3) |
 | Mercury Triangle Jump (wall 7/9) | untested (wall-dependent); her listed GC option is HP Bubble, not this | command movement (presumed) |
 | Chibi Double Jump j.7/8/9 | air-only, GC n/a | command movement |
 | Slides (Uranus/Chibi 2HK), Neptune c.HK etc. | normals | command normals |
 
 Both GC-able dashes sit at act 0x60 in their characters' special-act space — the
-engine's own data agrees with the behavioral criterion.
+engine's own data agrees with the behavioral criterion. So does the backdash: the
+criterion is not merely behavioural, and the section "Where 'special' is encoded"
+below shows why it cannot be — the list the guard state can start from IS the
+special list, one table per character, and act `0x26` is in all nine of them.
 
 **The GC gate was adversarially probed for jank (maintainer's brainstorm) — and it
 holds clean.** Findings from the block-then-input rig pointed at every stun-adjacent
@@ -89,6 +92,119 @@ act:
   (Uranus 14f, Moon 17f†, Pluto 20f, Chibi 26f; † wiki, untested). The wiki's Uranus
   backdash row (154/15f, identical to her forward dash) is a suspected data-entry
   duplication — our measured GC backdash for her is ~83px.
+
+## Where "special" is encoded — the cancel table and the guard handlers
+
+**There is no "is a special" flag on a move.** The criterion above is not a
+convention this project adopted for classifying moves; it is a description of the
+engine's own structure. One per-character table defines the set of moves reachable
+from a command input, and the blockstun state hands **that same table** to the
+starter — so "special" and "guard-cancellable-into" cannot disagree. They are one
+list, read by one routine. (Re-derived from the clean ROM 2026-08-10; the
+behavioural half is locked by `base-gc-gate-immediate` and `base-gc-backdash` in
+`tools/test_regression.lua`, and the act IDs by `tools/probe_guardcancel.lua`.)
+
+⚠ **This is a different table from the 7-byte records above.** `$C1:0B49`'s records
+are the PROJECTILE system. The special *set* lives in the tables below, which are
+what the guard handlers pass to the starter.
+
+### 1. The move set — a per-character `[flags, act]` word table in bank `$C1`
+
+| character | table | entries | | character | table | entries |
+|---|---|---|---|---|---|---|
+| Moon | `$C1:282C` | 12 | | Neptune | `$C1:8EC9` | 8 |
+| Mercury | `$C1:389A` | 10 | | Pluto | `$C1:9F23` | 8 |
+| Mars | `$C1:48D1` | 10 | | ChibiMoon | `$C1:AF62` | 8 |
+| Jupiter | `$C1:59AF` | 12 | | Uranus | `$C1:7B25` | 10 |
+| Venus | `$C1:6C1F` | 10 | | | | |
+
+One **word** per entry: **high byte = the act to start, low byte = gating flags**.
+The entry count is not a guess — each table is bounded below by the throw table the
+same handler passes to `$C1:055A` (Uranus's is `$C1:7B39`, giving 0x14 bytes = 10
+entries). Reading past that bound yields `00FF`/`0000` rows that are not entries.
+
+Decoded (`act/flags`), left to right from nibble 2:
+
+```
+Moon       26/01 26/01 60/01 60/01 61/05 62/05 65/06 66/06 68/01 69/01 6D/0D 6D/0D
+Mercury    26/01 26/01 61/05 62/05 67/05 68/05 5F/01 60/01 6E/09 6E/09
+Mars       26/01 26/01 62/05 63/05 68/05 69/05 6E/01 6F/01 74/09 74/09
+Jupiter    26/01 26/01 5F/05 60/05 65/06 66/06 6B/01 6C/01 72/09 72/09 6D/01 6E/01
+Venus      26/01 26/01 5B/05 5C/05 61/05 62/05 67/01 68/01 69/09 69/09
+Uranus     26/01 26/01 60/01 60/01 61/05 62/05 72/09 72/09 67/01 68/01
+Neptune    26/01 26/01 62/05 63/05 68/01 69/01 70/09 70/09
+Pluto      26/01 26/01 5E/05 5F/05 64/01 65/01 6A/09 6A/09
+ChibiMoon  26/01 26/01 5F/05 60/05 65/02 66/02 6B/0E 6B/0E
+```
+
+**The flag byte**, read off the starter's own branches:
+
+| bit | meaning |
+|---|---|
+| `0x01` | ground only — `+0x16` bit7 must be SET (and `+0x32` not negative) |
+| `0x02` | air only — `+0x16` bit7 must be CLEAR |
+| `0x04` | this fighter's projectile slot must be free (checked via `$C1:04E8`) |
+| `0x08` | desperation gate: mode `$8D` ≠ 4, else clock `$1F5C` / `$0804`, else HP ≤ `0x18` |
+
+⚠ `+0x16` bit7 SET = **grounded**, measured on the running game
+(`probe_guardcancel.lua` phase B: grounded reads `80`/`90`/`C0` at y=192, airborne
+reads `40` at y=184). Bits 0 and 1 are therefore ground and air respectively — the
+opposite of what `docs/project/saturn/supers_map.md` recorded for the Super S twin,
+which was corrected on 2026-08-10 after both engines' starters were compared byte
+for byte.
+
+**The universal backdash (act `0x26`) is nibbles 2 and 3 of every table** — so by
+this engine's own structure the backdash *is* a special, in all nine characters. It
+is not an exception to the guard-cancel criterion; it is an entry in the same list.
+
+### 2. The permission — which act handlers call the starter
+
+`$C1:0952` is the special starter. It takes the pending command nibble from `+0x51`
+(or `+0x53`), indexes `(nibble − 2) × 2` into the table handed to it in Y, tests the
+flag byte, and sets the act through `$C1:0224`. It has **two entry points, and the
+difference between them is the whole mechanism**:
+
+| entry | behaviour |
+|---|---|
+| `$C1:0952` | requires `+0x43` (attack-connected latch) ≠ 0 — the **hit-confirm** cancel path |
+| `$C1:0958` | skips that check — a free start |
+
+Every character's guard handlers end with the same two instructions (Uranus, act
+`0x0E`, at `$C1:8104`):
+
+```
+ldy #$7B25      ; her cancel table
+jsr $0958       ; the starter, connected-check skipped
+```
+
+**That pair is the guard cancel.** Censused across all nine characters via the proc
+dispatch `$C1:00A6` → per-character act table → handler: acts `0x0C`/`0x0D` (guard
+held) and `0x0E`/`0x0F` (blockstun) all call `jsr $0958` with their own table,
+unconditionally, every frame they run.
+
+| character | act table | `0x0E` handler | starter call | cancel table |
+|---|---|---|---|---|
+| Moon | `$C1:271A` | `$C1:31A6` | `jsr $0958` @`$31D1` | `$C1:282C` |
+| Mercury | `$C1:3788` | `$C1:3D14` | `jsr $0958` @`$3D3F` | `$C1:389A` |
+| Mars | `$C1:47B5` | `$C1:4D7A` | `jsr $0958` @`$4DA5` | `$C1:48D1` |
+| Jupiter | `$C1:5895` | `$C1:5EA6` | `jsr $0958` @`$5ED1` | `$C1:59AF` |
+| Venus | `$C1:6B19` | `$C1:7070` | `jsr $0958` @`$709B` | `$C1:6C1F` |
+| Uranus | `$C1:7A01` | `$C1:80DC` | `jsr $0958` @`$8107` | `$C1:7B25` |
+| Neptune | `$C1:8DB1` | `$C1:932E` | `jsr $0958` @`$9359` | `$C1:8EC9` |
+| Pluto | `$C1:9E19` | `$C1:A48E` | `jsr $0958` @`$A4B9` | `$C1:9F23` |
+| ChibiMoon | `$C1:AE56` | `$C1:B394` | `jsr $0958` @`$B3BF` | `$C1:AF62` |
+
+### 3. Why hitstun is not cancellable, though it contains the same call
+
+Acts `0x10`-`0x13` share one handler which *also* does `ldy #<table> / jsr $0958`
+(Uranus at `$C1:8176`) — but behind `lda $02,X / bne`, so it needs step == 0. The
+entry frame sets step to 1, and the only thing that clears it is the act setter
+`$C1:0224`, which does `stz $02,X`. The handler reaches that setter through
+`lda #$00 / jsr $C1:0A33`, and `$C1:0A33` returns the fighter to act 0 **only once
+`+0x30` (velocity) has settled**. So the starter is reached on the frame hitstun
+*ends*, with the act already back to neutral — the reversal window, not a cancel of
+the stun. The blockstun handlers have no such gate, which is exactly the measured
+asymmetry ("hitstun (0x13): NOT cancelable" above).
 
 ## System data (from the game-wide wiki page, cross-checked)
 
