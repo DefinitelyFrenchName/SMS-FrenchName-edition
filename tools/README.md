@@ -279,7 +279,6 @@ See HANDOFF.md §4 for the harness.
 - `test_p13_guts_cfg.lua`
 - `test_patch10.lua` — verify the in-ROM combo counter (patch 10). Run on a patched ROM:
 - `test_regression.lua` — unified regression suite (base game + per-patch).
-- `test_regression_cfg.lua`
 - `training_test.lua` — headless test harness for the training-mode modules.
 - `training_test_cfg.lua`
 
@@ -359,6 +358,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_fontdma2.lua` — read the DMA parameters from DIRECT PAGE at the trigger.
 - `probe_gate.lua`
 - `probe_gc_shot.lua`
+- `probe_guardcancel.lua` — what act IDs is a BLOCKING fighter in, and what runs there?
 - `probe_hitzone.lua` — : normals damage vs contact zone / defender activity.
 - `probe_hitzone_cfg.lua`
 - `probe_hpbar.lua` — find the HP-bar display variable: dump WRAM 0x0000-0x1FFF at
