@@ -66,8 +66,30 @@ if python3 -c 'import os,sys;sys.path.insert(0,"tools");from smspaths import cle
   else
     bad "checkdocs: doc claims disagree with the ROM — run python3 tools/checkdocs.py"
   fi
+  # The decode table two tools now share, checked against a DIFFERENT author's
+  # disassembler. A table validated only by its own invariants is validated by
+  # itself; DisPel is vendored, so the independent comparison is free. It skips
+  # itself when the binary is not built.
+  if out="$(python3 tools/dis65816_oracle.py 2>&1)"; then
+    if printf '%s' "$out" | grep -q SKIP; then
+      skip "65816 tables vs DisPel (tools/Dispel/dispel not built)"
+    else
+      ok "65816 tables vs DisPel: $(printf '%s' "$out" | grep -aoE 'on [0-9]+ consecutive instructions across [0-9]+ ranges')"
+    fi
+  else
+    printf '%s\n' "$out" | sed 's/^/    /'; bad "dis65816: our decode disagrees with DisPel"
+  fi
 else
   skip "character maps + doc claims (need the clean ROM)"
+fi
+# Saturn's ported proc block must not move when the shared tables do — the
+# builders that consume it have recorded hashes (trap 16: byte-identity is the
+# refactor gate). Needs the donor as well as the clean ROM.
+if python3 -c 'import os,sys;sys.path.insert(0,"tools");from smspaths import clean_rom,supers_rom;sys.exit(0 if os.path.exists(clean_rom()) and os.path.exists(supers_rom()) else 1)' >/dev/null 2>&1; then
+  if out="$(python3 tools/saturn/port_saturn_proc.py --check 2>&1)"; then ok "Saturn proc block: $(printf '%s' "$out" | grep -aoE '[0-9]+ instructions reached.*')"
+  else printf '%s\n' "$out" | sed 's/^/    /'; bad "port_saturn_proc: the ported block changed"; fi
+else
+  skip "Saturn ported block (needs the clean ROM and the Super S donor)"
 fi
 
 echo "== every Python tool parses, and imports cleanly enough to be introspected =="

@@ -480,6 +480,8 @@ See HANDOFF.md §4 for the harness.
 - `checkknobs.py` — Verify the knobs table in docs/project/patch_notes.md against the builders.
 - `checkpatchmap.py` — Verify what the patch documents claim about the patches, against the .bps files.
 - `checktrainingdocs.py` — Verify the training-mode docs against the Lua package they describe.
+- `dis65816.py` — the 65816 decode tables and recursive descent, shared.
+- `dis65816_oracle.py` — validate our decode table against an INDEPENDENT one.
 - `docaddrs.py` — the address census the documentation checks are built on.
 - `findfont.py` — locate a Latin font inside an arbitrary SNES ROM.
 - `gen_plan.py` — Generate a trace_plan for a re-press experiment.
