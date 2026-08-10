@@ -58,6 +58,41 @@ They are worth knowing before trusting or extending anything here:
   *not* decoded (codec 2, the variable-text engine, ~180 KB of unattributed
   graphics). A map that hides its gaps is worse than no map.
 
+## Writing a new address into these pages
+
+`tools/checkdocs.py` re-derives what it can from the cartridge, and how a claim
+is *written* decides how much of it can be checked. None of this is style
+policing — an unquoted address is a claim nobody can falsify.
+
+* **Quote something.** An address alone can only be checked structurally ("there
+  is an instruction there, and something calls it"), which catches a later edit
+  but can never catch an address that is wrong the day it is written. An address
+  written next to bytes or an instruction can, because you read the two
+  independently. That redundancy is what caught `stz $47,X` documented at
+  `$C1:0E51` when it is at `$C1:0E4F`.
+* **The forms the extractors bind** (`tools/docaddrs.py`):
+
+  | form | example |
+  |---|---|
+  | quoted instruction, attached | ``the box writer `$C0:9CCD` (`sta $41,X`)`` |
+  | …or after it | ``` `stz $47,X` at `$C1:0E4F` ``` |
+  | quoted byte run | ``` `$C1:0AF5` = `00 01 02 02` ``` |
+  | file offset | `$C0:D56F (file 0x00D56F)` |
+  | disassembly listing row | `C0/D055  rep #$30` |
+  | table row: subject in cell 1, quote later | `\| $C3:BADE \| menu bound \| `sta $1F59` \|` |
+
+* **Abridging a sequence is fine** — the parts need only appear in order, so
+  ``jsr $B33F / ldx $8E / jmp ($B32B,X)`` checks out even though the ROM has a
+  `sep #$30` in the middle.
+* **Describing an absence is fine and stays unchecked.** "step-0 init MISSING the
+  engine-standard `stz $46,X`" is deliberately not bound — asserting it would
+  invert the claim.
+* **In a table row, name the subject first.** If the row introduces another
+  address before the quote, the quote is assumed to describe *that* one and
+  nothing binds — which is usually what you meant.
+* `python3 tools/checkdocs.py --uncovered` lists every documented ROM address no
+  check re-derives, and says why each one could not be pinned.
+
 ## What is NOT here
 
 This project's own patches, builders, test suites and decisions live in

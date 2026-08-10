@@ -337,6 +337,88 @@ def instruction_claims_in(doc, text):
     return out
 
 
+# Words that make a quote describe something OTHER than the bytes at the
+# subject address: an absence, or what a PATCH writes there.
+_NEGATION = re.compile(r"MISSING|missing|\bnot?\b|without|lacks|absent|never|"
+                       r"instead of|patched|patch|replaced|becomes|->|→|stub", re.I)
+
+
+def table_row_claims_in(doc, text):
+    """(doc, line_no, snes, quoted, candidates) for `| $ADDR | label | `insn` |`.
+
+    The general instruction rule binds only an ATTACHED quote — six characters
+    of punctuation, no words. That is right for prose and wrong for a table,
+    where the row's SUBJECT sits in the first cell and the instruction that
+    describes it is two cells away by construction. This relaxation is for
+    tables only, and it is fenced by five guards, because the reason the
+    general rule is strict is that a loose one invents claims:
+
+      1. the first cell must hold EXACTLY ONE address token — that is the
+         subject; two tokens (`| $C0:9B17 / $C0:9BCB |`) and it is ambiguous;
+      2. only the FIRST encodable quote in the rest of the row binds;
+      3. refuse if negation or patch words sit between subject and quote.
+         `annotations.md:251` documents an ABSENCE — "step-0 init MISSING the
+         engine-standard `stz $46,X`" — and binding it would make the checker
+         assert the exact opposite of what the document says;
+      4. refuse if the quote's operand IS the subject address: a row like
+         `| $C0:D56F | hud_uploader | … `jsr $D56F` |` quotes a call TO the
+         subject, not the bytes at it. This shape only becomes reachable
+         BECAUSE of the relaxation;
+      5. refuse if an address token sits inside the backticks;
+      6. refuse if the row introduces ANOTHER address before the quote. A row
+         that names a second address and then quotes an instruction is very
+         likely describing the code at THAT address, not at its subject.
+
+    Guard 3 also covers the case the general rule's docstring names:
+    `annotations.md:164` quotes the vanilla instruction AND what a patch puts
+    there, and only the vanilla one may bind.
+
+    ⚠ Guard 6 was added because the relaxation invented a claim without it.
+    `annotations.md:12`'s subject `$C1:0881` is the throw pose POINTER TABLE —
+    the bytes there are `00 00 95 08 aa 08 …` — and the row's `sta $0005,y`
+    describes what the code at the read sites it also names does; the real
+    instruction is at `$C1:0747`. The document never claimed that instruction
+    was at `$C1:0881`, so a check asserting it would have gone red for a reason
+    nobody wrote. Guard 6 refuses exactly that row and keeps all five true
+    binds, measured across `docs/game/`.
+    """
+    out = []
+    for n, line in enumerate(text.splitlines(), 1):
+        if not line.lstrip().startswith("|"):
+            continue
+        cells = line.split("|")
+        if len(cells) < 4:
+            continue
+        subject = list(TOKEN.finditer(cells[1]))
+        if len(subject) != 1:                                    # guard 1
+            continue
+        snes = (int(subject[0].group(1), 16) << 16) | int(subject[0].group(2), 16)
+        if not is_rom(snes):
+            continue
+        rest = "|".join(cells[2:])
+        for m in re.finditer(r"`([a-zA-Z]{3}[^`]{0,40})`", rest):
+            quoted = m.group(1).strip()
+            cands = encode(quoted)
+            if not cands:
+                continue
+            if TOKEN.search(quoted):                             # guard 5
+                break
+            if _NEGATION.search(cells[1][subject[0].end():] + rest[:m.start()]):  # guard 3
+                break
+            op = re.search(r"\$([0-9A-Fa-f]{2}:?[0-9A-Fa-f]{2,4})", quoted)
+            if op and int(op.group(1).replace(":", ""), 16) in (snes, snes & 0xFFFF):
+                break                                            # guard 4
+            if any(t.start() < m.start() for t in TOKEN.finditer(rest)):  # guard 6
+                break
+            out.append((doc, n, snes, quoted, cands))
+            break                                                # guard 2
+    return out
+
+
+def table_row_claims(paths=None):
+    return _over_files(table_row_claims_in, paths)
+
+
 def listing_claims_in(doc, text):
     """(doc, line_no, snes, quoted, candidates) for `BB/AAAA  <insn>` rows.
 

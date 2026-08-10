@@ -995,7 +995,9 @@ def register_claims():
 
     # Instructions the docs quote beside an address, and the disassembly listing
     # rows. Both are matched at instruction BOUNDARIES — see instruction_sites().
-    for doc, line_no, snes, quoted, cands in docaddrs.instruction_claims(game):
+    bound = {s for _d, _n, s, _q, _c in docaddrs.instruction_claims(game)}
+    rows = [r for r in docaddrs.table_row_claims(game) if r[2] not in bound]
+    for doc, line_no, snes, quoted, cands in docaddrs.instruction_claims(game) + rows:
         if not cands:
             UNENCODABLE.append(f"{doc}:{line_no} `{quoted}`")
             continue
@@ -1155,6 +1157,25 @@ def instruction_selftests():
         bad.append("listing extractor: a two-byte-late address is not caught")
     if listings("the value 0x1234  lda $05 is not a listing row"):
         bad.append("listing extractor: matched a line that is not a listing row")
+
+    def rows(line):
+        return docaddrs.table_row_claims_in("synthetic", line)
+
+    # the relaxed table-row rule, against every guard that fences it
+    if len(rows("| `$C3:BADE` | menu bound | `sta $1F59` — the byte patch 17 flips |")) != 1:
+        bad.append("table-row rule: a plain subject/quote row does not bind")
+    if rows("| $C1:88C8 | dash | step-0 init MISSING the engine-standard `stz $46,X` |"):
+        bad.append("table-row rule: bound a claim the doc makes NEGATIVELY (guard 3)")
+    if [q for _d, _n, _s, q, _c in
+            rows("| $C0:9EA6 | x | `lda $66,X` — patched to `lda $14` |")] != ["lda $66,X"]:
+        bad.append("table-row rule: bound the PATCHED instruction, not the vanilla one")
+    if rows("| $C0:D56F | hud_uploader | reached by `jsr $D56F` each frame |"):
+        bad.append("table-row rule: bound a call TO the subject as the byte AT it (guard 4)")
+    if rows("| $C0:9B17 / $C0:9BCB | two subjects | `lda $05` |"):
+        bad.append("table-row rule: bound a row whose first cell names two addresses (guard 1)")
+    if rows("| $C1:0881 | pose table | via `jsr $C1:03DC`, written by `sta $0005,y` |"):
+        bad.append("table-row rule: bound an instruction the row attributes to ANOTHER "
+                   "address named before it (guard 6)")
     return bad
 
 
