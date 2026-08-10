@@ -1086,17 +1086,28 @@ def instruction_selftests():
     `$C1:0E4F`, whose bytes a hand check above already pins.
 
     ⚠ `mid_operand` is the case that separates a BOUNDARY check from the
-    substring search this replaced, and it had to be found in the ROM rather
-    than imagined. At `$C0:9CB2` the bytes `b5 05` (`lda $05,x`) do occur within
-    128 bytes — at file `0x09CB6`, straddling the operand of the `bpl` at
-    `$C0:9CB5` and the opcode after it. Substring says yes; there is no
-    instruction there. Without this case the upgrade would have no control at
-    all, because on the fourteen claims the docs currently make, substring and
-    boundary agree on all fourteen — measured. The upgrade's present value is
-    that it derives the OFFSET (which is what exposed `$C3:BB60`'s quote living
-    at `$C3:BB69`, and what separates address-pinning claims from routine-level
-    ones); the mid-operand protection is prophylactic, and this control is what
-    keeps it honest.
+    substring search this replaced, and getting it right took three attempts —
+    each wrong one is worth more than the answer:
+
+      1. `$C0:9CB2` + `lda $05,x` LOOKED like a mid-operand case under a linear
+         walk from 9CB2. But 9CB2 is not a routine entry (zero call sites): the
+         real entry is `$C0:9C96`, six call sites, and from THERE `b5 05` at
+         `0x09CB6` is a perfectly ordinary `lda $05,x`. A framing artifact of my
+         own arbitrary starting point, not a property of the cartridge.
+      2. `$C0:9000` + `lda $00,X` failed under an 8-bit seeding and passed under
+         the 16-bit one. `instruction_sites` tries BOTH, because the docs do not
+         state a flag state — so a control must fail under both or it is testing
+         a function nobody calls.
+      3. `$C0:92DD` + `lda $00,X` is the real thing: the bytes sit at file
+         `0x0931C`, inside the operand of the `lda $E000B5,X` (`bf b5 00 e0`) at
+         `0x0931B`, under EITHER seeding, from a corroborated entry.
+
+    Without it the upgrade would have no control at all, because on the fourteen
+    claims the docs currently make, substring and boundary agree on all fourteen
+    — measured. The upgrade's present value is that it derives the OFFSET (which
+    is what exposed `$C3:BB60`'s quote living at `$C3:BB69`, and what separates
+    address-pinning claims from routine-level ones); the mid-operand protection
+    is prophylactic, and this control is what keeps it honest.
 
     The `shifted` case pins the historical `$C1:0E51` bug. Note it is NOT
     evidence for the upgrade: the old substring check rejected that claim too,
@@ -1123,10 +1134,10 @@ def instruction_selftests():
     if matches("the clear is at `$C1:0E51` (`stz $47,X`)"):
         bad.append("instruction extractor: the historical two-byte-late address "
                    "($C1:0E51 for $C1:0E4F) is NOT caught")
-    if matches("the renderer `$C0:9CB2` (`lda $05,x`)"):
-        bad.append("instruction extractor: matched `lda $05,x` at $C0:9CB2, where those "
-                   "bytes appear only INSIDE another instruction's operand — the "
-                   "boundary check has regressed to a substring search")
+    if matches("the loader `$C0:92DD` (`lda $00,X`)"):
+        bad.append("instruction extractor: matched `lda $00,X` at $C0:92DD, where those "
+                   "bytes appear only INSIDE the operand of the lda $E000B5,X at "
+                   "$C0:931B — the boundary check has regressed to a substring search")
     # an instruction sitting in a later table cell, describing what a PATCH
     # writes, must never bind to the row's subject
     if any(q == "lda $14" for _d, _n, _s, q, _c
@@ -1144,6 +1155,228 @@ def instruction_selftests():
         bad.append("listing extractor: a two-byte-late address is not caught")
     if listings("the value 0x1234  lda $05 is not a listing row"):
         bad.append("listing extractor: matched a line that is not a listing row")
+    return bad
+
+
+# =============================================================================
+# THE STRUCTURAL FAMILY — documented CODE addresses, checked as code
+# =============================================================================
+# Most documented addresses carry no quotable content: 164 of the 183 that no
+# check reached were prose only — "$C1:07CF counts mash presses" and nothing
+# else. Route (a) for those is to make the doc quote an entry instruction, but a
+# quote STAMPED from the currently documented address is a tautology: it is
+# derived from the very address it is supposed to test, so it can never catch
+# one that is already wrong. What the cartridge can still decide about such an
+# address is STRUCTURAL — is there an instruction there at all, and does
+# anything reach it?
+#
+# Three tiers, in descending strength, each address taking the first that holds:
+#
+#   entry        an instruction boundary AND something calls or vectors to it
+#   branch-join  an instruction boundary AND a branch in its routine targets it
+#   boundary     an instruction boundary
+#
+# ⚠ ENROLMENT IS PER TIER, and the address is only enrolled if its OWN tier
+# predicate FAILS at base+1 and base+2. Requiring the composite to fail instead
+# was tried first and enrolled 1 address out of 60 — a strong entry-tier address
+# was being rejected merely because base+1 happened to be a boundary. That was a
+# bug in the composition, not a property of the cartridge.
+#
+# ⚠ WHAT THESE CAN AND CANNOT CATCH. They pass by construction today, so their
+# value is future rot: an address edited by one or two bytes is caught by the
+# enrolment guarantee, and an address replaced by a different wrong one is
+# caught at the rate the random-address control measures and prints. None of
+# them can catch an address that is wrong TODAY — only the families where a
+# HUMAN supplied the redundancy (quoted bytes, quoted instructions, listing
+# rows) can do that. The tiers are reported separately because they differ by an
+# order of magnitude in discrimination, and a weak number must not ride on a
+# strong one.
+#
+# There is no `says()` here: the census re-reads the documents every run, so an
+# address deleted from the docs is simply never enrolled. Asserting it separately
+# would be ceremony, not a check.
+
+# Established by the run of 2026-08-10 that introduced this family, and
+# RE-DERIVED by structural_controls() on every run. They are deliberately not
+# copied out of a planning document: a ceiling typed from a plan is a guess
+# promoted to a gate, and it would stay green while the predicate drifted
+# underneath it. Set from measurement; move only with a new measurement.
+# Measured 2026-08-10: 84 enrolled — 55 entry, 4 branch-join, 25 boundary-only —
+# and the random-address control returned 2.3% / 2.1% / 32.3% over 1000 seeded
+# samples. The floor sits below the measured enrolment with room for ordinary
+# documentation churn; the ceilings sit above the measured rates with the same
+# margin. Both are here to catch a PREDICATE that has drifted, not to pin a
+# number: move them only with a run that justifies the move.
+STRUCTURAL_FLOOR = 70
+RANDOM_CEILING = {"entry": 5.0, "branch-join": 5.0, "boundary": 40.0}
+
+_REF = {}
+
+
+def _refs():
+    if not _REF:
+        _REF["call"] = dis65816.call_targets(ROM)
+        _REF["vec"] = dis65816.vector_targets(ROM)
+        by = {}
+        for t in list(_REF["call"]) + list(_REF["vec"]):
+            by.setdefault(t & 0x3F0000, []).append(t)
+        for k in by:
+            by[k].sort()
+        _REF["bank"] = by
+    return _REF
+
+
+def _corroborated(t):
+    """Is `t` plausibly a real routine entry, not a byte inside data?
+
+    The reference census is a raw byte scan, so a coincidental `20 lo hi` in a
+    table yields a target that is not code. Requiring either two independent
+    call sites or a terminator immediately before it filters most of those. The
+    cost of the filter is measured, not assumed: it moves the enrolled total by
+    three, and the stricter reading is the one kept.
+    """
+    return _refs()["call"].get(t, 0) >= 2 or (t > 0 and ROM[t - 1] in (0x60, 0x6B, 0x40))
+
+
+def _entry_for(off):
+    """Nearest corroborated reference target at or before `off`, within 0x400.
+
+    Descent is seeded LOCALLY, per address. A whole-ROM code map was measured
+    and does not exist to be had: descent from the reset and NMI vectors plus
+    the $C1:00A6 proc dispatch reaches under 2,000 instructions before every
+    path dies at an indirect `jmp (abs,X)`, and inventing jump-table heuristics
+    to get past that would poison every boundary derived afterwards.
+    """
+    import bisect
+    lst = _refs()["bank"].get(off & 0x3F0000, [])
+    i = bisect.bisect_right(lst, off)
+    for t in reversed(lst[max(0, i - 40):i]):
+        if off - t > 0x400:
+            break
+        if _corroborated(t):
+            return t
+    return None
+
+
+_BND, _BRT = {}, {}
+
+
+def _spans(e):
+    if e not in _BND:
+        hi = min(e + 0x460, (e & 0x3F0000) + 0x10000)
+        _BND[e] = dis65816.boundaries(ROM, e, hi, [e])
+        tg = set()
+        for a, op, _ln, _m, _x in dis65816.walk(ROM, e, hi):
+            if op in dis65816.BRANCH:
+                o = ROM[a + 1]
+                tg.add(a + 2 + (o - 256 if o > 127 else o))
+            elif op == dis65816.BRL:
+                o = ROM[a + 1] | ROM[a + 2] << 8
+                tg.add(a + 3 + (o - 65536 if o > 32767 else o))
+        _BRT[e] = tg
+    return _BND[e], _BRT[e]
+
+
+def structural_tier(snes):
+    """"entry" | "branch-join" | "boundary" | None for a documented address."""
+    off = f(snes)
+    e = _entry_for(off)
+    if e is None:
+        return None
+    bnd, brt = _spans(e)
+    if off not in bnd:
+        return None
+    if _refs()["call"].get(off, 0) > 0 or off in _refs()["vec"]:
+        return "entry"
+    if off in brt:
+        return "branch-join"
+    return "boundary"
+
+
+TIER_TEXT = {
+    "entry": "an instruction boundary, and called or vectored to",
+    "branch-join": "an instruction boundary, and a branch target in its routine",
+    "boundary": "an instruction boundary",
+}
+
+
+def register_structural(covered):
+    """Enrol every uncovered documented ROM address whose tier pins it.
+
+    -> (addresses now covered, [(snes, where, why-not) for the rest])
+    """
+    import docaddrs
+    seen = set(covered) | {f(a) for a in covered}
+    rom_mentions = {}
+    for m in docaddrs.census():
+        if m.area == "game" and docaddrs.is_rom(m.snes) and not m.generated:
+            rom_mentions.setdefault(m.snes, m)
+
+    enrolled, left = {}, []
+    for snes, m in sorted(rom_mentions.items()):
+        if snes in seen or f(snes) in seen:
+            continue
+        t = structural_tier(snes)
+        where = f"{m.doc}:{m.line_no}"
+        if t is None:
+            left.append((snes, where, "no instruction boundary reachable here"))
+            continue
+        if structural_tier(snes + 1) == t or structural_tier(snes + 2) == t:
+            left.append((snes, where, f"'{t}' still holds two bytes over — does not pin"))
+            continue
+
+        def run(snes=snes, t=t, where=where):
+            got = structural_tier(snes)
+            if got != t:
+                raise Fail(f"{where} names ${snes:06X} as code; the cartridge now says "
+                           f"{got or 'it is not an instruction boundary'} (was '{t}')")
+        CHECKS.append((m.doc, f"${snes:06X} {t}", run))
+        enrolled[snes] = t
+    return enrolled, left
+
+
+def structural_controls(enrolled):
+    """Three controls, because a generated family can pass vacuously.
+
+    1. A FLOOR. If the family suddenly enrols far fewer addresses than the run
+       that established it, the predicate has stopped working rather than the
+       documents having improved.
+    2. A RANDOM-ADDRESS control. The shift test only asks whether a predicate
+       survives one or two bytes; this asks the sharper question — how often
+       does it hold for an address that is simply WRONG? Sampled near the
+       documented ones, so it measures the neighbourhood they live in.
+    3. SYNTHETIC NEGATIVES on bytes other checks already pin: an address inside
+       a known instruction's operand must not read as a boundary.
+    """
+    import random
+    bad = []
+    if len(enrolled) < STRUCTURAL_FLOOR:
+        bad.append(f"structural family enrolled {len(enrolled)}, floor is {STRUCTURAL_FLOOR} "
+                   "— the predicate has stopped working, or the census has")
+
+    rng = random.Random(20260810)
+    pool = sorted(enrolled) or [0xC09CCD]
+    rates, n = {}, 1000
+    for _ in range(n):
+        a = rng.choice(pool) + rng.choice((-1, 1)) * rng.randint(8, 400)
+        if f(a) < len(ROM):
+            rates[structural_tier(a)] = rates.get(structural_tier(a), 0) + 1
+    for tier, ceiling in RANDOM_CEILING.items():
+        got = 100.0 * rates.get(tier, 0) / n
+        if got > ceiling:
+            bad.append(f"'{tier}' holds for {got:.1f}% of random nearby addresses "
+                       f"(ceiling {ceiling}%) — it has become permissive")
+    structural_controls.rates = {k: 100.0 * v / n for k, v in rates.items()}
+
+    # An interior byte of an instruction a HAND check already pins: $C1:0E4F is
+    # `stz $47,X` (74 47), so $C1:0E50 is its operand and cannot be code. The
+    # anchor is deliberately one this file verifies independently, so the control
+    # is not derived from the same descent it is testing.
+    if structural_tier(0xC10E4F) is None:
+        bad.append("$C1:0E4F does not read as code, but a hand check pins `stz $47,X` there")
+    if structural_tier(0xC10E50) is not None:
+        bad.append("$C1:0E50 reads as an instruction boundary; it is the operand byte "
+                   "of the `stz $47,X` at $C1:0E4F")
     return bad
 
 
@@ -1180,7 +1413,12 @@ def main():
     hand = len(CHECKS)
     register_tables()
     claimed = register_claims()
-    covered = None
+    extracted = len(CHECKS) - hand - len(TABLES)
+    # The structural family only takes what no other check reaches, so the
+    # covered set has to be computed before it is registered.
+    covered = covered_addresses(claimed)
+    enrolled, unenrollable = register_structural(covered)
+    covered |= set(enrolled)
 
     fails = []
     for doc, name, fn in CHECKS:
@@ -1195,12 +1433,10 @@ def main():
             print(f"  \033[31mERROR\033[0m [{doc}] {name}\n          {type(e).__name__}: {e}")
             fails.append(name)
 
-    covered = covered_addresses(claimed)      # before the shifted runs pollute DERIVED
-
     # The check on the checks: a table validator that survives a wrong base is
     # not pinning the address its document publishes, and an extractor that has
     # stopped matching passes every claim it no longer finds.
-    for line in negative_controls() + claim_selftests():
+    for line in negative_controls() + claim_selftests() + structural_controls(enrolled):
         print(f"  \033[31mFAIL\033[0m  [self-test] {line}")
         fails.append(line)
 
@@ -1210,8 +1446,21 @@ def main():
         sys.exit(1)
     print(f"\n\033[32mALL PASS\033[0m ({len(CHECKS)} checks across {docs} documents)")
     print(f"  {hand} written by hand · {len(TABLES)} table structures, each re-run at a wrong "
-          f"base and required to fail · {len(CHECKS) - hand - len(TABLES)} claims extracted from "
+          f"base and required to fail · {extracted} claims extracted from "
           f"the prose (file offsets, quoted bytes, quoted instructions, listing rows)")
+    if enrolled:
+        bytier = {}
+        for t in enrolled.values():
+            bytier[t] = bytier.get(t, 0) + 1
+        rates = getattr(structural_controls, "rates", {})
+        print(f"  {len(enrolled)} documented code addresses pinned structurally, each proven to "
+              "fail two bytes over:")
+        for t in ("entry", "branch-join", "boundary"):
+            if bytier.get(t):
+                print(f"      {bytier[t]:3d}  {TIER_TEXT[t]} "
+                      f"— holds for {rates.get(t, 0):.1f}% of random nearby addresses")
+        print(f"      {len(unenrollable)} more could not be pinned and stay uncovered "
+              "(--uncovered says why)")
     for u in UNENCODABLE:
         print(f"  note  quoted instruction outside the encoder's subset, NOT checked: {u}")
     if ROUTINE_LEVEL:
@@ -1220,7 +1469,8 @@ def main():
         for r in ROUTINE_LEVEL:
             print(f"          {r}")
     import docaddrs
-    docaddrs.report(covered=covered, show_uncovered=args.uncovered)
+    docaddrs.report(covered=covered, show_uncovered=args.uncovered,
+                    reasons={a: why for a, _where, why in unenrollable})
     print("Checks facts decidable by reading the cartridge. It does NOT check prose,")
     print("reasoning, runtime behaviour, or anything about ARAM.")
 

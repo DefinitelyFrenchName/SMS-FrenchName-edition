@@ -405,7 +405,7 @@ def classify(mentions):
     return buckets
 
 
-def report(covered=None, show_uncovered=False, out=print):
+def report(covered=None, show_uncovered=False, out=print, reasons=None):
     """Print the coverage report, scoped to `docs/game/` — the documents that
     describe the retail cartridge and are therefore decidable against it.
 
@@ -436,9 +436,16 @@ def report(covered=None, show_uncovered=False, out=print):
     out(f"  docs/project/ names {len(proj['rom'])} more — this edition's record, "
         f"which also describes patched images; not gated here")
     if show_uncovered:
+        # `reasons` is why the structural family could not pin an address. An
+        # uncovered list that only says "uncovered" gives the reader nothing to
+        # act on; "still holds two bytes over" and "no instruction boundary
+        # reachable here" are different problems with different answers.
+        reasons = reasons or {}
         for a in miss:
             where = rom[a][0]
-            out(f"      {token(a)}  {where.doc}:{where.line_no}")
+            why = reasons.get(a, "")
+            out(f"      {token(a)}  {where.doc}:{where.line_no}"
+                + (f"  — {why}" if why else ""))
     return miss
 
 
