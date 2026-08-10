@@ -95,6 +95,10 @@ act:
 
 ## Where "special" is encoded — the special-start table and the guard handlers
 
+> **Drawn:** figures 6 and 7 of [how an act is chosen](https://claude.ai/code/artifact/fc6c32ec-753b-459d-bbfe-f69601d766fc) — the special
+> starter with its flag byte and desperation gate, and the blockstun handler
+> whose single start route is the whole guard-cancel rule.
+
 **There is no "is a special" flag on a move.** The criterion above is not a
 convention this project adopted for classifying moves; it is a description of the
 engine's own structure. One per-character table defines the set of moves reachable

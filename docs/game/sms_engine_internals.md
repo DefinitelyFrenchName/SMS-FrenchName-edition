@@ -123,6 +123,9 @@ attack" by **+0x18 bit0**, not the ID range (char-specific space mixes attacks a
 
 ### 2.x The act table, handler anatomy, and how moves CHAIN (measured 2026-08-10)
 
+> **Drawn:** figure 1 of [how an act is chosen](https://claude.ai/code/artifact/fc6c32ec-753b-459d-bbfe-f69601d766fc) — the dispatch, the
+> step-gated handler, the tail, and the chain.
+
 **One handler per ACT, in a per-character table** — not one per move, and not one
 shared for all of a character's moves. Each character's proc block opens with a
 dispatch, and the table sits immediately after it at **proc + 0x0F**:
@@ -479,6 +482,9 @@ The reversal-dash bug (patch 2) was here: Uranus's forward-dash handler `$C1:88C
 carried the 0xA0 untargetable status for its whole 14 frames.
 
 ### 7.x Move initiation — the START ROUTES each act offers (measured 2026-08-10)
+
+> **Drawn:** [how an act is chosen](https://claude.ai/code/artifact/fc6c32ec-753b-459d-bbfe-f69601d766fc) — this section as seven figures, one
+> per route. Private artifact, not generated from the repo (see `README.md`).
 
 **There is no global "what can I do now" logic.** Every act handler ends by offering
 a fixed, ordered set of START ROUTES — what may be begun from that state — and each
