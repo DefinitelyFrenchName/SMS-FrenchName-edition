@@ -1449,7 +1449,41 @@ Consequences:
   attacks; strikes underflow-kill normally. HP pins must use the per-A.C.S.
   max (`$104A`), not a constant.
 
-### The ACS prompt bar — attempted, mechanism found, NOT a tilemap job
+### The ACS prompt bar — DONE 2026-08-11 (`SMS_P16_PROMPT`)
+
+The bar reads **SET STATS** on all nine characters. What the 2026-08-06 attempt
+below called "runtime name substitution" does not exist: there are **nine
+pre-written strings**, one per character, reached through a 4-byte pointer table
+at `$C2:C1CA` — the same shape as the bracket names.
+
+* **font** `$C2:4580`, codec 1 → 16384 B = **512 units of `$20`** at `$7F:C000`;
+  60 units blank. Asset record `$C3:BE30` = `[vram $5800][len $1000][src
+  $C2:4580][dest $7F:C000]`, and it is the **only** reference to that blob.
+* **glyph address is COMPUTED, not stored** (`$C2:B9CD`):
+  `$7F:C000 + rowtab[(code & $F8) >> 2] + (code & 7) * $20`, rowtab at
+  `$C2:BA2D`. So letters are added by filling blank units and using the codes
+  that already address them — codes **`$E3-$FB`** address blank units and no
+  string uses them.
+* `$FC` terminates, **`$FF` is a NEWLINE**, `$00` is a space (unit 0 is blank and
+  real strings use it mid-line).
+* ⚠ **A unit is a 16x8 STRIP — two 8x8 tiles side by side, one complete visual
+  row.** Established by building it wrong twice: 8x16 letters written into a
+  strip render as noise, and splitting a letter into top/bottom halves renders
+  the text once legibly and once as fragments on the line below. A strip
+  therefore carries TWO 8x8 characters.
+* That geometry is the budget. Nine per-character names would need ~56 codes
+  against 25 free, so the prompt says the same thing for everyone — and nothing
+  is lost, because the card to the left of the bar already shows the name.
+* The re-encoded font is **6470 B against the vanilla stream's 6736**, so it goes
+  back **in place**: no relocation, no repoint, no appended-bank space.
+
+Verified: the blitter emits our codes (read back and decoded as `SET STATS`), the
+bar renders it on one line, regression ALL PASS (45), and the same with all six
+gates on together. **Remaining on this screen: the name card** (セーラームーン /
+1P at the left), which is a different surface — it is not drawn by this blitter,
+since the only glyphs blitted on the screen are the prompt's.
+
+### The ACS prompt bar — the 2026-08-06 attempt, kept for its ruled-out leads
 
 Attempted 2026-08-06 at the maintainer's "if you feel like it". It is not
 map data at all, and two plausible-looking leads were disproved by

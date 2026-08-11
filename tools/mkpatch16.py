@@ -351,6 +351,121 @@ CFG_MAP_AT = 0x4000               # relocated packed map's offset in the blob
 #       codec-2 DECODER to obtain the vanilla sheet from the ROM; baking a VRAM
 #       dump would be a measurement of one moment promoted to source data.
 # Free space is not the constraint: BG3 tiles $0FA-$1FF are unused (262 tiles).
+# ---- A.C.S. prompt ("<NAME> / STATS", SMS_P16_PROMPT=1) --------------------
+# The prompt is the game's VARIABLE-TEXT ENGINE, not tilemap data, and the
+# "runtime name substitution" it was filed under does not exist: there are NINE
+# pre-written strings, one per character, exactly like the bracket names.
+#
+#   font      $C2:4580, codec 1 -> 16384 B = 512 units of $20 at $7F:C000,
+#             each unit an 8x16 2bpp glyph; 60 units are BLANK. Its asset record
+#             is $C3:BE30 = [vram $5800][len $1000][src $C2:4580][dest $7F:C000].
+#   blitter   $80:9583, one glyph at a time into BG3 CHR, driven by $C2:B9CD:
+#               glyph = $7F:C000 + rowtab[(code & $F8) >> 2] + (code & 7) * $20
+#             with rowtab at $C2:BA2D. So a code's glyph address is COMPUTED --
+#             there is no glyph pointer to repoint, and the way to add letters is
+#             to fill blank units and use the codes that already address them.
+#   strings   nine, via the 4-byte pointer table $C2:C1CA ([str16][01 E0]).
+#             $FC terminates, $FF is a LINE BREAK (the blitter's vmadd jumps nine
+#             slots there), $00 is a SPACE (unit 0 is blank and real strings use
+#             it mid-line).
+#
+# Codes $E3-$FB address blank units and are used by no string in the table --
+# 25 letters, A-Y, which covers every name and STATS. Ink 1 is the body colour
+# (measured over the prompt's own glyphs: index 1 x475, 3 x322, 2 x44).
+PROMPT_TRANSLATE = os.environ.get("SMS_P16_PROMPT") == "1"
+PR_FONT_SRC = 0x024580            # $C2:4580
+PR_FONT_REF = 0x03BE34            # src24 inside asset record $C3:BE30
+PR_FONT_UNITS = 512
+PR_UNIT = 0x20
+PR_ROWTAB = 0x02BA2D              # code group -> base offset
+PR_PTRTAB = 0x02C1CA              # nine [str16][01 E0] records
+PR_STR_LO, PR_STR_HI = 0x02B4DC, 0x02B583   # the nine strings' packed region
+PR_CODE0 = 0xE3                   # 'A'; letters run A-Y over $E3-$FB
+PR_INK = 1
+PR_NL, PR_END = 0xFF, 0xFC
+# Character order is the POINTER TABLE's, which is not the storage order.
+# Pointer-table order, confirmed against the name lengths and identical to the
+# order this patch already measured for the tournament select screen (DF_NAMES).
+# ⚠ A UNIT IS A 16x8 STRIP -- two 8x8 tiles SIDE BY SIDE, one complete visual
+# row -- and $FF is a NEWLINE. Both were established by building it wrong twice:
+# 8x16 letters written into a strip render as noise, and a top/bottom split
+# renders the text once legibly and once as fragments on the line below. So a
+# strip carries TWO 8x8 characters and a line of text is one row of strips.
+#
+# The geometry is also the budget: nine per-character names would need ~56 codes
+# and there are 25, so the prompt says the same thing for everyone. Nothing is
+# lost on screen -- the character's card and name are already displayed to the
+# left of this bar.
+PR_TEXT = "SET STATS"
+PR_PAIRS = None                   # computed: two letters per 16px strip
+
+
+def prompt_code(rom, code):
+    """The unit index a glyph code addresses -- the engine's own arithmetic."""
+    g = (code & 0xF8) >> 3
+    base = rom[PR_ROWTAB + g * 2] | (rom[PR_ROWTAB + g * 2 + 1] << 8)
+    return base // PR_UNIT + (code & 7)
+
+
+def prompt_font(rom, glyphs):
+    """The text font with the prompt's 16x8 STRIPS written into blank units.
+
+    -> (bytes, [top codes], [bottom codes])"""
+    import sms_lz
+    blob = bytearray(sms_lz.decompress(rom, PR_FONT_SRC))
+    if len(blob) != PR_FONT_UNITS * PR_UNIT:
+        raise SystemExit(f"text font is {len(blob)} bytes, expected "
+                         f"{PR_FONT_UNITS * PR_UNIT}")
+    text = PR_TEXT + (" " if len(PR_TEXT) % 2 else "")
+    pairs = [text[i:i + 2] for i in range(0, len(text), 2)]
+
+    def tile8(ch):
+        """One 8x8 2bpp tile: the glyph's own ink rows out of the 8x16 art."""
+        if ch == " ":
+            return bytes(16)
+        rows = glyphs[ch]
+        ink = [i for i, r in enumerate(rows) if "#" in r]
+        top = max(0, min(ink[0], len(rows) - 8)) if ink else 0
+        t = bytearray(16)
+        for y in range(8):
+            line = rows[top + y]
+            for x in range(8):
+                if line[x] != "#":
+                    continue
+                b = 7 - x
+                t[y * 2] |= (PR_INK & 1) << b
+                t[y * 2 + 1] |= ((PR_INK >> 1) & 1) << b
+        return bytes(t)
+
+    codes, nxt = [], PR_CODE0
+    for pr in pairs:
+        unit = tile8(pr[0]) + tile8(pr[1])          # left tile | right tile
+        code = nxt; nxt += 1
+        if code >= PR_END:
+            raise SystemExit(f"the prompt needs more than {PR_END - PR_CODE0} codes")
+        u = prompt_code(rom, code)
+        o = u * PR_UNIT
+        if any(blob[o:o + PR_UNIT]):
+            raise SystemExit(f"font unit {u} (code ${code:02X}) is not blank")
+        blob[o:o + PR_UNIT] = unit
+        codes.append(code)
+    return bytes(blob), codes
+
+
+def prompt_strings(data, strips):
+    """One shared string, and all nine pointers aimed at it. -> the string bytes"""
+    enc = bytes(strips) + bytes([PR_NL, PR_END])
+    if len(enc) > PR_STR_HI - PR_STR_LO:
+        raise SystemExit(f"the prompt needs {len(enc)} bytes, "
+                         f"{PR_STR_HI - PR_STR_LO} available")
+    data[PR_STR_LO:PR_STR_LO + len(enc)] = enc
+    for i in range(9):                     # every character gets the same line
+        rec = PR_PTRTAB + i * 4
+        data[rec] = PR_STR_LO & 0xFF
+        data[rec + 1] = (PR_STR_LO >> 8) & 0xFF
+    return enc
+
+
 BRACKET_TRANSLATE = os.environ.get("SMS_P16_BRACKET") == "1"
 BR_TILE_BYTES = 16              # the plate is BG3 -> 2BPP, 16 bytes a tile
 BR_INK = 2                      # measured: the vanilla name glyphs use indices
@@ -1059,6 +1174,21 @@ def build(src_path, out_path, stacked=False):
     astub = packed_acs = None
     packed_br = None
     br_rows = []
+    pr_rows = []
+    if PROMPT_TRANSLATE:
+        # read the vanilla font BEFORE overwriting it
+        pfont, pr_strips = prompt_font(bytes(data), glyphs)
+        packed_pr = sms_lz.encode_lz(pfont)
+        assert sms_lz.decompress(packed_pr, 0, len(pfont)) == pfont, \
+            "text font round-trip failed"
+        old_len = sms_lz.decompress_ex(bytes(data), PR_FONT_SRC)[1]
+        if len(packed_pr) > old_len:
+            raise SystemExit("re-encoded text font is %d bytes, the vanilla stream is "
+                             "%d -- it would run into what follows"
+                             % (len(packed_pr), old_len))
+        data[PR_FONT_SRC:PR_FONT_SRC + len(packed_pr)] = packed_pr
+        pr_rows = prompt_strings(data, pr_strips)
+
     if BRACKET_TRANSLATE:
         bblock, br_placed = bracket_glyphs(glyphs, ink=BR_INK)
         packed_br = sms_lz.encode_lz(bblock)
@@ -1303,6 +1433,12 @@ def build(src_path, out_path, stacked=False):
                  BR_GLYPH_BASE, BR_GLYPH_BASE + BR_SPAN - 1, BR_VMADD, BR_UPLOAD))
     else:
         print("  bracket VS names: NOT translated (SMS_P16_BRACKET=1 to enable)")
+    if PROMPT_TRANSLATE:
+        print("  A.C.S. prompt: \"%s\" on all nine characters; %d 16x8 strips into "
+              "the text font's blank units as codes $%02X-$%02X, font re-encoded in place"
+              % (PR_TEXT, len(pr_strips), PR_CODE0, PR_CODE0 + len(pr_strips) - 1))
+    else:
+        print("  A.C.S. prompt: NOT translated (SMS_P16_PROMPT=1 to enable)")
     print("  -> %s  sha1 %s" % (out_path, hashlib.sha1(bytes(data)).hexdigest()))
     json.dump({c: placed[c] for c in sorted(placed)},
               open(os.path.join(REPO, "docs", "project", "halfwidth_tiles.json"), "w"), indent=1)

@@ -218,6 +218,48 @@ if os.getenv("DECOMPWATCH") == "1" then
     log(string.format("f%d DECOMP src=$%02X:%02X%02X dest=$%02X:%02X%02X",
         frames, bk, hi, lo, db, dh, dl))
   end, emu.callbackType.exec, 0x808DEC, 0x808DEC, emu.cpuType.snes, emu.memType.snesMemory)
+  -- codec 1 entry itself: the $C3 cluster screens reach it without going through
+  -- $80:8DEC, and the ACS text font lands in WRAM, not VRAM
+  emu.addMemoryCallback(function()
+    local lo = emu.read(0x00, emu.memType.snesWorkRam) or 0
+    local hi = emu.read(0x01, emu.memType.snesWorkRam) or 0
+    local bk = emu.read(0x02, emu.memType.snesWorkRam) or 0
+    local db = emu.read(0x05, emu.memType.snesWorkRam) or 0
+    log(string.format("f%d CODEC1 src=$%02X:%02X%02X destbank=$%02X", frames, bk, hi, lo, db))
+  end, emu.callbackType.exec, 0x80919F, 0x80919F, emu.cpuType.snes, emu.memType.snesMemory)
+end
+
+-- BLITWATCH=1: the ACS prompt's dynamic glyph blitter ($80:9583) and every DMA
+-- kick ($420B). The prompt is not tilemap data -- single glyphs are uploaded to
+-- BG3 CHR from a staging area at $7F:DC00+, and a per-byte write watch never
+-- sees that area filled, so it arrives by block move or DMA. `mvn $7F,$7F` at
+-- $C0:8052 and $DF:869A are both zero-FILL idioms (checked), which leaves DMA.
+if os.getenv("BLITWATCH") == "1" then
+  local seen = {}
+  emu.addMemoryCallback(function()
+    local src = (emu.read(0x1C80, emu.memType.snesWorkRam) or 0)
+            | ((emu.read(0x1C81, emu.memType.snesWorkRam) or 0) << 8)
+    local bank = emu.read(0x1C82, emu.memType.snesWorkRam) or 0
+    local vm = (emu.read(0x1C8E, emu.memType.snesWorkRam) or 0)
+           | ((emu.read(0x1C8F, emu.memType.snesWorkRam) or 0) << 8)
+    log(string.format("f%d BLIT src=$%02X:%04X vmadd=$%04X", frames, bank, src, vm))
+  end, emu.callbackType.exec, 0x809583, 0x809583, emu.cpuType.snes, emu.memType.snesMemory)
+  local dseen = {}
+  emu.addMemoryCallback(function()
+    for ch = 0, 7 do
+      local b = 0x4300 + ch * 0x10
+      local bbus = emu.read(b + 1, emu.memType.snesMemory) or 0
+      local a = (emu.read(b + 2, emu.memType.snesMemory) or 0)
+            | ((emu.read(b + 3, emu.memType.snesMemory) or 0) << 8)
+      local abank = emu.read(b + 4, emu.memType.snesMemory) or 0
+      local n = (emu.read(b + 5, emu.memType.snesMemory) or 0)
+           | ((emu.read(b + 6, emu.memType.snesMemory) or 0) << 8)
+      if bbus == 0x80 then     -- $2180 = WRAM port
+        local k = string.format("DMA->WRAM ch%d src=$%02X:%04X len=$%04X", ch, abank, a, n)
+        if not dseen[k] then dseen[k] = true; log(string.format("f%d %s", frames, k)) end
+      end
+    end
+  end, emu.callbackType.write, 0x00420B, 0x00420B, emu.cpuType.snes, emu.memType.snesMemory)
 end
 
 if os.getenv("STUBWATCH") == "1" then
@@ -480,7 +522,14 @@ local ROUTES = {
           if #chunk == 4096 then f:write(table.concat(chunk)); chunk = {} end
         end
         f:write(table.concat(chunk)); f:close()
-        log(string.format("f%d PROMPTBAR + VRAM $A000-$DFFF dumped", frames))
+        f = assert(io.open(ENV.TRACE .. "p16_wramfont.bin", "wb"))
+        chunk = {}
+        for a = 0x1C000, 0x1F3FF do        -- $7F:C000-$F3FF, the text engine's font
+          chunk[#chunk + 1] = string.char(emu.read(a, emu.memType.snesWorkRam) or 0)
+          if #chunk == 4096 then f:write(table.concat(chunk)); chunk = {} end
+        end
+        f:write(table.concat(chunk)); f:close()
+        log(string.format("f%d PROMPTBAR + VRAM $A000-$DFFF + WRAM font dumped", frames))
       end
       return sf > 500
     end,
