@@ -240,7 +240,7 @@ See HANDOFF.md §4 for the harness.
 - `mkpatch3.py` — Patch 3: extended character palettes (extracted from the Big Zam edition) +
 - `mkpatch4.py` — Patch 4: replace the title-screen red subtitle with "FrenchName ver. <BUNDLE_VERSION>" (see --text),
 - `mkpatch5.py` — Patch 5: reduce Uranus's forward-dash travel distance.
-- `mkpatch6.py` — Patch 6 (OPTIONAL): give Uranus's forward dash a short mid-move invulnerability window.
+- `mkpatch6.py` — Patch 6 (OPTIONAL): make Uranus's forward dash invulnerable for all but its
 - `mkpatch7.py` — Patch 7 (OPTIONAL): extend Sailor Pluto's 5HP hitbox downward so it hits crouchers.
 - `mkpatch8.py` — Patch 8 (OPTIONAL): make Sailor Venus's 6HP throw mash-escapable on a standard schedule.
 - `mkpatch9.py` — Patch 9 (OPTIONAL): fix Sailor Neptune's "Deep Submerge" fireball hitbox so it follows
@@ -442,6 +442,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_p16_screens.lua` — patch 16 screen census: reach the Win / ACS /
 - `probe_p17_randompool.lua` — can the RANDOM stage default land on stage 9?
 - `probe_p17_stagelist.lua` — how many stages can the VS config screen reach?
+- `probe_p6_dashframes.lua` — Uranus's forward dash, frame by frame.
 - `probe_p88_ttlrefresh.lua` — issue #88: does a REPEATED label event refresh its TTL?
 - `probe_p89_padleak.lua` — issue #89: trainer.lua's dummy must force unnamed buttons FALSE.
 - `probe_p8cal.lua` — : calibrate the Venus 6HP mash-escape window. P1 Venus throws P2;

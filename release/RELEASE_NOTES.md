@@ -47,7 +47,7 @@ ROM.
 | 3 | Big Zam extended palettes + ROM header | `tools/mkpatch3.py` | `build/sms_palettes.bps` | `a7c42fbc…` |
 | 4 | Title subtitle + BZ credit line | `tools/mkpatch4.py` | `build/sms_title.bps` | `fc1d6e75…` |
 | 5 | Uranus forward-dash distance -1/3 | `tools/mkpatch5.py` | `build/sms_dashdist.bps` | `f8654cde…` |
-| 6 | Uranus forward-dash i-frames (experimental) | `tools/mkpatch6.py` | `build/sms_dashinvuln.bps` | `52a05c4b…` |
+| 6 | Uranus forward-dash i-frames (experimental) | `tools/mkpatch6.py` | `build/sms_dashinvuln.bps` | `4490e62e…` |
 | 7 | Pluto 5HP hits crouchers | `tools/mkpatch7.py` | `build/sms_pluto5hp.bps` | `82f3ff4c…` |
 | 8 | Venus 6HP throw tech window 6f -> 13f | `tools/mkpatch8.py` | `build/sms_venustech.bps` | `1ed05c1f…` |
 | 9 | Neptune Deep Submerge hitbox tracks the ball | `tools/mkpatch9.py` | `build/sms_neptune_ds.bps` | `7dd54816…` |

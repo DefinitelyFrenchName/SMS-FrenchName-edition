@@ -33,7 +33,7 @@ true-combo gate `0x05`.
 | 3. Palettes | Sprint / Big Zam extended character colors ( + "FrenchName" rom header for easy rom ID) | `tools/mkpatch3.py` | `build/sms_palettes.bps` | `291f6474…` |
 | 4. Title | Title subtitle → "FrenchName ver. X.Y" + copyright line 1 → BZ's "©MOONLIGHT FIGHT SOCIETY" ("©ANGEL 1994" untouched) | `tools/mkpatch4.py` | `build/sms_title.bps` | `7f9e8c76…` |
 | 5. Dash dist | Cut Uranus forward-dash distance ~1/3 | `tools/mkpatch5.py` | `build/sms_dashdist.bps` | `99acb686…` |
-| 6. Dash i-frames **(OPTIONAL)** | Uranus forward dash gains ~6 strike-invuln frames mid-move | `tools/mkpatch6.py` | `build/sms_dashinvuln.bps` (+`.ips`) | `34c5d458…` |
+| 6. Dash i-frames **(OPTIONAL)** | Uranus forward dash is strike-invulnerable for all but its first two and last two frames | `tools/mkpatch6.py` | `build/sms_dashinvuln.bps` (+`.ips`) | `4a45b326…` |
 | 7. Pluto 5HP **(OPTIONAL)** | Pluto 5HP hitbox extended down to hit crouchers (all but Chibi) | `tools/mkpatch7.py` | `build/sms_pluto5hp.bps` | `fc757936…` |
 | 8. Venus throw tech **(OPTIONAL)** | Venus 6HP throw mash-escape window 6f → 13f (standard-ish; Jupiter=15f) | `tools/mkpatch8.py` | `build/sms_venustech.bps` | `63ce0748…` |
 | 9. Neptune fireball **(OPTIONAL)** | Deep Submerge fireball hitbox tracks the descending sprite (was stuck at head level) | `tools/mkpatch9.py` | `build/sms_neptune_ds.bps` | `d5ee12a3…` |
@@ -125,7 +125,7 @@ the exact extent of a changed run in `clean → patched`; ranges are inclusive.
 | **3** | `sms_palettes.bps` | `0x0884B-0885A` · `0x0885C-08882` · `0x08884-088AB` · `0x08998-089A7` · `0x089A9-089CF` · `0x089D1-089F8` · `0x0A630-0A634` | 512 KB @ `0x280000` | title + checksum |
 | **4** | `sms_title.bps` | `0x3B820-3B822` | 512 KB @ `0x280000` | title + checksum |
 | **5** | `sms_dashdist.bps` | `0x188EA-188EB` | — | checksum |
-| **6** | `sms_dashinvuln.bps` | `0x09CCD-09CD0` · `0x1BE85-1BE87` · `0x1BE89-1BEA1` | — | checksum |
+| **6** | `sms_dashinvuln.bps` | `0x09CCD-09CD0` · `0x1BE85-1BE87` · `0x1BE89-1BEAC` | — | checksum |
 | **7** | `sms_pluto5hp.bps` | `0xAF0DE` | — | checksum |
 | **8** | `sms_venustech.bps` | `0x16C70` | — | checksum |
 | **9** | `sms_neptune_ds.bps` | `0xAFD5D` · `0xAFD65` · `0xAFD6D` · `0xAFD75` | — | checksum |
@@ -193,7 +193,7 @@ one patch (or re-run the whole chain) after changing a knob; all stack.
 |---|---|---|---|
 | **Infinite gate (N)** | `mkpatch.py <gate>` (positional hex) | `0x04` | `0x05` = N5 true combo (2-frame connect); **`0x04` = N6 1-frame meaty (canonical)**; `0x03` = N7 loop removed. Lower gate = more 2HP recovery before the dash cancel. Byte `0x1BE23`. |
 | **Dash distance** | `mkpatch5.py … --speed <hex>` | `0x0640` | `0x0B00` vanilla (121px); `0x0780` ≈ 98px (−1/5); **`0x0640` = 82px (−1/3)**; `0x0480` = 59px (−1/2). 8.8 fixed-point X-speed; lower = shorter. Infinite unaffected (dash stops on contact). |
-| **Dash i-frames (opt.)** | `mkpatch6.py … --lo <n> --hi <n>` | `5`–`10` | Strike-invuln while the dash frame-counter `+0x5D` is in `[lo,hi]` (1..14). Default ≈ 6 middle frames. Uranus-only, strike-only. |
+| **Dash i-frames (opt.)** | `mkpatch6.py` (no knobs) | — | Strike-invuln on dash frames **3-12** of 14: everything but the first two and the last two. Derived from the dash's own state (grounded, and vy vs the landing frame), not from a frame number — the old `--lo/--hi` gated on `+0x5D`, which is the motion recognizer's free-running timer and moved the window with the player's input rhythm. Uranus-only, strike-only. |
 | **Title text** | `mkpatch4.py … --text "<str>"` | `"FrenchName v.0.22"` | The red subtitle (≤20 chars, the font covers A-Z a-z 0-9 space `.`). The default is `f"FrenchName v.{BUNDLE_VERSION}"`, single-sourced from `smspaths.BUNDLE_VERSION` — bump it there, not here; the release builder passes its own `Rev. S-NN`. |
 | **Title style** | `mkpatch4.py … --style <s>` | `white_red` | `white_red` (white core/red outline), `red_white`, `red`. |
 | **Title credit line** | `mkpatch4.py … --no-credit` | credit on | Default swaps copyright line 1 to BZ's "©MOONLIGHT FIGHT SOCIETY" (line 2 "©ANGEL 1994" untouched); `--no-credit` keeps the original line and reproduces the pre-2026-07-30 build byte-for-byte. |
@@ -804,7 +804,7 @@ a human would need: one 1-frame jab link + one frame-perfect 66.
 
 # Patch 6 — Forward-dash i-frames (OPTIONAL / experimental)
 
-Patched (standalone) SHA-1 `34c5d45810e4ac49bb7ed396bf7e0c5b6db34ed4`. Built by
+Patched (standalone) SHA-1 `4a45b3269d2945a11f84634cbda6995e4a8215f4`. Built by
 `tools/mkpatch6.py` (`--lo/--hi` tune the window). **Off by default** — canonical stays v0.7;
 the v0.8 build (`build/SailorMoonS_FrenchName_v0.8_all5_dashinvuln.sfc`) folds it in for
 evaluation.

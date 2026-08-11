@@ -623,6 +623,20 @@ carries 10b. Recorded for completeness.
 bracket VS names landed 2026-08-11.** Dormant maintainer options, not tasks:
 §8's fold-6/7/8-into-canonical and dash-distance retune.
 
+⚠ **Trap 26 — a counter that looks like a frame index may be a free-running
+timer, and the difference only shows when you vary the input.** Patch 6 gated its
+dash invulnerability on `+0x5D`, documented for months as "the dash-frame counter
+(1..14)". It is the motion recognizer's timer for motion 1: it free-runs, RESETS
+at `$0F` (so it wraps mid-dash: `04..0F,00,01`), and its value on the dash's
+first frame **depends on the player's input rhythm** — measured `04` with the
+second tap 9 frames after the first, `06` at 11, `08` at 13. So a window named
+"frames 5..10" was really "whatever six frames your hands produced". The fix
+takes the window from the move's own state instead, and the test that proves it
+is running the same dash at three tap rhythms and getting the same frames.
+⚠ **And the box writer runs BEFORE the physics**, so a hook there reads the
+velocity the *previous* frame ended with. That one-frame lag is not a detail to
+correct for later — it decides the constants.
+
 ⚠ **Trap 25 — on this cartridge, "is this ROM?" depends on the bank you are
 executing in.** The bank-`$DF` menu engine runs from the **`$9F` mirror**, where
 only `$8000-$FFFF` is ROM and `$0000-$7FFF` is WRAM and hardware. A hook stub
@@ -1199,7 +1213,7 @@ python3 tools/mkpatch5.py --stacked /tmp/s4.sfc     /tmp/s5.sfc   # (patch 6/7 o
 |---|---|---|---|
 | Infinite gate (N) | `mkpatch.py <gate>` | `0x04` | `0x05`=true combo, `0x04`=meaty (canon), `0x03`=removed |
 | Dash distance | `mkpatch5.py --speed` | `0x0640` | `0x0B00` vanilla … `0x0480` (−½) |
-| Dash i-frames | `mkpatch6.py --lo/--hi` | `5`–`10` | any window in dash frames 1..14 |
+| Dash i-frames | `mkpatch6.py` | — | no knobs: dash frames **3-12 of 14**, i.e. all but the first two and last two (trap 26) |
 | Title text/style | `mkpatch4.py --text/--style` | — | `white_red`/`red_white`/`red` |
 | Title credit line | `mkpatch4.py --no-credit` | credit on | default swaps copyright line 1 to BZ's "©MOONLIGHT FIGHT SOCIETY" ("©ANGEL 1994" untouched); flag restores the original line |
 | Pluto 5HP reach | `mkpatch7.py --h` | `62` | `54`=vanilla, `62`=all but Chibi, `64`=all |
