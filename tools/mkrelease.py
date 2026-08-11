@@ -82,10 +82,17 @@ def render(rev_s, rev_ss):
         return (f"| **{name}** | {what}<br>{content} | "
                 f"`{path.relative_to(REPO)}` (`{sha1(path)[:8]}…`) | {romsha} |")
 
+    # ⚠ These two cells are the MAINTAINER'S wording and they live here, in the
+    # generator, precisely so regenerating cannot eat them. They were hand-edited
+    # into release/RELEASE_NOTES.md once; `--check` tolerates that cell, so the
+    # edit survived until the next `mkrelease.py` run would have silently
+    # reverted it. Anything you want to say about the two builds goes HERE.
     out.append(refrow(s, f"Rev. S-{rev_s}",
-                      "the reference build, **no Super S content**", REV_S_CONTENT, rev_s))
+                      "the reference build, **no Super S content, fully tested**",
+                      REV_S_CONTENT, rev_s))
     out.append(refrow(ss, f"Rev. SS-{rev_ss}",
-                      "the same, **plus Sailor Saturn**", REV_SS_CONTENT, rev_ss))
+                      "EXPERIMENTAL (basically Rev.S, **plus Sailor Saturn**)",
+                      REV_SS_CONTENT, rev_ss))
     out += ["",
             f"The title screen reads **FrenchName Rev. S-{rev_s}** /",
             f"**FrenchName Rev. SS-{rev_ss}** —",
