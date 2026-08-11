@@ -195,15 +195,20 @@ end
 -- DECOMPWATCH=1: which ROM blob feeds each decompression? The DMA only ever
 -- reports the staging buffer ($7F:0000), so it cannot say which asset entry ran
 -- -- which is exactly what a font repoint needs to know.
--- ⚠ MEASURED 2026-08-10: this hook does NOT fire on the tournament route. The
--- $DF screen engine does not reach codec 1 through $80:91A0 (the entry
--- probe_menu_font.lua uses for the $C3 clusters) -- it has its own path, and
--- finding it is step one of closing the bracket names. A silent hook here is
--- the instrument, not evidence about the game (trap 9).
+-- ⚠ CORRECTED 2026-08-11. The previous note here said "this hook does NOT fire
+-- on the tournament route", and that was the INSTRUMENT, not the game: the
+-- callback opened with `pcall(emu.getState)` and RETURNED EARLY when it threw --
+-- and emu.getState() always throws inside a memory callback (HANDOFF trap 8).
+-- So it fired and refused to speak. Nothing here calls getState now; every value
+-- is read from the direct page, which the $DF runner has already written.
+--
+-- The hook also moved to the place that cannot miss: $80:8DEC is the SINGLE
+-- decompression entry point -- the $DF script runner calls it exactly once, from
+-- $DF:8422, for every asset entry -- and `A & 0xFF` there selects codec 1
+-- ($80:919F, sms_lz) or codec 2 ($80:8E9A). Watching $91A0 could only ever see
+-- half the traffic even when it worked.
 if os.getenv("DECOMPWATCH") == "1" then
   emu.addMemoryCallback(function()
-    local ok, st = pcall(function() return emu.getState().cpu end)
-    if not ok or not st then return end
     local lo = emu.read(0x00, emu.memType.snesWorkRam) or 0
     local hi = emu.read(0x01, emu.memType.snesWorkRam) or 0
     local bk = emu.read(0x02, emu.memType.snesWorkRam) or 0
@@ -212,7 +217,7 @@ if os.getenv("DECOMPWATCH") == "1" then
     local db = emu.read(0x05, emu.memType.snesWorkRam) or 0
     log(string.format("f%d DECOMP src=$%02X:%02X%02X dest=$%02X:%02X%02X",
         frames, bk, hi, lo, db, dh, dl))
-  end, emu.callbackType.exec, 0x8091A0, 0x8091A0, emu.cpuType.snes, emu.memType.snesMemory)
+  end, emu.callbackType.exec, 0x808DEC, 0x808DEC, emu.cpuType.snes, emu.memType.snesMemory)
 end
 
 local function dump7f(tag)
@@ -234,6 +239,40 @@ local function dump7f(tag)
   f = assert(io.open(string.format("%sp16_vram_%s_%s.bin", ENV.TRACE, ROUTE, tag), "wb"))
   chunk = {}
   for a = 0x5000, 0xABFF do
+    chunk[#chunk + 1] = string.char(emu.read(a, VRAM) or 0)
+    if #chunk == 4096 then f:write(table.concat(chunk)); chunk = {} end
+  end
+  f:write(table.concat(chunk)); f:close()
+  do   -- PPU layout: which BG owns which tilemap, and at what CHR base
+    local ok, S = pcall(emu.getState)
+    if ok and S then
+      local keys = {}
+      local function walk(t, prefix, depth)
+        if depth > 3 then return end
+        for k, v in pairs(t) do
+          local name = prefix .. tostring(k)
+          if type(v) == "table" then walk(v, name .. ".", depth + 1)
+          elseif tostring(name):lower():find("chr") or tostring(name):lower():find("tilemap")
+              or tostring(name):lower():find("bgmode") or tostring(name):lower():find("mode") then
+            keys[#keys + 1] = string.format("%s=%s", name, tostring(v))
+          end
+        end
+      end
+      walk(S, "", 1)
+      table.sort(keys)
+      log("PPU " .. table.concat(keys, " "))
+    end
+  end
+  f = assert(io.open(string.format("%sp16_bg3_%s_%s.bin", ENV.TRACE, ROUTE, tag), "wb"))
+  chunk = {}
+  for a = 0xA000, 0xBFFF do        -- BG3 CHR: word $5000 = byte $A000
+    chunk[#chunk + 1] = string.char(emu.read(a, VRAM) or 0)
+    if #chunk == 4096 then f:write(table.concat(chunk)); chunk = {} end
+  end
+  f:write(table.concat(chunk)); f:close()
+  f = assert(io.open(string.format("%sp16_plate_%s_%s.bin", ENV.TRACE, ROUTE, tag), "wb"))
+  chunk = {}
+  for a = 0xF000, 0xFFFF do
     chunk[#chunk + 1] = string.char(emu.read(a, VRAM) or 0)
     if #chunk == 4096 then f:write(table.concat(chunk)); chunk = {} end
   end
@@ -517,7 +556,24 @@ local ROUTES = {
         if f then f:write(emu.takeScreenshot()); f:close() end
       end
       if sf == 390 then dump7f("bracket") end
-      return sf > 400
+      if sf >= 380 and sf % 40 == 0 then
+        local f = io.open(string.format("%sp16scr_%s_names_f%d.png", ENV.TRACE, ROUTE, frames), "wb")
+        if f then f:write(emu.takeScreenshot()); f:close() end
+      end
+      return sf > 900
+    end,
+    -- past the bracket: the VS name plate ($7CE0 rows) is written here but the
+    -- bracket overview does not show it, so keep going and shoot every 60f
+    function() pulse[0] = beat({ start = true }); return sf > 90 end,
+    function()
+      -- through the config screen and on toward the match; the VS name plate
+      -- ($7CE0 rows) is written on the bracket but shown somewhere after it
+      pulse[0] = (sf % 90 < 20) and { start = true } or {}
+      if sf % 45 == 0 then
+        local f = io.open(string.format("%sp16scr_%s_names_f%d.png", ENV.TRACE, ROUTE, frames), "wb")
+        if f then f:write(emu.takeScreenshot()); f:close() end
+      end
+      return sf > 1200
     end,
   },
 }

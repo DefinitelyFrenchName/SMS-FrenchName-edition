@@ -1261,7 +1261,55 @@ overlay it afterwards. The old "baked as Moon-vs-Moon" reading came from
 observing Moon vs Moon on a bracket nobody had seeded: both entrants really
 are character 0 there, so both records really do hold tiles `01-07`.
 
-**Glyph delivery, confirmed as planned:** script `$DF:A43E` entry [1] is
+⚠⚠ **CORRECTED 2026-08-11 — the bracket work has been aimed at the wrong
+sheet, and that is the whole reason the glyphs never appeared.** The plate is on
+**BG3**, and BG3 does not read the sheet this patch edits.
+
+Measured from the PPU at the bracket (`probe_p16_screens.lua` now logs it):
+mode 1; BG1 tilemap `$7000` chr `$2000`; BG2 tilemap `$7800` chr `$2000`;
+**BG3 tilemap `$7C00` chr `$5000`**. The 18 records write to
+`$7CE0`/`$7CF0`/`$7D00`/`$7D10`, which is inside BG3's tilemap — so the plate
+reads BG3's CHR at word `$5000`, **2bpp** in mode 1. Entry [1] uploads the
+**4bpp** BG1/BG2 sheet at `$2000`, which the tree uses and the plate never
+touches.
+
+Corroboration, all live: the BG3 sheet (VRAM byte `$A000`) holds 512 2bpp tiles
+whose non-blank runs end at **`$0F9`** — exactly the id range the 18 records
+reference (`$01-$07` names, `$11-$17` their bottoms, `$4A-$4C`/`$5A-$5C` the VS
+graphic). BG3 tile `$01`/`$11` rendered as 2bpp is the kana pair; the `$2000`
+sheet's tile `$01` rendered as 4bpp is a *different* glyph. Two sheets; the
+records index the other one.
+
+**The real target** is entry **e3** of script `$DF:A43E`: `src $C7:44D1, flag 00,
+dest VRAM word $5000` — a **codec-2** blob. Free space is not the constraint:
+BG3 tiles **`$0FA-$1FF`** (262) are unused.
+
+⚠ **Entry stride is not fixed.** `$DF:8441` does an extra `inc $28` when
+flag ≠ 0, so codec-1 entries are **8** bytes and codec-2 entries **7**. A fixed-7
+walk desyncs after the first codec-1 entry and prints plausible garbage for every
+entry after it (it did, here, first try). The useful corollary: a codec-1 entry's
+`len16` does **not** overlap the next entry, so len and vmadd are free to change.
+
+The two routes out, neither free: **(a)** give the script a 7th entry — codec 1,
+our own `sms_lz` stream of just the 36 glyph tiles, vmadd `$5800`, len `$240` —
+which needs the script relocated (inserting 8 bytes shifts phases 2 and 3) and
+the caller's `lda #$A43E` repointed, but **no codec-2 work at all**; or **(b)**
+convert e3 to codec 1 and supply the whole 8 KB sheet, which needs a codec-2
+*decoder* to get the vanilla sheet out of the ROM (baking a VRAM dump would be
+one moment's measurement promoted to source data).
+
+⚠ **And the instrument that said "codec 1 never runs on the tournament route"
+was lying.** `DECOMPWATCH`'s callback opened with `pcall(emu.getState)` and
+returned early when it threw — which it always does inside a memory callback
+(trap 8). It fired every time and refused to speak. Rewritten to read the direct
+page only, and moved to `$80:8DEC`, the single decompression entry point (the
+`$DF` runner calls it once, from `$DF:8422`, for every entry; `A & 0xFF` there
+picks codec 1 `$80:919F` or codec 2 `$80:8E9A`). It now logs all 11
+decompressions on the route, including the repoint taking effect.
+
+**Glyph delivery, as originally planned (this describes the WRONG sheet — kept
+because the mechanism it documents is accurate for BG1/BG2):** script
+`$DF:A43E` entry [1] is
 `codec1 src $C2:27E0 vmadd $2000 len $1400` — the small font, 320 tiles at
 VRAM tile `$200`. The blob decompresses to **135 tiles**, so the upload's tail
 is whatever the staging buffer already held; the live font region measures 222

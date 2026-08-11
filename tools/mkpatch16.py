@@ -314,6 +314,43 @@ CFG_MAP_AT = 0x4000               # relocated packed map's offset in the blob
 # carries the new glyphs. Only $DF:A446 -- the bracket script's own entry -- is
 # repointed, so the other three users of $C2:27E0 keep the vanilla blob and
 # cannot be disturbed.
+# ⚠⚠ 2026-08-11: THIS BLOCK TARGETS THE WRONG SHEET, which is why the glyphs have
+# never appeared. Everything below works exactly as written -- the repoint takes
+# ($DF:A446 -> the relocated stream, confirmed live), the stream decompresses, the
+# tiles reach VRAM byte $4000 byte-for-byte -- and the plate cannot read any of it.
+#
+# MEASURED from the PPU at the bracket (probe_p16_screens.lua now logs it):
+# BG mode 1; BG1 tilemap $7000 chr $2000; BG2 tilemap $7800 chr $2000;
+# BG3 tilemap $7C00 chr $5000. The 18 name records write to $7CE0/$7CF0/$7D00/
+# $7D10 -- inside BG3's tilemap -- so the plate reads BG3's CHR at word $5000,
+# which in mode 1 is 2BPP. This block edits the 4bpp BG1/BG2 sheet at $2000.
+#
+# Corroboration, all from live VRAM: the BG3 sheet at $A000 (=word $5000) holds
+# 512 2bpp tiles, non-blank runs ending at $0F9 -- exactly the id range the 18
+# records reference ($01-$07 names, $11-$17 their bottoms, $4A-$4C/$5A-$5C the VS
+# graphic, up to $0F9 for the other characters). Rendering BG3 tile $01/$11 as
+# 2bpp gives the kana glyph pair; rendering the $2000 sheet's tile $01 as 4bpp
+# gives a DIFFERENT glyph. Two sheets, and the records index the other one.
+#
+# THE REAL TARGET is asset entry e3 of script $DF:A43E: src $C7:44D1, flag 00,
+# dest VRAM word $5000 -- a CODEC-2 blob, which is the part of the $DF system
+# that is still only partially reversed ($80:8E9A).
+#
+# ⚠ Entry stride is NOT fixed: $DF:8441 does an extra `inc $28` for flag!=0, so
+# codec-1 entries are 8 bytes and codec-2 entries 7. A fixed-7 walk desyncs after
+# the first codec-1 entry and reports plausible garbage for every entry after it.
+# The corollary that matters: a codec-1 entry's len16 does NOT overlap the next
+# entry, so len and vmadd are free to change.
+#
+# ROUTES OUT, none of them free:
+#   (a) give the script a 7th entry -- codec 1, our own sms_lz stream of just the
+#       36 glyph tiles, vmadd $5800 (BG3 tile $100), len $240. Needs the script
+#       relocated (inserting 8 bytes shifts phases 2 and 3) and the caller's
+#       `lda #$A43E` repointed. No codec-2 work at all. Cheapest correct route.
+#   (b) convert e3 to codec 1 and supply the whole 8 KB BG3 sheet. Needs a
+#       codec-2 DECODER to obtain the vanilla sheet from the ROM; baking a VRAM
+#       dump would be a measurement of one moment promoted to source data.
+# Free space is not the constraint: BG3 tiles $0FA-$1FF are unused (262 tiles).
 BRACKET_TRANSLATE = os.environ.get("SMS_P16_BRACKET") == "1"
 BR_FONT_SRC = 0x0227E0          # $C2:27E0 small font, codec 1, 135 tiles
 BR_SCRIPT_REF = 0x1FA446        # script $DF:A43E entry [1] src24 -- ONLY this one
