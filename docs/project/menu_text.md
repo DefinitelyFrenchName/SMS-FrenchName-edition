@@ -1280,6 +1280,46 @@ graphic). BG3 tile `$01`/`$11` rendered as 2bpp is the kana pair; the `$2000`
 sheet's tile `$01` rendered as 4bpp is a *different* glyph. Two sheets; the
 records index the other one.
 
+**DELIVERY IS NOW PROVEN END TO END (2026-08-11, `tools/exp_bracket_bg3.py`).**
+A one-build experiment repointed the *existing* codec-1 entry e1 at a 2bpp
+`sms_lz` stream of 36 glyph tiles, vmadd `$5800` (BG3 tile `$100`), len `$0320`,
+and rewrote the 18 records to those ids. Measured live: the stream decompresses
+(`src=$E8:8000 -> $7F:0000`), **36/36 glyph tiles arrive non-blank in the BG3
+sheet**, and the name rows read `108 10A 10A 109` = M O O N with bottoms
+`118 11A 11A 119`. So the sheet, the bit depth, the tile ids, the `+$10` bottom
+convention and the `sms_lz` path are all correct.
+
+⚠ **e3 does NOT clobber `$5800`**, although it runs after e1 (f1563 vs f1559) —
+measured, not assumed. That was the main risk of putting glyphs in an earlier
+entry and it does not materialise.
+
+Two things the same build settled, both negative:
+* **e1 cannot be repurposed.** Stealing it costs the 4bpp BG1/BG2 sheet, and the
+  screenshot shows exactly that — tree and portraits survive, the flowered
+  background and the `TOURNAMENT BATTLE` header do not. The upload must be
+  ADDITIVE: a 7th entry.
+* **The plate is not visible on the bracket overview in this state — and it is
+  not visible on the CLEAN ROM either.** Both write the cells at f1897 and
+  neither shows them next to the `VS`. So a screenshot check needs the screen
+  where the plate is actually displayed (a real tournament progression, not this
+  jump straight into a match); nothing is known to be wrong with the records.
+
+**Remaining work is one additive change.** Give the script a 7th entry (codec 1,
+8 bytes: our stream, vmadd `$5800`, len `$0320`). Phase 1 grows by 8, so phases
+2 and 3 shift and the 178-byte script must move — and there is **no 178-byte
+zero run in bank `$DF`** (largest 125, 18096 B total in 414 runs), so it moves to
+the appended bank.
+
+⚠ **Which bank it may move to is decided by DB, and DB is not `$DF`.** Phase 2's
+helper `$DF:84E9` does `sta ($03),Y` to `$0500` — DB-relative, and only sensible
+if DB maps WRAM low and ROM high. That is the `$8x/$9x` mirror: **DB = `$9F`**
+(consistent with the `$9F:84E7` PC recorded earlier), where `$9F:0500` is WRAM
+and `$9F:A43E` is ROM `$DF:A43E`. So a relocated script must sit at
+**`$8000-$FFFF` of an appended bank**, reached with DB set to that bank − `$40`
+(`$E8` → `$A8`), by a ~17-byte stub in one of bank `$DF`'s free runs, called from
+the single caller `$DF:A3FE` (`lda #$A43E / jsr $83E1`, 6 bytes — room for
+`jsr stub` plus padding).
+
 **The real target** is entry **e3** of script `$DF:A43E`: `src $C7:44D1, flag 00,
 dest VRAM word $5000` — a **codec-2** blob. Free space is not the constraint:
 BG3 tiles **`$0FA-$1FF`** (262) are unused.

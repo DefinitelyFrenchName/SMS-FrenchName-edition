@@ -489,6 +489,7 @@ See HANDOFF.md §4 for the harness.
 - `dis65816_oracle.py` — validate our decode table against an INDEPENDENT one.
 - `docaddrs.py` — the address census the documentation checks are built on.
 - `exp_airbackdash.py` — EXPERIMENT (not a numbered patch, not canonical): give Venus an AIR BACKDASH.
+- `exp_bracket_bg3.py` — One-build experiment: point the bracket's codec-1 entry (e1) at OUR 2bpp
 - `findfont.py` — locate a Latin font inside an arbitrary SNES ROM.
 - `gen_plan.py` — Generate a trace_plan for a re-press experiment.
 - `halfwidth_render.py` — render the half-width alphabet to a PNG for eyeballing.
