@@ -89,6 +89,15 @@ emu.addEventCallback(function()
     local d = backDir()
     if phase == "air" then
       if DIR == "front" then d = fwdDir()
+      elseif DIR == "chain" then
+        -- back double-tap, then a forward double-tap DURING the air backdash
+        d = (k < 18) and backDir() or fwdDir()
+        if k >= 18 then
+          local c = k - 18
+          b = {}
+          if (c >= 0 and c < 5) or (c >= 9 and c < 14) then b[d] = true end
+          return emu.setInput(PL.pad(b), 0, 0), emu.setInput(PL.pad(), 0, 1)
+        end
       elseif DIR == "left" or DIR == "right" then d = DIR end
     end
     if (k >= 0 and k < 5) or (k >= 9 and k < 14) then b[d] = true end
