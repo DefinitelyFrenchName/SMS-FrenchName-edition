@@ -1483,6 +1483,31 @@ gates on together. **Remaining on this screen: the name card** (セーラーム�
 1P at the left), which is a different surface — it is not drawn by this blitter,
 since the only glyphs blitted on the screen are the prompt's.
 
+### The A.C.S. name card — surface identified, art source NOT yet found
+
+The last untranslated thing on the screen (セーラームーン above the `1P`).
+Measured 2026-08-11, and it is **not** the prompt's engine — the prompt's glyphs
+are the only ones that blitter emits on this screen.
+
+* it is **BG1 tilemap** cells, rows 14-17, cols 2-11, with **4bpp tiles from CHR
+  `$2000`** (PPU at this screen: BG1 map `$0000` chr `$2000`, BG2 map `$0800`
+  chr `$2000`, BG3 map `$1000` chr `$5000`).
+* the name occupies tiles **`$228-$266`** and they are **CONSECUTIVE**, so the
+  card is a pre-rendered STRIP of art, not per-glyph references into a font. The
+  `1P` beside it is a separate, reusable pair (`$10C-$10F` / `$11C-$11D`).
+* ⚠ **the art has not been located.** Tile `$228` does not appear raw anywhere in
+  the ROM, is not inside any of the ACS cluster's decompressed sheets
+  (`$C2:3400`, `$C6:0C20`, `$C2:3CE0`, `$C2:3EB0`, `$C2:4340`, `$C5:3C50`), and
+  is not in WRAM by the time the screen has settled — so it is staged and the
+  buffer is reused before anything can see it.
+
+**NEXT:** watch the upload rather than the aftermath — log every transfer's
+vmadd and source at screen-load time and keep the one covering word `$4280`
+(= tile `$228`). The `$C3` job-table records carry a vram field, but a 10-byte
+stride from `$C3:BD61` does not parse cleanly, so read the uploader instead of
+the table. Only then is it clear whether the strip is per-character art (nine of
+them to author, ~2 KB each) or something composed once.
+
 ### The ACS prompt bar — the 2026-08-06 attempt, kept for its ruled-out leads
 
 Attempted 2026-08-06 at the maintainer's "if you feel like it". It is not

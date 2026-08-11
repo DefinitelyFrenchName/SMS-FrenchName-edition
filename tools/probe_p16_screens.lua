@@ -522,6 +522,20 @@ local ROUTES = {
           if #chunk == 4096 then f:write(table.concat(chunk)); chunk = {} end
         end
         f:write(table.concat(chunk)); f:close()
+        f = assert(io.open(ENV.TRACE .. "p16_acswram.bin", "wb"))
+        chunk = {}
+        for a = 0x00000, 0x1FFFF do          -- all of WRAM
+          chunk[#chunk + 1] = string.char(emu.read(a, emu.memType.snesWorkRam) or 0)
+          if #chunk == 4096 then f:write(table.concat(chunk)); chunk = {} end
+        end
+        f:write(table.concat(chunk)); f:close()
+        f = assert(io.open(ENV.TRACE .. "p16_acschr.bin", "wb"))
+        chunk = {}
+        for a = 0x4000, 0x9FFF do        -- BG1/BG2 CHR base $2000 (words) = byte $4000
+          chunk[#chunk + 1] = string.char(emu.read(a, VRAM) or 0)
+          if #chunk == 4096 then f:write(table.concat(chunk)); chunk = {} end
+        end
+        f:write(table.concat(chunk)); f:close()
         f = assert(io.open(ENV.TRACE .. "p16_wramfont.bin", "wb"))
         chunk = {}
         for a = 0x1C000, 0x1F3FF do        -- $7F:C000-$F3FF, the text engine's font
