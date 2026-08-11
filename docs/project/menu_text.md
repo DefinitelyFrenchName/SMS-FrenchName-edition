@@ -1304,11 +1304,34 @@ Two things the same build settled, both negative:
   where the plate is actually displayed (a real tournament progression, not this
   jump straight into a match); nothing is known to be wrong with the records.
 
-**Remaining work is one additive change.** Give the script a 7th entry (codec 1,
-8 bytes: our stream, vmadd `$5800`, len `$0320`). Phase 1 grows by 8, so phases
-2 and 3 shift and the 178-byte script must move — and there is **no 178-byte
-zero run in bank `$DF`** (largest 125, 18096 B total in 414 runs), so it moves to
-the appended bank.
+**DONE 2026-08-11 — route (a) shipped behind `SMS_P16_BRACKET`.** The script has
+a 7th entry (codec 1, 8 bytes: our stream, vmadd `$5800`, len `$0320`). Phase 1
+grew by 8, so phases 2 and 3 shifted and the 178-byte script moved — there is
+**no 178-byte zero run in bank `$DF`** (largest 125, 18096 B total across 414
+runs), so it lives in the appended bank at `$E8:xxxx` and a 17-byte stub in bank
+`$DF` points DB at it.
+
+Measured on the built ROM: the runner reads **our** script (`$28 = A0F0`), all
+six original decompressions run unchanged, our 7th fires **after** e3
+(`$E8:A000 -> $7F:0000`), 36/36 glyph tiles arrive in the BG3 sheet, the 4bpp
+BG1/BG2 font is **160/160 identical to clean**, and the screen reads
+**MOON VS MOON** where clean reads セーラームーン VS セーラームーン. Same result
+with all five gates on at once.
+
+⚠ **THE STUB MUST LIVE AT `$8000-$FFFF`, and this is the trap the whole day came
+down to.** The `$DF` engine executes from the **`$9F` mirror**, and in banks
+`$80-$BF` only `$8000-$FFFF` is ROM — `$0000-$7FFF` is WRAM and hardware. The
+first build put the stub in bank `$DF`'s *largest* free run, `$DF:4D85`, which is
+below `$8000`: `jsr $4D85` from `$9F` code lands in open bus, the runner came up
+with a garbage script pointer (`$8147`), and the game quietly loaded a different
+screen's assets. The exec hook fired on `$9F:4D85` — the address that is not our
+ROM — which is what named the fault. The same mirror fact decides where the
+relocated script may live (`$8000+` of the appended bank, DB = bank − `$40`).
+
+⚠ **And the earlier "the plate is not visible on the clean ROM either" was
+wrong** — an A/B at the same frame shows the vanilla Japanese names right there.
+That claim came from comparing against a *patched* screenshot whose tiles were
+blank. Compare like with like.
 
 ⚠ **Which bank it may move to is decided by DB, and DB is not `$DF`.** Phase 2's
 helper `$DF:84E9` does `sta ($03),Y` to `$0500` — DB-relative, and only sensible

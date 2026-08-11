@@ -36,32 +36,25 @@ sections further down are this session's detail.
    surface only on **v0.22** (the only bundle with 10b) and only if a status
    label is live at that exact instant. No Saturn build carries 10b. Noted for
    completeness, not as open work.
-2. **Patch 16 — menu translation.** Still the active feature work, but the
-   bracket surface is nearly done and its recorded state was **wrong**.
-   * **Bracket VS names — mechanism solved 2026-08-10, records shipped behind
-     `SMS_P16_BRACKET`, gate OFF because it is incomplete.** They are 18 ordinary
-     `$80:8C43` records in ROM (`$DF:E119` left, `$DF:E38F` right, 9 chars × 2
-     sides, stride `$46`) — **no runtime builder, and not inside the codec-2
-     blob** (`$C7:3BBD` is the bracket's map). The records render live; the
-     extended 256-tile small font is correct in the ROM but never reaches VRAM.
-     **What is left, and what was ruled out.** The ROM is right: `$DF:A446` is
-     repointed, the relocated stream decompresses to 256 tiles and the new glyphs
-     are non-blank *in the ROM*. The CHR base is `$200`, measured (the vanilla
-     blob matches live VRAM 135/135 at offset 0), so record id N really is sheet
-     tile N. Yet the tiles arrive blank. So the bracket's font upload does not
-     come from the entry that was repointed — even though `$DF:A43E` is certainly
-     the bracket script (its entry [4] is the `$C7:3BBD` map that is demonstrably
-     on screen).
-     ⚠ **The obvious next instrument does not work:** a hook on `$80:91A0` — the
-     codec-1 entry `probe_menu_font.lua` uses for the `$C3` clusters — **never
-     fires on the tournament route** (`DECOMPWATCH=1`, added to
-     `probe_p16_screens.lua`). The `$DF` engine reaches codec 1 by its own path.
-     **Step one is therefore to find that path** (`$9F:84E7` is the DMA site; walk
-     back from it), then log its source and repoint whichever entry actually feeds
-     the bracket.
-   * **A.C.S. name card + prompt** — untouched, and still a session of its own:
-     find the `$7F:DC00+` filler, then the font source, string encoding and
-     name-substitution site, and only then census a glyph window.
+2. **Patch 16 — menu translation.** The **bracket VS names are DONE**
+   (2026-08-11, `SMS_P16_BRACKET`): the screen reads **MOON VS MOON**, verified
+   against a clean A/B at the same frame, and with all five gates on together.
+   Regression ALL PASS (45); the font-only build still reproduces `c9ad4910…`,
+   so the change is purely additive.
+   * The blocker was never the records — it was that the work had been aimed at
+     the **4bpp BG1/BG2 sheet** while the plate is on **BG3** (2bpp, CHR word
+     `$5000`, fed by `$C7:44D1` via codec 2). Glyphs now go in through a **7th
+     asset entry** on script `$DF:A43E`, so the un-reversed codec 2 is never
+     touched. The script grew 8 bytes, had to move, and lives in the appended
+     bank with a 17-byte DB stub in bank `$DF`.
+   * ⚠ **Trap 25 (HANDOFF §0):** the `$DF` engine executes from the `$9F`
+     mirror, so a stub must sit at `$8000-$FFFF`. The first build used bank
+     `$DF`'s largest free run at `$4D85` — below `$8000`, hence open bus, hence
+     a garbage script pointer and a silently wrong screen.
+   * **Remaining:** the **A.C.S. name card + prompt** — still a session of its
+     own: find the `$7F:DC00+` filler, then the font source, string encoding and
+     name-substitution site, and only then census a glyph window. Now that BG3
+     is understood, check which layer that prompt is on *first*.
 3. **Patch 14 — needs a RULING, not a patch.** `--all-grabs` does not scale a
    TECHED throw, so at Guts L3 teching costs more than eating the throw (12 vs
    10, measured). No shipped build passes the flag. The question is yours:

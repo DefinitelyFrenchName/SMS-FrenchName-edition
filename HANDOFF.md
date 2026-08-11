@@ -43,12 +43,12 @@ surface solved but not landed.**
   §7.x (the five **start routes** a handler offers). ⚠ Act tables are **107-122
   entries, not 128** — 128 is the Super S figure the Saturn port uses. `$C1:022C`
   was documented as where `$1001` is written; the store is at **`$C1:022A`**.
-* **Patch 16 bracket VS names: mechanism SOLVED, records shipped behind
-  `SMS_P16_BRACKET`, gate OFF because glyph delivery does not work yet.** They
-  are **18 ordinary `$80:8C43` records in ROM** (`$DF:E119` / `$DF:E38F`, 9 chars
-  × 2 sides) — **no runtime builder and not inside the codec-2 blob**, both of
-  which the docs had asserted for four days. It stayed unsolved because three
-  instruments all watched `$70xx` while the data is at `$7CE0`.
+* **Patch 16 bracket VS names: DONE 2026-08-11** — the bracket reads **MOON VS
+  MOON** where clean reads セーラームーン VS セーラームーン, verified on screen and
+  with all five gates on at once. They are **18 ordinary `$80:8C43` records**
+  (`$DF:E119` / `$DF:E38F`), and the glyphs now reach VRAM through a **7th asset
+  entry** added to script `$DF:A43E`. Detail and the two traps below in
+  `docs/project/menu_text.md`.
 
 ⚠ **Trap 24 — an undocumented knob is as bad as a documented one that does not
 exist, and only one direction was checked.** `checkknobs` has always verified
@@ -619,9 +619,19 @@ for the deciding-win frame at match end. It can surface only on **v0.22** (the
 one bundle with 10b) with a status label live at that instant; no Saturn build
 carries 10b. Recorded for completeness.
 
-**Open work — patch 16 is the ONLY active item (next session is dedicated to
-it; full brief in `docs/project/NEXT_SESSION.md`). Dormant maintainer options, not
-tasks: §8's fold-6/7/8-into-canonical and dash-distance retune.**
+**Open work — patch 16's remaining surface is the A.C.S. name card + prompt; the
+bracket VS names landed 2026-08-11.** Dormant maintainer options, not tasks:
+§8's fold-6/7/8-into-canonical and dash-distance retune.
+
+⚠ **Trap 25 — on this cartridge, "is this ROM?" depends on the bank you are
+executing in.** The bank-`$DF` menu engine runs from the **`$9F` mirror**, where
+only `$8000-$FFFF` is ROM and `$0000-$7FFF` is WRAM and hardware. A hook stub
+placed in bank `$DF`'s *largest* free run (`$DF:4D85`, 125 bytes) was therefore
+unreachable: `jsr $4D85` from `$9F` code lands in open bus, the script runner
+came up with a garbage pointer, and the game quietly loaded a different screen —
+no crash, just the wrong assets. Free space is not free unless the code that must
+reach it can address it. The same mirror fact decides that a relocated script
+must sit at `$8000+` of its bank, entered with DB = bank − `$40`.
 
 **Patch 16 — menu translation. Step 1 DONE; step 2's Options screen WORKS
 (2026-08-06).** The half-width A-Z reaches VRAM (tiles `$5C0-$5FF`, read back

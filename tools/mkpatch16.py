@@ -352,55 +352,133 @@ CFG_MAP_AT = 0x4000               # relocated packed map's offset in the blob
 #       dump would be a measurement of one moment promoted to source data.
 # Free space is not the constraint: BG3 tiles $0FA-$1FF are unused (262 tiles).
 BRACKET_TRANSLATE = os.environ.get("SMS_P16_BRACKET") == "1"
-BR_FONT_SRC = 0x0227E0          # $C2:27E0 small font, codec 1, 135 tiles
-BR_SCRIPT_REF = 0x1FA446        # script $DF:A43E entry [1] src24 -- ONLY this one
+BR_TILE_BYTES = 16              # the plate is BG3 -> 2BPP, 16 bytes a tile
+BR_INK = 2                      # measured: the vanilla name glyphs use indices
+                                # 2 (body) and 3 (highlight) and NEVER 1
 BR_LEFT, BR_RIGHT, BR_STRIDE = 0x1FE119, 0x1FE38F, 0x46
-BR_VMADD = (0x7CE0, 0x7CF0)     # left / right, asserted per record
-BR_TILES = 0x100                # extended sheet size, in tiles
-# Placed dynamically AFTER the $DF sheet, because that sheet is ~19.8 KB when
-# SMS_P16_DF is on and a fixed $B000 lands inside it. The first build did exactly
-# that: the repoint was correct, the stream was overwritten, and the game uploaded
-# 320 tiles of rubble -- the map cells were right and every glyph was blank.
-BR_FONT_AT = None               # computed in build(); guarded against the bank end
-# Ink: sampled from the vanilla name glyphs (tiles $01-$07), whose pixels are
-# overwhelmingly index 1 with 7/15 as highlights — so 1 is the body colour here,
-# not the 7 the menu sheet uses.
-BR_INK = 1
+BR_VMADD_REC = (0x7CE0, 0x7CF0)  # left / right record vmadd, asserted per record
 BR_NAMES = ["MOON", "MERCURY", "MARS", "JUPITER", "VENUS",
             "CHIBI", "PLUTO", "NEPTUNE", "URANUS"]
-# top ids; the bottom is always top+$10. Every one measured blank in live bracket
-# VRAM and unreferenced by any of the 18 records.
-BR_SLOTS = [0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF,
-            0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF,
-            0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF]
+# Tops in the BG3 sheet; the bottom is always top+$10 (the records' own rule).
+# Censused free on the live bracket: the sheet's non-blank runs end at $0F9 and
+# neither the tree map nor the 18 records reference anything above it.
+BR_SLOTS = list(range(0x100, 0x110)) + [0x120, 0x121]
+BR_GLYPH_BASE = 0x100           # first tile of the uploaded block
+BR_SPAN = 0x32                  # $100-$131 uploaded contiguously (covers all bottoms)
+BR_CHR_BASE = 0x5000            # BG3 CHR, in VRAM WORDS (measured from the PPU)
+BR_VMADD = BR_CHR_BASE + BR_GLYPH_BASE * 8      # 2bpp tile = 8 words
+BR_UPLOAD = BR_SPAN * BR_TILE_BYTES             # DMA length in BYTES
+
+# The script gains a 7th asset entry, so it grows by 8 bytes and must move.
+BR_SCRIPT = 0xA43E              # $DF:A43E
+BR_SCRIPT_FILE = 0x1FA43E
+BR_SCRIPT_LEN = 170             # 1 + 43 entries + 1 + 2*6 + 1 + 16*7, re-derived below
+BR_CALLER = 0x1FA3FE            # the ONLY `lda #$A43E / jsr $83E1`, 6 bytes
+# ⚠ DB IS NOT $DF. Phase 2's helper $DF:84E9 does `sta ($03),Y` to $0500 --
+# DB-relative -- which is only sensible if DB maps WRAM low and ROM high, i.e.
+# the $8x/$9x mirror: DB = $9F, where $9F:0500 is WRAM and $9F:A43E is ROM
+# $DF:A43E. So the relocated script may live in an appended bank, but only at
+# $8000-$FFFF of it, entered with DB = bank - $40. Everything this builder
+# appends already sits at >= $A000, so that is satisfied by construction.
+BR_DB_BIAS = 0x40
+# ⚠ THE STUB MUST LIVE AT >= $8000. The engine executes from the $9F MIRROR
+# (every PC this project has logged in it reads $9F:xxxx), and in banks $80-$BF
+# only $8000-$FFFF is ROM -- $0000-$7FFF is WRAM and hardware. A stub placed in
+# bank $DF's largest zero run ($DF:4D85, 125 bytes) is therefore unreachable:
+# `jsr $4D85` from $9F code lands in open bus, and the game wanders off into
+# another screen's script. Measured exactly that way -- the exec hook fired on
+# $9F:4D85 and the runner came up with a garbage script pointer ($8147).
+BR_STUB_AT = 0x1FEB88           # a 120-byte zero run at $DF:EB88 (>= $8000)
+BR_STUB_ADDR = 0xEB88
 
 
-def bracket_sheet(rom, glyphs, ink):
-    """The extended small-font sheet, plus {letter: top tile id}."""
-    import sms_lz
-    blob = sms_lz.decompress(rom, BR_FONT_SRC)
-    if len(blob) % 32:
-        raise SystemExit(f"small font is {len(blob)} bytes, not a whole number of tiles")
-    sheet = bytearray(BR_TILES * 32)
-    sheet[:len(blob)] = blob                      # tiles $00-$86 stay byte-identical
+def bracket_glyphs(glyphs, ink):
+    """The BG3 glyph block ($100-$131) as raw 2bpp tiles, plus {letter: top id}.
+
+    Not a whole font sheet: this is an ADDITIVE upload into tiles the vanilla
+    sheet leaves empty, so the vanilla BG3 sheet (codec 2, still un-reversed) is
+    never touched."""
     letters = sorted(set("".join(BR_NAMES)))
     if len(letters) > len(BR_SLOTS):
         raise SystemExit(f"{len(letters)} letters, {len(BR_SLOTS)} slots")
+    block = bytearray(BR_SPAN * BR_TILE_BYTES)
     placed = {}
     for ch, top in zip(letters, BR_SLOTS):
-        if top < len(blob) // 32 or (top + 0x10) < len(blob) // 32:
-            raise SystemExit(f"slot ${top:02X} overlaps the vanilla sheet")
-        t, b = encode_glyph(glyphs[ch], ink=ink)
-        sheet[top * 32:(top + 1) * 32] = t
-        sheet[(top + 0x10) * 32:(top + 0x11) * 32] = b
+        for tile in (top, top + 0x10):
+            if not (BR_GLYPH_BASE <= tile < BR_GLYPH_BASE + BR_SPAN):
+                raise SystemExit(f"tile ${tile:03X} is outside the uploaded block")
+        t, b = encode_glyph_2bpp(glyphs[ch], ink=ink)
+        o = (top - BR_GLYPH_BASE) * BR_TILE_BYTES
+        block[o:o + BR_TILE_BYTES] = t
+        o = (top + 0x10 - BR_GLYPH_BASE) * BR_TILE_BYTES
+        block[o:o + BR_TILE_BYTES] = b
         placed[ch] = top
-    return bytes(sheet), placed
+    return bytes(block), placed
+
+
+def encode_glyph_2bpp(rows, ink):
+    """an 8x16 '#'/'.' glyph -> (top, bottom) as 16-byte 2BPP tiles."""
+    out = []
+    for half in (0, 8):
+        t = bytearray(BR_TILE_BYTES)
+        for y in range(8):
+            line = rows[half + y]
+            for x in range(8):
+                if line[x] != "#":
+                    continue
+                b = 7 - x
+                t[y * 2] |= (ink & 1) << b
+                t[y * 2 + 1] |= ((ink >> 1) & 1) << b
+        out.append(bytes(t))
+    return out
+
+
+def bracket_script(data, src24):
+    """The bracket script with a 7th asset entry appended. -> (bytes, old_len)
+
+    Entry stride is NOT fixed: $DF:8441 does an extra `inc $28` when flag != 0,
+    so codec-1 entries are 8 bytes and codec-2 entries 7. Walk it, do not stride.
+    """
+    o = BR_SCRIPT_FILE
+    p = o
+    n1 = data[p]; p += 1
+    for _ in range(n1):
+        p += 8 if data[p + 3] else 7
+    entries_end = p
+    n2 = data[p]; p += 1 + 6 * n2
+    n3 = data[p]; p += 1 + 7 * n3
+    if p - o != BR_SCRIPT_LEN:
+        raise SystemExit(f"bracket script is {p - o} bytes, expected {BR_SCRIPT_LEN}")
+    entry = bytes([src24 & 0xFF, (src24 >> 8) & 0xFF, src24 >> 16, 0xFF,
+                   BR_VMADD & 0xFF, BR_VMADD >> 8,
+                   BR_UPLOAD & 0xFF, BR_UPLOAD >> 8])
+    out = (bytes([n1 + 1]) + bytes(data[o + 1:entries_end]) + entry
+           + bytes(data[entries_end:o + BR_SCRIPT_LEN]))
+    if len(out) != BR_SCRIPT_LEN + 8:
+        raise SystemExit("rebuilt script has the wrong length")
+    return out, BR_SCRIPT_LEN
+
+
+def bracket_stub(script_addr, bank):
+    """17 bytes in bank $DF: point DB at the appended bank, run the script."""
+    return bytes([
+        0x8B,                                   # phb
+        0xE2, 0x20,                             # sep #$20
+        0xA9, (bank - BR_DB_BIAS) & 0xFF,       # lda #<bank-$40>   (the WRAM-low mirror)
+        0x48,                                   # pha
+        0xAB,                                   # plb
+        0xC2, 0x20,                             # rep #$20
+        0xA9, script_addr & 0xFF, script_addr >> 8,   # lda #script
+        0x20, 0xE1, 0x83,                       # jsr $83E1
+        0xAB,                                   # plb
+        0x60,                                   # rts
+    ])
 
 
 def bracket_records(data, placed):
     """Rewrite the 18 name records in place. -> list of (side, name)."""
     out = []
-    for side, (base, vm) in enumerate(zip((BR_LEFT, BR_RIGHT), BR_VMADD)):
+    for side, (base, vm) in enumerate(zip((BR_LEFT, BR_RIGHT), BR_VMADD_REC)):
         for i, name in enumerate(BR_NAMES):
             o = base + i * BR_STRIDE
             gv = data[o] | data[o + 1] << 8
@@ -982,13 +1060,10 @@ def build(src_path, out_path, stacked=False):
     packed_br = None
     br_rows = []
     if BRACKET_TRANSLATE:
-        old_src = bytes(data[BR_SCRIPT_REF:BR_SCRIPT_REF + 3])
-        if old_src != bytes.fromhex("e027c2"):
-            raise SystemExit("bracket script font entry is %s, expected e027c2" % old_src.hex())
-        bsheet, br_placed = bracket_sheet(bytes(data), glyphs, ink=BR_INK)
-        packed_br = sms_lz.encode_lz(bsheet)
-        assert sms_lz.decompress(packed_br, 0, len(bsheet)) == bsheet, \
-            "bracket sheet round-trip failed"
+        bblock, br_placed = bracket_glyphs(glyphs, ink=BR_INK)
+        packed_br = sms_lz.encode_lz(bblock)
+        assert sms_lz.decompress(packed_br, 0, len(bblock)) == bblock, \
+            "bracket glyph block round-trip failed"
         br_rows = bracket_records(data, br_placed)
     if ACS_TRANSLATE:
         if not STAGES_TRANSLATE:
@@ -1112,13 +1187,27 @@ def build(src_path, out_path, stacked=False):
     if BRACKET_TRANSLATE:
         br_at = DF_SHEET_AT + (len(packed_df) if packed_df else 0)
         br_at = (br_at + 0xFF) & ~0xFF
-        if br_at + len(packed_br) > 0x10000:
-            raise SystemExit("bracket sheet does not fit: needs %d bytes at $%04X, "
-                             "bank ends at $10000" % (len(packed_br), br_at))
+        br_script_at = (br_at + len(packed_br) + 0xF) & ~0xF
+        if br_script_at + BR_SCRIPT_LEN + 8 > 0x10000:
+            raise SystemExit("bracket glyphs+script do not fit: need %d bytes at $%04X, "
+                             "bank ends at $10000" % (len(packed_br) + BR_SCRIPT_LEN + 8, br_at))
+        if br_at < 0x8000 or br_script_at < 0x8000:
+            raise SystemExit("the relocated script must sit at $8000-$FFFF of the bank "
+                             "(DB is the $9F-style mirror -- see the notes above)")
         blob[br_at:br_at + len(packed_br)] = packed_br
-        data[BR_SCRIPT_REF + 0] = br_at & 0xFF
-        data[BR_SCRIPT_REF + 1] = br_at >> 8
-        data[BR_SCRIPT_REF + 2] = bank
+        newscript, _ = bracket_script(data, (bank << 16) | br_at)
+        blob[br_script_at:br_script_at + len(newscript)] = newscript
+        # the DB stub, in bank $DF itself (the caller's `jsr` is near)
+        stub = bracket_stub(br_script_at, bank)
+        if any(data[BR_STUB_AT:BR_STUB_AT + len(stub)]):
+            raise SystemExit("bracket stub area $DF:%04X is not free" % BR_STUB_ADDR)
+        data[BR_STUB_AT:BR_STUB_AT + len(stub)] = stub
+        # the only caller: `lda #$A43E / jsr $83E1` -> `jsr stub` + padding
+        if bytes(data[BR_CALLER:BR_CALLER + 6]) != bytes.fromhex("a93ea420e183"):
+            raise SystemExit("bracket caller reads %s, expected a93ea420e183"
+                             % bytes(data[BR_CALLER:BR_CALLER + 6]).hex())
+        data[BR_CALLER:BR_CALLER + 6] = bytes(
+            [0x20, BR_STUB_ADDR & 0xFF, BR_STUB_ADDR >> 8, 0xEA, 0xEA, 0xEA])
     if packed_df:
         if DF_SHEET_AT + len(packed_df) > 0x10000:
             raise SystemExit("packed DF sheet (%#x) overruns the bank" % len(packed_df))
@@ -1208,9 +1297,10 @@ def build(src_path, out_path, stacked=False):
     else:
         print("  ACS wheel: NOT translated (SMS_P16_ACS=1 to enable)")
     if BRACKET_TRANSLATE:
-        print("  bracket VS names: %d records rewritten (%s); small font %d -> %d tiles, "
-              "only $DF:A446 repointed"
-              % (len(br_rows), ", ".join(BR_NAMES), 135, BR_TILES))
+        print("  bracket VS names: %d records rewritten (%s); %d BG3 glyph tiles "
+              "$%03X-$%03X via a 7th script entry (vmadd $%04X len $%04X)"
+              % (len(br_rows), ", ".join(BR_NAMES), 2 * len(BR_SLOTS),
+                 BR_GLYPH_BASE, BR_GLYPH_BASE + BR_SPAN - 1, BR_VMADD, BR_UPLOAD))
     else:
         print("  bracket VS names: NOT translated (SMS_P16_BRACKET=1 to enable)")
     print("  -> %s  sha1 %s" % (out_path, hashlib.sha1(bytes(data)).hexdigest()))

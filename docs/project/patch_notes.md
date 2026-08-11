@@ -205,7 +205,7 @@ one patch (or re-run the whole chain) after changing a knob; all stack.
 | **Guts reduction (opt.)** | `mkpatch13.py … --l1 <pct> --l2 <pct> --l3 <pct>` | `20/40/60` | % damage reduction per Guts level vs specials/desperations (build-time 3×128 tables). |
 | **Guts Grip reduction (opt.)** | `mkpatch14.py … --l1/--l2/--l3`, `--all-grabs` | `20/40/60` / off | Same per-level % vs command grabs; `--all-grabs` extends to EVERY grab path (normal throws + hold ticks). Keep the percentages aligned with patch 13. |
 | **Hidden stage (opt.)** | `mkpatch17.py … --no-pool`, `--bgm <N>` | pool on / vanilla music | `--no-pool` unlocks the stage in the menu but leaves patch 3's random default bounded to nine; `--bgm N` gives it another stage's track (its own is `$06`; the nine normal stages hold `$0A`-`$12`). |
-| **Menu translation (in progress)** | `mkpatch16.py`, **env gates** `SMS_P16_OPTIONS` / `SMS_P16_DF` / `SMS_P16_STAGES` / `SMS_P16_ACS` / `SMS_P16_BRACKET` / `SMS_P16_SATURN` | font install always on, every screen gate **off** | Each gate turns on one screen's strings; `SMS_P16_ACS` requires `SMS_P16_STAGES` (they share the glyph block), `SMS_P16_BRACKET` is **incomplete — records only, glyphs do not reach VRAM**, and `SMS_P16_SATURN` (stage 2 → SILENT THRONE OF MESSIAH) is for a future Saturn chain only. |
+| **Menu translation (in progress)** | `mkpatch16.py`, **env gates** `SMS_P16_OPTIONS` / `SMS_P16_DF` / `SMS_P16_STAGES` / `SMS_P16_ACS` / `SMS_P16_BRACKET` / `SMS_P16_SATURN` | font install always on, every screen gate **off** | Each gate turns on one screen's strings; `SMS_P16_ACS` requires `SMS_P16_STAGES` (they share the glyph block), `SMS_P16_BRACKET` renders the bracket VS names (**MOON VS MOON**, verified on screen), and `SMS_P16_SATURN` (stage 2 → SILENT THRONE OF MESSIAH) is for a future Saturn chain only. |
 
 Patches 2 (dashfix), 3 (palettes), 11 (Training+ — all settings live in its in-game menu;
 `--stage` is a dev/debug flag), 12 (taunts), 15 (No AUTO) and 18 (No ACS in 2P VS) have no
@@ -1731,7 +1731,7 @@ Every screen's strings are **off by default**; each gate turns on one screen.
 | `SMS_P16_DF` | tournament select names (9) + the REPORT CARD labels (8) + PLAYER SELECT |
 | `SMS_P16_STAGES` | the 10 stage names (×2 highlight states), the whole VS config screen, and the char-select glyph delivery |
 | `SMS_P16_ACS` | the A.C.S. wheel labels (**requires `SMS_P16_STAGES`** — shared glyph block) |
-| `SMS_P16_BRACKET` | the 18 bracket VS name records (9 characters × 2 sides) + an extended 256-tile small font. ⚠ **INCOMPLETE — do not ship.** The records render (verified live: `C9 CB CB CA` = MOON) and the relocated sheet is correct in the ROM, but the glyphs never reach VRAM: the bracket's font upload does not come from `$DF:A446`, the entry this repoints. Off by default |
+| `SMS_P16_BRACKET` | the 18 bracket VS name records (9 characters × 2 sides) + 36 Latin glyph tiles delivered into the **BG3** sheet by a **7th asset entry** added to script `$DF:A43E`. Verified on screen: the bracket reads **MOON VS MOON** where the clean ROM reads セーラームーン VS セーラームーン, with the background, the `TOURNAMENT BATTLE` header and the 4bpp BG1/BG2 font all byte-identical to clean (160/160 tiles). Off by default |
 | `SMS_P16_SATURN` | stage 2 → `SILENT THRONE OF MESSIAH`; **default off**, for a future Saturn chain that stacks this patch |
 
 Four mechanisms are worth knowing, because they are what the screens differ by:

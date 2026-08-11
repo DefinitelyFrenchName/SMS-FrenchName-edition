@@ -220,6 +220,16 @@ if os.getenv("DECOMPWATCH") == "1" then
   end, emu.callbackType.exec, 0x808DEC, 0x808DEC, emu.cpuType.snes, emu.memType.snesMemory)
 end
 
+if os.getenv("STUBWATCH") == "1" then
+  for _, a in ipairs({ 0x9F4D85, 0x9F83E5, 0x9F8422 }) do
+    emu.addMemoryCallback(function()
+      log(string.format("f%d HIT $%06X  $28=%02X%02X", frames, a,
+          emu.read(0x29, emu.memType.snesWorkRam) or 0,
+          emu.read(0x28, emu.memType.snesWorkRam) or 0))
+    end, emu.callbackType.exec, a, a, emu.cpuType.snes, emu.memType.snesMemory)
+  end
+end
+
 local function dump7f(tag)
   local f = assert(io.open(string.format("%sp16_7f_%s_%s.bin", ENV.TRACE, ROUTE, tag), "wb"))
   local chunk = {}
