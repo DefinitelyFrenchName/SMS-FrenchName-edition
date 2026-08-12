@@ -4,7 +4,9 @@
 > same role CLAUDE.md played for the original infinite patch. Companion docs in this
 > directory: `feasibility.md` (route decision, evidence), `supers_map.md` (the Super S
 > ROM/RAM map — verified facts only), `saturn_notes.md` (Saturn's kit, act IDs, frame
-> data, balance hooks). Session state: repo `HANDOFF.md` / `docs/project/NEXT_SESSION.md`; test-ROM registry `BUILDS.md`.
+> data, balance hooks), `porting_lessons.md` (the donor-port rules and traps, distilled —
+> paired with the agent skill `.claude/skills/supers-porting/` and ID-locked to it by
+> `tools/checkskills.py`). Session state: repo `HANDOFF.md` / `docs/project/NEXT_SESSION.md`; test-ROM registry `BUILDS.md`.
 
 ## Objective
 
