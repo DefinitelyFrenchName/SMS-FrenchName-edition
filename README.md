@@ -1,4 +1,4 @@
-# SMS Sailor Moon S balance/feature patch project
+# Sailor Moon S balance/feature patch project
 
 
 ### This work would have required orders of magnitude more effort without the remarkable findings and incredible tooling by the community, especially Moonlight Fight Society and especially Sprint: they have been for years the true heroes keeping the dream alive. 
