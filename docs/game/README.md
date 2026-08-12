@@ -44,6 +44,7 @@ beside `tools/mkenginepage.py` is the open option if it is ever wanted publicly.
 | how menus, fonts and text are drawn | [`menu_system.md`](menu_system.md) — the glyph format, both font sheets, the two screen engines, the runtime text writers, the VRAM rules |
 | hitbox / hurtbox / push-box data | [`sms_all_boxes.json`](sms_all_boxes.json) — extracted, all nine characters |
 | **the addresses for ONE character** | [`characters/`](characters/) — a generated page per fighter: manifest, palettes, box tables, animation layers, proc block, throws, voice ids |
+| **the rules and traps this game taught** | [`sms_hacking_playbook.md`](sms_hacking_playbook.md) — methodology, not data: the game-specific laws (nine-wide tables, menu/text laws, mode caveats) with the incident behind each; paired with the agent skill `.claude/skills/sms-romhacking/` and ID-locked to it by `tools/checkskills.py` |
 
 `te_halfwidth.json` holds the half-width Latin font extracted from the Big Zam
 **Tournament Edition** ROM, kept as reference.

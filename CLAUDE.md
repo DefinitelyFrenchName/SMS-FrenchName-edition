@@ -117,6 +117,7 @@ Deliverable = a BPS/IPS patch against the clean ROM + a writeup of what bytes ch
 4. BPS patch + docs/project/patch_notes.md documenting every changed byte.
 
 ## Reference material
+- docs/game/sms_hacking_playbook.md — **the distilled rules and traps** (methodology tier for this game; its agent rendition is `.claude/skills/sms-romhacking/`, the donor-port tier is `docs/project/saturn/porting_lessons.md` + `.claude/skills/supers-porting/`, and the general/SNES tiers are user-level skills — pairs ID-locked by `tools/checkskills.py`)
 - docs/game/sms_engine_internals.md — **how the engine works, by subsystem** (the synthesis; start here to understand/modify the game)
 - docs/game/sms_data_architecture.md — **where the data lives and what shape it is** (four memory maps, the object struct, the record catalogue)
 - docs/game/sms_quickref.md — the one-page address card (start here to orient, then follow its pointers)
