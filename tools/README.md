@@ -485,6 +485,7 @@ See HANDOFF.md §4 for the harness.
 - `checkdocs.py` — Verify docs/game/'s load-bearing claims against the cartridge.
 - `checkknobs.py` — Verify the knobs table in docs/project/patch_notes.md against the builders.
 - `checkpatchmap.py` — Verify what the patch documents claim about the patches, against the .bps files.
+- `checkskills.py` — Verify the skill/rules pairs carry identical rule-ID sets, both ways.
 - `checktrainingdocs.py` — Verify the training-mode docs against the Lua package they describe.
 - `dis65816.py` — the 65816 decode tables and recursive descent, shared.
 - `dis65816_oracle.py` — validate our decode table against an INDEPENDENT one.

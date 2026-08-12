@@ -43,6 +43,12 @@ else printf '%s\n' "$out" | sed 's/^/    /'; bad "checkknobs: the knobs table di
 # hotkeys, menu rows and labels are all literals in tools/training/.
 if out="$(python3 tools/checktrainingdocs.py 2>&1)"; then ok "training docs vs the Lua: $(printf '%s' "$out" | grep -aoE '\([0-9]+ checks[^)]*\)' | tr -d '()')"
 else printf '%s\n' "$out" | sed 's/^/    /'; bad "checktrainingdocs: the training docs disagree with tools/training/"; fi
+# The distilled skills ship in two renditions (agent SKILL.md / human doc);
+# every rule carries an [ID] and the two ID sets must match both ways. Static
+# reads only, so it runs everywhere. The user-level pairs are checked with
+# --user-dir by hand, never here — no machine-specific paths in a repo gate.
+if out="$(python3 tools/checkskills.py 2>&1)"; then ok "skill/rules pairs: $(printf '%s' "$out" | grep -aoE '\([0-9]+ rules[^)]*\)' | tr -d '()')"
+else printf '%s\n' "$out" | sed 's/^/    /'; bad "checkskills: the skill and human renditions disagree"; fi
 # mkcharmap reads the ROM, so it can only be checked where the ROM exists; a
 # hosted runner has none and must SKIP rather than silently pass (#24).
 # Guard on the ROM FILE EXISTING, not on clean_rom() merely returning: it hands

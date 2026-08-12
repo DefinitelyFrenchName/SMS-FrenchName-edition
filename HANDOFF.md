@@ -11,7 +11,11 @@ the A.C.S. stat system in `docs/game/sms_acs_system.md`; the damage system end-t
 `docs/game/sms_damage_system.md`;
 address-level notes in `docs/game/annotations.md`; the verified ROM map in
 `docs/game/sms_quickref.md`. Persistent findings also live in the memory file
-`uranus-patch-state.md`.
+`uranus-patch-state.md`. **The traps and rules below are distilled into four
+tiered skill/rules pairs** (general RE and SNES tiers user-level; the SMS tier
+`docs/game/sms_hacking_playbook.md` + `.claude/skills/sms-romhacking/`; the
+donor-port tier `docs/project/saturn/porting_lessons.md` +
+`.claude/skills/supers-porting/` — each pair ID-locked by `tools/checkskills.py`).
 
 Game: **Bishoujo Senshi Sailor Moon S: Jougai Rantou!?** (SFC, Japan).
 Clean ROM SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c` (HiROM+FastROM, headerless).
