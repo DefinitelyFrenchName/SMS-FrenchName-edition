@@ -37,6 +37,7 @@ PKG = TOOLS / "training"
 USAGE = REPO / "docs" / "project" / "training_usage.md"
 PLUS = REPO / "docs" / "project" / "trainingplus.md"
 INSTALL = REPO / "docs" / "project" / "training_install.md"
+INTERNALS = REPO / "docs" / "project" / "training_internals.md"
 
 
 class Fail(Exception):
@@ -134,6 +135,14 @@ def code_tests():
     return set(re.findall(r"^tests\.(\w+)\s*=", lua("training_test.lua"), re.M))
 
 
+def code_modules():
+    """main.lua's MODULES load-order list, in order."""
+    m = re.search(r"local MODULES = opts\.modules or\s*\{(.*?)\}", lua("main.lua"), re.S)
+    if not m:
+        raise Fail("main.lua's MODULES list no longer matches the expected shape")
+    return re.findall(r"\"(\w+)\"", m.group(1))
+
+
 # -------------------------------------------------------------------- docs --
 def doc_rows(table_header, path=USAGE):
     """First-column cells of the markdown table whose header row contains `table_header`."""
@@ -177,6 +186,22 @@ def doc_package_files():
     text = INSTALL.read_text(encoding="utf-8")
     listing = text[text.index("tools/training/"):text.index("tools/training_test.lua")]
     return set(re.findall(r"(\w+)\.lua", listing))
+
+
+def doc_module_map():
+    """Module stems from the internals doc's per-module table (first column)."""
+    return {c.replace("`", "").replace(".lua", "").strip()
+            for c in doc_rows("| Module | Loaded via | Role |", INTERNALS)}
+
+
+def doc_modules_order():
+    """The MODULES list the internals doc quotes verbatim, in order."""
+    text = INTERNALS.read_text(encoding="utf-8")
+    for m in re.finditer(r"```lua\n(.*?)```", text, re.S):
+        if '"gamestate"' in m.group(1) and "MODULES" not in m.group(1) \
+                and "function" not in m.group(1):
+            return re.findall(r"\"(\w+)\"", m.group(1))
+    raise Fail("the internals doc no longer quotes the MODULES list in a lua fence")
 
 
 # ------------------------------------------------------------------ checks --
@@ -293,6 +318,26 @@ def _(keys=None):
                 raise Fail(f"patch 11 row {name!r} offers {v!r}, which its doc row does not list")
 
 
+@check("the internals doc's module map covers the package on disk, both ways")
+def _(keys=None):
+    on_disk = {p.stem for p in PKG.glob("*.lua")}
+    eq("internals module map", doc_module_map(), on_disk)
+
+
+@check("the MODULES load order the internals doc quotes")
+def _(keys=None):
+    eq("MODULES order", doc_modules_order(), code_modules())
+    # every listed module must be a real file; the three loaded specially must not be listed
+    on_disk = {p.stem for p in PKG.glob("*.lua")}
+    ghosts = [m for m in code_modules() if m not in on_disk]
+    if ghosts:
+        raise Fail(f"MODULES names files that do not exist: {ghosts}")
+    special = {"main", "const", "hitbox_h"}
+    misfiled = special & set(code_modules())
+    if misfiled:
+        raise Fail(f"{sorted(misfiled)} are loaded specially and must not be in MODULES")
+
+
 def selftests():
     """Negative controls: every check must fail when its subject moves.
 
@@ -325,6 +370,7 @@ def selftests():
     real_keys, real_rows = doc_keys(), code_menu_rows()
     real_fired, real_col = code_labels()
     real_files = doc_package_files()
+    real_map, real_mods = doc_module_map(), code_modules()
     with patched("doc_keys", lambda: real_keys | {"Z"}):
         must_fail(0, "a documented key that does not exist")
     with patched("code_menu_rows", lambda: real_rows[1:] + real_rows[:1]):
@@ -333,8 +379,13 @@ def selftests():
         must_fail(6, "a label that no longer fires")
     with patched("doc_package_files", lambda: real_files | {"ghost"}):
         must_fail(8, "a package file the docs invent")
+    with patched("doc_module_map", lambda: real_map | {"ghost"}):
+        must_fail(11, "a module the internals doc invents")
+    with patched("code_modules", lambda: real_mods[1:] + real_mods[:1]):
+        must_fail(12, "a MODULES load order the internals doc no longer matches")
 
-    if code_keys().get("menu") != "M" or len(real_rows) < 10 or len(real_fired) < 5:
+    if code_keys().get("menu") != "M" or len(real_rows) < 10 or len(real_fired) < 5 \
+            or len(real_mods) < 10:
         bad.append("a Lua parser returned an implausible result — check its block match")
     return bad
 

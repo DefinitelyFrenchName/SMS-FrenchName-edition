@@ -23,6 +23,8 @@
 --
 -- Architecture: tools/training/*.lua modules share a ctx table (see main.lua); add a
 -- feature by dropping a module file and appending it to MODULES in main.lua.
+-- DEVELOPER GUIDE: docs/project/training_internals.md — the full explanation
+-- (architecture, Lua/Mesen primers, per-module walkthrough, worked extension example).
 --
 -- GUI SMOKE CHECKLIST (visuals can't be screenshot-verified headless — ScriptHud doesn't
 -- composite into takeScreenshot):

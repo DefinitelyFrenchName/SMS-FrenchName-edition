@@ -1,7 +1,9 @@
 # Training mode — commands & usage reference
 
 You are **P1**; the script drives **P2** (the dummy) unless you take control of it.
-Everything below assumes the script is running (see `training_install.md`).
+Everything below assumes the script is running (see `training_install.md`). To
+understand or extend the code itself, read `training_internals.md` — the developer
+guide (architecture, Mesen/Lua primers, per-module walkthrough).
 
 ## Keyboard hotkeys (rebindable in `training_cfg.lua` → `TM_CFG.keys`)
 

@@ -3,6 +3,8 @@
 The training mode is **pure Mesen 2 Lua** — it never modifies the ROM. It works with any
 ROM build of *Bishoujo Senshi Sailor Moon S: Jougai Rantou!?* (clean JP, canonical v0.7,
 or any experimental build): all game knowledge is read from RAM/ROM at runtime.
+(Usage: `training_usage.md`; how the code works and how to extend it:
+`training_internals.md`.)
 
 ## Requirements
 
