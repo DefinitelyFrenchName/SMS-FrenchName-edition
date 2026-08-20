@@ -117,6 +117,39 @@ routine counting airborne reactions in `+0x7E` (cleared by the landing reset)
 (default 4; 0 = vanilla no-juggles). Measured: pinned probe lands the
 launcher + exactly 4 re-hits, then `A0` returns and further attempts refuse.
 
+## Field round 2 (2026-08-20): the UNIVERSAL LAUNCHER + the air-GC fix
+
+First field report: very positive ("hectic but really good"). v3 (sha1
+26716e59..., commit 45a5031) answers it:
+
+- **Universal launcher, no new sprites**: fresh **LK+HK together, grounded**
+  commits act 0x2E — a wrapper over the character's OWN standing-HK handler
+  (anim/boxes/timing wholesale, per-char via a `$C1` HKTBL gate) that stamps
+  attack class 12 after the call: class 12's on-hit record byte0 is code
+  0x14, the STAND sub-table's POP-UP row (vy −1792, gravity 96). The 0x1A
+  stager writes 0xA0, so the wrapper also SOFTENS ITS VICTIM while the
+  connect latch holds (the reaction applies at frame top, the attacker's
+  proc after — the 0x20 write wins; frozen through hitstop, harmless):
+  juggle-softness is scoped to launcher-initiated launches ONLY — vanilla
+  sweeps and specials keep their knockdown protection. Measured: pop-up to
+  apex y=116, victim juggle-soft, single-button and clean controls silent.
+  The wall-bounce variant (the maintainer's alternative idea) was not needed
+  — the pop-up came free from existing data; if ever wanted, the authoring
+  route is a custom reaction act watching `+0x16` bit6 (wall contact).
+- **Air-GC fix** (the field question "can I air-block into GC?"): as first
+  built, dash-GC ran only through the specials table — whose only air-legal
+  dash entries exist on the SEVEN extended tables (Moon/Uranus had none),
+  and the 44 pair is air-illegal for everyone. The air-blockstun act now
+  also runs the jump stub's DIRECT 44/66 nibble commit (budget-gated): **air
+  guard → 44 → air backdash GC** and **→ 66 → front dash GC**, all nine.
+  Measured on an extended-table victim (Jupiter) and a non-extended one
+  (Uranus). Input requirement, honestly: release guard, then complete the
+  double-tap within blockstun+hitstop (~22 frames; taps may begin before the
+  block — the recognizer window is rolling).
+- **--airdash-speed knob** for the pending feel verdict (sign-matched
+  override of the front dash's X velocity; emitted only when the flag is
+  given, so the default build is byte-identical).
+
 ## Roster-PoC findings (2026-08-20, all measured)
 
 - **A stub returning into a handler continuation must restore X = object on
