@@ -359,6 +359,8 @@ See HANDOFF.md §4 for the harness.
 - `probe_dshit.lua`
 - `probe_dswave.lua` — whiff (no target), trace BOTH projectile slots for 300 frames; flag if +0x40 ever uses 6/7/8
 - `probe_exp_airdash.lua` — does Venus get an AIR BACKDASH, and is it vulnerable?
+- `probe_exp_airdash2.lua` — does URANUS get air dashes via ROUTE INSERTION?
+- `probe_exp_airspecial.lua` — what does a GROUND special do when started
 - `probe_exp_bdsafety.lua` — is the GROUND backdash still invulnerable, on every
 - `probe_fontdma.lua` — find the code that uploads the menu FONT to VRAM.
 - `probe_fontdma2.lua` — read the DMA parameters from DIRECT PAGE at the trigger.
@@ -497,6 +499,8 @@ See HANDOFF.md §4 for the harness.
 - `dis65816_oracle.py` — validate our decode table against an INDEPENDENT one.
 - `docaddrs.py` — the address census the documentation checks are built on.
 - `exp_airbackdash.py` — EXPERIMENT (not a numbered patch, not canonical): give Venus an AIR BACKDASH.
+- `exp_airdash2.py` — EXPERIMENT (not a numbered patch): URANUS air back/front dash — the
+- `exp_airspecial.py` — EXPERIMENT (not a numbered patch): AIR-ENABLE two existing ground specials.
 - `findfont.py` — locate a Latin font inside an arbitrary SNES ROM.
 - `gen_plan.py` — Generate a trace_plan for a re-press experiment.
 - `halfwidth_render.py` — render the half-width alphabet to a PNG for eyeballing.
