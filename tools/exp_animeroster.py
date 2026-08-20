@@ -229,7 +229,7 @@ def derive(rom):
     return chars
 
 
-def build(src, out, budget):
+def build(src, out, budget, juggle):
     rom = bytearray(open(src, "rb").read())
     chars = derive(rom)
     alloc = Alloc(C1_REGIONS)
@@ -250,11 +250,53 @@ def build(src, out, budget):
     g0204 = alloc.take(4, "gate 0204"); rom[C1 + g0204:C1 + g0204 + 4] = bytes([0x20, 0x04, 0x02, 0x6B])
     gshad = alloc.take(4, "gate shadow"); rom[C1 + gshad:C1 + gshad + 4] = bytes([0x20, SHADOW_DASH & 0xFF, SHADOW_DASH >> 8, 0x6B])
     gbd = alloc.take(5, "gate bdtbl"); rom[C1 + gbd:C1 + gbd + 5] = bytes([0xFC, bdtbl & 0xFF, bdtbl >> 8, 0x6B, 0x00])
+    g0958 = alloc.take(4, "gate 0958"); rom[C1 + g0958:C1 + g0958 + 4] = bytes([0x20, 0x58, 0x09, 0x6B])
+    g10A9 = alloc.take(4, "gate 10A9"); rom[C1 + g10A9:C1 + g10A9 + 4] = bytes([0x20, 0xA9, 0x10, 0x6B])
+
+    # ---- data relocation FIRST (the air-GC route needs the FINAL special
+    # table addresses in the appended bank) ---------------------------------
+    for cid in range(1, 10):
+        c, nm = chars[cid], NAMES[cid]
+        if not c["has66"]:
+            ins = c["ins"]
+            mo = list(c["motions"])
+            mo.insert(ins, SCRIPT_66)
+            newlist = b"".join(p.to_bytes(2, "little") for p in mo) + b"\xFF\xFF"
+            ml = alloc.take(len(newlist), f"{nm} motion list")
+            rom[C1 + ml:C1 + ml + len(newlist)] = newlist
+            rom[MOTION_PTRS + cid * 2:MOTION_PTRS + cid * 2 + 2] = ml.to_bytes(2, "little")
+            ents = list(c["ents"])
+            ents[2 * ins:2 * ins] = [(0x02, 0x2C), (0x02, 0x2C)]
+            newtbl = b"".join(bytes([f, a]) for f, a in ents) + b"\xFF\x00"
+            tb = alloc.take(len(newtbl), f"{nm} special table")
+            rom[C1 + tb:C1 + tb + len(newtbl)] = newtbl
+            oldpat = bytes([0xA0, c["sptbl"] & 0xFF, c["sptbl"] >> 8])
+            newpat = bytes([0xA0, tb & 0xFF, tb >> 8])
+            n = 0
+            i = c["lo"]
+            while True:
+                j = rom.find(oldpat, i, c["hi"])
+                if j < 0:
+                    break
+                rom[j:j + 3] = newpat
+                n += 1
+                i = j + 3
+            assert n >= 15, f"{nm}: only {n} special-table ldy sites repointed"
+            assert rom.find(oldpat, c["lo"], c["hi"]) < 0
+            log.append(f"  {nm}: motion+66 -> ids {c['frontid']:02X}/{c['frontid']+1:02X}, "
+                       f"special table -> ${tb:04X} ({n} ldy sites), +2 air entries")
+            c["sptbl"] = tb
+            c["ents"] = ents
+        # air-special flips (in the final table location)
+        for idx, (f, a) in enumerate(c["ents"]):
+            if f == 0x05:
+                rom[C1 + c["sptbl"] + idx * 2] = 0x04
 
     # $E8 layout (data first, then code assembled below)
     FRONTID_E8 = 0x0000               # 16 bytes
     NTBL_E8 = 0x0010                  # 20 bytes
-    CODE_E8 = 0x0030
+    SPTBL_E8 = 0x0024                 # 20 bytes: charID -> FINAL special table
+    CODE_E8 = 0x0040
 
     def jsl(a, bank=None):
         bank = eb if bank is None else bank
@@ -339,7 +381,83 @@ def build(src, out, budget):
         [0x6B],
     ]
 
-    rst_items = [[0xC2, 0x10], [0xA6, 0x88], [0xE2, 0x20], [0x74, 0x7F], [0x6B]]
+    rst_items = [[0xC2, 0x10], [0xA6, 0x88], [0xE2, 0x20], [0x74, 0x7F], [0x74, 0x7E], [0x6B]]
+
+    # --- AIR BLOCK -------------------------------------------------------
+    # Fork stub: replaces the 6-byte `lda $08 / and #$03 / and $0A` at BOTH
+    # resolution fork sites (the following `beq +3 / jmp <block path>` stays).
+    # Returns the verdict in the Z flag: Z=0 -> BLOCKED. Vanilla verdict
+    # first; then the air extension — the victim (struct base in Y, a PLAYER
+    # slot only) is airborne, holding back, and in a guardable act (a jump
+    # act 06-08 or air blockstun 0x2D itself). DB is the caller's $80 mirror,
+    # so absolute,Y struct reads land in WRAM.
+    fork_items = [
+        [0xE2, 0x20],
+        [0xA5, 0x08], [0x29, 0x03], [0x25, 0x0A],
+        ("b", 0xD0, "blocked"),               # vanilla says blocked
+        [0xA5, 0x08], [0x29, 0x03],
+        ("b", 0xF0, "clean"),                 # attack carries no H/L class
+        [0xC0, 0x00, 0x10],                   # cpy #$1000 (X flag: 16-bit here)
+        ("b", 0xF0, "pl"),
+        [0xC0, 0x80, 0x10],                   # cpy #$1080
+        ("b", 0xD0, "clean"),                 # victim is not a player slot
+        ("label", "pl"),
+        [0xB9, 0x16, 0x00], [0x29, 0x80],     # grounded -> vanilla only
+        ("b", 0xD0, "clean"),
+        [0xB9, 0x01, 0x00],                   # victim act
+        [0xC9, 0x2D], ("b", 0xF0, "held"),    # re-block from air blockstun
+        [0xC9, 0x06], ("b", 0x90, "clean"),
+        [0xC9, 0x09], ("b", 0xB0, "clean"),
+        ("label", "held"),
+        # guard-hold = +0x50 bit0, MEASURED: a grounded victim blocking in the
+        # guard pose latches 0x01 (the doc's bit0=fwd/bit1=back mask mapping
+        # does not transfer to this latch — the polarity is the other way)
+        [0xB9, 0x50, 0x00], [0x29, 0x01],
+        ("b", 0xF0, "clean"),
+        ("label", "blocked"),
+        [0xA9, 0x01], [0x6B],                 # NZ -> the block path
+        ("label", "clean"),
+        [0xA9, 0x00], [0x6B],                 # Z -> the damage path
+    ]
+
+    # Air-block REACTION handler (rows 1/2 of the air sub-table $C1:0EBB):
+    # mark in-blockstun (targetable 0x20), arm the +0x7E timer, stage act 0x2D.
+    ABLOCK_FRAMES = 14
+    react_items = [
+        [0xC2, 0x30], [0xA6, 0x88], [0xE2, 0x20],
+        [0xA9, 0x20], [0x95, 0x46],
+        [0xA9, ABLOCK_FRAMES], [0x95, 0x79],
+        [0xA9, 0x2D], jsl(g10A9, 0xC1),
+        [0x6B],
+    ]
+
+    # Act 0x2D — AIR BLOCKSTUN (all nine act tables): hold the guard pose
+    # (script slot 0x2D = the char's stand-guard script), fall under vanilla
+    # physics, land into act 09, expire into falling act 07, and offer the
+    # specials route every frame — the AIR GUARD CANCEL (the flag byte
+    # filters it to air-legal moves: the [02->2C] front dash and the
+    # 0x04-flagged air-enabled projectiles).
+    ablock_items = [
+        [0xC2, 0x30], [0xA6, 0x88], [0xE2, 0x20],
+        [0xB5, 0x16], [0x29, 0x80],
+        ("b", 0xF0, "airb"),
+        [0xA9, 0x09], jsl(g0224, 0xC1),       # grounded: land normally
+        ("b", 0x80, "tail"),
+        ("label", "airb"),
+        [0xD6, 0x79],                          # dec $79,X (blockstun timer)
+        ("b", 0xD0, "routes"),
+        [0xA9, 0x07], jsl(g0224, 0xC1),       # blockstun over: fall (act 07)
+        ("b", 0x80, "tail"),
+        ("label", "routes"),
+        [0xB5, 0x00], [0xC2, 0x30], [0x29, 0xFF, 0x00], [0x0A], [0xAA],
+        [0xBF, SPTBL_E8 & 0xFF, SPTBL_E8 >> 8, eb], [0xA8],
+        [0xA6, 0x88], [0xE2, 0x20],
+        jsl(g0958, 0xC1),                      # the guard cancel
+        ("label", "tail"),
+        [0xC2, 0x10], [0xA6, 0x88],            # X-restore law
+        jsl(g0204, 0xC1),
+        [0x6B],
+    ]
 
     jstub_e8 = asm(CODE_E8, jstub_items)
     gat_e8 = asm(CODE_E8 + len(jstub_e8), gat_items)
@@ -349,12 +467,38 @@ def build(src, out, budget):
     GAT = JSTUB + len(jstub_e8)
     WRAP = GAT + len(gat_e8)
     RST = WRAP + len(wrap_e8)
+    FORK = RST + len(rst_e8)
+    fork_e8 = asm(FORK, fork_items)
+    REACT = FORK + len(fork_e8)
+    react_e8 = asm(REACT, react_items)
+    ABLOCK = REACT + len(react_e8)
+    ablock_e8 = asm(ABLOCK, ablock_items)
+    # JUGGLE DECAY: replaces the launch/air-hitstun handlers' 4-byte
+    # `lda #$A0 / sta $46,X`. Counts airborne reactions in +0x7E (cleared by
+    # the landing reset): soft (targetable 0x20) for the first N, untargetable
+    # 0xA0 after. juggle=0 keeps vanilla untargetability (no juggles).
+    decay_items = [
+        [0xF6, 0x7E],                          # inc $7E,X
+        [0xB5, 0x7E],
+        [0xC9, max(juggle, 0) + 1],            # cmp #N+1
+        ("b", 0x90, "soft"),
+        [0xA9, 0xA0],
+        ("b", 0x80, "st"),
+        ("label", "soft"),
+        [0xA9, 0x20],
+        ("label", "st"),
+        [0x95, 0x46],                          # sta $46,X
+        [0x6B],
+    ]
+    DECAY = ABLOCK + len(ablock_e8)
+    decay_e8 = asm(DECAY, decay_items)
 
     blob = bytearray(0x10000)
     for cid in range(1, 10):
         blob[FRONTID_E8 + cid] = chars[cid]["frontid"]
         blob[NTBL_E8 + cid * 2:NTBL_E8 + cid * 2 + 2] = chars[cid]["stance"][7].to_bytes(2, "little")
-    code = jstub_e8 + gat_e8 + wrap_e8 + rst_e8
+        blob[SPTBL_E8 + cid * 2:SPTBL_E8 + cid * 2 + 2] = chars[cid]["sptbl"].to_bytes(2, "little")
+    code = jstub_e8 + gat_e8 + wrap_e8 + rst_e8 + fork_e8 + react_e8 + ablock_e8 + decay_e8
     blob[CODE_E8:CODE_E8 + len(code)] = code
     blob = bytes(blob[:CODE_E8 + len(code)])
 
@@ -367,18 +511,39 @@ def build(src, out, budget):
     rom[C1 + wrapshim:C1 + wrapshim + 5] = bytes(jsl(WRAP)) + b"\x60"
     rshim = alloc.take(8, "reset shim")
     rom[C1 + rshim:C1 + rshim + 8] = bytes(jsl(RST)) + bytes([0x20, 0x59, 0x04, 0x60])
+    reactshim = alloc.take(5, "airblock reaction shim")
+    rom[C1 + reactshim:C1 + reactshim + 5] = bytes(jsl(REACT)) + b"\x60"
+    abshim = alloc.take(5, "airblock act shim")
+    rom[C1 + abshim:C1 + abshim + 5] = bytes(jsl(ABLOCK)) + b"\x60"
+
+    # ---- AIR BLOCK global wiring --------------------------------------
+    # the two resolution fork sites ($C0:C06A / $C0:C13D, running from the
+    # $80 mirror): 6-byte test -> jsl fork-stub + 2 nops; branch untouched
+    for off in (0x00C06A, 0x00C13D):
+        if rom[off:off + 6] != bytes([0xA5, 0x08, 0x29, 0x03, 0x25, 0x0A]):
+            raise ValueError(f"0x{off:06X}: block-fork test bytes not found")
+        rom[off:off + 6] = bytes(jsl(FORK)) + bytes([0xEA, 0xEA])
+    # air sub-table rows 1/2 (block codes 02/04) -> the reaction shim
+    for off in (0x010EBD, 0x010EBF):
+        if word(rom, off) != 0x0F92:
+            raise ValueError(f"0x{off:06X}: air sub-table row is not $0F92")
+        rom[off:off + 2] = reactshim.to_bytes(2, "little")
 
     # ---- per-character wiring -----------------------------------------
-    n_j = n_t = n_l = n_flip = 0
+    n_j = n_t = n_l = 0
+    n_flip = sum(1 for cid in range(1, 10) for f, a in chars[cid]["ents"] if f == 0x05)
     for cid in range(1, 10):
         c, nm = chars[cid], NAMES[cid]
-        # act slots 2B/2C -> wrapper shim
+        # act slots 2B/2C -> wrapper shim; 2D -> air blockstun
         for slot in (c["slot2B"], c["slot2C"]):
             assert rom[slot:slot + 2] == b"\0\0", f"{nm}: act slot not null"
             rom[slot:slot + 2] = wrapshim.to_bytes(2, "little")
-        # script slots 2B (jump-back, slot 8) / 2C (jump-fwd, slot 7)
+        slot2D = c["tbl"] + 0x2D * 2
+        assert rom[slot2D:slot2D + 2] == b"\0\0", f"{nm}: act slot 2D not null"
+        rom[slot2D:slot2D + 2] = abshim.to_bytes(2, "little")
+        # script slots 2B (jump-back, 8) / 2C (jump-fwd, 7) / 2D (guard pose, 0x0C)
         st = c["scripttbl"]
-        for slot, src_slot in ((0x2B, 8), (0x2C, 7)):
+        for slot, src_slot in ((0x2B, 8), (0x2C, 7), (0x2D, 0x0C)):
             o = st + slot * 2
             assert rom[o:o + 2] == b"\0\0", f"{nm}: script slot {slot:02X} not null"
             rom[o:o + 2] = word(rom, st + src_slot * 2).to_bytes(2, "little")
@@ -393,47 +558,12 @@ def build(src, out, budget):
         # landing reset hook
         rom[c["land"]:c["land"] + 3] = bytes([0x20, rshim & 0xFF, rshim >> 8])
         n_l += 1
-        # motion append + special-table extension for the seven without a 66
-        if not c["has66"]:
-            ins = c["ins"]
-            mo = list(c["motions"])
-            mo.insert(ins, SCRIPT_66)
-            newlist = b"".join(p.to_bytes(2, "little") for p in mo) + b"\xFF\xFF"
-            ml = alloc.take(len(newlist), f"{nm} motion list")
-            rom[C1 + ml:C1 + ml + len(newlist)] = newlist
-            rom[MOTION_PTRS + cid * 2:MOTION_PTRS + cid * 2 + 2] = ml.to_bytes(2, "little")
-            ents = list(c["ents"])
-            ents[2 * ins:2 * ins] = [(0x02, 0x2C), (0x02, 0x2C)]
-            newtbl = b"".join(bytes([f, a]) for f, a in ents) + b"\xFF\x00"
-            tb = alloc.take(len(newtbl), f"{nm} special table")
-            rom[C1 + tb:C1 + tb + len(newtbl)] = newtbl
-            # repoint every ldy #<old table> in the char's proc block
-            oldpat = bytes([0xA0, c["sptbl"] & 0xFF, c["sptbl"] >> 8])
-            newpat = bytes([0xA0, tb & 0xFF, tb >> 8])
-            n = 0
-            i = c["lo"]
-            while True:
-                j = rom.find(oldpat, i, c["hi"])
-                if j < 0:
-                    break
-                rom[j:j + 3] = newpat
-                n += 1
-                i = j + 3
-            assert n >= 15, f"{nm}: only {n} special-table ldy sites repointed"
-            assert rom.find(oldpat, c["lo"], c["hi"]) < 0
-            log.append(f"  {nm}: motion+66 -> ids {c['frontid']:02X}/{c['frontid']+1:02X}, "
-                       f"special table -> ${tb:04X} ({n} ldy sites), +2 air entries")
-            c["sptbl"] = tb
-            c["ents"] = ents
-        # air-special flips (in the final table location)
-        for idx, (f, a) in enumerate(c["ents"]):
-            if f == 0x05:
-                rom[C1 + c["sptbl"] + idx * 2] = 0x04
-                n_flip += 1
-    # juggle: the two exp_juggle bytes
-    for off, name in ((0x010FA9, "launch 0x1B"), (0x0110A1, "air hitstun 0x16")):
-        assert rom[off - 1] == 0xA9 and rom[off] == 0xA0 and rom[off + 1:off + 3] == bytes([0x95, 0x46])
-        rom[off] = 0x20
+    # juggle enablement WITH DECAY: hook the launch/air-hitstun handlers'
+    # `lda #$A0 / sta $46,X` (4 bytes) -> jsl decay
+    for off, name in ((0x010FA8, "launch 0x1B"), (0x0110A0, "air hitstun 0x16")):
+        if rom[off:off + 4] != bytes([0xA9, 0xA0, 0x95, 0x46]):
+            raise ValueError(f"{name}: lda #$A0/sta $46,X not found at 0x{off:06X}")
+        rom[off:off + 4] = bytes(jsl(DECAY))
 
     write_bank(rom, bankbase, blob)
     pad_to_size_multiple(rom)
@@ -442,10 +572,11 @@ def build(src, out, budget):
     for line in log:
         print(line)
     print(f"  hooks: {n_j} jump sites, {n_t} air-normal tails, {n_l} landing sites, "
-          f"{n_flip} air-special flips, juggle 2 bytes")
+          f"{n_flip} air-special flips, juggle decay hooks x2, AIR BLOCK (2 forks + 2 rows + act 2D x9)")
     print(f"  bank ${0xC0 + (bankbase >> 16):02X}: {len(blob)} B "
-          f"(jstub {len(jstub_e8)}, gat {len(gat_e8)}, wrap {len(wrap_e8)}, rst {len(rst_e8)})")
-    print(f"wrote {out} from {src} sha1={hashlib.sha1(rom).hexdigest()}  [budget N={budget}]")
+          f"(jstub {len(jstub_e8)}, gat {len(gat_e8)}, wrap {len(wrap_e8)}, rst {len(rst_e8)}, "
+          f"fork {len(fork_e8)}, react {len(react_e8)}, ablock {len(ablock_e8)}, decay {len(decay_e8)})")
+    print(f"wrote {out} from {src} sha1={hashlib.sha1(rom).hexdigest()}  [budget N={budget}, juggle decay N={juggle}]")
 
 
 if __name__ == "__main__":
@@ -454,8 +585,10 @@ if __name__ == "__main__":
     ap.add_argument("src", nargs="?", default=None)
     ap.add_argument("--stacked", action="store_true")
     ap.add_argument("--budget", type=int, default=2)
+    ap.add_argument("--juggle", type=int, default=4,
+                    help="airborne reactions per launch sequence before untargetability returns (0 = no juggles)")
     a = ap.parse_args()
     src = a.src or clean_rom()
     require_source(src, stacked=a.stacked)
     check_not_inplace(src, a.out)
-    build(src, a.out, a.budget)
+    build(src, a.out, a.budget, a.juggle)

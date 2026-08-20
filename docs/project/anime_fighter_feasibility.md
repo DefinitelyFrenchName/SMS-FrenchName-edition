@@ -83,6 +83,40 @@ air-legal moves (air dashes, air specials) for free.
 
 (`census_motionbudget.py`; `traces/motionbudget_census.txt`)
 
+## AIR BLOCK + juggle decay (2026-08-20, maintainer-ruled, BUILT)
+
+**Air block is in** (`exp_animeroster.py`, same build). The vanilla block
+mechanism, decoded on the way: `$08`/`$0A` are the ATTACK and VICTIM box
+FLAG BYTES (record byte 6 — H/L bits), and blocking fires when they intersect
+at the resolution forks `$C0:C06A`/`$C0:C13D` — **guard is pose-box data**;
+the blocked path `$C1F4`/`$C2A3` un-latches the attacker's `+0x43`, runs the
+block-class dispatch `($CDB5,X)` and stages from the `$CE55` block table (the
+ten on-hit tables are posture x guard variants — matching the byte-3 flags
+census families). The build: a fork stub (both sites) extends the verdict to
+an airborne PLAYER victim holding guard in a jump act or air blockstun; the
+air reaction sub-table's dead block rows (both `$0F92`) route to a reaction
+that stages authored act 0x2D (guard-pose anim via script slot 0x0C, timer in
+`+0x79`, `+0x46=0x20`), whose handler falls under vanilla physics, lands into
+act 09, expires into falling act 07, and offers the specials route every
+frame — **the AIR GUARD CANCEL, measured: air blockstun → 66 → act 2C at
+t=180**. Chip follows ground rules automatically (blocked normal = 0 damage,
+measured). ⚠ Measured on the way: **the guard-hold latch bit is `+0x50` bit0**
+(a grounded blocking victim reads 0x01) — the doc's bit0=fwd/bit1=back mask
+mapping does NOT transfer to this latch. Matrix green: block/noguard/ground/gc
++ clean negative (`probe_exp_airblock.lua`). Untested minor branch: blockstun
+timer expiry into act 07 (contacts land before 14f at launcher height).
+
+**Juggle decay is in**, per the conditional ruling and the corner measurement
+(`probe_cornerjuggle.lua`): the engine has NO natural bound — every juggle hit
+re-launches with a full fresh arc (constant per-level velocities); the
+scripted corner loop (launcher → jump+j.HP reps at the wall) sustains
+launcher+1 with naive timing and nothing diminishes, so player-grade loops
+would. Implementation: the two launch-handler hooks became a shared decay
+routine counting airborne reactions in `+0x7E` (cleared by the landing reset)
+— soft (`0x20`) for the first N, untargetable (`0xA0`) after. `--juggle N`
+(default 4; 0 = vanilla no-juggles). Measured: pinned probe lands the
+launcher + exactly 4 re-hits, then `A0` returns and further attempts refuse.
+
 ## Roster-PoC findings (2026-08-20, all measured)
 
 - **A stub returning into a handler continuation must restore X = object on

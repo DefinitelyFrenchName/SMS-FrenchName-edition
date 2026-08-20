@@ -352,6 +352,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_chr.lua`
 - `probe_chr_cfg.lua`
 - `probe_combo.lua` — visual check of hud_combo: run the v0.7 infinite rep, screenshot the
+- `probe_cornerjuggle.lua` — are CORNER JUGGLES effectively infinite on the
 - `probe_ctx.lua`
 - `probe_digit.lua` — poke my combo state to a fixed hits value, screenshot to check the rendered glyph
 - `probe_digitR.lua`
@@ -360,6 +361,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_dsbox.lua`
 - `probe_dshit.lua`
 - `probe_dswave.lua` — whiff (no target), trace BOTH projectile slots for 300 frames; flag if +0x40 ever uses 6/7/8
+- `probe_exp_airblock.lua` — does AIR BLOCK work, and does the AIR GUARD
 - `probe_exp_aircancel.lua` — do the AIR-DASH CANCEL and the ON-HIT AIR CHAIN
 - `probe_exp_aircounter.lua` — is the air-action BUDGET honored and reset?
 - `probe_exp_airdash.lua` — does Venus get an AIR BACKDASH, and is it vulnerable?
