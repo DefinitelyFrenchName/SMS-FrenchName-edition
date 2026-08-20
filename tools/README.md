@@ -366,6 +366,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_exp_airdash2.lua` — does URANUS get air dashes via ROUTE INSERTION?
 - `probe_exp_airspecial.lua` — what does a GROUND special do when started
 - `probe_exp_bdsafety.lua` — is the GROUND backdash still invulnerable, on every
+- `probe_exp_roster.lua` — per-character verification of the full-roster
 - `probe_fontdma.lua` — find the code that uploads the menu FONT to VRAM.
 - `probe_fontdma2.lua` — read the DMA parameters from DIRECT PAGE at the trigger.
 - `probe_fwdtap.lua` — why does a FORWARD double-tap arm for Uranus and not Venus?
@@ -462,6 +463,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_ppu.lua`
 - `probe_regen.lua`
 - `probe_regen_special.lua` — repro for "HP regen doesn't fire after special-move damage".
+- `probe_scratch_m6.lua` — motion-state array dump: 44 taps then 66 taps (debug)
 - `probe_shot.lua`
 - `probe_shot_cfg.lua`
 - `probe_smsenv.lua` — self-test for sms_env.lua discovery.
@@ -508,6 +510,7 @@ See HANDOFF.md §4 for the harness.
 - `exp_airdash2.py` — EXPERIMENT (not a numbered patch): URANUS air back/front dash — the
 - `exp_airspecial.py` — EXPERIMENT (not a numbered patch): AIR-ENABLE two existing ground specials.
 - `exp_anime_stack.sh` — the Phase 7 integration stack of the anime-fighter
+- `exp_animeroster.py` — EXPERIMENT (not a numbered patch): the FULL-ROSTER anime-fighter PoC.
 - `exp_juggle.py` — EXPERIMENT (not a numbered patch): JUGGLES — launched victims stay
 - `findfont.py` — locate a Latin font inside an arbitrary SNES ROM.
 - `gen_plan.py` — Generate a trace_plan for a re-press experiment.

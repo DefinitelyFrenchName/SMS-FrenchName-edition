@@ -83,6 +83,34 @@ air-legal moves (air dashes, air specials) for free.
 
 (`census_motionbudget.py`; `traces/motionbudget_census.txt`)
 
+## Roster-PoC findings (2026-08-20, all measured)
+
+- **A stub returning into a handler continuation must restore X = object on
+  EVERY exit path.** The `$0958` starter (and the continuation code generally)
+  indexes the struct through X without reloading; the frontid lookup's `tax`
+  left X = charID on the no-dash path and Chibi's air desperation read its
+  pending nibble from `$005A` — zero damage, caught by the regression
+  compendium, pinned by bisection (jump-hook-less variant passes). This is the
+  Phase-3 `ldx $88` law's other half.
+- **A motion appended AFTER a prefix-overlap motion never completes.** Jupiter's
+  m5 desperation shares m4's script tail (`$14F8 = $14FA − 2`); a 66 at m6
+  behind it resets on the exact input it wants, while the identical script at
+  m6 works for Venus (measured with a skipped-slot list). Cause in the
+  interpreter unidentified; the working rule is INSERT the new motion before
+  the overlap motion (Jupiter's desperation now sits at ids 0x0E/0x0F and
+  passes the compendium).
+- **Nonzero step timeouts count DOWN** (a step's `[timeout]` loads the timer
+  and decrements; timeout 0 counts UP to the `$0F` default window) — visible
+  in the m5-vs-66 state traces.
+- **Known PoC budget leak**: Venus/Jupiter/ChibiMoon's jump handlers natively
+  offer the special table, so their front dash also starts through the vanilla
+  starter (the air-only `[02→2C]` entries), uncounted when the +0x7F budget is
+  exhausted. Leak-free wiring (per-entry gating or wrapper-edge counting) is
+  rollout engineering.
+- Space claims: relocated data spilled into the `$BE09` hole (patch 1/2's
+  home) — the roster PoC is standalone-from-clean only; integration with the
+  Rev. S patch line needs a space plan.
+
 ## Corrections owed to the docs (found on the way)
 
 - `sms_engine_internals.md` reaction-template line ("X/Y launch velocities
@@ -123,6 +151,7 @@ air-legal moves (air dashes, air specials) for free.
 | Phase 5 (air budget) | counter = struct `+0x7F` (measured init-only; magic 0xA5 survives 1400 busy frames; boot watch owed); N=0 kills all air dashes, N=1 gives exactly one per airborne period, landing stub resets it. Harness law: the recognizer needs a registered NEUTRAL before tap 1 |
 | Phase 6 (juggles) | **TWO BYTES** — the `+0x46` write census found exactly 18 immediate writers; flipping the act-0x1B launch and act-0x16 air-hitstun handlers' `#$A0`→`#$20` makes launched victims re-hittable with the game's own pipeline; knockdowns/flame/electric/throws keep protection; regression 45/45 (no vanilla invariant depended on launch untargetability). Launch handlers write Yvel→`+0x32`, gravity→`+0x34` — the reaction-path doc conflict resolved the same way as the player path |
 | Phase 7 (integration) | `tools/exp_anime_stack.sh` chains all five exps (45/45 regression); **`tools/demo_airrush.lua` lands the whole thing in ONE no-pokes sequence**: anti-air launcher t=153 → air-dash chase (budget 1) → one-frame dash-cancel j.HP t=193 → JUGGLE re-hit on the floating victim t=198 → gatling second dash (budget 2) → landing reset. A plain jump provably cannot chase the launch drift (+2 px/f each) — the air dash's 11 px/f is what makes juggle routes real |
+| **FULL-ROSTER PoC** | **`tools/exp_animeroster.py` (2026-08-20): every mechanism, ALL NINE characters, derived from the ROM at build time** — 27 jump-route hooks, 72 air-normal tail hooks (the gatling), 9 landing resets, appended/inserted 66 motions for seven characters (relocated motion lists + special tables with air-only `[02→2C]` entries in the measured-dead recognizer region + the `$C1` holes), 24 projectile-special air-enables, the 2 juggle bytes, the +0x7F budget — logic in an appended bank behind four `$C1` call gates and 5-7-byte shims. **Verified: per-character probe green 9/9** (ground 44 control, air 2B, dash-cancel into their own dir j.LP, air 2C incl. the appended-motion input), clean negatives silent, **regression 45/45**, `demo_airrush` and the Venus air-fireball probe green on the roster ROM. `build/exp_animeroster.bps` (2 KB). |
 | G2 (landing) | acts keep running on landing → air-enabled ground specials need explicit landing handling (cost multiplier, not a kill) |
 | G4 (air-normal routes) | none exist (0/72) → chains are route-insertion work, as planned |
 | G5 (motion budget) | nobody blocked; flag-0x00 shared-entry design makes the 7-cap a non-issue |
