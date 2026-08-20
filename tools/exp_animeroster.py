@@ -584,6 +584,8 @@ if __name__ == "__main__":
     ap.add_argument("out")
     ap.add_argument("src", nargs="?", default=None)
     ap.add_argument("--stacked", action="store_true")
+    # defaults are MAINTAINER-RULED (2026-08-20): budget 2, juggle decay 4,
+    # air-enable + global rules — see docs/project/anime_fighter_feasibility.md
     ap.add_argument("--budget", type=int, default=2)
     ap.add_argument("--juggle", type=int, default=4,
                     help="airborne reactions per launch sequence before untargetability returns (0 = no juggles)")

@@ -159,20 +159,28 @@ launcher + exactly 4 re-hits, then `A0` returns and further attempts refuse.
   air-throw route census, the 18 jump stance tables, prejump = 5f (confirmed),
   and the on-hit byte-3 bit census.
 
-## Decision points for the maintainer (before prototypes)
+## Maintainer rulings (2026-08-20 — the build's configuration is now POLICY)
 
-1. Global edits: juggle enablement patches the AIR reaction rows, which are
-   GLOBAL (every character's launches change) — acceptable as total-conversion
-   policy? [SMS-4]
-2. Juggle rule: remove untargetability outright, or a juggle-decay counter
-   (shares Phase 5's accounting)?
-3. Air-action budget N per jump?
-4. Air specials: air-enable existing ground specials (if Phase 2 permits) vs
-   authored air variants — per character?
-5. Air block: in or out, given the two-site redesign cost above? (Air GC comes
-   with it by construction.)
-6. Promote to a numbered patch line / total-conversion branch, or keep as
-   `exp_` research?
+1. **Global edits: RULED IN.** The launch/juggle/air rules stay universal
+   [SMS-4]; per-character juggle tuning is a balance instrument to revisit
+   only if field testing finds a degenerate case.
+2. **Juggle decay: RULED IN via the conditional** ("decay iff juggles are not
+   naturally impossible, incl. corners") — the corner measurement showed no
+   natural bound, so decay ships. Default `--juggle 4`.
+3. **Air-action budget: N=2, ruled.** The Venus/Jupiter/Chibi front-dash
+   budget leak stays a known open item — fix it if the field test surfaces it.
+4. **Air specials: AIR-ENABLE ruled** (flag flips, ground anims in the air
+   accepted for now). Authored air variants only for moves the field test
+   flags as visually wrong or degenerate — the approaches coexist per move.
+5. **Air block: RULED IN and BUILT** (with the air guard-cancel).
+6. **Lifecycle: a SEPARATE BUILD LINE** (like the Saturn work).
+   Numbered-patch compatibility = extended-scope MUST-HAVE (space plan +
+   cell boot-watch before chaining onto Rev. S); Saturn/SS = nice-to-have.
+
+Open engineering (not blocked on rulings): the space plan off the borrowed
+patch-1/2/6 holes, the [SMS-33] boot watch for +0x7E/+0x7F/+0x79, the
+front-dash budget-leak fix, the blockstun-expiry branch measurement, and the
+stale-doc corrections listed below.
 
 ## Gate ledger
 
