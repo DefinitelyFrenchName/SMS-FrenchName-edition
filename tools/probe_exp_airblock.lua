@@ -16,20 +16,20 @@
 -- stub at $C0:C06A/$C13D + air sub-table rows 1/2 -> the reaction shim.
 local ENV = dofile((package.path:match("([^;]+)%?%.lua$") or error("sms_env: tools dir not in package.path")) .. "/sms_env.lua")
 local PL = ENV.dofile("probelib.lua")
-local MODE = os.getenv("SMS_ABMODE") or "block"
+local MODE = os.getenv("SMS_ABMODE") or "block"   -- +gcback: 44 during blockstun -> air backdash (act 2B)
 local TAG = os.getenv("SMS_TAG")
 local LOG = assert(io.open(ENV.TRACE .. "airblock_" .. MODE .. (TAG and ("_" .. TAG) or "") .. ".txt", "w"))
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 
 local P1, P2 = 0x1000, 0x1080
-local STATE = "venus_vs_jupiter_clean.mss"
+local STATE = os.getenv("SMS_ABSTATE") or "venus_vs_jupiter_clean.mss"
 local function r(b, o) return PL.ram(b + o) end
 local function x16(b) return r(b, 0x21) + 256 * r(b, 0x22) end
 local function air(b) return (r(b, 0x16) & 0x80) == 0 end
 
 local t, loaded = -1, false
 local phase, phaseStart = "settle", 0
-local rows, hp0, contact, gcSeen = {}, nil, nil, nil
+local rows, hp0, contact, gcSeen, gcAct = {}, nil, nil, nil, nil
 
 emu.addMemoryCallback(function()
   if not loaded then
@@ -58,14 +58,15 @@ emu.addEventCallback(function()
     if MODE ~= "ground" and k < 6 then b2.up = true end
     if MODE ~= "noguard" and k >= 6 then b2[p2away] = true end
   elseif phase == "arm" or phase == "watch" then
-    if MODE == "gc" and contact then
-      -- fwd double-taps toward the attacker for the GC dash
+    if (MODE == "gc" or MODE == "gcback") and contact then
+      -- double-taps: gc = toward (66 -> 2C), gcback = away (44 -> 2B)
+      local d = MODE == "gc" and p2toward or p2away
       local c = (t - contact) % 14
-      if (c >= 2 and c < 6) or (c >= 9 and c < 13) then b2[p2toward] = true end
+      if (c >= 2 and c < 6) or (c >= 9 and c < 13) then b2[d] = true end
     elseif MODE ~= "noguard" then
       b2[p2away] = true
     end
-    local pk = MODE == "ground" and 4 or 12
+    local pk = MODE == "ground" and 4 or tonumber(os.getenv("SMS_PK") or "12")
     if phase == "arm" and k >= pk and k < pk + 4 then b1.x = true end
   end
   emu.setInput(PL.pad(b1), 0, 0)
@@ -99,7 +100,7 @@ emu.addEventCallback(function()
           t, va, tostring(air(P2)), r(P2, 0x46), hp0, r(P2, 0x49)))
       phase, phaseStart = "watch", t
     end
-    if contact and va == 0x2C then gcSeen = gcSeen or t end
+    if contact and (va == 0x2C or va == 0x2B) then gcSeen = gcSeen or t; gcAct = gcAct or va end
     if (phase == "arm" and k > 60) or (phase == "watch" and k > 70) then
       log("")
       for _, s in ipairs(rows) do log("   " .. s) end
@@ -118,8 +119,8 @@ emu.addEventCallback(function()
             firstAct == 0x2D and "AIR BLOCKSTUN" or (firstAct == 0x0E or firstAct == 0x0F) and "ground blockstun" or "hit reaction"))
         log(string.format("   damage: %d -> %d (%s)", hp0, hpEnd,
             hpEnd == hp0 and "BLOCKED clean" or (hp0 - hpEnd <= 2 and "chip" or "FULL")))
-        if MODE == "gc" then
-          log(string.format("   air guard cancel -> act 2C: %s", gcSeen and ("t=" .. gcSeen) or "NO"))
+        if MODE == "gc" or MODE == "gcback" then
+          log(string.format("   air guard cancel -> dash: %s", gcSeen and (string.format("act %02X t=%d", gcAct, gcSeen)) or "NO"))
         end
       end
       LOG:close(); emu.stop(0)

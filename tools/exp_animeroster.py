@@ -174,6 +174,19 @@ def derive(rom):
         h9 = C1 + act(9)
         land = find_first(rom, h9, h9 + 0x60, bytes([0x20, 0x59, 0x04]),
                           f"{NAMES[cid]} landing jsr $0459", need_ldy=True)
+        # ground handlers (idle/walk fwd/walk back/crouch) route sites + the
+        # standing stance table (idle's ldy operand) -> the 5HK far act, which
+        # the universal launcher wrapper reuses
+        gsites = []
+        gstance = None
+        for a_id in (0, 1, 2, 3):
+            h = C1 + act(a_id)
+            j = find_first(rom, h, h + 0x80, bytes([0x20, 0x59, 0x04]),
+                           f"{NAMES[cid]} act{a_id:02X} jsr $0459", need_ldy=True)
+            gsites.append(j)
+            if a_id == 0:
+                gstance = word(rom, j - 2)
+        hk_act = rom[C1 + gstance + 10]          # record 4 (HK), far act
         # special table: most common ldy operand before jsr $0958 in the block
         ops = Counter()
         i = lo
@@ -222,6 +235,7 @@ def derive(rom):
             scripttbl=word(rom, cid * 2), jsites=jsites, stance=stance,
             tails=tails, land=land, sptbl=sptbl, ents=ents,
             mlist=mlist, motions=motions, has66=has66, ins=ins,
+            gsites=gsites, hk_act=hk_act,
             frontid=4 if has66 else 2 * ins + 2)
         if not has66:
             assert len(ents) == 2 * len(motions), \
@@ -229,7 +243,7 @@ def derive(rom):
     return chars
 
 
-def build(src, out, budget, juggle):
+def build(src, out, budget, juggle, airdash=None, launcher_id=12):
     rom = bytearray(open(src, "rb").read())
     chars = derive(rom)
     alloc = Alloc(C1_REGIONS)
@@ -251,6 +265,12 @@ def build(src, out, budget, juggle):
     gshad = alloc.take(4, "gate shadow"); rom[C1 + gshad:C1 + gshad + 4] = bytes([0x20, SHADOW_DASH & 0xFF, SHADOW_DASH >> 8, 0x6B])
     gbd = alloc.take(5, "gate bdtbl"); rom[C1 + gbd:C1 + gbd + 5] = bytes([0xFC, bdtbl & 0xFF, bdtbl >> 8, 0x6B, 0x00])
     g0958 = alloc.take(4, "gate 0958"); rom[C1 + g0958:C1 + g0958 + 4] = bytes([0x20, 0x58, 0x09, 0x6B])
+    # HKTBL: charID*2 -> the char's standing-HK handler (the launcher's inner move)
+    hktbl = alloc.take(20, "HKTBL")
+    for cid in range(1, 10):
+        hk_handler = word(rom, chars[cid]["tbl"] + chars[cid]["hk_act"] * 2)
+        rom[C1 + hktbl + cid * 2:C1 + hktbl + cid * 2 + 2] = hk_handler.to_bytes(2, "little")
+    ghk = alloc.take(5, "gate hktbl"); rom[C1 + ghk:C1 + ghk + 5] = bytes([0xFC, hktbl & 0xFF, hktbl >> 8, 0x6B, 0x00])
     g10A9 = alloc.take(4, "gate 10A9"); rom[C1 + g10A9:C1 + g10A9 + 4] = bytes([0x20, 0xA9, 0x10, 0x6B])
 
     # ---- data relocation FIRST (the air-GC route needs the FINAL special
@@ -367,6 +387,20 @@ def build(src, out, budget, juggle):
         ("label", "post"),
         [0xC2, 0x30], [0xA6, 0x88], [0xE2, 0x20],
         [0xB5, 0x16], [0x29, 0x80], ("b", 0xD0, "fin"),
+    ] + ([] if airdash is None else [
+        # --airdash-speed: override the front dash's X velocity, matching the
+        # sign the inner Shadow Dash handler chose (0x0B00 / -0x0B00 = $F500)
+        [0xB5, 0x01], [0xC9, 0x2C], ("b", 0xD0, "nospd"),
+        [0xC2, 0x20],
+        [0xB5, 0x30], [0xC9, 0x00, 0x0B], ("b", 0xD0, "spdneg"),
+        [0xA9, airdash & 0xFF, airdash >> 8], [0x95, 0x30], ("b", 0x80, "spddone"),
+        ("label", "spdneg"),
+        [0xC9, 0x00, 0xF5], ("b", 0xD0, "spddone"),
+        [0xA9, (-airdash) & 0xFF, ((-airdash) >> 8) & 0xFF], [0x95, 0x30],
+        ("label", "spddone"),
+        [0xE2, 0x20],
+        ("label", "nospd"),
+    ]) + [
         [0xB5, 0x01], [0xC9, 0x2B], ("b", 0xF0, "rt"),
         [0xC9, 0x2C], ("b", 0xD0, "fin"),
         ("label", "rt"),
@@ -452,7 +486,22 @@ def build(src, out, budget, juggle):
         [0xB5, 0x00], [0xC2, 0x30], [0x29, 0xFF, 0x00], [0x0A], [0xAA],
         [0xBF, SPTBL_E8 & 0xFF, SPTBL_E8 >> 8, eb], [0xA8],
         [0xA6, 0x88], [0xE2, 0x20],
-        jsl(g0958, 0xC1),                      # the guard cancel
+        jsl(g0958, 0xC1),                      # specials-route GC (air fireballs)
+        [0xC2, 0x10], [0xA6, 0x88], [0xE2, 0x20],
+        # DIRECT dash GC — same gate as the jump stub: 44 -> 2B, 66 -> 2C,
+        # budget-checked. This is what makes dash-GC reachable for ALL NINE
+        # (Moon/Uranus have no air-legal table entries) and for the 44.
+        [0xB5, 0x7F], [0xC9, budget], ("b", 0xB0, "done"),
+        [0xB5, 0x51], [0x29, 0x0E], ("b", 0xF0, "done"),
+        [0xC9, 0x02], ("b", 0xF0, "goback"),
+    ] + frontid_lookup() + [
+        ("label", "goback"),
+        [0xA9, 0x2B],
+        ("label", "commit"),
+        [0xC2, 0x10], [0xA6, 0x88],
+        [0xF6, 0x7F],
+        jsl(g0224, 0xC1),
+        ("label", "done"),
         ("label", "tail"),
         [0xC2, 0x10], [0xA6, 0x88],            # X-restore law
         jsl(g0204, 0xC1),
@@ -492,13 +541,59 @@ def build(src, out, budget, juggle):
     ]
     DECAY = ABLOCK + len(ablock_e8)
     decay_e8 = asm(DECAY, decay_items)
+    # GROUND STUB (idle/walk/crouch route sites): the UNIVERSAL LAUNCHER
+    # input — fresh LK+HK together, grounded — commits act 0x2E and SKIPS the
+    # normals route (else the vanilla call would also start 5LK); otherwise
+    # behaves exactly as the original `jsr $0459`.
+    gstub_items = [
+        [0xC2, 0x10], [0xA6, 0x88], [0xE2, 0x20],
+        [0xB5, 0x16], [0x29, 0x80], ("b", 0xF0, "van"),   # airborne -> vanilla
+        [0xB5, 0x50], [0x29, 0xF0], [0xC9, 0xA0],          # fresh LK+HK exactly
+        ("b", 0xD0, "van"),
+        [0xA9, 0x2E], jsl(g0224, 0xC1),
+        [0xC2, 0x10], [0xA6, 0x88], [0x6B],
+        ("label", "van"),
+        jsl(g0459, 0xC1),
+        [0xC2, 0x10], [0xA6, 0x88], [0x6B],
+    ]
+    GSTUB = DECAY + len(decay_e8)
+    gstub_e8 = asm(GSTUB, gstub_items)
+    # LAUNCHER wrapper (act 0x2E, all nine): runs the char's OWN standing-HK
+    # handler (anim/boxes/timing reused wholesale), then forces the attack
+    # class to LAUNCHER_ID — attackID 12 -> on-hit idx 6, whose record byte0
+    # is code 0x14 = the STAND sub-table's POP-UP LAUNCH row (act 0x1B,
+    # vy -1792 / gravity 96). Safe ordering: attacks process from the frame
+    # AFTER start [SMS-8], and the overwrite lands before any hit frame.
+    launch_items = [
+        [0xC2, 0x30], [0xA6, 0x88], [0xE2, 0x20],
+        [0xB5, 0x00], [0xC2, 0x20], [0x29, 0xFF, 0x00], [0x0A], [0xAA],
+        jsl(ghk, 0xC1),
+        [0xC2, 0x10], [0xA6, 0x88], [0xE2, 0x20],
+        [0xA9, launcher_id], [0x95, 0x44],
+        # while the launcher's hit is latched, keep ITS victim juggle-soft:
+        # the 0x1A knockdown stager writes 0xA0 at the top of the frame and
+        # the attacker's proc runs after, so this write wins — and it scopes
+        # the softness to LAUNCHER-initiated launches only (vanilla sweeps
+        # and specials keep their protection).
+        [0xB5, 0x43],
+        ("b", 0xF0, "nosoft"),
+        [0xC2, 0x30], [0x8A],                  # txa (X = our struct base)
+        [0x49, 0x80, 0x00], [0xAA],            # eor #$0080 -> the OTHER player
+        [0xE2, 0x20],
+        [0xA9, 0x20], [0x95, 0x46],
+        [0xC2, 0x30], [0xA6, 0x88],
+        ("label", "nosoft"),
+        [0x6B],
+    ]
+    LAUNCH = GSTUB + len(gstub_e8)
+    launch_e8 = asm(LAUNCH, launch_items)
 
     blob = bytearray(0x10000)
     for cid in range(1, 10):
         blob[FRONTID_E8 + cid] = chars[cid]["frontid"]
         blob[NTBL_E8 + cid * 2:NTBL_E8 + cid * 2 + 2] = chars[cid]["stance"][7].to_bytes(2, "little")
         blob[SPTBL_E8 + cid * 2:SPTBL_E8 + cid * 2 + 2] = chars[cid]["sptbl"].to_bytes(2, "little")
-    code = jstub_e8 + gat_e8 + wrap_e8 + rst_e8 + fork_e8 + react_e8 + ablock_e8 + decay_e8
+    code = jstub_e8 + gat_e8 + wrap_e8 + rst_e8 + fork_e8 + react_e8 + ablock_e8 + decay_e8 + gstub_e8 + launch_e8
     blob[CODE_E8:CODE_E8 + len(code)] = code
     blob = bytes(blob[:CODE_E8 + len(code)])
 
@@ -515,6 +610,10 @@ def build(src, out, budget, juggle):
     rom[C1 + reactshim:C1 + reactshim + 5] = bytes(jsl(REACT)) + b"\x60"
     abshim = alloc.take(5, "airblock act shim")
     rom[C1 + abshim:C1 + abshim + 5] = bytes(jsl(ABLOCK)) + b"\x60"
+    gshim = alloc.take(5, "ground-route shim")
+    rom[C1 + gshim:C1 + gshim + 5] = bytes(jsl(GSTUB)) + b"\x60"
+    launchshim = alloc.take(5, "launcher act shim")
+    rom[C1 + launchshim:C1 + launchshim + 5] = bytes(jsl(LAUNCH)) + b"\x60"
 
     # ---- AIR BLOCK global wiring --------------------------------------
     # the two resolution fork sites ($C0:C06A / $C0:C13D, running from the
@@ -541,9 +640,12 @@ def build(src, out, budget, juggle):
         slot2D = c["tbl"] + 0x2D * 2
         assert rom[slot2D:slot2D + 2] == b"\0\0", f"{nm}: act slot 2D not null"
         rom[slot2D:slot2D + 2] = abshim.to_bytes(2, "little")
+        slot2E = c["tbl"] + 0x2E * 2
+        assert rom[slot2E:slot2E + 2] == b"\0\0", f"{nm}: act slot 2E not null"
+        rom[slot2E:slot2E + 2] = launchshim.to_bytes(2, "little")
         # script slots 2B (jump-back, 8) / 2C (jump-fwd, 7) / 2D (guard pose, 0x0C)
         st = c["scripttbl"]
-        for slot, src_slot in ((0x2B, 8), (0x2C, 7), (0x2D, 0x0C)):
+        for slot, src_slot in ((0x2B, 8), (0x2C, 7), (0x2D, 0x0C), (0x2E, c["hk_act"])):
             o = st + slot * 2
             assert rom[o:o + 2] == b"\0\0", f"{nm}: script slot {slot:02X} not null"
             rom[o:o + 2] = word(rom, st + src_slot * 2).to_bytes(2, "little")
@@ -558,6 +660,9 @@ def build(src, out, budget, juggle):
         # landing reset hook
         rom[c["land"]:c["land"] + 3] = bytes([0x20, rshim & 0xFF, rshim >> 8])
         n_l += 1
+        # ground-route hooks (the universal-launcher input)
+        for j in c["gsites"]:
+            rom[j:j + 3] = bytes([0x20, gshim & 0xFF, gshim >> 8])
     # juggle enablement WITH DECAY: hook the launch/air-hitstun handlers'
     # `lda #$A0 / sta $46,X` (4 bytes) -> jsl decay
     for off, name in ((0x010FA8, "launch 0x1B"), (0x0110A0, "air hitstun 0x16")):
@@ -587,10 +692,14 @@ if __name__ == "__main__":
     # defaults are MAINTAINER-RULED (2026-08-20): budget 2, juggle decay 4,
     # air-enable + global rules — see docs/project/anime_fighter_feasibility.md
     ap.add_argument("--budget", type=int, default=2)
+    ap.add_argument("--airdash-speed", type=lambda v: int(v, 0), default=None,
+                    help="front air dash X speed (subpixels/frame, e.g. 0x0900); default keeps the Shadow Dash 0x0B00")
+    ap.add_argument("--launcher-id", type=int, default=12,
+                    help="attack class the universal launcher stamps (12 -> on-hit code 0x14, the pop-up row)")
     ap.add_argument("--juggle", type=int, default=4,
                     help="airborne reactions per launch sequence before untargetability returns (0 = no juggles)")
     a = ap.parse_args()
     src = a.src or clean_rom()
     require_source(src, stacked=a.stacked)
     check_not_inplace(src, a.out)
-    build(src, a.out, a.budget, a.juggle)
+    build(src, a.out, a.budget, a.juggle, a.airdash_speed, a.launcher_id)

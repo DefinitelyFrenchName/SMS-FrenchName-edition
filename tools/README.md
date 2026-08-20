@@ -368,6 +368,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_exp_airdash2.lua` — does URANUS get air dashes via ROUTE INSERTION?
 - `probe_exp_airspecial.lua` — what does a GROUND special do when started
 - `probe_exp_bdsafety.lua` — is the GROUND backdash still invulnerable, on every
+- `probe_exp_launcher.lua` — does the UNIVERSAL LAUNCHER (fresh LK+HK
 - `probe_exp_roster.lua` — per-character verification of the full-roster
 - `probe_fontdma.lua` — find the code that uploads the menu FONT to VRAM.
 - `probe_fontdma2.lua` — read the DMA parameters from DIRECT PAGE at the trigger.
