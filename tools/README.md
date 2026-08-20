@@ -339,6 +339,7 @@ See HANDOFF.md §4 for the harness.
 - `perf_patch11_cfg.lua`
 - `probe_acs_select.lua` — does SELECT still open the ACS screen from the VS
 - `probe_adv2hp.lua` — issue #28: measure Uranus 2HP on-hit advantage by frame-advance,
+- `probe_airfree.lua` — which PLAYER-STRUCT bytes does a busy match segment
 - `probe_airguard.lua` — WOULD THE ENGINE HONOR AN AIR BLOCK? (Phase 1 of the
 - `probe_airphys.lua` — air physics, landing, and the air-special start,
 - `probe_api.lua` — one-shot Mesen 2 Lua API probe for the training-mode build (P-1).
@@ -359,6 +360,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_dshit.lua`
 - `probe_dswave.lua` — whiff (no target), trace BOTH projectile slots for 300 frames; flag if +0x40 ever uses 6/7/8
 - `probe_exp_aircancel.lua` — do the AIR-DASH CANCEL and the ON-HIT AIR CHAIN
+- `probe_exp_aircounter.lua` — is the air-action BUDGET honored and reset?
 - `probe_exp_airdash.lua` — does Venus get an AIR BACKDASH, and is it vulnerable?
 - `probe_exp_airdash2.lua` — does URANUS get air dashes via ROUTE INSERTION?
 - `probe_exp_airspecial.lua` — what does a GROUND special do when started
@@ -501,6 +503,7 @@ See HANDOFF.md §4 for the harness.
 - `docaddrs.py` — the address census the documentation checks are built on.
 - `exp_airbackdash.py` — EXPERIMENT (not a numbered patch, not canonical): give Venus an AIR BACKDASH.
 - `exp_aircancel.py` — EXPERIMENT (not a numbered patch): URANUS air-dash CANCELS and the on-hit
+- `exp_aircounter.py` — EXPERIMENT (not a numbered patch): a DELIBERATE air-action budget.
 - `exp_airdash2.py` — EXPERIMENT (not a numbered patch): URANUS air back/front dash — the
 - `exp_airspecial.py` — EXPERIMENT (not a numbered patch): AIR-ENABLE two existing ground specials.
 - `findfont.py` — locate a Latin font inside an arbitrary SNES ROM.
