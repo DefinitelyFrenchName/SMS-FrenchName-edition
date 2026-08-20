@@ -287,6 +287,7 @@ See HANDOFF.md §4 for the harness.
 
 - `coltest.lua` — : reach a live VS match with P1=CHARA confirmed via a color button combo,
 - `coltest_cfg.lua`
+- `demo_airrush.lua` — the anime-fighter feasibility DEMO: one scripted
 - `demo_infinite.lua` — scripted playback of the frame-perfect 1-frame-link infinite.
 - `demo_link.lua` — AUTO-CALIBRATING 1-frame-link proof (ROM-agnostic).
 - `demo_link_blocked.lua` — after auto-calibrating, loop a single attempt TWO FRAMES LATER than
@@ -506,6 +507,8 @@ See HANDOFF.md §4 for the harness.
 - `exp_aircounter.py` — EXPERIMENT (not a numbered patch): a DELIBERATE air-action budget.
 - `exp_airdash2.py` — EXPERIMENT (not a numbered patch): URANUS air back/front dash — the
 - `exp_airspecial.py` — EXPERIMENT (not a numbered patch): AIR-ENABLE two existing ground specials.
+- `exp_anime_stack.sh` — the Phase 7 integration stack of the anime-fighter
+- `exp_juggle.py` — EXPERIMENT (not a numbered patch): JUGGLES — launched victims stay
 - `findfont.py` — locate a Latin font inside an arbitrary SNES ROM.
 - `gen_plan.py` — Generate a trace_plan for a re-press experiment.
 - `halfwidth_render.py` — render the half-width alphabet to a PNG for eyeballing.

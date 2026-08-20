@@ -5,10 +5,17 @@ ground+air front/back dashes, dashes cancellable into attacks, air specials for
 all nine, air cancels/chains, juggle-capable air combos, and (added during
 planning) an air block that would carry air guard-cancels? Balance out of scope.
 
-**Verdict after the Phase 0–1 measurements: YES — every mechanism is either
-already proven, a composition of proven techniques, or a bounded redesign whose
-gate has been located. Nothing measured kills any requested feature.** The
-per-feature costs and the one moderate redesign (air block) are below.
+**Verdict after Phases 0–7 (2026-08-20): YES — DEMONSTRATED.** Every requested
+mechanism now runs live on `build/exp_anime_stack.sfc` (recipe
+`tools/exp_anime_stack.sh`, regression 45/45): air dashes both ways,
+dash-cancels into normals, air specials on characters who lacked them, on-hit
+air chains, a tunable air-action budget, and real juggles — all of it landed
+in one scripted no-pokes combo by `tools/demo_airrush.lua`
+(launcher → air-dash chase → dash-cancel j.HP → juggle re-hit → gatling dash
+→ landing reset). The only feature not yet prototyped is air block (two
+bounded sites located, air GC rides along by construction). What remains is
+roster ROLLOUT (per-character constants), the air-block prototype, and the
+maintainer policy rulings below.
 
 Everything here was measured 2026-08-20 on the clean ROM
 (`bc0e29ee383574443226695215496eb0d09aaa1c`) unless marked otherwise; the
@@ -112,6 +119,10 @@ air-legal moves (air dashes, air specials) for free.
 | G1 (juggle kill-shot) | **BEST CASE** — flag policy; single-instruction gate at `$C0:C00A`; reaction path juggle-coherent |
 | G3 (ground specials airborne) | **BEST CASE** — projectile and strike families both run coherently airborne from a flag-bit edit; body-relative projectile spawn gives true air fireballs; air specials scale to the roster as flag edits + route insertion |
 | Phase-3 universality | route insertion proven (Uranus); mechanism declared universalizable, remaining seven characters are constants, not research |
+| Phase 4 (cancels/chains) | dash→normal is a ONE-FRAME cancel (wrapper handler; routes-after-tail need a re-run of `$0204` to latch the anim); the on-hit gatling (j.HP → air dash on `+0x43`) fired and its whiff control stayed silent. ⚠ Two laws paid for: `$0459` clobbers X; Uranus's stance records are ordered by ASCENDING BUTTON BIT (her dir j.HP is act **0x50**, not 0x51 — engine-internals column labels need re-deriving) |
+| Phase 5 (air budget) | counter = struct `+0x7F` (measured init-only; magic 0xA5 survives 1400 busy frames; boot watch owed); N=0 kills all air dashes, N=1 gives exactly one per airborne period, landing stub resets it. Harness law: the recognizer needs a registered NEUTRAL before tap 1 |
+| Phase 6 (juggles) | **TWO BYTES** — the `+0x46` write census found exactly 18 immediate writers; flipping the act-0x1B launch and act-0x16 air-hitstun handlers' `#$A0`→`#$20` makes launched victims re-hittable with the game's own pipeline; knockdowns/flame/electric/throws keep protection; regression 45/45 (no vanilla invariant depended on launch untargetability). Launch handlers write Yvel→`+0x32`, gravity→`+0x34` — the reaction-path doc conflict resolved the same way as the player path |
+| Phase 7 (integration) | `tools/exp_anime_stack.sh` chains all five exps (45/45 regression); **`tools/demo_airrush.lua` lands the whole thing in ONE no-pokes sequence**: anti-air launcher t=153 → air-dash chase (budget 1) → one-frame dash-cancel j.HP t=193 → JUGGLE re-hit on the floating victim t=198 → gatling second dash (budget 2) → landing reset. A plain jump provably cannot chase the launch drift (+2 px/f each) — the air dash's 11 px/f is what makes juggle routes real |
 | G2 (landing) | acts keep running on landing → air-enabled ground specials need explicit landing handling (cost multiplier, not a kill) |
 | G4 (air-normal routes) | none exist (0/72) → chains are route-insertion work, as planned |
 | G5 (motion budget) | nobody blocked; flag-0x00 shared-entry design makes the 7-cap a non-issue |
