@@ -607,18 +607,28 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12):
     ]
     LAUNCH = GSTUB + len(gstub_e8)
     launch_e8 = asm(LAUNCH, launch_items)
-    # WALLFLY (act 0x2F, all nine): fly until the X position stops moving
-    # (the wall or camera bound — position-delta detection is mechanism-
-    # independent; last x-low remembered in +0x79, free in this state), then
-    # BOUNCE: reversed X, upward impulse, real gravity, air hitstun act 0x16
-    # (juggle-soft, lands like any juggle). Step doubles as a timeout.
+    # WALLFLY (act 0x2F, all nine): fly until the victim touches the border
+    # of the CURRENTLY DRAWN screen — read from the engine's own per-object
+    # screen X at +0x28 (world - camera + 0x2C, computed by $C0:8BCB every
+    # frame; +0x16 bit6 is set at the clamp instant and is the trigger). A
+    # world-position stall check would instead let the victim DRAG THE
+    # CAMERA until it is clamped by the launcher's position (the field
+    # report's bug), and a fixed screen-x threshold misses the engine's own
+    # clamp value (232, measured). Then BOUNCE: reversed X, upward impulse, real
+    # gravity, air hitstun act 0x16 (juggle-soft, lands like any juggle).
+    # Step doubles as a timeout.
     wallfly_items = [
         [0xC2, 0x30], [0xA6, 0x88], [0xE2, 0x20],
         [0xF6, 0x02],                          # step = frame counter
         [0xB5, 0x02], [0xC9, 70], ("b", 0xB0, "bail"),
-        [0xC9, 0x04], ("b", 0x90, "track"),    # let the flight start first
-        [0xB5, 0x21], [0xD5, 0x79], ("b", 0xD0, "track"),
-        # the wall: reverse X (sign from current), pop up, real gravity
+        [0xC9, 0x04], ("b", 0x90, "tail2"),    # let the flight start first
+        # the drawn border: the engine CLAMPS the object at the screen edge
+        # (measured: screen x pins at 232 and the victim then pushes the
+        # camera 1 px/f — the reported drag) and SETS +0x16 bit6 at the exact
+        # clamp instant. Bit6 is the native, side-agnostic signal.
+        [0xB5, 0x16], [0x29, 0x40],
+        ("b", 0xF0, "tail2"),                  # not touching the border yet
+        # the border: reverse X (sign from current), pop up, real gravity
         [0xC2, 0x20],
         [0xB5, 0x30],
         ("b", 0x10, "toleft"),
@@ -633,10 +643,7 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12):
         [0xE2, 0x20],
         ("label", "bail"),
         [0xA9, 0x16], jsl(g0224, 0xC1),        # air hitstun: the juggle state
-        ("b", 0x80, "tail"),
-        ("label", "track"),
-        [0xB5, 0x21], [0x95, 0x79],
-        ("label", "tail"),
+        ("label", "tail2"),
         [0xC2, 0x10], [0xA6, 0x88],
         jsl(g0204, 0xC1),
         [0x6B],

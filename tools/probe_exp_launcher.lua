@@ -58,8 +58,9 @@ emu.addEventCallback(function()
 end, emu.eventType.inputPolled)
 
 local function snap()
-  return string.format("t=%4d a.act=%02X stp=%02X 44=%02X | v.act=%02X st=%02X 46=%02X hp=%3d y=%3d yv=%6d",
-      t, r(P1, 0x01), r(P1, 0x02), r(P1, 0x44), r(P2, 0x01), r(P2, 0x16), r(P2, 0x46), r(P2, 0x49), r(P2, 0x25), s16(P2, 0x32))
+  return string.format("t=%4d a.act=%02X 44=%02X | v.act=%02X st=%02X 46=%02X hp=%3d y=%3d yv=%6d wx=%4d sx=%3d cam=%4d",
+      t, r(P1, 0x01), r(P1, 0x44), r(P2, 0x01), r(P2, 0x16), r(P2, 0x46), r(P2, 0x49), r(P2, 0x25), s16(P2, 0x32),
+      x16(P2), r(P2, 0x28), PL.ram(0x0A00) + 256 * PL.ram(0x0A01))
 end
 
 emu.addEventCallback(function()
