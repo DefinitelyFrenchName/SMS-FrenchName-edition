@@ -584,8 +584,15 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
         [0x49, 0x80, 0x00], [0xAA],            # eor #$0080 -> the OTHER player
         [0xE2, 0x20],
         [0xA9, 0x20], [0x95, 0x46],
-        [0xB5, 0x01], [0xC9, 0x1A],            # only the fresh vanilla pop-up
+        # the fresh vanilla pop-up is act 0x1A OR 0x1B — 0x1A appears only
+        # when the victim's first-hit-defense absorbs (Jupiter/Neptune); the
+        # rest of the roster stages 0x1B (measured on Chibi: field bug, the
+        # 0x1A-only edge never converted her)
+        [0xB5, 0x01], [0xC9, 0x1A],
+        ("b", 0xF0, "doconv"),
+        [0xC9, 0x1B],
         ("b", 0xD0, "conv_done"),
+        ("label", "doconv"),
         [0xA9, 0x2F], [0x95, 0x01], [0x95, 0x04],
         [0x74, 0x02], [0x74, 0x07], [0x74, 0x06],
         [0xC2, 0x20],

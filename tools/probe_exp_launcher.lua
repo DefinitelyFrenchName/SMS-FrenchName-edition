@@ -20,7 +20,7 @@ local LOG = assert(io.open(ENV.TRACE .. "launcher_" .. MODE .. (TAG and ("_" .. 
 local function log(s) LOG:write(s .. "\n"); LOG:flush() end
 
 local P1, P2 = 0x1000, 0x1080
-local STATE = "venus_vs_jupiter_clean.mss"
+local STATE = os.getenv("SMS_LSTATE") or "venus_vs_jupiter_clean.mss"
 local function r(b, o) return PL.ram(b + o) end
 local function x16(b) return r(b, 0x21) + 256 * r(b, 0x22) end
 local function air(b) return (r(b, 0x16) & 0x80) == 0 end
