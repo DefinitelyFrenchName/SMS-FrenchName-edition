@@ -150,6 +150,26 @@ First field report: very positive ("hectic but really good"). v3 (sha1
   override of the front dash's X velocity; emitted only when the flag is
   given, so the default build is byte-identical).
 
+## The wall-bounce launcher (2026-08-20, maintainer preference, BUILT)
+
+The pop-up launcher was replaced by the maintainer's preferred **Hercules
+Throw** shape (v4, sha1 16798f18...): the launcher hit sends the victim flat
+backwards at 0x0C00 px-subunits/frame (shallow lift -0x0180, gravity 0x10),
+STILL IN HITSTUN and juggle-soft, until the X position stops moving (the
+screen edge), then bounces: X reversed toward the attacker (0x0480), vy
+-0x0500, real gravity 0x60 — a rising parabola back at the attacker ending
+in air hitstun act 0x16 (lands like any juggle). Mechanism: the launcher
+wrapper converts the fresh vanilla pop-up (act 0x1A edge, once per connect)
+into authored WALLFLY act 0x2F (null slot, all nine; anim = each char's own
+knockdown-flight script slot 0x1A); the 0x2F handler tracks last-x in +0x79
+and bounces on x-stall (step doubles as a 70f timeout). Measured end to end:
+conversion t=134 -> WALLFLY t=142 -> wall t=166 -> bounce t=167 (vx -1152
+reversed, vy -1184 rising, apex ~57px) -> neutral t=204; single-button and
+clean controls silent; regression 45/45. ⚠ BONUS MEASUREMENT: `+0x16` bit6
+(wall contact) DOES set for flying reaction victims (st=40 at the wall) —
+the engine confirms the wall natively; the position-delta check stays as the
+mechanism-independent detector.
+
 ## Roster-PoC findings (2026-08-20, all measured)
 
 - **A stub returning into a handler continuation must restore X = object on

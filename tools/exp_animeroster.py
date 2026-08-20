@@ -570,30 +570,86 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12):
         jsl(ghk, 0xC1),
         [0xC2, 0x10], [0xA6, 0x88], [0xE2, 0x20],
         [0xA9, launcher_id], [0x95, 0x44],
-        # while the launcher's hit is latched, keep ITS victim juggle-soft:
-        # the 0x1A knockdown stager writes 0xA0 at the top of the frame and
-        # the attacker's proc runs after, so this write wins — and it scopes
-        # the softness to LAUNCHER-initiated launches only (vanilla sweeps
-        # and specials keep their protection).
+        # while the launcher's hit is latched: soften ITS victim (the 0x1A
+        # stager writes 0xA0 at frame top; the attacker's proc runs after, so
+        # this wins — launcher-only juggle-softness), and — Hercules Throw —
+        # convert the fresh vanilla pop-up (act 0x1A) into WALLFLY act 0x2F:
+        # flat, fast, backwards, still in hitstun; the 0x2F handler does the
+        # wall bounce. The act==0x1A edge makes the conversion fire exactly
+        # once per connect. The vanilla stage already set the AWAY-facing X
+        # velocity sign via $0389, so the flight speed reuses that sign.
         [0xB5, 0x43],
         ("b", 0xF0, "nosoft"),
         [0xC2, 0x30], [0x8A],                  # txa (X = our struct base)
         [0x49, 0x80, 0x00], [0xAA],            # eor #$0080 -> the OTHER player
         [0xE2, 0x20],
         [0xA9, 0x20], [0x95, 0x46],
+        [0xB5, 0x01], [0xC9, 0x1A],            # only the fresh vanilla pop-up
+        ("b", 0xD0, "conv_done"),
+        [0xA9, 0x2F], [0x95, 0x01], [0x95, 0x04],
+        [0x74, 0x02], [0x74, 0x07], [0x74, 0x06],
+        [0xC2, 0x20],
+        [0xB5, 0x30],                          # the stage's away-sign
+        ("b", 0x10, "flyr"),
+        [0xA9, 0x00, 0xF4],                    # vx = -0x0C00
+        ("b", 0x80, "flyw"),
+        ("label", "flyr"),
+        [0xA9, 0x00, 0x0C],                    # vx = +0x0C00
+        ("label", "flyw"),
+        [0x95, 0x30],
+        [0xA9, 0x80, 0xFE], [0x95, 0x32],      # vy = -0x0180 (shallow lift)
+        [0xA9, 0x10, 0x00], [0x95, 0x34],      # gravity 0x0010 (near-flat)
+        [0xE2, 0x20],
+        ("label", "conv_done"),
         [0xC2, 0x30], [0xA6, 0x88],
         ("label", "nosoft"),
         [0x6B],
     ]
     LAUNCH = GSTUB + len(gstub_e8)
     launch_e8 = asm(LAUNCH, launch_items)
+    # WALLFLY (act 0x2F, all nine): fly until the X position stops moving
+    # (the wall or camera bound — position-delta detection is mechanism-
+    # independent; last x-low remembered in +0x79, free in this state), then
+    # BOUNCE: reversed X, upward impulse, real gravity, air hitstun act 0x16
+    # (juggle-soft, lands like any juggle). Step doubles as a timeout.
+    wallfly_items = [
+        [0xC2, 0x30], [0xA6, 0x88], [0xE2, 0x20],
+        [0xF6, 0x02],                          # step = frame counter
+        [0xB5, 0x02], [0xC9, 70], ("b", 0xB0, "bail"),
+        [0xC9, 0x04], ("b", 0x90, "track"),    # let the flight start first
+        [0xB5, 0x21], [0xD5, 0x79], ("b", 0xD0, "track"),
+        # the wall: reverse X (sign from current), pop up, real gravity
+        [0xC2, 0x20],
+        [0xB5, 0x30],
+        ("b", 0x10, "toleft"),
+        [0xA9, 0x80, 0x04],                    # was flying left -> bounce right
+        ("b", 0x80, "bset"),
+        ("label", "toleft"),
+        [0xA9, 0x80, 0xFB],                    # was flying right -> bounce left
+        ("label", "bset"),
+        [0x95, 0x30],
+        [0xA9, 0x00, 0xFB], [0x95, 0x32],      # vy = -0x0500
+        [0xA9, 0x60, 0x00], [0x95, 0x34],      # gravity 0x60
+        [0xE2, 0x20],
+        ("label", "bail"),
+        [0xA9, 0x16], jsl(g0224, 0xC1),        # air hitstun: the juggle state
+        ("b", 0x80, "tail"),
+        ("label", "track"),
+        [0xB5, 0x21], [0x95, 0x79],
+        ("label", "tail"),
+        [0xC2, 0x10], [0xA6, 0x88],
+        jsl(g0204, 0xC1),
+        [0x6B],
+    ]
+    WALLFLY = LAUNCH + len(launch_e8)
+    wallfly_e8 = asm(WALLFLY, wallfly_items)
 
     blob = bytearray(0x10000)
     for cid in range(1, 10):
         blob[FRONTID_E8 + cid] = chars[cid]["frontid"]
         blob[NTBL_E8 + cid * 2:NTBL_E8 + cid * 2 + 2] = chars[cid]["stance"][7].to_bytes(2, "little")
         blob[SPTBL_E8 + cid * 2:SPTBL_E8 + cid * 2 + 2] = chars[cid]["sptbl"].to_bytes(2, "little")
-    code = jstub_e8 + gat_e8 + wrap_e8 + rst_e8 + fork_e8 + react_e8 + ablock_e8 + decay_e8 + gstub_e8 + launch_e8
+    code = jstub_e8 + gat_e8 + wrap_e8 + rst_e8 + fork_e8 + react_e8 + ablock_e8 + decay_e8 + gstub_e8 + launch_e8 + wallfly_e8
     blob[CODE_E8:CODE_E8 + len(code)] = code
     blob = bytes(blob[:CODE_E8 + len(code)])
 
@@ -614,6 +670,8 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12):
     rom[C1 + gshim:C1 + gshim + 5] = bytes(jsl(GSTUB)) + b"\x60"
     launchshim = alloc.take(5, "launcher act shim")
     rom[C1 + launchshim:C1 + launchshim + 5] = bytes(jsl(LAUNCH)) + b"\x60"
+    wfshim = alloc.take(5, "wallfly act shim")
+    rom[C1 + wfshim:C1 + wfshim + 5] = bytes(jsl(WALLFLY)) + b"\x60"
 
     # ---- AIR BLOCK global wiring --------------------------------------
     # the two resolution fork sites ($C0:C06A / $C0:C13D, running from the
@@ -643,9 +701,12 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12):
         slot2E = c["tbl"] + 0x2E * 2
         assert rom[slot2E:slot2E + 2] == b"\0\0", f"{nm}: act slot 2E not null"
         rom[slot2E:slot2E + 2] = launchshim.to_bytes(2, "little")
+        slot2F = c["tbl"] + 0x2F * 2
+        assert rom[slot2F:slot2F + 2] == b"\0\0", f"{nm}: act slot 2F not null"
+        rom[slot2F:slot2F + 2] = wfshim.to_bytes(2, "little")
         # script slots 2B (jump-back, 8) / 2C (jump-fwd, 7) / 2D (guard pose, 0x0C)
         st = c["scripttbl"]
-        for slot, src_slot in ((0x2B, 8), (0x2C, 7), (0x2D, 0x0C), (0x2E, c["hk_act"])):
+        for slot, src_slot in ((0x2B, 8), (0x2C, 7), (0x2D, 0x0C), (0x2E, c["hk_act"]), (0x2F, 0x1A)):
             o = st + slot * 2
             assert rom[o:o + 2] == b"\0\0", f"{nm}: script slot {slot:02X} not null"
             rom[o:o + 2] = word(rom, st + src_slot * 2).to_bytes(2, "little")

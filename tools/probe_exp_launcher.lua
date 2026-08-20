@@ -33,6 +33,7 @@ local t, loaded = -1, false
 local phase, phaseStart = "settle", 0
 local rows, hp0 = {}, nil
 local sawLauncherAct, victimLaunch, minY, launch46 = nil, nil, 255, nil
+local wallflySeen, wallStop, bounceSeen, bounceVel, bounceMinY, settled, lastWX = nil, nil, nil, nil, nil, nil, nil
 
 emu.addMemoryCallback(function()
   if not loaded then
@@ -71,12 +72,26 @@ emu.addEventCallback(function()
     elseif k > 150 then log("SETUP-FAIL approach"); LOG:close(); emu.stop(1) end
   elseif phase == "press" then
     rows[#rows + 1] = snap()
-    local aa, va = r(P1, 0x01), r(P2, 0x01)
+    local aa, va = r(P2, 0x01), r(P2, 0x01)
+    aa = r(P1, 0x01)
     if aa == 0x2E and not sawLauncherAct then sawLauncherAct = t end
+    -- wall-bounce tracking
+    if va == 0x2F then
+      wallflySeen = wallflySeen or t
+      local x = x16(P2)
+      if lastWX and x == lastWX then wallStop = wallStop or t end
+      lastWX = x
+    end
+    if wallflySeen and va == 0x16 then
+      bounceSeen = bounceSeen or t
+      if not bounceVel then bounceVel = { vx = s16(P2, 0x30), vy = s16(P2, 0x32) } end
+      if r(P2, 0x25) < (bounceMinY or 255) then bounceMinY = r(P2, 0x25) end
+    end
+    if bounceSeen and va == 0x00 and not settled then settled = t end
     if (va == 0x1B or va == 0x1A) and not victimLaunch then victimLaunch = t end
     if victimLaunch and air(P2) and not launch46 then launch46 = r(P2, 0x46) end
     if victimLaunch and r(P2, 0x25) < minY then minY = r(P2, 0x25) end
-    if k > 90 then
+    if k > 150 then
       log("")
       for _, s in ipairs(rows) do log("   " .. s) end
       log("")
@@ -85,6 +100,11 @@ emu.addEventCallback(function()
       log(string.format("   victim POP-UP: %s", victimLaunch and
           string.format("t=%d, +0x46=%02X (%s), apex y=%d, hp %d->%d", victimLaunch, launch46,
             launch46 == 0x20 and "JUGGLE-SOFT" or "protected", minY, hp0, r(P2, 0x49)) or "NO"))
+      log(string.format("   WALLFLY (act 2F): %s   wall stop: %s", wallflySeen and ("t=" .. wallflySeen) or "NO",
+          wallStop and ("t=" .. wallStop) or "no"))
+      log(string.format("   BOUNCE (act 16): %s", bounceSeen and
+          string.format("t=%d vx=%d vy=%d apex y=%d", bounceSeen, bounceVel.vx, bounceVel.vy, bounceMinY or 255) or "NO"))
+      log(string.format("   settled to neutral: %s", settled and ("t=" .. settled) or "no"))
       LOG:close(); emu.stop(0)
     end
   end
