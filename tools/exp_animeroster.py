@@ -243,7 +243,7 @@ def derive(rom):
     return chars
 
 
-def build(src, out, budget, juggle, airdash=None, launcher_id=12):
+def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700):
     rom = bytearray(open(src, "rb").read())
     chars = derive(rom)
     alloc = Alloc(C1_REGIONS)
@@ -638,7 +638,7 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12):
         [0xA9, 0x80, 0xFB],                    # was flying right -> bounce left
         ("label", "bset"),
         [0x95, 0x30],
-        [0xA9, 0x00, 0xFB], [0x95, 0x32],      # vy = -0x0500
+        [0xA9, (-bounce) & 0xFF, ((-bounce) >> 8) & 0xFF], [0x95, 0x32],   # vy = -bounce
         [0xA9, 0x60, 0x00], [0x95, 0x34],      # gravity 0x60
         [0xE2, 0x20],
         ("label", "bail"),
@@ -749,7 +749,7 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12):
     print(f"  bank ${0xC0 + (bankbase >> 16):02X}: {len(blob)} B "
           f"(jstub {len(jstub_e8)}, gat {len(gat_e8)}, wrap {len(wrap_e8)}, rst {len(rst_e8)}, "
           f"fork {len(fork_e8)}, react {len(react_e8)}, ablock {len(ablock_e8)}, decay {len(decay_e8)})")
-    print(f"wrote {out} from {src} sha1={hashlib.sha1(rom).hexdigest()}  [budget N={budget}, juggle decay N={juggle}]")
+    print(f"wrote {out} from {src} sha1={hashlib.sha1(rom).hexdigest()}  [budget N={budget}, juggle decay N={juggle}, bounce 0x{bounce:04X}]")
 
 
 if __name__ == "__main__":
@@ -762,6 +762,8 @@ if __name__ == "__main__":
     ap.add_argument("--budget", type=int, default=2)
     ap.add_argument("--airdash-speed", type=lambda v: int(v, 0), default=None,
                     help="front air dash X speed (subpixels/frame, e.g. 0x0900); default keeps the Shadow Dash 0x0B00")
+    ap.add_argument("--bounce-height", type=lambda v: int(v, 0), default=0x0700,
+                    help="wall-bounce vertical impulse (subpixels/frame; was 0x0500, default 0x0700)")
     ap.add_argument("--launcher-id", type=int, default=12,
                     help="attack class the universal launcher stamps (12 -> on-hit code 0x14, the pop-up row)")
     ap.add_argument("--juggle", type=int, default=4,
@@ -770,4 +772,4 @@ if __name__ == "__main__":
     src = a.src or clean_rom()
     require_source(src, stacked=a.stacked)
     check_not_inplace(src, a.out)
-    build(src, a.out, a.budget, a.juggle, a.airdash_speed, a.launcher_id)
+    build(src, a.out, a.budget, a.juggle, a.airdash_speed, a.launcher_id, a.bounce_height)
