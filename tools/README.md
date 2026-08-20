@@ -339,6 +339,8 @@ See HANDOFF.md §4 for the harness.
 - `perf_patch11_cfg.lua`
 - `probe_acs_select.lua` — does SELECT still open the ACS screen from the VS
 - `probe_adv2hp.lua` — issue #28: measure Uranus 2HP on-hit advantage by frame-advance,
+- `probe_airguard.lua` — WOULD THE ENGINE HONOR AN AIR BLOCK? (Phase 1 of the
+- `probe_airphys.lua` — air physics, landing, and the air-special start,
 - `probe_api.lua` — one-shot Mesen 2 Lua API probe for the training-mode build (P-1).
 - `probe_backdash_census.lua` — the NEUTRAL backdash, measured, for one character.
 - `probe_bar.lua`
@@ -371,6 +373,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_hudnmi.lua` — patch-10 probe R3: who CONSUMES the HUD staging block ($0806-$0815)
 - `probe_hudre.lua` — patch-10 RE probes R1+R2: who READS the timer BCD ($7E:0802) and who
 - `probe_input.lua` — does emu.getInput (called BEFORE setInput in inputPolled) return the
+- `probe_juggle.lua` — CAN AN AIRBORNE VICTIM BE RE-HIT? (Phase 0 of the
 - `probe_luaenv.lua` — one-shot probe of Mesen's Lua sandbox for path-discovery options.
 - `probe_meaty_shot.lua`
 - `probe_menu_font.lua` — where does the MENU FONT come from?
@@ -482,6 +485,9 @@ See HANDOFF.md §4 for the harness.
 ## Other
 
 - `boxlib.py` — the box-extractor core, in ONE place (#85).
+- `census_airroutes.py` — which START ROUTES do the jump acts and AIR NORMALS
+- `census_motionbudget.py` — per-character motion-list budget vs the 7-motion
+- `census_onhit_flags.py` — dump byte 3 ("flags") of the ten global on-hit
 - `checkdocs.py` — Verify docs/game/'s load-bearing claims against the cartridge.
 - `checkknobs.py` — Verify the knobs table in docs/project/patch_notes.md against the builders.
 - `checkpatchmap.py` — Verify what the patch documents claim about the patches, against the .bps files.

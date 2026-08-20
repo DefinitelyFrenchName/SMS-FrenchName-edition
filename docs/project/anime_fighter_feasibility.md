@@ -1,0 +1,116 @@
+# Anime-fighter feasibility — the measurement dossier
+
+**Question (maintainer, 2026-08-20):** can SMS become an anime fighter — universal
+ground+air front/back dashes, dashes cancellable into attacks, air specials for
+all nine, air cancels/chains, juggle-capable air combos, and (added during
+planning) an air block that would carry air guard-cancels? Balance out of scope.
+
+**Verdict after the Phase 0–1 measurements: YES — every mechanism is either
+already proven, a composition of proven techniques, or a bounded redesign whose
+gate has been located. Nothing measured kills any requested feature.** The
+per-feature costs and the one moderate redesign (air block) are below.
+
+Everything here was measured 2026-08-20 on the clean ROM
+(`bc0e29ee383574443226695215496eb0d09aaa1c`) unless marked otherwise; the
+probes and censuses are in `tools/`, the traces in `traces/` (regenerate with
+the command in each probe's header). The programme design and the phased
+roadmap live in the session plan; the prior art is `tools/exp_airbackdash.py`
+(Venus's working air back/front dash, commits a726fe1–b9ee584).
+
+## The ten unknowns → measured answers
+
+| # | unknown | answer | evidence |
+|---|---|---|---|
+| 1 | Can an airborne victim be re-hit? | **YES, once `+0x46` bit7 is clear.** The one gate is `lda $46,X / bmi` at **`$C0:C00A`** — a single instruction in hit resolution. With the victim held at jab range and `+0x46` poked to `0x20` or `0x00`, six consecutive jabs resolved on the airborne victim, each dealing damage and each re-dispatching the game's own AIR reaction row coherently (act `0x16` + fresh `0xA0` re-set per hit, no garbage act, no softlock). The clean run at identical spacing resolved **zero** — the negative control failed for the gate reason. | `probe_juggle.lua`; `traces/juggle_{clean,poke20,poke00}_d12.txt` |
+| 2 | High-altitude air-hit reaction | **Partial.** Air contact sampled at y=164 (Venus 5HP's reach ceiling) → act `0x16`, `+0x46=0xA0`; grounded contact → act `0x11`/`0x13`, `+0x46=0x20`. Higher-altitude rows need a taller launcher (bounded coverage, not a conclusion). | `traces/juggle_clean_d{12,20,32}_free.txt` |
+| 3 | On-hit record byte-3 "flags" | **A single bit, table-family-correlated**: `0x00` across the first five posture tables (except idx 12), `0x01` across the last five (except idx 13 in three). 160/160 records ∈ {0,1}. Consumer not yet traced; hypothesis: knockdown/launch-class marker. Anchored to the documented `$CDD5` rows, controls red at base±1. | `census_onhit_flags.py`; `traces/onhit_flags_census.txt` |
+| 4 | `+0x32`/`+0x34` labeling conflict | **Player path settled: `+0x32` = Y velocity, `+0x34` = gravity.** Venus neutral jump: impulse −2048 into `+0x32`, sweep +96/frame; `+0x34` constant 96. Gravity is per-move (jump 96, Chibi jump-fwd 160, her dive-bounce 88, Uranus dash 64 per patch 6). The reaction-template sentence in `sms_engine_internals.md` ("launch velocities +0x32/+0x34") is wrong about `+0x34` and needs correcting. | `probe_airphys.lua`; `traces/airphys_jumps.txt` |
+| 5 | Air-normal start routes | **NONE — 0 of 72.** Every air-normal handler of all nine characters offers no start route: vanilla air normals cancel into nothing. Air chains are therefore route-insertion work (the proven stub technique) on the air-normal handlers. Bonus census: all 18 jump stance tables decoded (backlog item closed); the jump acts' routes per character are in the trace, incl. a previously undocumented **air-throw route census** — exactly Moon/Mercury/Mars/Jupiter/Neptune offer `$055A` from jump acts, matching the documented air throws move for move. | `census_airroutes.py`; `traces/airroutes_census.txt` |
+| 6 | Ground specials run airborne | **Not yet measured** — Phase 2's builder question (`exp_airspecial.py`). What Phase 1 adds: landing does NOT auto-truncate acts (see #8), so air-enabled ground specials will need explicit landing handling; and a native air special's handler does exactly that (see #8). |
+| 7 | Jump-normal tables, 8 chars | **Decoded, all nine** (two tables each, 4 records each, printed in the census trace). All records are far==close with threshold 255 — jump normals have no proximity variants anywhere. | `traces/airroutes_census.txt` |
+| 8 | Landing mechanics | Grounded bit (`+0x16` bit7) sets on the arrival frame (y=192 reached, velocities zeroed); act `0x09` staged the NEXT frame; landing is 5f. **Landing does not truncate a running act** — a whiffed Chibi j.2K dive reaches the ground and its own handler chains dive act `0x66` → grounded skid act `0x68` (~50f) → neutral; the engine only sets the bit. Landing behavior is a per-handler contract, like step-0 init. | `traces/airphys_jumps.txt`, `traces/airphys_airspec_d8_back.txt` |
+| 9 | Saturn / Rev. SS | **Answered by scoping**: research runs on the Rev. S clean base only; every bank-`$C1` hook must also be applied to the SS line's bank copies ($EF/B_C1) at promotion time (trap 5 / [SSP-12]). |
+| 10 | Air-action accounting | Not yet claimed (Phase 5). New fact that shapes it: the `+0x51` latch clears ~2 frames after a legitimate air-special start with NO step-0 re-fire — the exp's re-fire loop happens only when the STARTED act itself re-offers the same start route within the latch window. An authored air act that doesn't re-offer its own route needs no flag guard at all. | `traces/airphys_airspec_d8.txt` (t=89–91) |
+
+## The air block / air guard-cancel question (maintainer addition)
+
+Three measurements pin the architecture:
+
+1. **Blocking is an input-state predicate, not an act predicate.** A grounded
+   victim merely WALKING BACK blocks Venus's 5HP (act `0x02` → blockstun
+   `0x0E`, zero damage); a victim POKED into guard pose `0x0C` with back held
+   takes the full hit. (`traces/airguard_ground_{natural,act}.txt`)
+2. **The victim-side posture gate is ONE branch**: `$C1:0E26`'s reaction
+   dispatch selects the posture sub-table with `lda $16,X / and #$0080 / bne`
+   at **`$C1:0E55`** — airborne victims route to the `$0EBB` (air /
+   "guard-incapable") sub-table before any guard logic can run. Sub-tables:
+   `$0E83` stand / `$0E9F` crouch / `$0EBB` air.
+3. **The attacker-side guard predicate never consults an airborne victim**:
+   the pending reaction code (`+0x47`) is `0x0C` for an airborne victim with
+   back held AND without — identical — while a grounded blocker gets `0x04`
+   (a block-level code). So resolution chooses hit-vs-block only for grounded
+   victims. (`traces/airguard_air_{natural,noguard}.txt` vs
+   `traces/airguard_ground_natural.txt`)
+
+**Cost of air block: a bounded two-site redesign** — (a) the resolution-side
+level chooser must be taught an airborne-guard case (the code that stages
+`+0x47`, around the `$CD75/$CD95` dispatch pair at `$C0:C084`/`$C0:C157`;
+exact predicate site is follow-up RE), and (b) the air path at `$C1:0E55`
+needs block rows — an authored air-blockstun act behind a trampoline.
+**Air guard-cancel then rides along by construction**: ground blockstun's only
+start route is `jsr $0958` with the special-start table, so the authored
+air-blockstun act carries the same route and the flag byte filters it to
+air-legal moves (air dashes, air specials) for free.
+
+## What this changes about the feature costs
+
+| feature | cost after measurement |
+|---|---|
+| Air dashes, both ways, all nine | **Proven** (Venus); replication = per-char data + the jump-handler stub; five characters need the route call inserted rather than rerouted (Phase 3 proves that variant on Uranus). No character is motion-capacity-blocked (see below). |
+| Dash-cancels into attacks | Authorable: we write the air-dash handlers, so we choose their start routes (normals via the existing jump stance tables + specials). No engine obstacle found. |
+| Air specials for the six | Table appends (air-only entries) + route insertion for the five whose jump handlers lack `$0958`. Open question is only handler physics airborne (Phase 2). |
+| Air chains / cancels | Route insertion on air-normal handlers (72 handlers, none has routes today); hit-confirm cancels via the `$0952` entry work airborne (the `+0x43` latch is set by air hits — measured in the juggle runs). |
+| Juggles | **Flag policy + reaction choice**, not surgery: keep `+0x46` bit7 clear (or clear it after k frames) in the AIR reaction rows and the engine already re-hits, re-reacts and re-launches coherently. The infinite-juggle bound needs the Phase 5 counter. |
+| Air block + air GC | Moderate: two bounded sites (above) + guard-entry route in jump handlers. Feasible; most involved single feature. |
+| Universal ground dashes | Motion budget confirmed: Moon and Uranus already own a 66; everyone else has ≥1 free motion slot (Moon/Jupiter 6/7, Mercury/Mars/Venus/Uranus 5/7, Neptune/Pluto/Chibi 4/7). Capacity-efficient design: ONE 66 motion + a flag-`0x00` (unrestricted) entry whose act handler branches on the grounded bit into ground-dash vs air-dash — no second motion needed. | 
+
+(`census_motionbudget.py`; `traces/motionbudget_census.txt`)
+
+## Corrections owed to the docs (found on the way)
+
+- `sms_engine_internals.md` reaction-template line ("X/Y launch velocities
+  (+0x32/+0x34)"): `+0x34` is gravity on the player path; the reaction
+  handlers' velocity fields should be re-derived before the sentence is fixed.
+- `tools/exp_airbackdash.py` docstring lines ~111–128 and the `--front` help
+  still say the front dash "does not fire" — superseded by commit 0f22977
+  (stale text, the corrected account is lower in the same file).
+- New engine facts worth promoting to `docs/game/` (with checkdocs treatment):
+  the `$C0:C00A` untargetability gate, the `$C1:0E55` posture branch and
+  sub-table addresses, jump physics constants, the landing contract, the
+  air-throw route census, the 18 jump stance tables, prejump = 5f (confirmed),
+  and the on-hit byte-3 bit census.
+
+## Decision points for the maintainer (before prototypes)
+
+1. Global edits: juggle enablement patches the AIR reaction rows, which are
+   GLOBAL (every character's launches change) — acceptable as total-conversion
+   policy? [SMS-4]
+2. Juggle rule: remove untargetability outright, or a juggle-decay counter
+   (shares Phase 5's accounting)?
+3. Air-action budget N per jump?
+4. Air specials: air-enable existing ground specials (if Phase 2 permits) vs
+   authored air variants — per character?
+5. Air block: in or out, given the two-site redesign cost above? (Air GC comes
+   with it by construction.)
+6. Promote to a numbered patch line / total-conversion branch, or keep as
+   `exp_` research?
+
+## Gate ledger
+
+| gate | outcome |
+|---|---|
+| G1 (juggle kill-shot) | **BEST CASE** — flag policy; single-instruction gate at `$C0:C00A`; reaction path juggle-coherent |
+| G2 (landing) | acts keep running on landing → air-enabled ground specials need explicit landing handling (cost multiplier, not a kill) |
+| G4 (air-normal routes) | none exist (0/72) → chains are route-insertion work, as planned |
+| G5 (motion budget) | nobody blocked; flag-0x00 shared-entry design makes the 7-cap a non-issue |
+| Air-block gate | guard predicate is grounded on BOTH sides (resolution + reaction); two bounded patch sites identified |
