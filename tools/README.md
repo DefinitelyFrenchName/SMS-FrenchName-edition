@@ -358,6 +358,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_dsbox.lua`
 - `probe_dshit.lua`
 - `probe_dswave.lua` — whiff (no target), trace BOTH projectile slots for 300 frames; flag if +0x40 ever uses 6/7/8
+- `probe_exp_aircancel.lua` — do the AIR-DASH CANCEL and the ON-HIT AIR CHAIN
 - `probe_exp_airdash.lua` — does Venus get an AIR BACKDASH, and is it vulnerable?
 - `probe_exp_airdash2.lua` — does URANUS get air dashes via ROUTE INSERTION?
 - `probe_exp_airspecial.lua` — what does a GROUND special do when started
@@ -499,6 +500,7 @@ See HANDOFF.md §4 for the harness.
 - `dis65816_oracle.py` — validate our decode table against an INDEPENDENT one.
 - `docaddrs.py` — the address census the documentation checks are built on.
 - `exp_airbackdash.py` — EXPERIMENT (not a numbered patch, not canonical): give Venus an AIR BACKDASH.
+- `exp_aircancel.py` — EXPERIMENT (not a numbered patch): URANUS air-dash CANCELS and the on-hit
 - `exp_airdash2.py` — EXPERIMENT (not a numbered patch): URANUS air back/front dash — the
 - `exp_airspecial.py` — EXPERIMENT (not a numbered patch): AIR-ENABLE two existing ground specials.
 - `findfont.py` — locate a Latin font inside an arbitrary SNES ROM.
