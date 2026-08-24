@@ -1,4 +1,4 @@
-# Next-session handoff — 2026-08-24 (session close)
+# Next-session handoff — 2026-08-24 (session close, second sitting)
 
 **Read this, then `../game/README.md` if the work is about the ROM, or
 `patch_index.md` if it is about a patch.** Everything below is current; the
@@ -6,21 +6,34 @@ sections further down are per-session detail, newest first.
 
 ## Where to pick up
 
-1. **THE ANIME-FIGHTER BUILD LINE — the active work** (new this session; its
-   own third line beside Rev. S and Rev. SS, by maintainer ruling). Feasibility
-   is settled and the whole thing is BUILT for all nine characters by one
-   self-deriving generator, `tools/exp_animeroster.py`. Dossier with every
-   measurement, gate ledger and ruling: **`anime_fighter_feasibility.md`**.
-   **The next task is specced and agreed: the MASH-CONTEST CLASH** — dossier
-   § "NEXT SESSION". Everything it needs is proven; nothing is open but the
-   build. Two smaller offers are parked: the Dust's extra recovery frames
-   (awaiting a frame count) and the front-dash budget leak (fix only if the
-   field test surfaces it).
+1. **THE ANIME-FIGHTER BUILD LINE — the active work** (its own third line
+   beside Rev. S and Rev. SS, by maintainer ruling). Everything is BUILT for
+   all nine characters by one self-deriving generator,
+   `tools/exp_animeroster.py`. Dossier with every measurement, gate ledger and
+   ruling: **`anime_fighter_feasibility.md`**.
+   **The MASH-CONTEST CLASH is DONE** (2026-08-24, `build/exp_animeroster.bps`,
+   `70121a0a…`): a GROUND clash opens a ~1.5 s struggle — both fighters loop
+   their own standing-LP animation with no boxes, mashed presses are counted,
+   the higher count wins, the loser is launched with the Hercules wall-fly
+   (juggle-soft, the winner converts) and a tie backdashes both.
+   `--clash-mode mash` is the default; `--clash-mode backdash` is v9 and is
+   byte-identical to the pre-contest build. **The next task is the FIELD TEST**
+   — 90 frames, the punish's read, the conversion window, all three knobbed
+   (`--clash-frames`, `--fly-speed`/`--bounce-*`, `--juggle`).
+   Two smaller offers stay parked: the Dust's extra recovery frames (awaiting a
+   frame count) and the front-dash budget leak (fix only if the field surfaces
+   it).
    ⚠ **It is exp-tier and from-clean only.** Before it can chain onto the
-   numbered patches (the maintainer's extended-scope MUST-have) it needs a
-   **space plan** — it currently borrows patch 1/2's `$BE09` hole and patch
-   6's `$BE85` — and the `[SMS-33]` full-session boot watch for the struct
-   cells it claims (`+0x79`, `+0x7C`, `+0x7D`, `+0x7E`, `+0x7F`).
+   numbered patches (the maintainer's extended-scope MUST-have) it still needs a
+   **space plan** — it borrows patch 1/2's `$BE09` hole and patch 6's `$BE85`.
+   The `[SMS-33]` cell watch it also owed is **done**, and it found something:
+   **`+0x79`/`+0x7A` is an engine hit counter**, not free space, so the
+   air-blockstun timer moved to `+0x7B`. Cells now claimed and measured free on
+   both player slots: `+0x7B` (blockstun/contest timer), `+0x7C` (mash count),
+   `+0x7D` (hitbox age), `+0x7E` (juggle count), `+0x7F` (air budget).
+   ⚠ Not caused by that work but found by it: `tools/demo_airrush.lua`
+   SETUP-FAILs its anti-air on **both** builds — it predates the launcher
+   rework and needs re-staging.
    ⚠ **Doc debt this line owes `../game/`** (measured here, not yet written up
    with `checkdocs` treatment): the guard mechanism is **pose-box data** (the
    `$08`/`$0A` flag-byte test at the `$C0:C06A`/`$C13D` forks); `+0x28` is
@@ -98,7 +111,46 @@ sections further down are per-session detail, newest first.
    over — does not pin". That residual is the honest floor of this approach, not
    a to-do list.
 
-## What changed this session (2026-08-24) — the anime-fighter build line
+## What changed this session (2026-08-24, second sitting) — the mash contest
+
+The specced task, built and measured, plus the cell debt paid. Five commits,
+`2e4246b..HEAD`.
+
+* **The MASH CONTEST** (`--clash-mode mash`, default): a ground clash sends both
+  fighters into authored act `0x31`, looping their **own standing-LP animation**
+  with **no boxes at all** for `--clash-frames` (90). Presses are counted as
+  EDGES — `+0x50`'s high nibble is a 30 Hz latch, so a held button counts once
+  (measured: 1 over 90 frames) — and the higher count wins: winner to neutral,
+  loser to the Hercules wall-fly, juggle-soft; a tie backdashes both.
+  **Ruled this sitting: any airborne participant keeps the instant backdash.**
+* **Nothing new was invented.** The LP act is derived and asserted (`0x40` far
+  on all nine; the CLOSE variants differ, which is why the far column is read),
+  and the loop is MADE, because every LP script ends in HOLD: the handler zeroes
+  the step on the character's own cycle length (7 frames, Jupiter 9, summed from
+  its script at build time) and the vanilla tail `$C1:0204` rewinds the anim.
+* **The `[SMS-33]` debt is paid, and it found a live overlap.** A decoded write
+  census (`tools/census_struct_cell.py`) plus a full-session watch
+  (`tools/probe_exp_cells.lua`, boot → title → select → config → match → KO →
+  win) say `+0x7B`-`+0x7F` are free on both player slots and **`+0x79`/`+0x7A`
+  is not**: a 16-bit engine hit counter capped at 999, bumped at all four
+  resolution forks and both throw paths. The air-blockstun timer moved to
+  `+0x7B` (four-byte diff, air-block matrix re-verified). `docs/game/` now
+  carries the counter; `checkdocs` is **ALL PASS (248)**.
+* ⚠ **Two probe defects made working mechanisms look dead**: `probe_exp_clash`'s
+  default `SMS_DIST` was 56 and this fixture only clashes at gap ≥ 64 (the
+  recorded evidence had used 64 and the default had never been run), and a
+  genuine both-airborne clash cannot be staged with it at all — those air
+  normals go active on the same frame and still only TRADE, because a clash
+  needs the two HITBOXES to overlap, not merely to reach the opposite body.
+* ⚠ **A write callback's PC is the NEXT instruction.** The watch named the
+  round-load zeroing `$C0:8832`/`$C0:897F`; the stores are three bytes earlier,
+  and `checkdocs` refused the doc row until the ROM was read.
+
+Verification on the mash build: contest/hold/tie/gate/stagger runs + the clean
+control, air-block matrix, launcher + Dust, roster probe 9/9, regression
+**45/45**, `--clash-mode backdash` byte-identical to `95d8ebe3…`.
+
+## What changed the same day (2026-08-24, first sitting) — the anime-fighter build line
 
 A feasibility question ("can this become an anime fighter?") became a
 measured yes, then a full-roster build, then five field-tested revisions.

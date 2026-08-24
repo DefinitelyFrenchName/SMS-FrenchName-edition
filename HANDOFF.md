@@ -26,7 +26,46 @@ ported from Super S and is playable in the **Rev. SS** builds only (§0).
 
 ---
 
-## 0. Current state (2026-08-24) — three build lines: Rev. S, Rev. SS, and the ANIME FIGHTER
+## 0. Current state (2026-08-24, second sitting) — three build lines: Rev. S, Rev. SS, and the ANIME FIGHTER
+
+**2026-08-24 (second sitting) — THE MASH-CONTEST CLASH IS BUILT, and paying the
+struct-cell debt found an ENGINE COUNTER under one of the line's own cells.**
+`--clash-mode mash` (the new default) turns a GROUND clash into a ~1.5 s
+struggle: both fighters loop their **own standing-LP animation** in authored act
+`0x31` with **no boxes at all**, mashed presses are counted, the higher count
+wins — winner to neutral, loser launched with the Hercules wall-fly, juggle-soft
+so the winner converts; a tie backdashes both, and **any airborne participant
+keeps the instant backdash** (ruling). `--clash-mode backdash` rebuilds
+byte-identical to the pre-contest build. Artifact `build/exp_animeroster.bps`
+(`70121a0a…`); detail and every measurement in
+`docs/project/anime_fighter_feasibility.md`.
+
+⚠ **`+0x79`/`+0x7A` is not free space — it is a 16-bit engine hit counter**
+capped at 999 (`$C0:C050` and three sibling forks, both throw paths, `stz $1079`
+/ `stz $10F9` at round load), and this line's air-blockstun timer had been
+sitting on it since the air-block build. Found by paying the owed `[SMS-33]`
+debt: `tools/census_struct_cell.py` (a DECODED write census, framing- and
+positive-controlled) plus `tools/probe_exp_cells.lua` (boot → title → select →
+config → match → KO → win, magic `0xA5` re-seeded per phase, bulk struct-clear
+writers classified out). `+0x7B`-`+0x7F` are free on both player slots; the
+timer moved to `+0x7B` in a four-byte diff. Three documents called that range
+unmapped — `docs/game/` now carries the counter, gated (`checkdocs` **248**).
+
+⚠ **Trap 27 — a write callback's PC is the NEXT instruction.** The watch named
+the round-load zeroing `$C0:8832`/`$C0:897F`; the stores are `stz $1079` at
+`$C0:882F` and `stz $10F9` at `$C0:897C`. `checkdocs` refused the row until the
+ROM was read. A watch's PC FINDS a writer; the ROM NAMES it.
+
+⚠ **Trap 28 — a probe default that was never run is not a default, it is a
+guess.** `probe_exp_clash`'s `SMS_DIST` defaulted to 56 while this fixture only
+clashes at gap ≥ 64 — the recorded evidence had been taken at 64 — so the first
+run of the sitting reported the shipped v9 clash as dead on a build that is
+byte-identical to the one that measured it. And its `mashair` mode cannot stage
+a both-airborne clash at all (those air normals go active on the same frame and
+still only TRADE: a clash needs the two HITBOXES to overlap, not merely to reach
+the opposite body), so the airborne gate is tested by poking the byte the gate
+reads from an exec hook on the hooked site — and the probe header says so rather
+than leaving the mode looking like a pass.
 
 **2026-08-24 — A THIRD BUILD LINE: the ANIME-FIGHTER conversion, exp-tier,
 all nine characters.** A feasibility question became a measured yes and then
@@ -50,7 +89,8 @@ both fighters. No new sprites anywhere: every new act wraps a move the
 character already owns. Regression **45/45** at every step.
 
 ⚠ **Five engine facts this line measured, owed to `docs/game/` with the
-`checkdocs` treatment** (none written up yet): **guard is pose-box data** —
+`checkdocs` treatment** (none written up yet — the `+0x79` counter above is a
+sixth, and it IS written up): **guard is pose-box data** —
 the `$08`/`$0A` flag-byte test at the resolution forks `$C0:C06A`/`$C13D`,
 with the blocked path staging from the `$CE55` table; **`+0x28` is per-object
 SCREEN X** and the drawn border **clamps at sx 232 while setting `+0x16`
@@ -815,7 +855,9 @@ would actually cost). Short version: ROM is not scarce (384 KB spare), ARAM is
 the only hard wall, and the real constraint is per-character tables sized to nine
 and immediately followed by live data.
 
-**Twenty-three traps this project paid for — they generalise** (12-18 are the
+**Twenty-eight traps this project paid for — they generalise** (1-23 are
+collected here; 24-28 are recorded in §0 above, each beside the work that paid
+for it) (12-18 are the
 2026-08-06 issue-remediation programme's distillate, per-issue evidence in
 the `Fixes #NN` commits; 19 came out of the 2026-08-08 data-architecture audit,
 20-21 out of the generated doc and patch checks the same day, and 22-23 out of
