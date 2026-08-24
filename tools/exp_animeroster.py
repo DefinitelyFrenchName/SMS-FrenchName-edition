@@ -462,12 +462,21 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
     ]
 
     # Air-block REACTION handler (rows 1/2 of the air sub-table $C1:0EBB):
-    # mark in-blockstun (targetable 0x20), arm the +0x7E timer, stage act 0x2D.
+    # mark in-blockstun (targetable 0x20), arm the blockstun timer, stage 0x2D.
+    #
+    # ⚠ THE TIMER LIVES IN +0x7B, NOT +0x79. +0x79/+0x7A is an ENGINE cell: a
+    # 16-bit per-object counter capped at 999 ($C0:C050 `cmp #$03E7`), bumped at
+    # every hit-resolution fork and both throw sites, re-initialised per player
+    # at round load ($80:8832 / $80:897F). It reads as free in every doc
+    # ("+0x79-0x7F Unmapped") and is not — measured 2026-08-24 by
+    # tools/census_struct_cell.py and the [SMS-33] session watch
+    # tools/probe_exp_cells.lua, which caught the engine turning a seeded $A5
+    # into $A6 mid-match. +0x7B is free by both measurements.
     ABLOCK_FRAMES = 14
     react_items = [
         [0xC2, 0x30], [0xA6, 0x88], [0xE2, 0x20],
         [0xA9, 0x20], [0x95, 0x46],
-        [0xA9, ABLOCK_FRAMES], [0x95, 0x79],
+        [0xA9, ABLOCK_FRAMES], [0x95, 0x7B],
         [0xA9, 0x2D], jsl(g10A9, 0xC1),
         [0x6B],
     ]
@@ -485,7 +494,7 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
         [0xA9, 0x09], jsl(g0224, 0xC1),       # grounded: land normally
         ("b", 0x80, "tail"),
         ("label", "airb"),
-        [0xD6, 0x79],                          # dec $79,X (blockstun timer)
+        [0xD6, 0x7B],                          # dec $7B,X (blockstun timer)
         ("b", 0xD0, "routes"),
         [0xA9, 0x07], jsl(g0224, 0xC1),       # blockstun over: fall (act 07)
         ("b", 0x80, "tail"),
