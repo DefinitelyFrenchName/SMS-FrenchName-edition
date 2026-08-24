@@ -31,7 +31,23 @@ characters from the ROM itself (no per-character hand constants):
     is flipped to 0x04 — each character's projectile specials work airborne
     (self-guarding against re-fire via the projectile-slot gate);
   * juggles: the two exp_juggle bytes (launch/air-hitstun reactions write
-    0x20, not 0xA0) — GLOBAL [SMS-4], the total-conversion policy.
+    0x20, not 0xA0) — GLOBAL [SMS-4], the total-conversion policy;
+  * the CLASH (--clash N): two hitboxes meeting inside their first N active
+    frames cancel both attacks. --clash-mode backdash is the v9 answer (both
+    fighters backdash); --clash-mode mash, the DEFAULT, opens the
+    Samurai-Shodown MASH CONTEST on a GROUND clash — both fighters loop their
+    own standing-LP animation (act 0x31, no boxes at all), each mashed press
+    is counted, and after --clash-frames the higher count wins: the winner
+    returns to neutral and the loser is launched with the Hercules wall-fly,
+    juggle-soft, so the winner converts. A tie backdashes both. An AIR clash
+    keeps the backdash on either mode (maintainer ruling 2026-08-24).
+
+STRUCT CELLS this build claims, all measured free on both player slots by
+tools/census_struct_cell.py (static, decoded) and tools/probe_exp_cells.lua
+(the [SMS-33] full-session watch): +0x7B air-blockstun timer / contest timer,
++0x7C mash count (bit7 = press latch), +0x7D hitbox age, +0x7E juggle count,
++0x7F air budget. ⚠ +0x79/+0x7A is NOT free — it is a 16-bit engine counter
+capped at 999 ($C0:C050), which every doc in this project still calls unmapped.
 
 ARCHITECTURE. Bank $C1 cannot hold nine of everything, so all logic lives in
 an APPENDED BANK and $C1 keeps only what its data-bank contract requires:
@@ -189,6 +205,25 @@ def derive(rom):
         hk_act = rom[C1 + gstance + 10]          # record 4 (HK), far act
         cstance = word(rom, gsites[3] - 2)       # crouch stance table (act 3's ldy)
         c2hp_act = rom[C1 + cstance + 7]         # record 3 (HP), far act
+        lp_act = rom[C1 + gstance + 1]           # record 1 (LP), far act — the
+        # mash contest's animation. Measured 2026-08-24: 0x40 on ALL NINE (the
+        # close variants differ, 0x40/0x41/0x42, which is why the FAR column is
+        # the one read). Asserted rather than hardcoded — a per-character
+        # constant typed into a builder is the thing this generator exists to
+        # avoid.
+        assert lp_act == 0x40, f"{NAMES[cid]}: standing-LP far act is {lp_act:#04x}, not 0x40"
+        # ...and how long its animation runs, so the struggle can LOOP it. The
+        # script is the documented byte stream (data_architecture §"Animation"):
+        # d&0xC0==0 -> STEP [d][pose] for d+1 frames, 0x40 LOOP, 0x80 HOLD. All
+        # nine standing jabs end in HOLD, so a loop has to be made, not found.
+        sp = word(rom, word(rom, cid * 2) + lp_act * 2)
+        lp_len, o = 0, C1 - C1 + sp              # scripts live in bank $C0
+        while rom[o] & 0xC0 == 0:
+            lp_len += rom[o] + 1
+            o += 2
+            assert lp_len < 200, f"{NAMES[cid]}: LP script has no terminator"
+        assert rom[o] & 0xC0 in (0x40, 0x80), f"{NAMES[cid]}: bad LP script terminator"
+
         # special table: most common ldy operand before jsr $0958 in the block
         ops = Counter()
         i = lo
@@ -238,6 +273,7 @@ def derive(rom):
             tails=tails, land=land, sptbl=sptbl, ents=ents,
             mlist=mlist, motions=motions, has66=has66, ins=ins,
             gsites=gsites, hk_act=hk_act, c2hp_act=c2hp_act,
+            lp_act=lp_act, lp_len=lp_len,
             frontid=4 if has66 else 2 * ins + 2)
         if not has66:
             assert len(ents) == 2 * len(motions), \
@@ -245,9 +281,13 @@ def derive(rom):
     return chars
 
 
-def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700, fly=0x0E60, bback=0x03A0, dust=0x0C00, clash=3):
+def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
+          fly=0x0E60, bback=0x03A0, dust=0x0C00, clash=3, clash_mode="mash",
+          clash_frames=90):
     rom = bytearray(open(src, "rb").read())
     chars = derive(rom)
+    STRUG_ACT = 0x31                  # the mash contest's act (null on all nine)
+    mash = bool(clash) and clash_mode == "mash"
     alloc = Alloc(C1_REGIONS)
     log = []
 
@@ -323,7 +363,12 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
     FRONTID_E8 = 0x0000               # 16 bytes
     NTBL_E8 = 0x0010                  # 20 bytes
     SPTBL_E8 = 0x0024                 # 20 bytes: charID -> FINAL special table
-    CODE_E8 = 0x0040
+    LPLEN_E8 = 0x0038                 # 10 bytes: charID -> standing-LP anim length
+    # The table exists only in mash mode, and the code start moves with it, so a
+    # --clash-mode backdash build is byte-identical to the build before the
+    # contest existed (trap 16: byte-identity is the refactor gate, and it has
+    # to cover the variant paths, not just the default).
+    CODE_E8 = 0x0050 if mash else 0x0040
 
     def jsl(a, bank=None):
         bank = eb if bank is None else bank
@@ -705,6 +750,18 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
             [0x74, 0x43], [0x74, 0x7D],        # clear connect latch + age
         ]
 
+    def strug_one():
+        """Put the fighter in X into the MASH CONTEST (act 0x31)."""
+        return [
+            [0xA9, STRUG_ACT], [0x95, 0x01], [0x95, 0x04],
+            [0x74, 0x02], [0x74, 0x06], [0x74, 0x07],   # step + anim, from zero
+            [0x74, 0x40], [0x74, 0x41],                 # no boxes for the rest of THIS frame
+            [0x74, 0x43], [0x74, 0x7D],                 # connect latch + hitbox age
+            [0x74, 0x7C],                               # the mash count
+            [0xA9, clash_frames], [0x95, 0x7B],         # the contest timer
+            [0xC2, 0x20], [0x74, 0x30], [0x74, 0x32], [0xE2, 0x20],   # stop dead
+        ]
+
     # CLASH: replaces the target-selection block at $C0:BFF5-C001, entered with
     # the ATTACKER's hit rect already computed in DP $00-$06 by $C0:C8EA and
     # X = attacker base. If the opponent is ALSO attacking, both hitboxes are
@@ -741,9 +798,29 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
         [0xA2, 0x00, 0x10], [0x6B],
         ("label", "do_clash"),
         [0xE2, 0x20],
-    ] + clash_one("O") + [
+    ] + (clash_one("O") + [
         [0xC2, 0x30], [0xFA], [0xE2, 0x20],    # plx -> attacker base
-    ] + clash_one("A") + [
+    ] + clash_one("A") if clash_mode == "backdash" else [
+        # MASH CONTEST — but only if BOTH fighters are grounded (maintainer
+        # ruling 2026-08-24: an air clash keeps the instant backdash; a struggle
+        # while both fall reads wrong, and the loser's wall-fly punish makes no
+        # sense out of the air). Reading both grounded bits needs one byte of
+        # scratch, and the stack is the only scratch a resolution hook owns.
+        [0xC2, 0x30], [0xFA], [0xE2, 0x20],    # plx -> attacker base
+        [0xB5, 0x16], [0x48],                  # lda $16,X / pha  (attacker's flags)
+        [0xC2, 0x30], [0x8A], [0x49, 0x80, 0x00], [0xAA], [0xE2, 0x20],
+        [0x68],                                # pla -> attacker's flags
+        [0x35, 0x16], [0x29, 0x80],            # and $16,X / and #$80: BOTH grounded?
+        ("b", 0xF0, "bdpair"),
+    ] + strug_one() + [                        # X = opponent
+        [0xC2, 0x30], [0x8A], [0x49, 0x80, 0x00], [0xAA], [0xE2, 0x20],
+    ] + strug_one() + [                        # X = attacker
+        ("b", 0x80, "cfin"),
+        ("label", "bdpair"),                   # someone airborne -> the v9 pair
+    ] + clash_one("O") + [
+        [0xC2, 0x30], [0x8A], [0x49, 0x80, 0x00], [0xAA], [0xE2, 0x20],
+    ] + clash_one("A")) + [
+        ("label", "cfin"),
         [0xA9, 0x0B], [0x85, 0x78],            # the guard sfx request (global DP)
         [0xC2, 0x30],
         [0x8A], [0x49, 0x80, 0x00], [0xAA],    # X = opponent (the caller's target)
@@ -795,12 +872,146 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
     WALLFLY = CLASH + len(clash_e8)
     wallfly_e8 = asm(WALLFLY, wallfly_items)
 
+    # ---- THE MASH CONTEST (act 0x31) ------------------------------------
+    # A ground clash opens a Samurai-Shodown struggle: both fighters loop their
+    # OWN standing-LP animation with no boxes at all, both mash, the higher
+    # count wins, the loser is launched with the Hercules wall-fly (juggle-soft,
+    # so the winner converts) and a tie falls back to the v9 mutual backdash.
+    #
+    # Three small routines, because the outcome blocks would otherwise branch
+    # further than a relative branch reaches:
+    #   STAGE  (A = act, X = object)  the common act change + counter reset
+    #   LOSE   (X = loser)            STAGE 0x2F + juggle-soft + the flight
+    #   STRUG                         the per-frame handler itself
+    stage_items = [
+        [0x95, 0x01], [0x95, 0x04],            # act + anim act
+        [0x74, 0x02], [0x74, 0x06], [0x74, 0x07],
+        [0x74, 0x7C], [0x74, 0x7B],            # mash count + contest timer
+        [0x60],
+    ]
+    STAGE = WALLFLY + len(wallfly_e8)
+    stage_e8 = asm(STAGE, stage_items)
+
+    def call(a):
+        return [0x20, a & 0xFF, a >> 8]        # jsr, in-bank (PB = the appended bank)
+
+    lose_items = [
+        [0xA9, 0x2F], call(STAGE),             # the wall-fly act
+        [0xA9, 0x20], [0x95, 0x46],            # juggle-soft: the winner converts
+        [0x74, 0x7E],                          # ...with a full juggle allowance
+        [0xB5, 0x16], [0x29, 0x7F], [0x95, 0x16],   # airborne, or the flight never leaves the floor
+        # AWAY from the winner, and the two fighters face each other in a clash,
+        # so "away" is the loser's own back. +0x09 == 0 is facing RIGHT (the
+        # training mode's pixel-verified box viewer reads it that way).
+        [0xB5, 0x09],
+        ("b", 0xF0, "toleft"),
+        [0xC2, 0x20], [0xA9, fly & 0xFF, fly >> 8],
+        ("b", 0x80, "setvx"),
+        ("label", "toleft"),
+        [0xC2, 0x20], [0xA9, (-fly) & 0xFF, ((-fly) >> 8) & 0xFF],
+        ("label", "setvx"),
+        [0x95, 0x30],
+        [0xA9, 0x80, 0xFE], [0x95, 0x32],      # vy = -0x0180 (the shallow lift)
+        [0xA9, 0x10, 0x00], [0x95, 0x34],      # gravity 0x0010 (near-flat)
+        [0xE2, 0x20],
+        [0x60],
+    ]
+    LOSE = STAGE + len(stage_e8)
+    lose_e8 = asm(LOSE, lose_items)
+
+    def swapx():
+        """X = the other player slot (the two structs are 0x80 apart)."""
+        return [[0xC2, 0x30], [0x8A], [0x49, 0x80, 0x00], [0xAA], [0xE2, 0x20]]
+
+    strug_items = [
+        [0xC2, 0x30], [0xA6, 0x88], [0xE2, 0x20],
+        # No boxes, ever. The handler runs AFTER the box writer's per-object
+        # batch ($C0:9CCD), so zeroing here is exact — and an empty hurtbox is
+        # the engine's own invulnerability, which is what keeps a stray
+        # projectile out of the contest.
+        [0x74, 0x40], [0x74, 0x41],
+        # Count PRESS EDGES, not latched frames: +0x50's high nibble is the
+        # fresh-attack latch the throw-tech sampler reads ($C1:07CF) and it
+        # stands for ~2 frames at 30Hz, so counting frames would pay a mash and
+        # a hold alike. Bit7 of +0x7C is "this press is already counted", which
+        # keeps the whole contest in ONE struct cell.
+        [0xB5, 0x50], [0x29, 0xF0],
+        ("b", 0xF0, "noedge"),
+        [0xB5, 0x7C],
+        ("b", 0x30, "anim"),                   # bmi: still holding the same press
+        [0xC9, 0x7F], ("b", 0xB0, "latch"),    # saturate at 127
+        [0x1A],                                # inc a
+        ("label", "latch"),
+        [0x09, 0x80], [0x95, 0x7C],
+        ("b", 0x80, "anim"),
+        ("label", "noedge"),
+        [0xB5, 0x7C], [0x29, 0x7F], [0x95, 0x7C],
+        # Loop the jab. Every standing-LP script ends in HOLD (0x80), so the
+        # loop has to be made: at the cycle boundary zero the STEP, and the
+        # handler tail ($C1:0204) rewinds the animation — it fires precisely
+        # when the step is 0. The cycle length is the character's own, summed
+        # from its script at build time (7 frames; Jupiter 9).
+        ("label", "anim"),
+        [0xB5, 0x00],                          # charID
+        [0xC2, 0x30], [0x29, 0xFF, 0x00], [0xAA], [0xE2, 0x20],
+        [0xBF, LPLEN_E8 & 0xFF, LPLEN_E8 >> 8, eb],
+        [0x48],                                # pha (the cycle length)
+        [0xA6, 0x88],                          # X = object again
+        [0xF6, 0x02],
+        [0xB5, 0x02],
+        [0xC3, 0x01],                          # cmp $01,S
+        ("b", 0x90, "nowrap"),
+        [0x74, 0x02],
+        ("label", "nowrap"),
+        [0x68],
+        # the contest's own clock
+        [0xD6, 0x7B],
+        ("b", 0xD0, "tail"),
+        # --- resolution: higher count wins ---------------------------------
+        # Both timers were armed on the same frame, so they expire together and
+        # whichever proc runs first resolves for BOTH fighters.
+        [0xB5, 0x7C], [0x29, 0x7F], [0x48],    # push SELF's count
+    ] + swapx() + [                            # X = the other fighter
+        [0xB5, 0x7C], [0x29, 0x7F],
+        [0xC3, 0x01],                          # cmp $01,S  (other - self)
+        ("b", 0xD0, "notie"),
+        [0x68],
+        [0xA9, 0x26], call(STAGE),             # TIE -> both backdash (the v9 answer)
+    ] + swapx() + [
+        [0xA9, 0x26], call(STAGE),
+        ("b", 0x80, "tail"),
+        ("label", "notie"),
+        ("b", 0xB0, "otherwins"),
+        [0x68],
+        call(LOSE),                            # other < self: the other one flies
+    ] + swapx() + [
+        [0xA9, 0x00], call(STAGE),             # ...and self returns to neutral
+        ("b", 0x80, "tail"),
+        ("label", "otherwins"),
+        [0x68],
+        [0xA9, 0x00], call(STAGE),
+    ] + swapx() + [
+        call(LOSE),
+        ("label", "tail"),
+        [0xC2, 0x10], [0xA6, 0x88],            # the X-restore law, every exit
+        jsl(g0204, 0xC1),
+        [0x6B],
+    ]
+    STRUG = LOSE + len(lose_e8)
+    strug_e8 = asm(STRUG, strug_items)
+    if not mash:                       # backdash mode emits none of it (see CODE_E8)
+        stage_e8 = lose_e8 = strug_e8 = b""
+
     blob = bytearray(0x10000)
     for cid in range(1, 10):
         blob[FRONTID_E8 + cid] = chars[cid]["frontid"]
         blob[NTBL_E8 + cid * 2:NTBL_E8 + cid * 2 + 2] = chars[cid]["stance"][7].to_bytes(2, "little")
         blob[SPTBL_E8 + cid * 2:SPTBL_E8 + cid * 2 + 2] = chars[cid]["sptbl"].to_bytes(2, "little")
-    code = jstub_e8 + gat_e8 + wrap_e8 + rst_e8 + fork_e8 + react_e8 + ablock_e8 + decay_e8 + gstub_e8 + launch_e8 + dust_e8 + age_e8 + clash_e8 + wallfly_e8
+        if mash:
+            blob[LPLEN_E8 + cid] = chars[cid]["lp_len"]
+    code = (jstub_e8 + gat_e8 + wrap_e8 + rst_e8 + fork_e8 + react_e8 + ablock_e8
+            + decay_e8 + gstub_e8 + launch_e8 + dust_e8 + age_e8 + clash_e8
+            + wallfly_e8 + stage_e8 + lose_e8 + strug_e8)
     blob[CODE_E8:CODE_E8 + len(code)] = code
     blob = bytes(blob[:CODE_E8 + len(code)])
 
@@ -825,6 +1036,9 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
     rom[C1 + wfshim:C1 + wfshim + 5] = bytes(jsl(WALLFLY)) + b"\x60"
     dustshim = alloc.take(5, "dust act shim")
     rom[C1 + dustshim:C1 + dustshim + 5] = bytes(jsl(DUST)) + b"\x60"
+    if mash:
+        strugshim = alloc.take(5, "struggle act shim")
+        rom[C1 + strugshim:C1 + strugshim + 5] = bytes(jsl(STRUG)) + b"\x60"
 
     # ---- AIR BLOCK global wiring --------------------------------------
     # the two resolution fork sites ($C0:C06A / $C0:C13D, running from the
@@ -874,9 +1088,17 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
         slot30 = c["tbl"] + 0x30 * 2
         assert rom[slot30:slot30 + 2] == b"\0\0", f"{nm}: act slot 30 not null"
         rom[slot30:slot30 + 2] = dustshim.to_bytes(2, "little")
+        if mash:
+            slot31 = c["tbl"] + STRUG_ACT * 2
+            assert rom[slot31:slot31 + 2] == b"\0\0", f"{nm}: act slot 31 not null"
+            rom[slot31:slot31 + 2] = strugshim.to_bytes(2, "little")
         # script slots 2B (jump-back, 8) / 2C (jump-fwd, 7) / 2D (guard pose, 0x0C)
         st = c["scripttbl"]
-        for slot, src_slot in ((0x2B, 8), (0x2C, 7), (0x2D, 0x0C), (0x2E, c["hk_act"]), (0x2F, 0x1A), (0x30, c["c2hp_act"])):
+        slots = [(0x2B, 8), (0x2C, 7), (0x2D, 0x0C), (0x2E, c["hk_act"]),
+                 (0x2F, 0x1A), (0x30, c["c2hp_act"])]
+        if mash:
+            slots.append((STRUG_ACT, c["lp_act"]))   # the struggle wears the jab
+        for slot, src_slot in slots:
             o = st + slot * 2
             assert rom[o:o + 2] == b"\0\0", f"{nm}: script slot {slot:02X} not null"
             rom[o:o + 2] = word(rom, st + src_slot * 2).to_bytes(2, "little")
@@ -909,6 +1131,10 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
         print(line)
     print(f"  hooks: {n_j} jump sites, {n_t} air-normal tails, {n_l} landing sites, "
           f"{n_flip} air-special flips, juggle decay hooks x2, AIR BLOCK (2 forks + 2 rows + act 2D x9)")
+    if mash:
+        print(f"  MASH CONTEST: act ${STRUG_ACT:02X} x9 (anim = each char's own standing LP, "
+              f"{clash_frames}f, window {clash}f), stage {len(stage_e8)} B, lose {len(lose_e8)} B, "
+              f"strug {len(strug_e8)} B")
     print(f"  bank ${0xC0 + (bankbase >> 16):02X}: {len(blob)} B "
           f"(jstub {len(jstub_e8)}, gat {len(gat_e8)}, wrap {len(wrap_e8)}, rst {len(rst_e8)}, "
           f"fork {len(fork_e8)}, react {len(react_e8)}, ablock {len(ablock_e8)}, decay {len(decay_e8)})")
@@ -927,6 +1153,12 @@ if __name__ == "__main__":
                     help="front air dash X speed (subpixels/frame, e.g. 0x0900); default keeps the Shadow Dash 0x0B00")
     ap.add_argument("--clash", type=int, default=3,
                     help="clash window: hitboxes meeting within N active frames cancel both (0 = off)")
+    ap.add_argument("--clash-mode", choices=("mash", "backdash"), default="mash",
+                    help="what a GROUND clash does: mash = the Samurai-Shodown contest "
+                         "(default, maintainer 2026-08-24), backdash = the v9 instant mutual "
+                         "backdash. Air clashes always backdash.")
+    ap.add_argument("--clash-frames", type=int, default=90,
+                    help="how long the mash contest runs, in frames (~1.5 s at 60)")
     ap.add_argument("--dust-height", type=lambda v: int(v, 0), default=0x0C00,
                     help="crouching-Dust vertical impulse (subpixels/frame; ~192px rise at 0x0C00)")
     ap.add_argument("--fly-speed", type=lambda v: int(v, 0), default=0x0E60,
@@ -943,4 +1175,7 @@ if __name__ == "__main__":
     src = a.src or clean_rom()
     require_source(src, stacked=a.stacked)
     check_not_inplace(src, a.out)
-    build(src, a.out, a.budget, a.juggle, a.airdash_speed, a.launcher_id, a.bounce_height, a.fly_speed, a.bounce_back, a.dust_height, a.clash)
+    if not 1 <= a.clash_frames <= 255:
+        ap.error("--clash-frames must fit in the one-byte timer (1-255)")
+    build(src, a.out, a.budget, a.juggle, a.airdash_speed, a.launcher_id, a.bounce_height,
+          a.fly_speed, a.bounce_back, a.dust_height, a.clash, a.clash_mode, a.clash_frames)
