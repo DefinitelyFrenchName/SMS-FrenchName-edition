@@ -176,9 +176,12 @@ The v9 clash (instant mutual backdash) stays as a mode; the maintainer's
 Samurai-Shodown variant is specced and scheduled. Requirements as agreed:
 
 1. **Trigger**: unchanged — two hitboxes meeting within N active frames
-   (`--clash N`). New knob `--clash-mode backdash|mash`; **recommendation**:
-   AIR clashes keep the instant backdash (a mid-air struggle reads wrong),
-   ground clashes enter the contest.
+   (`--clash N`). New knob `--clash-mode backdash|mash`. **RULED (maintainer,
+   2026-08-24): AIR clashes keep the instant backdash**; ground clashes enter
+   the contest. Rationale to preserve: a struggle while both fall reads
+   wrong, and the only alternative — freezing both mid-air for the contest —
+   is a DBZ idiom this game should not borrow; the loser's wall-fly punish
+   would also make no sense out of an air clash.
 2. **Visuals, no authoring** (maintainer's proposal): loop each fighter's own
    **standing-LP ANIMATION ONLY** — verified uniform, **act `0x40` on all
    nine**, each with its own script (`$C0:` script table + `0x40*2`). The
