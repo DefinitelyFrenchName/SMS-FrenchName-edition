@@ -40,6 +40,7 @@ and findings made in this project (marked NEW, with evidence).
 | +0x5B..0x68 | command timers/states | pairs per special; Uranus grab at +0x63/64 etc. | training Lua |
 | +0x70..0x75 | stat buffs | attack/defense/health/special/secret/ochame (NOT input buffer) | training Lua |
 | +0x77 | action_strength | 7=LP, 8=LK, 9=HP, 10=HK | training Lua |
+| +0x79/7A | **hit counter** | 16-bit, per object, capped at 999; bumped at every hit-resolution fork and both throw sites (the six sites are rows below), re-initialised per player at round load. 8 writers, 13 readers, all in banks `$C0`/`$C1`; the CONSUMER is not identified — the report card is the obvious candidate and is untraced. Measured 2026-08-24 (`tools/census_struct_cell.py` + the full-session watch `tools/probe_exp_cells.lua`), after a build had already parked a timer there | ground truth |
 | $7E:6A00 | anim_staging? | char-specific payload expanded here by $C0:916B | ground truth (suspected animation data) |
 
 ## Uranus action IDs (from training Lua neutral_state — "cancellable recovery animations (light attacks)")
@@ -82,6 +83,8 @@ and findings made in this project (marked NEW, with evidence).
 | $C0:E255 | **round_frame_loop** | the in-match frame: waits on the NMI, then 16 calls, then `bra $E255`. Five siblings for the other match phases ($C0:E21A entrance, E2E2, E30F, E41E, E8D3) run the same stage list minus the combat stages. Drawn: `tools/mkenginepage.py` |
 | $C0:D4C9 | **nmi_body_match** | the in-match NMI handler: queued transfers $8448, OAM+CGRAM $80:9EF5, HUD uploader $D56F, pads $8353. Reached from the vector $00:FFEA → $C0:FFA6 → `jmp $80:98DB` → `jmp ($98FD,X)` (one handler per game state) |
 | $C0:8386 | **wait_vblank** | `stz $6C / lda $6C / beq -` — the frame gate every phase loop opens with; the NMI writes $6C |
+| $C0:C050 | **hit_counter_bump** (fork 1 of 4) | `lda $0079,Y` / `cmp #$03E7` / `lda #$0001` / `adc $0079,Y` / `sta $0079,Y` — the victim's 16-bit hit counter, capped at 999. The other three resolution forks repeat it at `$C0:C129`, `$C0:C438`, `$C0:C50B`, and the two throw paths at `$C1:064D` and `$C1:111F` |
+| $C0:882F | **hit_counter_init (P1)** | `stz $1079`, 16-bit, at the tail of a run of round-load `stz`s; P2's is `stz $10F9` at `$C0:897C`. These are why the cell reads 0 at the start of every round, and why "nothing writes it in a match" is a claim only a full-session watch can make. ⚠ The watch first reported these as `$C0:8832`/`$C0:897F` — a write callback's PC is the NEXT instruction, and `checkdocs` refused the row until the ROM was read |
 | $80:BFBB | **hit_resolve (entry)** | `phb / rep #$10 / sep #$20` then falls into the documented $C0:BFC0. **192 call sites, all in bank $C1** — an attack is resolved by the ATTACKER's proc, not by the frame loop |
 | $C0:8BCB | world_to_screen | `+0x21 − camera $0A00 + 0x2C → +0x28` (and Y), per object |
 | $C0:9CE2 | build_draw_list | walks the object slots and writes the live ones to $0B00 — the list the emitter reads |

@@ -1029,7 +1029,7 @@ dead ends:
 | Bank `$E3` | most of it | Data, 87% `00`/`FF`, and no pointer into it has been found |
 | A second BRR directory | `$E4:F70D` | A byte-identical restart of character 1's record. Purpose unknown |
 | One `$DF` screen script | `$DF:9B27` | Which screen it draws is unidentified |
-| ~a third of the object struct | `+0x19-0x1F`, `+0x2B-0x2F`, `+0x3B-0x3F`, `+0x57-0x5A`, `+0x69-0x6F`, `+0x79-0x7F` | Unmapped |
+| ~a third of the object struct | `+0x19-0x1F`, `+0x2B-0x2F`, `+0x3B-0x3F`, `+0x57-0x5A`, `+0x69-0x6F`, `+0x7B-0x7F` | Unmapped. ⚠ **`+0x79/+0x7A` was in this list and is not unmapped**: it is a 16-bit per-object hit counter capped at 999, written at every hit-resolution fork and both throw sites and re-initialised at round load (sites in `annotations.md`). Measured 2026-08-24 by a decoded write census plus a full-session watch, after a build had already parked a timer there — which is what "unmapped" invites |
 | WRAM | `$0100-$01F9`, `$0420-$07FF`, `$0C00-$0FFF`, most of `$1200-$1FFF` | Unmapped, including the object pool's slots 4-15 — nothing in the project names a user for them |
 
 Two smaller ones worth recording because they look like answers and are not: the

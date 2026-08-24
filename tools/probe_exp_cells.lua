@@ -26,6 +26,11 @@
 --     coverage this run does not have, and it says so rather than implying a
 --     clean sweep.
 --
+-- ⚠ A writer PC reported here is the NEXT instruction, not the store: the
+-- round-load zeroing came back as $C0:8832 / $C0:897F and the stores are the
+-- `stz $1079` / `stz $10F9` three bytes earlier. Use these PCs to FIND a
+-- writer, then read the ROM before writing the address down.
+--
 -- ⚠ Nothing here may throw inside a memory callback: an error there dies with
 -- no message at all (trap 12), so `emu.getState` is wrapped in pcall and the
 -- counters are bumped BEFORE the call that can throw.
