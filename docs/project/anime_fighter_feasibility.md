@@ -170,6 +170,36 @@ clean controls silent; regression 45/45. ⚠ BONUS MEASUREMENT: `+0x16` bit6
 the engine confirms the wall natively; the position-delta check stays as the
 mechanism-independent detector.
 
+## NEXT SESSION — the mash-contest clash (spec agreed 2026-08-24)
+
+The v9 clash (instant mutual backdash) stays as a mode; the maintainer's
+Samurai-Shodown variant is specced and scheduled. Requirements as agreed:
+
+1. **Trigger**: unchanged — two hitboxes meeting within N active frames
+   (`--clash N`). New knob `--clash-mode backdash|mash`; **recommendation**:
+   AIR clashes keep the instant backdash (a mid-air struggle reads wrong),
+   ground clashes enter the contest.
+2. **Visuals, no authoring** (maintainer's proposal): loop each fighter's own
+   **standing-LP ANIMATION ONLY** — verified uniform, **act `0x40` on all
+   nine**, each with its own script (`$C0:` script table + `0x40*2`). The
+   struggle act plays that animation and nothing else: the handler zeroes
+   `+0x40`/`+0x41` every frame (it runs after the box writer, so this is
+   exact) — no hitboxes, no hurtboxes, no move properties, no recovery — and
+   restarts `+0x06`/`+0x07` each cycle so the jab loops for the duration. The
+   Hokuto-no-Ken mash look, entirely from existing art.
+3. **Counting**: fresh attack presses in the high nibble of `+0x50` — the
+   same signal the documented throw-tech counter samples at `$C1:07CF` —
+   accumulated per fighter in a census-free struct cell (`+0x7C`).
+4. **Duration**: ~90 frames (~1.5 s), knob.
+5. **Resolution**: higher count wins. **Loser is launched with the existing
+   Hercules wall-fly** — act `0x2F` with the away-sign velocity, so they fly
+   to the drawn border and parabola back, juggle-soft (the winner converts).
+   Winner returns to neutral immediately.
+6. **Tie**: fall back to the v9 behaviour (both backdash) — "neither won".
+7. **Cost**: one null act slot (15 free), ~120 bytes of appended bank, two
+   struct cells, one session. All machinery proven: the wrapper pattern, the
+   wall-fly handler, the box-zeroing trick, the mash sampler.
+
 ## Roster-PoC findings (2026-08-20, all measured)
 
 - **A stub returning into a handler continuation must restore X = object on
