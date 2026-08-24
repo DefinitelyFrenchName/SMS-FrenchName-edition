@@ -1,12 +1,37 @@
-# Next-session handoff — 2026-08-10 (session close)
+# Next-session handoff — 2026-08-24 (session close)
 
 **Read this, then `../game/README.md` if the work is about the ROM, or
 `patch_index.md` if it is about a patch.** Everything below is current; the
-sections further down are this session's detail.
+sections further down are per-session detail, newest first.
 
 ## Where to pick up
 
-1. **Saturn's round-won badge is DONE** (v0.17.0, hidden `3dee7316…`) — closed
+1. **THE ANIME-FIGHTER BUILD LINE — the active work** (new this session; its
+   own third line beside Rev. S and Rev. SS, by maintainer ruling). Feasibility
+   is settled and the whole thing is BUILT for all nine characters by one
+   self-deriving generator, `tools/exp_animeroster.py`. Dossier with every
+   measurement, gate ledger and ruling: **`anime_fighter_feasibility.md`**.
+   **The next task is specced and agreed: the MASH-CONTEST CLASH** — dossier
+   § "NEXT SESSION". Everything it needs is proven; nothing is open but the
+   build. Two smaller offers are parked: the Dust's extra recovery frames
+   (awaiting a frame count) and the front-dash budget leak (fix only if the
+   field test surfaces it).
+   ⚠ **It is exp-tier and from-clean only.** Before it can chain onto the
+   numbered patches (the maintainer's extended-scope MUST-have) it needs a
+   **space plan** — it currently borrows patch 1/2's `$BE09` hole and patch
+   6's `$BE85` — and the `[SMS-33]` full-session boot watch for the struct
+   cells it claims (`+0x79`, `+0x7C`, `+0x7D`, `+0x7E`, `+0x7F`).
+   ⚠ **Doc debt this line owes `../game/`** (measured here, not yet written up
+   with `checkdocs` treatment): the guard mechanism is **pose-box data** (the
+   `$08`/`$0A` flag-byte test at the `$C0:C06A`/`$C13D` forks); `+0x28` is
+   per-object **screen** X and the drawn border **clamps at sx 232 and sets
+   `+0x16` bit6**; `$C1:0459` does **not** preserve X while `$0958` does;
+   stance records are ordered by **ascending button bit** (so Uranus's
+   directional j.HP is act `0x50`, not `0x51` as the §7.x column labels
+   imply); `+0x34` is gravity on the reaction path too; the launch reaction is
+   `0x1A` only for the two characters with a first-hit-defense byte and `0x1B`
+   for the other seven.
+2. **Saturn's round-won badge is DONE** (v0.17.0, hidden `3dee7316…`) — closed
    the same day it was raised. Detail: `saturn/PROJECT.md` § "DONE — her
    round-won badge", `saturn/BUILDS.md` 0.17.0, and the game-side mechanism in
    `../game/annotations.md` § "Round-won badge". Three things worth carrying:
@@ -36,7 +61,7 @@ sections further down are this session's detail.
    surface only on **v0.22** (the only bundle with 10b) and only if a status
    label is live at that exact instant. No Saturn build carries 10b. Noted for
    completeness, not as open work.
-2. **Patch 16 — menu translation.** The **bracket VS names are DONE**
+3. **Patch 16 — menu translation.** The **bracket VS names are DONE**
    (2026-08-11, `SMS_P16_BRACKET`): the screen reads **MOON VS MOON**, verified
    against a clean A/B at the same frame, and with all five gates on together.
    Regression ALL PASS (45); the font-only build still reproduces `c9ad4910…`,
@@ -55,11 +80,11 @@ sections further down are this session's detail.
      own: find the `$7F:DC00+` filler, then the font source, string encoding and
      name-substitution site, and only then census a glyph window. Now that BG3
      is understood, check which layer that prompt is on *first*.
-3. **Patch 14 — needs a RULING, not a patch.** `--all-grabs` does not scale a
+4. **Patch 14 — needs a RULING, not a patch.** `--all-grabs` does not scale a
    TECHED throw, so at Guts L3 teching costs more than eating the throw (12 vs
    10, measured). No shipped build passes the flag. The question is yours:
    *should a teched command grab be scaled by Guts at all?* Full brief below.
-4. **`checkdocs` — the coverage increment is DONE** (2026-08-10): **87 → 207
+5. **`checkdocs` — the coverage increment is DONE** (2026-08-10): **87 → 207
    checks**, **116/299 → 190/325** addresses re-derived, runtime 0.30 s. Route
    (b) carried it, because route (a) turned out not to be the cheap one:
    **164 of the 183 uncovered addresses were PROSE ONLY**, so quoting entry
@@ -72,6 +97,47 @@ sections further down are this session's detail.
    for which there is no honest structural check) and 24 "still holds two bytes
    over — does not pin". That residual is the honest floor of this approach, not
    a to-do list.
+
+## What changed this session (2026-08-24) — the anime-fighter build line
+
+A feasibility question ("can this become an anime fighter?") became a
+measured yes, then a full-roster build, then five field-tested revisions.
+Nineteen commits, `599f53e..9aaf580`. The dossier
+(`anime_fighter_feasibility.md`) is the authority; the short version:
+
+* **Phases 0-7** answered ten unknowns by measurement before any prototype.
+  The two that decided everything: **juggles are a two-byte flag policy** —
+  the only gate on re-hitting an airborne victim is `+0x46` bit7, tested at
+  `$C0:C00A` — and **air specials are one flag bit** per special-start entry,
+  because ground special handlers run coherently airborne (the projectile even
+  spawns body-relative, giving a true air fireball).
+* **The full-roster PoC** (`tools/exp_animeroster.py`) derives every
+  per-character constant from the ROM at build time — 27 jump-route hooks, 72
+  air-normal tails, 9 landing resets, seven relocated motion lists and special
+  tables — and puts all logic in an appended bank behind `$C1` call gates,
+  because bank `$C1` cannot hold nine of everything.
+* **Air block and the air guard-cancel** are built: guard turned out to be
+  **pose-box data**, so the fork stub extends the verdict to an airborne
+  victim and an authored air-blockstun act (`0x2D`) carries the specials route
+  — 44/66 out of air guard dash-cancels for all nine.
+* **Two launchers**, both from existing art: **LK+HK** is the Hercules Throw
+  (victim flies flat to the drawn border, bounces back in a juggle-soft
+  parabola) and **crouch + HP+HK** is the Dust (190 px straight up, to the top
+  of the screen). Both are wrappers over the character's own 5HK / 2HP.
+* **The clash**: two hitboxes meeting inside their first N active frames
+  cancel both attacks and backdash both fighters. The engine never tests
+  hitbox-against-hitbox, so this hooks the box writer for a per-object
+  active-age tick and re-purposes the engine's own box-vs-rect routine
+  (`$C0:C9DF`) against the opponent's **hit** record — through a gate carved
+  into the same 13 bytes the hook replaces, so no free-space claim was needed.
+* **Field-driven fixes worth remembering**: the wall bounce first dragged the
+  camera (fixed by bouncing on the engine's own border-clamp bit); the
+  launcher ignored Chibi because its conversion edge had been calibrated on
+  **Jupiter, the roster's exception** (his defense byte downgrades the launch
+  reaction) — trap 1 wearing reaction clothes.
+* Every feel constant is a builder knob: `--budget --juggle --clash
+  --airdash-speed --fly-speed --bounce-back --bounce-height --dust-height
+  --launcher-id`. Regression stayed **45/45** at every step.
 
 ## What changed this session (2026-08-10) — checkdocs coverage
 

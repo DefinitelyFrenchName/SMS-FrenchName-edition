@@ -26,7 +26,50 @@ ported from Super S and is playable in the **Rev. SS** builds only (§0).
 
 ---
 
-## 0. Current state (2026-08-10) — SMS + Saturn = PATCH 100, and the issue backlog
+## 0. Current state (2026-08-24) — three build lines: Rev. S, Rev. SS, and the ANIME FIGHTER
+
+**2026-08-24 — A THIRD BUILD LINE: the ANIME-FIGHTER conversion, exp-tier,
+all nine characters.** A feasibility question became a measured yes and then
+a working build in one session (19 commits, `599f53e..9aaf580`). Authority:
+**`docs/project/anime_fighter_feasibility.md`** — every measurement, the gate
+ledger, the maintainer rulings, and the next task's spec. Generator:
+**`tools/exp_animeroster.py`** (self-deriving — every per-character constant
+is read from the ROM at build time); artifact `build/exp_animeroster.bps`.
+By maintainer ruling it is **its own line beside Rev. S / Rev. SS**, with
+numbered-patch compatibility as the extended-scope must-have and Saturn/SS as
+a nice-to-have.
+
+What it ships: air dashes both ways for all nine, dash-cancels into air
+normals, an on-hit air gatling, a tunable air-action budget, air-enabled
+projectile specials, **juggles** (with decay), **air block and the air
+guard-cancel**, and **two launchers** — LK+HK is a Hercules Throw (the victim
+flies flat to the drawn border, bounces back in a juggle-soft parabola) and
+crouch+HP+HK is a Dust (190 px straight up) — plus a **clash**: two hitboxes
+meeting inside their first N active frames cancel both attacks and backdash
+both fighters. No new sprites anywhere: every new act wraps a move the
+character already owns. Regression **45/45** at every step.
+
+⚠ **Five engine facts this line measured, owed to `docs/game/` with the
+`checkdocs` treatment** (none written up yet): **guard is pose-box data** —
+the `$08`/`$0A` flag-byte test at the resolution forks `$C0:C06A`/`$C13D`,
+with the blocked path staging from the `$CE55` table; **`+0x28` is per-object
+SCREEN X** and the drawn border **clamps at sx 232 while setting `+0x16`
+bit6** (so "wall contact" is really border contact, and it fires for reaction
+victims); **`$C1:0459` does not preserve X** while `$0958` does; **stance
+records are ordered by ascending button bit**, so Uranus's directional j.HP
+is act `0x50`, not `0x51` as the §7.x column labels imply; and **`+0x34` is
+gravity on the reaction path too**, settling the old `+0x32`/`+0x34` conflict.
+
+⚠ **Two traps re-paid in new clothes.** The launcher ignored one character
+because its reaction edge had been calibrated on **Jupiter — the roster's
+exception**, whose first-hit-defense byte downgrades the launch reaction
+(trap 1, per-victim edition: never calibrate a per-victim mechanism on one
+victim). And a stub that returns into a handler continuation **must restore
+X = object on every exit path**, because the `$0958` starter does not reload
+it — the symptom was one character's air desperation reading its input nibble
+from `$005A`, caught by the regression compendium.
+
+## Current state (2026-08-10) — SMS + Saturn = PATCH 100, and the issue backlog
 
 **2026-08-10 (session close) — THREE THINGS: the doc-check coverage increment,
 the act/start-route system written down and drawn, and patch 16's bracket

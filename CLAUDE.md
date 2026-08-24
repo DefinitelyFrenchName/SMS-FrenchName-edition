@@ -1,5 +1,11 @@
 # CLAUDE.md — SMS Uranus infinite patch
 
+> **STATUS (2026-08-24): a THIRD build line now exists — the exp-tier ANIME-FIGHTER
+> conversion (air dashes/cancels/blocks/juggles, two launchers, a clash; all nine
+> characters, one generator `tools/exp_animeroster.py`). Its authority is
+> `docs/project/anime_fighter_feasibility.md`; it is NOT a numbered patch and builds
+> from clean only. The releases below are unchanged by it.**
+>
 > **STATUS (2026-08-08): the original objective is DONE and the project has grown well beyond it
 > — 17 patches + 2 variants (balance, training mode, taunts/Guts, menu/config edits), plus the
 > 100-series: **Sailor Saturn ported in from Super S**. What ships is `release/` **Rev. S-02**
