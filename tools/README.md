@@ -368,6 +368,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_exp_airdash2.lua` — does URANUS get air dashes via ROUTE INSERTION?
 - `probe_exp_airspecial.lua` — what does a GROUND special do when started
 - `probe_exp_bdsafety.lua` — is the GROUND backdash still invulnerable, on every
+- `probe_exp_cells.lua` — the [SMS-33] FULL-SESSION watch on the object struct's
 - `probe_exp_clash.lua` — do two hits meeting in their first active frames
 - `probe_exp_launcher.lua` — does the UNIVERSAL LAUNCHER (fresh LK+HK
 - `probe_exp_roster.lua` — per-character verification of the full-roster
@@ -500,6 +501,7 @@ See HANDOFF.md §4 for the harness.
 - `census_airroutes.py` — which START ROUTES do the jump acts and AIR NORMALS
 - `census_motionbudget.py` — per-character motion-list budget vs the 7-motion
 - `census_onhit_flags.py` — dump byte 3 ("flags") of the ten global on-hit
+- `census_struct_cell.py` — who writes a byte of the object struct?
 - `checkdocs.py` — Verify docs/game/'s load-bearing claims against the cartridge.
 - `checkknobs.py` — Verify the knobs table in docs/project/patch_notes.md against the builders.
 - `checkpatchmap.py` — Verify what the patch documents claim about the patches, against the .bps files.
