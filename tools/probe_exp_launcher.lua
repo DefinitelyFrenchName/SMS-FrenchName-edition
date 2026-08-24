@@ -33,7 +33,8 @@ local t, loaded = -1, false
 local phase, phaseStart = "settle", 0
 local rows, hp0 = {}, nil
 local sawLauncherAct, victimLaunch, minY, launch46 = nil, nil, 255, nil
-local wallflySeen, wallStop, bounceSeen, bounceVel, bounceMinY, settled, lastWX = nil, nil, nil, nil, nil, nil, nil
+local wallflySeen, wallStop, bounceSeen, bounceVel, bounceMinY, settled, lastWX, lact = nil, nil, nil, nil, nil, nil, nil, nil
+local dustMinY, dustVy = 255, nil
 
 emu.addMemoryCallback(function()
   if not loaded then
@@ -50,8 +51,13 @@ emu.addEventCallback(function()
   local k, b1 = t - phaseStart, {}
   if phase == "approach" then
     b1[x16(P1) < x16(P2) and "right" or "left"] = true
-  elseif phase == "press" and k < 4 then
-    if MODE == "single" then b1.b = true else b1.b = true; b1.a = true end
+  elseif phase == "press" then
+    if MODE == "dust" then
+      b1.down = true                                   -- crouch first
+      if k >= 6 and k < 10 then b1.x = true; b1.a = true end   -- HP+HK
+    elseif k < 4 then
+      if MODE == "single" then b1.b = true else b1.b = true; b1.a = true end
+    end
   end
   emu.setInput(PL.pad(b1), 0, 0)
   emu.setInput(PL.pad(), 0, 1)
@@ -75,7 +81,7 @@ emu.addEventCallback(function()
     rows[#rows + 1] = snap()
     local aa, va = r(P2, 0x01), r(P2, 0x01)
     aa = r(P1, 0x01)
-    if aa == 0x2E and not sawLauncherAct then sawLauncherAct = t end
+    if (aa == 0x2E or aa == 0x30) and not sawLauncherAct then sawLauncherAct = t; lact = aa end
     -- wall-bounce tracking
     if va == 0x2F then
       wallflySeen = wallflySeen or t
@@ -89,6 +95,11 @@ emu.addEventCallback(function()
       if r(P2, 0x25) < (bounceMinY or 255) then bounceMinY = r(P2, 0x25) end
     end
     if bounceSeen and va == 0x00 and not settled then settled = t end
+    if MODE == "dust" and va == 0x16 then
+      dustVy = dustVy or s16(P2, 0x32)
+      if r(P2, 0x25) < dustMinY then dustMinY = r(P2, 0x25) end
+      if not settled and not air(P2) then settled = t end
+    end
     if (va == 0x1B or va == 0x1A) and not victimLaunch then victimLaunch = t end
     if victimLaunch and air(P2) and not launch46 then launch46 = r(P2, 0x46) end
     if victimLaunch and r(P2, 0x25) < minY then minY = r(P2, 0x25) end
@@ -97,7 +108,11 @@ emu.addEventCallback(function()
       for _, s in ipairs(rows) do log("   " .. s) end
       log("")
       log(string.format("== LAUNCHER %s%s ==", MODE, TAG and (" " .. TAG) or ""))
-      log(string.format("   launcher act 2E: %s", sawLauncherAct and ("t=" .. sawLauncherAct) or "NO"))
+      log(string.format("   launcher act: %s", sawLauncherAct and string.format("%02X at t=%d", lact, sawLauncherAct) or "NO"))
+      if MODE == "dust" then
+        log(string.format("   DUST rise: %s", dustVy and
+            string.format("vy=%d apex y=%d (rise %d px, screen top = 0)", dustVy, dustMinY, 192 - dustMinY) or "NO"))
+      end
       log(string.format("   victim POP-UP: %s", victimLaunch and
           string.format("t=%d, +0x46=%02X (%s), apex y=%d, hp %d->%d", victimLaunch, launch46,
             launch46 == 0x20 and "JUGGLE-SOFT" or "protected", minY, hp0, r(P2, 0x49)) or "NO"))

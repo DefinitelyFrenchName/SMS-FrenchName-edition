@@ -187,6 +187,8 @@ def derive(rom):
             if a_id == 0:
                 gstance = word(rom, j - 2)
         hk_act = rom[C1 + gstance + 10]          # record 4 (HK), far act
+        cstance = word(rom, gsites[3] - 2)       # crouch stance table (act 3's ldy)
+        c2hp_act = rom[C1 + cstance + 7]         # record 3 (HP), far act
         # special table: most common ldy operand before jsr $0958 in the block
         ops = Counter()
         i = lo
@@ -235,7 +237,7 @@ def derive(rom):
             scripttbl=word(rom, cid * 2), jsites=jsites, stance=stance,
             tails=tails, land=land, sptbl=sptbl, ents=ents,
             mlist=mlist, motions=motions, has66=has66, ins=ins,
-            gsites=gsites, hk_act=hk_act,
+            gsites=gsites, hk_act=hk_act, c2hp_act=c2hp_act,
             frontid=4 if has66 else 2 * ins + 2)
         if not has66:
             assert len(ents) == 2 * len(motions), \
@@ -243,7 +245,7 @@ def derive(rom):
     return chars
 
 
-def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700, fly=0x0E60, bback=0x03A0):
+def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700, fly=0x0E60, bback=0x03A0, dust=0x0C00, clash=3):
     rom = bytearray(open(src, "rb").read())
     chars = derive(rom)
     alloc = Alloc(C1_REGIONS)
@@ -271,6 +273,11 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
         hk_handler = word(rom, chars[cid]["tbl"] + chars[cid]["hk_act"] * 2)
         rom[C1 + hktbl + cid * 2:C1 + hktbl + cid * 2 + 2] = hk_handler.to_bytes(2, "little")
     ghk = alloc.take(5, "gate hktbl"); rom[C1 + ghk:C1 + ghk + 5] = bytes([0xFC, hktbl & 0xFF, hktbl >> 8, 0x6B, 0x00])
+    c2tbl = alloc.take(20, "C2HPTBL")
+    for cid in range(1, 10):
+        h = word(rom, chars[cid]["tbl"] + chars[cid]["c2hp_act"] * 2)
+        rom[C1 + c2tbl + cid * 2:C1 + c2tbl + cid * 2 + 2] = h.to_bytes(2, "little")
+    gc2 = alloc.take(5, "gate c2hptbl"); rom[C1 + gc2:C1 + gc2 + 5] = bytes([0xFC, c2tbl & 0xFF, c2tbl >> 8, 0x6B, 0x00])
     g10A9 = alloc.take(4, "gate 10A9"); rom[C1 + g10A9:C1 + g10A9 + 4] = bytes([0x20, 0xA9, 0x10, 0x6B])
 
     # ---- data relocation FIRST (the air-GC route needs the FINAL special
@@ -549,7 +556,14 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
         [0xC2, 0x10], [0xA6, 0x88], [0xE2, 0x20],
         [0xB5, 0x16], [0x29, 0x80], ("b", 0xF0, "van"),   # airborne -> vanilla
         [0xB5, 0x50], [0x29, 0xF0], [0xC9, 0xA0],          # fresh LK+HK exactly
+        ("b", 0xF0, "herc"),
+        [0xC9, 0xC0],                                       # fresh HP+HK exactly
         ("b", 0xD0, "van"),
+        [0xB5, 0x01], [0xC9, 0x03],                         # DUST: from crouch only
+        ("b", 0xD0, "van"),
+        [0xA9, 0x30], jsl(g0224, 0xC1),
+        [0xC2, 0x10], [0xA6, 0x88], [0x6B],
+        ("label", "herc"),
         [0xA9, 0x2E], jsl(g0224, 0xC1),
         [0xC2, 0x10], [0xA6, 0x88], [0x6B],
         ("label", "van"),
@@ -614,6 +628,120 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
     ]
     LAUNCH = GSTUB + len(gstub_e8)
     launch_e8 = asm(LAUNCH, launch_items)
+    # DUST (act 0x30): the char's own CROUCHING HP, launcher class, and the
+    # victim conversion goes VERTICAL — keep the reaction's own (small)
+    # horizontal knockback and gravity, override only vy: a Guilty-Gear Dust
+    # that carries the victim to the top of the screen, in air hitstun
+    # (juggle-soft, lands like any juggle).
+    dust_items = [
+        [0xC2, 0x30], [0xA6, 0x88], [0xE2, 0x20],
+        [0xB5, 0x00], [0xC2, 0x20], [0x29, 0xFF, 0x00], [0x0A], [0xAA],
+        jsl(gc2, 0xC1),
+        [0xC2, 0x10], [0xA6, 0x88], [0xE2, 0x20],
+        [0xA9, launcher_id], [0x95, 0x44],
+        [0xB5, 0x43],
+        ("b", 0xF0, "nosoft"),
+        [0xC2, 0x30], [0x8A],
+        [0x49, 0x80, 0x00], [0xAA],
+        [0xE2, 0x20],
+        [0xA9, 0x20], [0x95, 0x46],
+        [0xB5, 0x01], [0xC9, 0x1A],
+        ("b", 0xF0, "doconv"),
+        [0xC9, 0x1B],
+        ("b", 0xD0, "conv_done"),
+        ("label", "doconv"),
+        [0xA9, 0x16], [0x95, 0x01], [0x95, 0x04],          # air hitstun, straight up
+        [0x74, 0x02], [0x74, 0x07], [0x74, 0x06],
+        [0xC2, 0x20],
+        [0xA9, (-dust) & 0xFF, ((-dust) >> 8) & 0xFF], [0x95, 0x32],   # vy = -dust
+        [0xE2, 0x20],
+        ("label", "conv_done"),
+        [0xC2, 0x30], [0xA6, 0x88],
+        ("label", "nosoft"),
+        [0x6B],
+    ]
+    DUST = LAUNCH + len(launch_e8)
+    dust_e8 = asm(DUST, dust_items)
+    # ---- CLASH ---------------------------------------------------------
+    # AGE: the box writer's per-object batch ($C0:9CC0-9CDE) writes +0x40/41/42
+    # every frame for every object. Hooking its last pair gives a free
+    # per-object per-frame tick: +0x7D = frames this hitbox has been active
+    # (0 when there is no hitbox), which is what "first N active frames" needs.
+    age_items = [
+        [0xB1, 0x10], [0x95, 0x42],            # replayed: lda ($10),Y / sta $42,X
+        [0xB5, 0x40],                          # hitbox index
+        ("b", 0xF0, "clr"),
+        [0xB5, 0x7D], [0xC9, 0x0F],
+        ("b", 0xB0, "done"),                   # cap, no wrap
+        [0xF6, 0x7D],
+        ("b", 0x80, "done"),
+        ("label", "clr"),
+        [0x74, 0x7D],
+        ("label", "done"),
+        [0x6B],
+    ]
+    AGE = DUST + len(dust_e8)
+    age_e8 = asm(AGE, age_items)
+
+    def clash_one(sfx):
+        return [
+            [0xB5, 0x16], [0x29, 0x80],        # grounded?
+            ("b", 0xF0, f"air{sfx}"),
+            [0xA9, 0x26], ("b", 0x80, f"set{sfx}"),
+            ("label", f"air{sfx}"), [0xA9, 0x2B],   # airborne clash -> air backdash
+            ("label", f"set{sfx}"),
+            [0x95, 0x01], [0x95, 0x04],        # act + anim act
+            [0x74, 0x02], [0x74, 0x06], [0x74, 0x07],
+            [0x74, 0x40], [0x74, 0x41],        # no boxes for the rest of THIS frame
+            [0x74, 0x43], [0x74, 0x7D],        # clear connect latch + age
+        ]
+
+    # CLASH: replaces the target-selection block at $C0:BFF5-C001, entered with
+    # the ATTACKER's hit rect already computed in DP $00-$06 by $C0:C8EA and
+    # X = attacker base. If the opponent is ALSO attacking, both hitboxes are
+    # within their first `clash` active frames, and the two HITBOXES overlap
+    # (the engine's own box-vs-rect test $C0:C9DF, reached through a gate
+    # written into the same carved bytes), neither hit resolves: both fighters
+    # are set to their backdash act. Otherwise the original target selection is
+    # reproduced exactly (incl. the non-player case: anything but P1 -> P1).
+    clash_items = [
+        [0xE0, 0x00, 0x10], ("b", 0xF0, "atk_ok"),
+        [0xE0, 0x80, 0x10], ("b", 0xD0, "targ_p1"),
+        ("label", "atk_ok"),
+        [0xDA],                                # phx (attacker base)
+        [0xE2, 0x20],
+        [0xB5, 0x7D], [0xC9, clash + 1], ("b", 0xB0, "bail"),
+        [0xC2, 0x30],
+        [0x8A], [0x49, 0x80, 0x00], [0xAA],    # X = the other player
+        [0xE2, 0x20],
+        [0xB5, 0x40], ("b", 0xF0, "bail"),     # opponent not attacking
+        [0xB5, 0x7D], [0xC9, clash + 1], ("b", 0xB0, "bail"),
+        [0xC2, 0x30],
+        [0xB5, 0x00], [0x29, 0xFF, 0x00], [0x0A], [0xA8],
+        [0xB9, 0xF1, 0xC1], [0x85, 0x20],      # their hit table (DB=$8A)
+        [0xB5, 0x40], [0x29, 0xFF, 0x00], [0x0A], [0x0A], [0x0A],
+        [0x18], [0x65, 0x20], [0x85, 0x20],    # + idx*8 = their hit record
+        [0x22, 0xFB, 0xBF, 0xC0],              # jsl $C0:BFFB — the carved gate
+        ("b", 0x90, "bail"),                   # no overlap -> ordinary resolution
+        ("b", 0x80, "do_clash"),
+        ("label", "bail"),
+        [0xC2, 0x30], [0xFA],                  # rep #$30 / plx
+        [0xE0, 0x00, 0x10], ("b", 0xD0, "targ_p1"),
+        [0xA2, 0x80, 0x10], [0x6B],
+        ("label", "targ_p1"),
+        [0xA2, 0x00, 0x10], [0x6B],
+        ("label", "do_clash"),
+        [0xE2, 0x20],
+    ] + clash_one("O") + [
+        [0xC2, 0x30], [0xFA], [0xE2, 0x20],    # plx -> attacker base
+    ] + clash_one("A") + [
+        [0xA9, 0x0B], [0x85, 0x78],            # the guard sfx request (global DP)
+        [0xC2, 0x30],
+        [0x8A], [0x49, 0x80, 0x00], [0xAA],    # X = opponent (the caller's target)
+        [0x6B],
+    ]
+    CLASH = AGE + len(age_e8)
+    clash_e8 = asm(CLASH, clash_items)
     # WALLFLY (act 0x2F, all nine): fly until the victim touches the border
     # of the CURRENTLY DRAWN screen — read from the engine's own per-object
     # screen X at +0x28 (world - camera + 0x2C, computed by $C0:8BCB every
@@ -655,7 +783,7 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
         jsl(g0204, 0xC1),
         [0x6B],
     ]
-    WALLFLY = LAUNCH + len(launch_e8)
+    WALLFLY = CLASH + len(clash_e8)
     wallfly_e8 = asm(WALLFLY, wallfly_items)
 
     blob = bytearray(0x10000)
@@ -663,7 +791,7 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
         blob[FRONTID_E8 + cid] = chars[cid]["frontid"]
         blob[NTBL_E8 + cid * 2:NTBL_E8 + cid * 2 + 2] = chars[cid]["stance"][7].to_bytes(2, "little")
         blob[SPTBL_E8 + cid * 2:SPTBL_E8 + cid * 2 + 2] = chars[cid]["sptbl"].to_bytes(2, "little")
-    code = jstub_e8 + gat_e8 + wrap_e8 + rst_e8 + fork_e8 + react_e8 + ablock_e8 + decay_e8 + gstub_e8 + launch_e8 + wallfly_e8
+    code = jstub_e8 + gat_e8 + wrap_e8 + rst_e8 + fork_e8 + react_e8 + ablock_e8 + decay_e8 + gstub_e8 + launch_e8 + dust_e8 + age_e8 + clash_e8 + wallfly_e8
     blob[CODE_E8:CODE_E8 + len(code)] = code
     blob = bytes(blob[:CODE_E8 + len(code)])
 
@@ -686,6 +814,8 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
     rom[C1 + launchshim:C1 + launchshim + 5] = bytes(jsl(LAUNCH)) + b"\x60"
     wfshim = alloc.take(5, "wallfly act shim")
     rom[C1 + wfshim:C1 + wfshim + 5] = bytes(jsl(WALLFLY)) + b"\x60"
+    dustshim = alloc.take(5, "dust act shim")
+    rom[C1 + dustshim:C1 + dustshim + 5] = bytes(jsl(DUST)) + b"\x60"
 
     # ---- AIR BLOCK global wiring --------------------------------------
     # the two resolution fork sites ($C0:C06A / $C0:C13D, running from the
@@ -694,6 +824,20 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
         if rom[off:off + 6] != bytes([0xA5, 0x08, 0x29, 0x03, 0x25, 0x0A]):
             raise ValueError(f"0x{off:06X}: block-fork test bytes not found")
         rom[off:off + 6] = bytes(jsl(FORK)) + bytes([0xEA, 0xEA])
+    if clash:
+        # the box writer's per-frame tail -> the age tick (4 bytes replayed)
+        if rom[0x009CCF:0x009CD3] != bytes([0xB1, 0x10, 0x95, 0x42]):
+            raise ValueError("0x009CCF: box-writer tail bytes not found")
+        rom[0x009CCF:0x009CD3] = bytes(jsl(AGE))
+        # the resolution's target-selection block -> the clash test, with the
+        # $C9DF gate written into the same carved bytes (see clash_items)
+        want = bytes([0xE0, 0x00, 0x10, 0xD0, 0x05, 0xA2, 0x80, 0x10,
+                      0x80, 0x03, 0xA2, 0x00, 0x10])
+        if rom[0x00BFF5:0x00C002] != want:
+            raise ValueError("0x00BFF5: resolution target-selection bytes not found")
+        rom[0x00BFF5:0x00C002] = (bytes(jsl(CLASH)) + bytes([0x80, 0x07])
+                                  + bytes([0x20, 0xDF, 0xC9, 0x6B])
+                                  + bytes([0xEA, 0xEA, 0xEA]))
     # air sub-table rows 1/2 (block codes 02/04) -> the reaction shim
     for off in (0x010EBD, 0x010EBF):
         if word(rom, off) != 0x0F92:
@@ -718,9 +862,12 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
         slot2F = c["tbl"] + 0x2F * 2
         assert rom[slot2F:slot2F + 2] == b"\0\0", f"{nm}: act slot 2F not null"
         rom[slot2F:slot2F + 2] = wfshim.to_bytes(2, "little")
+        slot30 = c["tbl"] + 0x30 * 2
+        assert rom[slot30:slot30 + 2] == b"\0\0", f"{nm}: act slot 30 not null"
+        rom[slot30:slot30 + 2] = dustshim.to_bytes(2, "little")
         # script slots 2B (jump-back, 8) / 2C (jump-fwd, 7) / 2D (guard pose, 0x0C)
         st = c["scripttbl"]
-        for slot, src_slot in ((0x2B, 8), (0x2C, 7), (0x2D, 0x0C), (0x2E, c["hk_act"]), (0x2F, 0x1A)):
+        for slot, src_slot in ((0x2B, 8), (0x2C, 7), (0x2D, 0x0C), (0x2E, c["hk_act"]), (0x2F, 0x1A), (0x30, c["c2hp_act"])):
             o = st + slot * 2
             assert rom[o:o + 2] == b"\0\0", f"{nm}: script slot {slot:02X} not null"
             rom[o:o + 2] = word(rom, st + src_slot * 2).to_bytes(2, "little")
@@ -756,7 +903,7 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
     print(f"  bank ${0xC0 + (bankbase >> 16):02X}: {len(blob)} B "
           f"(jstub {len(jstub_e8)}, gat {len(gat_e8)}, wrap {len(wrap_e8)}, rst {len(rst_e8)}, "
           f"fork {len(fork_e8)}, react {len(react_e8)}, ablock {len(ablock_e8)}, decay {len(decay_e8)})")
-    print(f"wrote {out} from {src} sha1={hashlib.sha1(rom).hexdigest()}  [budget N={budget}, juggle decay N={juggle}, bounce 0x{bounce:04X}, fly 0x{fly:04X}, bback 0x{bback:04X}]")
+    print(f"wrote {out} from {src} sha1={hashlib.sha1(rom).hexdigest()}  [budget N={budget}, juggle decay N={juggle}, bounce 0x{bounce:04X}, fly 0x{fly:04X}, bback 0x{bback:04X}, clash {clash}]")
 
 
 if __name__ == "__main__":
@@ -769,6 +916,10 @@ if __name__ == "__main__":
     ap.add_argument("--budget", type=int, default=2)
     ap.add_argument("--airdash-speed", type=lambda v: int(v, 0), default=None,
                     help="front air dash X speed (subpixels/frame, e.g. 0x0900); default keeps the Shadow Dash 0x0B00")
+    ap.add_argument("--clash", type=int, default=3,
+                    help="clash window: hitboxes meeting within N active frames cancel both (0 = off)")
+    ap.add_argument("--dust-height", type=lambda v: int(v, 0), default=0x0C00,
+                    help="crouching-Dust vertical impulse (subpixels/frame; ~192px rise at 0x0C00)")
     ap.add_argument("--fly-speed", type=lambda v: int(v, 0), default=0x0E60,
                     help="launcher horizontal flight speed (was 0x0C00; default +20%%)")
     ap.add_argument("--bounce-back", type=lambda v: int(v, 0), default=0x03A0,
@@ -783,4 +934,4 @@ if __name__ == "__main__":
     src = a.src or clean_rom()
     require_source(src, stacked=a.stacked)
     check_not_inplace(src, a.out)
-    build(src, a.out, a.budget, a.juggle, a.airdash_speed, a.launcher_id, a.bounce_height, a.fly_speed, a.bounce_back)
+    build(src, a.out, a.budget, a.juggle, a.airdash_speed, a.launcher_id, a.bounce_height, a.fly_speed, a.bounce_back, a.dust_height, a.clash)
