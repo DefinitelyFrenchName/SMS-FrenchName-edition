@@ -170,38 +170,113 @@ clean controls silent; regression 45/45. ⚠ BONUS MEASUREMENT: `+0x16` bit6
 the engine confirms the wall natively; the position-delta check stays as the
 mechanism-independent detector.
 
-## NEXT SESSION — the mash-contest clash (spec agreed 2026-08-24)
+## THE MASH-CONTEST CLASH — BUILT (2026-08-24)
 
-The v9 clash (instant mutual backdash) stays as a mode; the maintainer's
-Samurai-Shodown variant is specced and scheduled. Requirements as agreed:
+Specced last session, built this one. `--clash-mode mash` is the **default**
+(maintainer, this session); `--clash-mode backdash` keeps the v9 answer.
 
-1. **Trigger**: unchanged — two hitboxes meeting within N active frames
-   (`--clash N`). New knob `--clash-mode backdash|mash`. **RULED (maintainer,
-   2026-08-24): AIR clashes keep the instant backdash**; ground clashes enter
-   the contest. Rationale to preserve: a struggle while both fall reads
-   wrong, and the only alternative — freezing both mid-air for the contest —
-   is a DBZ idiom this game should not borrow; the loser's wall-fly punish
-   would also make no sense out of an air clash.
-2. **Visuals, no authoring** (maintainer's proposal): loop each fighter's own
-   **standing-LP ANIMATION ONLY** — verified uniform, **act `0x40` on all
-   nine**, each with its own script (`$C0:` script table + `0x40*2`). The
-   struggle act plays that animation and nothing else: the handler zeroes
-   `+0x40`/`+0x41` every frame (it runs after the box writer, so this is
-   exact) — no hitboxes, no hurtboxes, no move properties, no recovery — and
-   restarts `+0x06`/`+0x07` each cycle so the jab loops for the duration. The
-   Hokuto-no-Ken mash look, entirely from existing art.
-3. **Counting**: fresh attack presses in the high nibble of `+0x50` — the
-   same signal the documented throw-tech counter samples at `$C1:07CF` —
-   accumulated per fighter in a census-free struct cell (`+0x7C`).
-4. **Duration**: ~90 frames (~1.5 s), knob.
-5. **Resolution**: higher count wins. **Loser is launched with the existing
-   Hercules wall-fly** — act `0x2F` with the away-sign velocity, so they fly
-   to the drawn border and parabola back, juggle-soft (the winner converts).
-   Winner returns to neutral immediately.
-6. **Tie**: fall back to the v9 behaviour (both backdash) — "neither won".
-7. **Cost**: one null act slot (15 free), ~120 bytes of appended bank, two
-   struct cells, one session. All machinery proven: the wrapper pattern, the
-   wall-fly handler, the box-zeroing trick, the mash sampler.
+**What happens.** Two hitboxes meet inside their first `--clash N` active frames
+(trigger unchanged). If **both fighters are grounded**, the clash opens a
+contest: both go to authored act `0x31`, looping their **own standing-LP
+animation** with no boxes at all, for `--clash-frames` (default **90**, ~1.5 s).
+Every mashed attack press counts. At expiry the higher count wins — the winner
+returns to neutral, the **loser is launched with the existing Hercules wall-fly**
+(act `0x2F`, juggle-soft, so the winner converts), and a **tie** falls back to
+the v9 mutual backdash. **Any airborne participant keeps the instant backdash**
+(ruling, 2026-08-24: a struggle while one fighter falls reads wrong, and the
+wall-fly punish means nothing out of the air).
+
+**Mechanism — nothing new was invented:**
+
+* **act `0x31`, all nine.** Null everywhere (21 free slots, measured), wired
+  through a 5-byte `$C1` shim like every other authored act. Its script is the
+  character's **own** standing-LP script, and the LP act is *derived and
+  asserted*, not typed: the FAR column of stance record 0 is `0x40` on all nine
+  while the CLOSE variants differ (`0x40`/`0x41`/`0x42`) — reading the close one
+  would have been a per-character bug.
+* **The jab LOOPS, and the loop had to be made.** Every standing-LP script ends
+  in **HOLD** (`0x80`) — measured, all nine, 7 frames each (Jupiter 9). So the
+  handler zeroes the **step** on the character's own cycle boundary (the length
+  is summed from its script at build time and stored in a nine-wide table in the
+  appended bank) and the vanilla tail **`$C1:0204`** rewinds the animation,
+  because it fires precisely when the step is 0.
+* **No boxes at all**: `+0x40`/`+0x41` are zeroed every frame. That is exact
+  because the handler runs after the box writer's batch, and an empty hurtbox is
+  the engine's own invulnerability — so a stray projectile cannot join in.
+* **Press EDGES, not latched frames.** `+0x50`'s high nibble is the fresh-attack
+  latch the throw-tech sampler reads (`$C1:07CF`) and it stands ~2 frames at
+  30 Hz, so counting frames would pay a mash and a hold alike. Bit 7 of `+0x7C`
+  is the "already counted" latch, which keeps the whole contest in ONE cell.
+
+**Measured (venus_vs_jupiter_clean, gap 64, build `70121a0a…`):**
+
+| run | result |
+|---|---|
+| `mash` | both to act `0x31` at t=127, boxes zero every struggle frame, counts **29 vs 0**, at t=216 P1 → act `00` and P2 → `0x2F` → border → bounce → `0x16` → lands |
+| `mashhold` | P1 **holds** the button for the whole contest: count **1**. Holding is not mashing |
+| `mashtie` | nobody mashes: both to act `0x26` — the v9 answer |
+| `mashgate` | P2 made airborne **at the instant the test reads `+0x16`**: no contest, P1 `0x26` / P2 `0x2B`. The ruling holds |
+| `stagger` | P2 presses 8f late → ordinary one-sided hit |
+| clean ROM | same spacing → vanilla TRADE |
+
+Also green on the mash build: air-block matrix (block / noguard / ground / GC),
+launcher + Dust, per-character roster probe **9/9**, regression **45/45**.
+**Byte-identity gate:** `--clash-mode backdash` rebuilds to `95d8ebe3…`, the
+build before the contest existed — table, code and act wiring are emitted only
+in mash mode.
+
+⚠ **Two probe defects, both of which made a working mechanism look dead.**
+`probe_exp_clash`'s default `SMS_DIST` was **56**, and this fixture clashes only
+at gap **≥ 64** (62 → one-sided hit) — the recorded evidence had been taken at 64
+and the default had never been run, so the first run of the session "showed" the
+v9 clash was broken. And a genuine **both-airborne** clash could not be staged
+at all: Venus's and Jupiter's air normals go active on the same frame and still
+only TRADE, because a clash needs the two **hitboxes** to overlap each other,
+not merely to reach the opposite body (swept gaps 44-104 × press timings 6-18).
+That is why the airborne gate is tested by poking the byte the gate reads, from
+an exec hook on the hooked site itself — and why the probe header says so
+instead of leaving `mashair` looking like a pass.
+
+## THE STRUCT TAIL — measured, and one cell was NOT free (2026-08-24)
+
+The line's owed `[SMS-33]` debt, paid, and it found a real overlap.
+`tools/census_struct_cell.py` (decoded descent, closed over JSL targets,
+framing- and positive-controlled) plus `tools/probe_exp_cells.lua` (boot →
+title → select → config → match → KO → win, magic `0xA5` re-seeded at every
+phase boundary, bulk struct-clear writers classified out):
+
+| cell | verdict |
+|---|---|
+| `+0x79`/`+0x7A` | **USED** — a 16-bit engine hit counter capped at 999 (`$C0:C050` and three sibling forks, both throw paths, `stz $1079`/`stz $10F9` at round load). The watch caught it turning the seeded `$A5` into `$A6` mid-match |
+| `+0x7B` | free — now the air-blockstun timer and the contest clock |
+| `+0x7C` | free — the mash count (its one static candidate, `$C0:EDB9`, is inside the sound block table `$C0:ECE7-$EDD6`, i.e. data) |
+| `+0x7D` | free — the v9 clash's hitbox age |
+| `+0x7E`/`+0x7F` | free **on player slots**; the two static writers (`stx $7E,Y`, 16-bit, at `$C1:0BAA`/`$C1:116C`) write PROJECTILE slots, which is exactly what a static census cannot decide and the runtime watch can |
+
+**The air-blockstun timer was on `+0x79` and moved to `+0x7B`** — a four-byte
+diff (two operands, two checksum bytes), air-block matrix re-verified green.
+Every document in this project called `+0x79-0x7F` unmapped; `docs/game/` now
+carries the counter, its six bump sites and both round-load stores, gated by
+`checkdocs` (248 checks, ALL PASS).
+
+⚠ **A write callback's PC is the NEXT instruction.** The watch reported the
+round-load zeroing at `$C0:8832`/`$C0:897F`; the stores are three bytes earlier
+and `checkdocs` refused the row until the ROM was read. Use a watch's PC to
+FIND a writer, never to name one.
+
+## NEXT SESSION
+
+* **Field-test the contest** (`build/exp_animeroster.bps`, `70121a0a…`): does
+  90 frames feel right, does the loser's wall-fly read as a punish, and is the
+  winner's conversion window what the maintainer wants? All three are knobs
+  (`--clash-frames`, `--fly-speed`/`--bounce-*`, `--juggle`).
+* Still parked, unchanged: the Dust's extra recovery frames (awaiting a frame
+  count) and the front-dash budget leak (fix only if the field surfaces it).
+* Still owed before this line can chain onto the numbered patches: the **space
+  plan** off the borrowed patch-1/2/6 `$C1` holes.
+* Not caused here but recorded: `tools/demo_airrush.lua` SETUP-FAILs its
+  anti-air on **both** builds — it predates the launcher rework and needs
+  re-staging.
 
 ## Roster-PoC findings (2026-08-20, all measured)
 
@@ -239,6 +314,10 @@ Samurai-Shodown variant is specced and scheduled. Requirements as agreed:
 - `tools/exp_airbackdash.py` docstring lines ~111–128 and the `--front` help
   still say the front dash "does not fire" — superseded by commit 0f22977
   (stale text, the corrected account is lower in the same file).
+- **DONE 2026-08-24:** the `+0x79`/`+0x7A` hit counter, its six bump sites and
+  both round-load stores are in `docs/game/annotations.md`, and
+  `sms_data_architecture.md` §13 no longer calls that pair unmapped — gated by
+  `checkdocs` (248 checks).
 - New engine facts worth promoting to `docs/game/` (with checkdocs treatment):
   the `$C0:C00A` untargetability gate, the `$C1:0E55` posture branch and
   sub-table addresses, jump physics constants, the landing contract, the
@@ -259,14 +338,20 @@ Samurai-Shodown variant is specced and scheduled. Requirements as agreed:
    accepted for now). Authored air variants only for moves the field test
    flags as visually wrong or degenerate — the approaches coexist per move.
 5. **Air block: RULED IN and BUILT** (with the air guard-cancel).
-6. **Lifecycle: a SEPARATE BUILD LINE** (like the Saturn work).
+6. **Clash mode: MASH IS THE DEFAULT** (2026-08-24). `--clash-mode backdash`
+   keeps the v9 answer and is byte-identical to the pre-contest build.
+7. **A clash with ANY airborne participant keeps the instant backdash**
+   (2026-08-24) — the contest requires both fighters grounded.
+8. **Lifecycle: a SEPARATE BUILD LINE** (like the Saturn work).
    Numbered-patch compatibility = extended-scope MUST-HAVE (space plan +
-   cell boot-watch before chaining onto Rev. S); Saturn/SS = nice-to-have.
+   cell boot-watch before chaining onto Rev. S — the **boot watch is now
+   done**, the space plan is not); Saturn/SS = nice-to-have.
 
 Open engineering (not blocked on rulings): the space plan off the borrowed
-patch-1/2/6 holes, the [SMS-33] boot watch for +0x7E/+0x7F/+0x79, the
-front-dash budget-leak fix, the blockstun-expiry branch measurement, and the
-stale-doc corrections listed below.
+patch-1/2/6 holes, the front-dash budget-leak fix, the blockstun-expiry branch
+measurement, and the stale-doc corrections listed below. **The [SMS-33] boot
+watch is DONE (2026-08-24)** — see § "THE STRUCT TAIL"; it moved the
+air-blockstun timer off an engine counter.
 
 ## Gate ledger
 
@@ -284,3 +369,5 @@ stale-doc corrections listed below.
 | G4 (air-normal routes) | none exist (0/72) → chains are route-insertion work, as planned |
 | G5 (motion budget) | nobody blocked; flag-0x00 shared-entry design makes the 7-cap a non-issue |
 | Air-block gate | guard predicate is grounded on BOTH sides (resolution + reaction); two bounded patch sites identified |
+| **Mash contest** (2026-08-24) | BUILT and measured: contest on a ground clash only (`mashgate` proves the airborne case keeps the backdash), counts decide it (29-0), a held button counts **1**, a tie backdashes both, the loser wall-flies juggle-soft, no boxes on any struggle frame. Regression 45/45, roster 9/9, air block green; `--clash-mode backdash` byte-identical to the pre-contest build |
+| **Struct tail** (2026-08-24) | `[SMS-33]` watch paid: `+0x7B`/`+0x7C`/`+0x7D`/`+0x7E`/`+0x7F` free on both player slots, **`+0x79`/`+0x7A` is an engine hit counter** — the air-blockstun timer moved off it |
