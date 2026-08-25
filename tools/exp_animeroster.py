@@ -770,6 +770,20 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
     # written into the same carved bytes), neither hit resolves: both fighters
     # are set to their backdash act. Otherwise the original target selection is
     # reproduced exactly (incl. the non-player case: anything but P1 -> P1).
+    #
+    # ⚠ NO PROJECTILE MAY EVER TAKE PART IN A CLASH (maintainer, 2026-08-25),
+    # and two properties of this block are what enforce it. Keep both if you
+    # touch it:
+    #   * the two `cpx` tests below admit ONLY $1000 and $1080 — a projectile
+    #     attacker ($1100/$1180, and any other object) falls straight through
+    #     to the vanilla target selection, so a fireball's own resolution never
+    #     reaches the test;
+    #   * the opposing side is derived as `base XOR $80`, which is always the
+    #     other PLAYER slot. Widening that to "whatever object is attacking"
+    #     would put a fireball on the other side of the test.
+    # Measured both ways on 2026-08-25 (`tools/probe_exp_projclash.lua`): a
+    # ball meeting a live body hitbox, and two balls meeting each other, both
+    # resolve exactly as they do on the clean ROM.
     clash_items = [
         [0xE0, 0x00, 0x10], ("b", 0xF0, "atk_ok"),
         [0xE0, 0x80, 0x10], ("b", 0xD0, "targ_p1"),

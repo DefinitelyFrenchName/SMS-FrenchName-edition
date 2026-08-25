@@ -31,6 +31,9 @@ sections further down are per-session detail, newest first.
    air-blockstun timer moved to `+0x7B`. Cells now claimed and measured free on
    both player slots: `+0x7B` (blockstun/contest timer), `+0x7C` (mash count),
    `+0x7D` (hitbox age), `+0x7E` (juggle count), `+0x7F` (air budget).
+   **Projectiles never clash** (rule asked 2026-08-25, already true, measured
+   by `tools/probe_exp_projclash.lua`: ball vs live body hitbox and ball vs
+   ball both resolve exactly as on the clean ROM).
    ⚠ Not caused by that work but found by it: `tools/demo_airrush.lua`
    SETUP-FAILs its anti-air on **both** builds — it predates the launcher
    rework and needs re-staging.

@@ -225,6 +225,25 @@ launcher + Dust, per-character roster probe **9/9**, regression **45/45**.
 build before the contest existed — table, code and act wiring are emitted only
 in mash mode.
 
+**Projectiles cannot clash — asked 2026-08-25, and it was already true.** The
+maintainer's rule is that no clash may involve a projectile hitbox. Two
+properties of the trigger enforce it: the block admits only `$1000`/`$1080` as
+the attacker (a fireball's own resolution falls through to vanilla target
+selection), and the opposing side is derived as `base XOR $80`, always the
+other PLAYER slot. Reading is not measuring, so `tools/probe_exp_projclash.lua`
+staged both ways a projectile hitbox can meet another one:
+
+| run | build | clean ROM |
+|---|---|---|
+| Neptune's 214LP into Jupiter's **live HP hitbox** (contact t=81) | no clash, ball hits for 10 | identical |
+| Neptune mirror, **two balls meet** (contact t=68) | no clash, no damage | identical |
+
+The generator now carries the rule as a comment on the two properties that
+enforce it, so a future widening of "the other side" knows what it would break.
+⚠ The swing has to LEAD the ball: swept 30-110 px, and below 75 the ball
+arrives during Jupiter's startup with his box still `00` — a run that proves
+nothing. The probe says VOID for those instead of passing them.
+
 ⚠ **Two probe defects, both of which made a working mechanism look dead.**
 `probe_exp_clash`'s default `SMS_DIST` was **56**, and this fixture clashes only
 at gap **≥ 64** (62 → one-sided hit) — the recorded evidence had been taken at 64

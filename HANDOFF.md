@@ -40,6 +40,13 @@ byte-identical to the pre-contest build. Artifact `build/exp_animeroster.bps`
 (`70121a0a…`); detail and every measurement in
 `docs/project/anime_fighter_feasibility.md`.
 
+**Projectiles cannot take part in a clash** (maintainer rule, asked 2026-08-25;
+already true and now measured). The trigger admits only `$1000`/`$1080` as the
+attacker and derives the other side as `base XOR $80`, so a fireball is never
+on either side of the test. `tools/probe_exp_projclash.lua` stages a ball
+against a live body hitbox and a ball against a ball; both resolve exactly as
+they do on the clean ROM.
+
 ⚠ **`+0x79`/`+0x7A` is not free space — it is a 16-bit engine hit counter**
 capped at 999 (`$C0:C050` and three sibling forks, both throw paths, `stz $1079`
 / `stz $10F9` at round load), and this line's air-blockstun timer had been

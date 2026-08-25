@@ -371,6 +371,7 @@ See HANDOFF.md §4 for the harness.
 - `probe_exp_cells.lua` — the [SMS-33] FULL-SESSION watch on the object struct's
 - `probe_exp_clash.lua` — do two hits meeting in their first active frames
 - `probe_exp_launcher.lua` — does the UNIVERSAL LAUNCHER (fresh LK+HK
+- `probe_exp_projclash.lua` — can a PROJECTILE take part in a clash?
 - `probe_exp_roster.lua` — per-character verification of the full-roster
 - `probe_fontdma.lua` — find the code that uploads the menu FONT to VRAM.
 - `probe_fontdma2.lua` — read the DMA parameters from DIRECT PAGE at the trigger.
