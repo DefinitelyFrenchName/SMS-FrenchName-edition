@@ -1557,6 +1557,17 @@ out. ⚠ The dilation is **four-neighbour, not eight** — the half-width glyphs
 all 8 columns with no side bearing, so an 8-neighbour outline spends the only gap
 between letters and MERCURY/JUPITER come out blobby with their outlines merged.
 
+⚠ **The blob cannot GROW, and the reason is a quiet one.** The record's DMA
+length is `$0E00` = **112 tiles**, but the blob decodes to **104**, so the
+transfer sends 8 tiles of whatever the staging buffer at `$7E:2000` still held —
+and the A.C.S. map *references four of them*: fields `$270/$271/$280/$281`
+(VRAM tiles `$470/$471/$480/$481`), past the end of the decoded payload. Those
+cells show the previous screen's leftovers by design-accident. Nothing here
+disturbs it (this edit changes neither the length nor the map, and the payload
+stays exactly 3328 bytes — asserted), but any future edit that wants more tiles
+must reckon with a length baked into **eighteen** records and a tail that is
+already load-bearing.
+
 **It goes back IN PLACE.** `encode_lz` beats the vanilla stream on all nine even
 after stamping — tightest fit **58 bytes spare** — so there is no relocation, no
 appended-bank space and no record to repoint. This is the **second** exception to
