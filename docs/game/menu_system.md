@@ -100,6 +100,7 @@ VRAM.
 | character select | cluster `$C3:AF8A` |
 | VS button-config | *no cluster of its own* — keeps char-select's VRAM plus its own compressed tilemap `$C3:7C00` |
 | A.C.S. | cluster `$C3:9CF2`, plus its own small font at `$4000` |
+| post-match winner | cluster `$C3:99DB`, reached from `$C3:97E1`. Keyed on `$1B10`, which this screen loads with the **winner's** charID (`$1E14` = match_winner). Loads the same nine per-character portrait+name blobs the A.C.S. screen does, but to VRAM word `$3000`; its BG1 map is `$C6:3A50`. ⚠ No probe route reaches it |
 
 ### Engine B — the bank-`$DF` screen engine (win/report card, tournament)
 
@@ -152,12 +153,26 @@ corrupted the screen and hung the game a second after stage select.
 
 **A dynamic glyph blitter** — `$80:9583`, queue-driven (`$1C80` src, `$1C82`
 bank, `$1C8E` vmadd, dispatch `$1C90`), uploading single glyphs `$20` bytes at a
-time into BG3 CHR with map cells pointing at them. Glyph bytes come from a
-staging area at `$7F:DC00+` that per-byte write watches never see, because it is
-filled by a block move. **This is the game's variable-text engine** — the
-machinery that substitutes a character's name into the A.C.S. prompt, and
-presumably what story dialogue uses. Its font source, string encoding and opcode
-set are all **undecoded**.
+time into BG3 CHR with map cells pointing at them. **This is the game's
+variable-text engine**, and it is now decoded: the font is `$C2:4580`, codec 1,
+staged as 512 units of `$20` at **`$7F:C000`** by asset record `$C3:BE30`
+(`00 58 00 10 80 45 c2 00 c0 7f` = vram `$5800`, len `$1000`, src `$C2:4580`,
+dest `$7F:C000`) — which is why a per-byte write watch never saw it arrive, and
+why `$7F:DC00+` looked like an unfound staging area: `$DC00` is simply
+`$C000 + $1C00`, inside that buffer, in the blank high-code region. A unit is a
+**16×8 strip** (two 8×8 tiles side by side). `$FC` terminates, `$FF` is a
+newline, `$00` is a space. The glyph address is *computed*, not stored:
+`$7F:C000 + rowtab[(code & $F8) >> 2] + (code & 7) * $20`. ⚠ The two addresses
+for that arithmetic (routine `$C2:B9CD`, rowtab `$C2:BA2D`) are **inherited from
+the 2026-08-11 prompt work and were not re-derived here** — `$C2:B9CD` does not
+decode to a plausible entry under a fresh 8-bit framing, so treat them as filed,
+not measured, until someone reads them with the flags the caller actually sets.
+
+⚠ **There is no runtime name substitution.** The A.C.S. prompt is nine
+pre-written strings behind a 4-byte pointer table at `$C2:C1CA`, and the name
+card beside it is not this engine at all — it is per-character baked art (see
+`../project/menu_text.md` § "The A.C.S. name card"). Story dialogue has not been
+checked against this engine.
 
 ## 5. VRAM on a menu screen
 
@@ -224,4 +239,10 @@ strings the game shows.
 ⚠ **Our codec-1 encoder is weaker than the original's**: even an untouched block
 re-encodes larger (the kanji block, `0xD5B` original, comes back `0x13AD`). An
 edited block must be **relocated** and its record repointed, never written back
-in place.
+in place — *unless the re-encoded stream is measured to fit*. `sms_lz.encode_lz`
+(the optimal parse added for Saturn's round-won badge) does beat the vanilla
+stream on some blocks, and two have now shipped in place: the A.C.S. text font
+(6470 B into 6736) and all nine A.C.S. name-card blobs (tightest fit 58 bytes
+spare). The rule is therefore **relocate unless the builder asserts the fit at
+build time**; `decompress_ex` returns the vanilla stream's length for exactly
+that assert. Never write back on the assumption that it fits.

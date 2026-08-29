@@ -255,7 +255,8 @@ VRAM. The important ones:
 | `$7E:2000` | generic decompression target for menu assets |
 | `$7E:6A00` | the per-character payload the char loader expands — **the compressed effect tiles**, not the animation data (an old note said otherwise) |
 | `$7E:C000` | menu font staging: `$C4:2590` lands here, then DMAs to VRAM. Its ceiling is `$4000` bytes, because more runs off the end of bank `$7E` |
-| `$7E:1900+`, `$7E:3640+`, `$7F:DC00+` | three staging areas whose **fillers are unfound** — they are written by block moves, which per-byte write watches never see. The last one is patch 16's remaining blocker |
+| `$7E:1900+`, `$7E:3640+` | two staging areas whose **fillers are unfound** — they are written by block moves, which per-byte write watches never see |
+| `$7F:C000-$FFFF` | the variable-text engine's font: `$C2:4580`, codec 1, 512 units of `$20` (record `$C3:BE30`). ⚠ **`$7F:DC00+` is inside this buffer**, not a separate staging area — it is `$C000 + $1C00`, the blank high-code region, which is why nothing was ever seen filling it. Older notes call it patch 16's blocker; it was not |
 | `$7F:0000-$5FFF` | scene-load scratch |
 | `$7F:6000+` | **free** — zero steady-state traffic. Patches 11/13/14/100 keep their state here |
 
@@ -1023,7 +1024,7 @@ dead ends:
 | What | Where | State |
 |---|---|---|
 | **Codec 2** | `$80:8E9A` | **Not decoded.** Everything known fits in a sentence: tile-unit, XOR row filters, a 2-bit command stream. No implementation exists. It carries the report-card tilemap, the bracket VS-names blob and the win-card portraits, and it is the reason patch 16's last two screens are blocked. The shipped workaround is to edit its output in WRAM, between decompress and upload |
-| **The variable-text engine** | blitter `$80:9583`, staging `$7F:DC00+` | No record format, no opcode set, no string encoding recovered. This is the machinery that substitutes a character's name into the A.C.S. prompt — and, presumably, that drives story dialogue. The staging area is filled by a block move, which per-byte watches never see |
+| **Story dialogue's text path** | unmeasured | The variable-text engine (blitter `$80:9583`) is itself decoded — font `$C2:4580` staged at `$7F:C000`, computed glyph address at `$C2:B9CD`, `$FC`/`$FF`/`$00` syntax, strings behind pointer tables — see `menu_system.md` §4. What has *not* been checked is whether story dialogue uses it. ⚠ It substitutes no names: the A.C.S. prompt is nine pre-written strings |
 | ~180 KB of graphics | `$DC:3D80` – `$DE:FFFF` | After the last fighter cel. Almost certainly object/effect/hitspark cels, but the cel pointer table is roster-only, so object cels resolve through some other path |
 | 21.5 KB of sparse data | `$C0:2800-7FFF` | A strict `0x80`-byte texture; rendered and checked — not CHR, not code. The tail of bank `$C1` has the identical texture. Same producer, unidentified format |
 | Bank `$E3` | most of it | Data, 87% `00`/`FF`, and no pointer into it has been found |

@@ -44,7 +44,7 @@ true-combo gate `0x05`.
 | 13. Guts **(OPTIONAL)** | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py` | `build/sms_tauntbuff.bps` | `bafb87d4…` |
 | 14. Guts Grip **(OPTIONAL, companion to 13)** | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py` | `build/sms_gutsgrip.bps` | `5fadcaca…` |
 | 15. No AUTO **(in both reference builds)** | Removes the AUTO option from the VS button-config screen (the モード row goes inert, so both players stay マニュアル); AUTO binds specials to L/R, colliding with patch 12's taunt | `tools/mkpatch15.py` | `build/sms_noauto.bps` | `31832e6e…` |
-| 16. Menu translation **(IN PROGRESS)** | English menu text: a half-width A-Z installed into the menu font, then per-screen tilemap/record edits behind build gates. **No standalone BPS yet** — see the patch 16 section below and `docs/project/menu_text.md` | `tools/mkpatch16.py` | — | — |
+| 16. Menu translation **(DONE)** | English menu text: a half-width A-Z installed into the menu font, then per-screen tilemap/record/art edits behind seven build gates. Standalone `sms_menutranslation.bps` — see the patch 16 section below and `docs/project/menu_text.md` | `tools/mkpatch16.py` | — | — |
 | 17. All stages **(OPTIONAL, in NEITHER reference build)** | The hidden tenth stage (なかよし編集部) becomes selectable, and — where patch 3 is present — joins its random pool | `tools/mkpatch17.py` | `build/sms_allstages.bps` | `e5dd325b…` |
 | 18. No ACS in 2P VS **(in both reference builds)** | The A.C.S. stat-redistribution screen is unreachable in 2P VS only; story and vs-COM keep it. Companion to 15, same screen | `tools/mkpatch18.py` | `build/sms_noacs_vs.bps` | `67897bbf…` |
 
@@ -205,7 +205,7 @@ one patch (or re-run the whole chain) after changing a knob; all stack.
 | **Guts reduction (opt.)** | `mkpatch13.py … --l1 <pct> --l2 <pct> --l3 <pct>` | `20/40/60` | % damage reduction per Guts level vs specials/desperations (build-time 3×128 tables). |
 | **Guts Grip reduction (opt.)** | `mkpatch14.py … --l1/--l2/--l3`, `--all-grabs` | `20/40/60` / off | Same per-level % vs command grabs; `--all-grabs` extends to EVERY grab path (normal throws + hold ticks). Keep the percentages aligned with patch 13. |
 | **Hidden stage (opt.)** | `mkpatch17.py … --no-pool`, `--bgm <N>` | pool on / vanilla music | `--no-pool` unlocks the stage in the menu but leaves patch 3's random default bounded to nine; `--bgm N` gives it another stage's track (its own is `$06`; the nine normal stages hold `$0A`-`$12`). |
-| **Menu translation (in progress)** | `mkpatch16.py`, **env gates** `SMS_P16_OPTIONS` / `SMS_P16_DF` / `SMS_P16_STAGES` / `SMS_P16_ACS` / `SMS_P16_BRACKET` / `SMS_P16_PROMPT` / `SMS_P16_SATURN` | font install always on, every screen gate **off** | Each gate turns on one screen's strings; `SMS_P16_ACS` requires `SMS_P16_STAGES` (they share the glyph block), `SMS_P16_BRACKET` renders the bracket VS names (**MOON VS MOON**, verified on screen), and `SMS_P16_SATURN` (stage 2 → SILENT THRONE OF MESSIAH) is for a future Saturn chain only. |
+| **Menu translation (in progress)** | `mkpatch16.py`, **env gates** `SMS_P16_OPTIONS` / `SMS_P16_DF` / `SMS_P16_STAGES` / `SMS_P16_ACS` / `SMS_P16_BRACKET` / `SMS_P16_PROMPT` / `SMS_P16_NAMECARD` / `SMS_P16_SATURN` | font install always on, every screen gate **off** | Each gate turns on one screen's strings; `SMS_P16_ACS` requires `SMS_P16_STAGES` (they share the glyph block), `SMS_P16_BRACKET` renders the bracket VS names (**MOON VS MOON**, verified on screen), `SMS_P16_NAMECARD` re-draws the A.C.S. name card in the nine per-character art blobs (**MOON**, verified on screen; re-encoded in place), and `SMS_P16_SATURN` (stage 2 → SILENT THRONE OF MESSIAH) is for a future Saturn chain only. |
 
 Patches 2 (dashfix), 3 (palettes), 11 (Training+ — all settings live in its in-game menu;
 `--stage` is a dev/debug flag), 12 (taunts), 15 (No AUTO) and 18 (No ACS in 2P VS) have no
@@ -1684,9 +1684,11 @@ builds** (REF v.2 onward, and Rev. S/SS).
 
 # Patch 16 — menu translation (IN PROGRESS)
 
-**Status (2026-08-08): the font install and five screens are done and
-in-emulator verified; two runtime-drawn text surfaces remain.** This is the
-project's only active work item. This section is the summary; the mechanism
+**Status (2026-08-29): DONE.** The font install and every in-scope screen are
+translated and in-emulator verified. The two surfaces that were called
+"runtime-drawn" both landed — the A.C.S. prompt (2026-08-11) and the A.C.S. name
+card (2026-08-29) — and neither was runtime-drawn: the prompt is nine
+pre-written strings, the card is per-character baked art. This section is the summary; the mechanism
 record — every screen's loader, every trap paid for — is `docs/project/menu_text.md`,
 which is the file to read before touching the builder.
 
@@ -1733,6 +1735,7 @@ Every screen's strings are **off by default**; each gate turns on one screen.
 | `SMS_P16_ACS` | the A.C.S. wheel labels (**requires `SMS_P16_STAGES`** — shared glyph block) |
 | `SMS_P16_PROMPT` | the A.C.S. prompt bar: **SET STATS** in place of `<NAME>のステータスをきめてください`, on all nine characters. Five 16x8 strips written into the text font's blank units as codes `$E3-$E7`; the font (`$C2:4580`) is re-encoded **in place** (6470 B into the vanilla stream's 6736) and the nine string pointers at `$C2:C1CA` all aim at one line. The character's name is not repeated because the card to the left of the bar already shows it. Off by default |
 | `SMS_P16_BRACKET` | the 18 bracket VS name records (9 characters × 2 sides) + 36 Latin glyph tiles delivered into the **BG3** sheet by a **7th asset entry** added to script `$DF:A43E`. Verified on screen: the bracket reads **MOON VS MOON** where the clean ROM reads セーラームーン VS セーラームーン, with the background, the `TOURNAMENT BATTLE` header and the 4bpp BG1/BG2 font all byte-identical to clean (160/160 tiles). Off by default |
+| `SMS_P16_NAMECARD` | the A.C.S. **name card** — the character's name above the `1P` badge. Nine per-character `sms_lz` blobs (`$C5:3C50`…`$C5:7050`, 104 4bpp tiles each) carry portrait **and** name as baked art; the 20 tiles of the name strip (`$4D-$56` over `$5D-$66`, = BG1 rows 16-17 cols 2-11, attr `$1400`) are erased and re-stamped with the half-width A-Z, centred, as a white body (palette index 3) over a one-pixel dark outline (index 1) — the two inks the vanilla kana use, read out of CGRAM. **Re-encoded in place**: `encode_lz` beats the vanilla stream on all nine (tightest fit 58 bytes spare), so no relocation and no record repointing. Verified on screen: the card reads **MOON** where clean reads セーラームーン, same frame, rest of screen identical. Independent of every other gate. Off by default |
 | `SMS_P16_SATURN` | stage 2 → `SILENT THRONE OF MESSIAH`; **default off**, for a future Saturn chain that stacks this patch |
 
 Four mechanisms are worth knowing, because they are what the screens differ by:
@@ -1766,12 +1769,18 @@ Four mechanisms are worth knowing, because they are what the screens differ by:
 | build | ROM SHA-1 |
 |---|---|
 | clean → patch 16, font install only | `c9ad4910…` |
-| clean → patch 16, all four screen gates on | `257598c8…` |
+| clean → patch 16, **all seven screen gates** on | `93e2fdb4…` |
 
 (Lineage, for anyone reading older notes: `d8f4ff1d…` was the font-install-only
 build before the Options hook existed, `206fee3d…`/`3cba4171…` the base and
-full-Options pair recorded on 2026-08-06.) **No standalone BPS is tracked yet** —
-the patch is still moving, and a tracked BPS is a promise about bytes.
+full-Options pair recorded on 2026-08-06, and `257598c8…` was "all four gates"
+when there were four.) **The standalone BPS is `build/sms_menutranslation.bps`**,
+cut from the seven-gate build and round-tripped to the same `93e2fdb4…`.
+⚠ A BPS pins a gate set, so the build command is part of the artefact:
+`SMS_P16_OPTIONS=1 SMS_P16_DF=1 SMS_P16_STAGES=1 SMS_P16_ACS=1 SMS_P16_PROMPT=1
+SMS_P16_BRACKET=1 SMS_P16_NAMECARD=1` (`SMS_P16_SATURN` stays off). Patch 16
+appends its bank at `0x280000` like 3/4/10/10b/11, so the "never stack standalone
+BPS" trap applies (HANDOFF §5).
 
 ## Verification
 
@@ -1807,14 +1816,16 @@ positive control (0/256 bytes arrive clean, 256/256 patched).
   320 tiles at VRAM tile `$200` from a blob that decodes to 135. **Remaining before
   authoring:** read the BG CHR base and census which font tiles are free, then
   extend the blob and bump only `$A43E`'s len.
-* **The A.C.S. name card and prompt.** Not map data at all: a **dynamic glyph
-  blitter** (`$80:9583`, queue-driven, `$20` bytes at a time into BG3 CHR) fed
-  from a staging area at `$7F:DC00+` that per-byte write watches never see.
-  This is the game's variable-text engine — the same machinery the story
-  dialogue uses — which is why the prompt can substitute a character's name.
-  Finding what fills `$7F:DC00+` yields the font source; only then is an English
-  prompt authorable, and it would want proportional glyphs. Until then the
-  Japanese prompt stays, which the maintainer has accepted.
+* ~~**The A.C.S. name card and prompt.**~~ **Both DONE.** The prompt shipped
+  2026-08-11 as `SMS_P16_PROMPT` (**SET STATS**) and the name card 2026-08-29 as
+  `SMS_P16_NAMECARD` (**MOON**), so patch 16 has no untranslated surface left in
+  scope. Two filings this entry made were wrong and are worth keeping as
+  corrections: there is **no runtime name substitution** (the prompt is nine
+  pre-written strings behind `$C2:C1CA`), and **`$7F:DC00+` was never a blocker**
+  — it is inside the `$7F:C000` text-font buffer. The name card was not this
+  engine at all: it is per-character baked art in nine `sms_lz` blobs
+  (`$C5:3C50`…`$C5:7050`), re-encoded in place. Detail:
+  `docs/project/menu_text.md` § "The A.C.S. name card".
 
 Story-mode text is **out of scope** (maintainer).
 

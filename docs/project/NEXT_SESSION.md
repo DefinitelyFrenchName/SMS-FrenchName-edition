@@ -77,7 +77,7 @@ sections further down are per-session detail, newest first.
    surface only on **v0.22** (the only bundle with 10b) and only if a status
    label is live at that exact instant. No Saturn build carries 10b. Noted for
    completeness, not as open work.
-3. **Patch 16 — menu translation.** The **bracket VS names are DONE**
+3. **Patch 16 — menu translation: DONE.** The **bracket VS names are DONE**
    (2026-08-11, `SMS_P16_BRACKET`): the screen reads **MOON VS MOON**, verified
    against a clean A/B at the same frame, and with all five gates on together.
    Regression ALL PASS (45); the font-only build still reproduces `c9ad4910…`,
@@ -92,10 +92,20 @@ sections further down are per-session detail, newest first.
      mirror, so a stub must sit at `$8000-$FFFF`. The first build used bank
      `$DF`'s largest free run at `$4D85` — below `$8000`, hence open bus, hence
      a garbage script pointer and a silently wrong screen.
-   * **Remaining:** the **A.C.S. name card + prompt** — still a session of its
-     own: find the `$7F:DC00+` filler, then the font source, string encoding and
-     name-substitution site, and only then census a glyph window. Now that BG3
-     is understood, check which layer that prompt is on *first*.
+   * **DONE 2026-08-29 — patch 16 has no in-scope surface left.** The A.C.S.
+     **prompt** shipped 2026-08-11 (`SMS_P16_PROMPT`, **SET STATS**) and the
+     **name card** on 2026-08-29 (`SMS_P16_NAMECARD`, **MOON**). Neither was
+     "runtime-drawn": the prompt is nine pre-written strings behind `$C2:C1CA`,
+     and the card is **per-character baked art** — nine `sms_lz` blobs
+     (`$C5:3C50`…`$C5:7050`, 104 tiles each) whose 20-tile name strip is erased
+     and re-stamped with the half-width A-Z, **re-encoded in place** (58 bytes
+     spare at the tightest). Seven gates, all off by default; standalone
+     `build/sms_menutranslation.bps` (`93e2fdb4…`, font-only still `c9ad4910…`).
+     ⚠ **`$7F:DC00+` was never a blocker** — it is inside the `$7F:C000`
+     text-font buffer. ⚠ The blobs' second consumer is a **post-match winner
+     screen** (`$C3:99DB`, keyed on `$1E14`/match_winner) that no probe route
+     reaches; it shows English by construction, unverified on screen.
+     Detail: `menu_text.md` § "The A.C.S. name card".
 4. **Patch 14 — needs a RULING, not a patch.** `--all-grabs` does not scale a
    TECHED throw, so at Guts L3 teching costs more than eating the throw (12 vs
    10, measured). No shipped build passes the flag. The question is yours:

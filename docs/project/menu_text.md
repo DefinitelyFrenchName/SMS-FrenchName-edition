@@ -1483,30 +1483,123 @@ gates on together. **Remaining on this screen: the name card** (セーラーム�
 1P at the left), which is a different surface — it is not drawn by this blitter,
 since the only glyphs blitted on the screen are the prompt's.
 
-### The A.C.S. name card — surface identified, art source NOT yet found
+### The A.C.S. name card — DONE 2026-08-29 (`SMS_P16_NAMECARD`)
 
-The last untranslated thing on the screen (セーラームーン above the `1P`).
-Measured 2026-08-11, and it is **not** the prompt's engine — the prompt's glyphs
-are the only ones that blitter emits on this screen.
+The last untranslated surface in patch 16. The card above the `1P` now reads
+**MOON** where clean reads セーラームーン, verified on screen against a clean A/B
+at the same frame with everything else on the screen unchanged.
 
-* it is **BG1 tilemap** cells, rows 14-17, cols 2-11, with **4bpp tiles from CHR
-  `$2000`** (PPU at this screen: BG1 map `$0000` chr `$2000`, BG2 map `$0800`
-  chr `$2000`, BG3 map `$1000` chr `$5000`).
-* the name occupies tiles **`$228-$266`** and they are **CONSECUTIVE**, so the
-  card is a pre-rendered STRIP of art, not per-glyph references into a font. The
-  `1P` beside it is a separate, reusable pair (`$10C-$10F` / `$11C-$11D`).
-* ⚠ **the art has not been located.** Tile `$228` does not appear raw anywhere in
-  the ROM, is not inside any of the ACS cluster's decompressed sheets
-  (`$C2:3400`, `$C6:0C20`, `$C2:3CE0`, `$C2:3EB0`, `$C2:4340`, `$C5:3C50`), and
-  is not in WRAM by the time the screen has settled — so it is staged and the
-  buffer is reused before anything can see it.
+**What it is.** Not the prompt's blitter, and not a font reference: **per-character
+baked art**. Nine codec-1 blobs, each expanding to `0xD00` = 3328 B = 104 4bpp
+tiles, carry the portrait *and* the name:
 
-**NEXT:** watch the upload rather than the aftermath — log every transfer's
-vmadd and source at screen-load time and keep the one covering word `$4280`
-(= tile `$228`). The `$C3` job-table records carry a vram field, but a 10-byte
-stride from `$C3:BD61` does not parse cleanly, so read the uploader instead of
-the table. Only then is it clear whether the strip is per-character art (nine of
-them to author, ~2 KB each) or something composed once.
+| charID | blob | charID | blob | charID | blob |
+|---|---|---|---|---|---|
+| 1 MOON | `$C5:3C50` | 4 JUPITER | `$C5:4E70` | 7 NEPTUNE | `$C5:6230` |
+| 2 MERCURY | `$C5:4300` | 5 VENUS | `$C5:5520` | 8 PLUTO | `$C5:6950` |
+| 3 MARS | `$C5:48C0` | 6 URANUS | `$C5:5BC0` | 9 CHIBI MOON | `$C5:7050` |
+
+Each blob has **exactly two pointers in the whole image**, both `src24` fields of
+compressed-asset job records: the `vram=$4000` set (`$C3:BDCC`-`$C3:BE1C`) that
+the A.C.S. screen uses, and a `vram=$3000` set (`$C3:BFC0`-`$C3:C010`).
+
+**How the screen picks one** — `$C3:9D28`, disassembled:
+
+```
+$C3:9D28  rep #$30
+$C3:9D2A  lda $1B1C          ; the A.C.S. character index
+$C3:9D2D  asl
+$C3:9D2E  tax
+$C3:9D2F  lda $9F67,X        ; ten words: 0028 0028 002A .. 0038
+$C3:9D32  sta $1C18
+$C3:9D35  jsr $824E          ; table-B uploader
+```
+
+Entry 0 is duplicated, so `$1B1C` is a **1-based charID** and **blob n = charID n**.
+Measured in-emulator: `$1B1C=1` decompressed `$C5:3C50` with Moon on screen
+(`f1806 CODEC1 src=$C5:3C50 … $1B1C=1`), `$1B1C=5` decompressed `$C5:5520`. The
+nine strips were also **rendered and read directly** — セーラームーン / マーキュリー /
+マーズ / ジュピター / ヴィーナス / ウラヌス / ネプチューン / プルート / ちびムーン, in
+charID order — which is what settles the identity rather than inferring it from
+the table.
+
+**The surface.** BG1 tilemap rows **16-17**, cols 2-11 — 10 cells, 2 rows, attr
+`$1400` (palette 5, priority 0 — `$1400 & $2000 == 0`) — map tiles `$24D-$256` over `$25D-$266`, i.e. blob
+tiles **`$4D-$56`** (top) and **`$5D-$66`** (bottom). That is exactly the
+half-width convention (one column per glyph, `bottom = top + $10`), so
+`encode_glyph` drops straight in and none of the wheel's pixel-raster machinery
+is needed. Rows 12-15 are the portrait plate; rows 18-19 are the `1P`, from a
+different sheet. Each of the 20 tiles is referenced **exactly once, on BG1 only**
+(checked across all four maps), so erase-and-stamp cannot bleed elsewhere.
+
+⚠ **The earlier "the art is nowhere in the ROM" was an off-by-`$200`.** The
+2026-08-11 entry recorded that tile `$228` appears in no ACS sheet — *including
+`$C5:3C50`, which is the very blob it lives in*. `$228` is a **map cell** and
+BG1's CHR base is word `$2000`, so the art is VRAM tile `$428` = blob tile `$28`.
+This document's own §1 rule (map tile = VRAM tile − `$200`) had not been applied
+to its own search. The lesson is narrow and worth keeping: **a negative result
+about a tile is only as good as the base you subtracted.**
+
+⚠ **The recorded NEXT step was not needed.** "Watch the upload, not the
+aftermath" was sound, but the answer was in the job table all along — walking the
+two pointer tables (`$C3:BCCD` 25 entries, `$C3:BCFF` 49) for records whose VRAM
+window covers word `$4280` finds all nine in one pass. The note that "a 10-byte
+stride from `$C3:BD61` does not parse cleanly" was the flat-scan artefact
+`sms_data_architecture.md` §"Compressed-asset job record" already warns about:
+walk the pointer tables, do not stride.
+
+**The edit.** Erase the 20 strip tiles, stamp the centred English name from the
+half-width A-Z as a **white body (palette index 3) over a one-pixel dark outline
+(index 1)** — the two inks the vanilla kana use, read out of CGRAM on the live
+screen (palette 5: index 1 = (32,41,49), index 3 = white). The outline is not
+decoration: the screen behind is pale lavender, and white alone would be washed
+out. ⚠ The dilation is **four-neighbour, not eight** — the half-width glyphs fill
+all 8 columns with no side bearing, so an 8-neighbour outline spends the only gap
+between letters and MERCURY/JUPITER come out blobby with their outlines merged.
+
+**It goes back IN PLACE.** `encode_lz` beats the vanilla stream on all nine even
+after stamping — tightest fit **58 bytes spare** — so there is no relocation, no
+appended-bank space and no record to repoint. This is the **second** exception to
+the "our encoder is weaker, always relocate" law, after the prompt font; the
+builder asserts the fit per blob and names the relocation fallback in the error.
+
+**The second consumer — a POST-MATCH screen.** The `vram=$3000` records are read
+at `$C3:9A05` (`lda $1B10 / asl / tax / lda $9A51,x`, table `$C3:9A51` =
+`4C 4C 4E 50 … 5C`, the same ten-word first-entry-duplicated shape). That
+cluster's only caller is `$C3:97E1`, inside a routine that does
+
+```
+lda $1E14 / cmp #$01 / bne +5 / lda $1D00 / bra +3 / lda $1D03 / sta $1B10
+```
+
+and `$7E:1E14` is **match_winner** (`../game/annotations.md`), so `$1B10` carries
+the **winning character's** id. Its strip sits at map rows **24-25, cols 21-30**
+of `$C6:3A50`, same attr `$1400`. Editing in place translates it too, which is
+the consistent outcome — everything else on the tournament line is already
+English behind `SMS_P16_DF` and `SMS_P16_BRACKET`.
+
+⚠ **Its map is ELEVEN cells wide**, referencing blob tiles `$57`/`$67` that the
+A.C.S. map does not. They are blank in all nine vanilla blobs (measured), so the
+ten-cell stamp is complete — and the builder now asserts it rather than assuming.
+
+⚠ **Not reached by any probe route** (`acs`, `win`, `tournament`, `story`,
+`stagerow` all log zero `vmadd=$3000 len=$0E00` transfers), including a 2P-VS run
+through the A.C.S. door, so the screen is **verified by construction, not on
+screen**. Nothing enters `$C3:97BE` by any `jsr`/`jsl`/pointer in the image, so it
+is reached by computed dispatch; an exec breakpoint on `$C3:9A0D` driven through
+a tournament win is the way to close it.
+
+⚠ **A correction worth keeping.** This section first said the `$3000` set was
+loaded "twice, at `$C3:AD4E` / `$C3:ADA2`, once per player". That came from a raw
+byte search for `20 00 99` — an unaligned false positive — and it survived a
+linear disassembly that happened to start where those bytes *did* frame as a
+`jsr`. **Byte-searching for a call is not finding one**, and a linear decode
+inherits whatever framing you gave it (playbook: "check the framing before
+trusting a verdict about a byte").
+
+**Gates when it landed:** regression ALL PASS (45) with `SMS_P16_NAMECARD` alone
+and with every gate on together; the font-only build still reproduces
+`c9ad4910…`, so the change is purely additive.
 
 ### The ACS prompt bar — the 2026-08-06 attempt, kept for its ruled-out leads
 

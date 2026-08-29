@@ -660,6 +660,66 @@ ACS_LABELS = (
 )
 ACS_INK = 8                       # the kana fill colour in this sheet
 
+# ---- the A.C.S. name card (SMS_P16_NAMECARD=1) ------------------------------
+# The character's name above the 1P badge (セーラームーン). It is NOT the prompt's
+# blitter and NOT a font reference: it is per-character BAKED ART, nine codec-1
+# blobs of 104 4bpp tiles each, selected by $C3:9D2A
+#     lda $1B1C / asl / tax / lda $9F67,x / sta $1C18 / jsr $824E
+# whose table is ten words 0028 0028 002A .. 0038 (entry 0 duplicated, so $1B1C
+# is a 1-based charID and blob n = charID n). Measured in-emulator 2026-08-29:
+# $1B1C=1 decompressed $C5:3C50 with Moon on screen; $1B1C=5 decompressed
+# $C5:5520. The nine strips were also rendered and READ directly -- they say
+# セーラームーン / マーキュリー / マーズ / ジュピター / ヴィーナス / ウラヌス /
+# ネプチューン / プルート / ちびムーン, in charID order.
+#
+# ⚠ An earlier session recorded "tile $228 appears nowhere in the ROM, not even
+# in $C5:3C50". That negative was an off-by-$200: $228 is a MAP cell and BG1's
+# CHR base is word $2000, so the art is VRAM tile $428 -- blob tile $28. The
+# doc's own rule (map tile = VRAM tile - $200) had not been applied to its own
+# search.
+#
+# The strip on screen is BG1 rows 16-17, cols 2-11 -- 10 cells, 2 rows, attr
+# $1400 (palette 5) -- map tiles $24D-$256 over $25D-$266, i.e. blob tiles
+# $4D-$56 (top) and $5D-$66 (bottom). That is exactly the half-width convention
+# (one column per glyph, bottom = top + $10), so encode_glyph drops straight in
+# and none of the wheel's pixel-raster machinery is needed.
+#
+# ⚠ These blobs have TWO consumers: the vram=$4000 records the A.C.S. screen uses
+# ($C3:BDCC-$BE1C) and a vram=$3000 set ($C3:BFC0-$C010) read at $C3:9A05
+# (lda $1B10 / asl / tax / lda $9A51,x). That cluster's only caller is
+# $C3:97E1, inside a routine that does
+#     lda $1E14 / cmp #$01 / bne +5 / lda $1D00 / bra +3 / lda $1D03 / sta $1B10
+# -- $1E14 is match_winner (annotations.md), so $1B10 carries the WINNING
+# character's id: it is a POST-MATCH screen, and its strip sits at map rows
+# 24-25, cols 21-30. Editing the blob in place therefore translates both
+# surfaces, which is what a translation patch wants (everything else on the
+# tournament line is already English behind SMS_P16_DF/BRACKET); the alternative
+# is relocating nine blobs and repointing only the $4000 set, which costs a
+# SECOND appended bank -- there is no 14 KB hole left in the first.
+# ⚠ An earlier draft of this comment said the $3000 set was loaded "twice, at
+# $C3:AD4E / $C3:ADA2, once per player". That came from a raw byte search for
+# `20 00 99`, which is an unaligned false positive; the real chain is the one
+# above. Byte-searching for a call is not the same as finding one.
+NAMECARD_TRANSLATE = os.environ.get("SMS_P16_NAMECARD") == "1"
+NAMECARD_BLOBS = (0x053C50, 0x054300, 0x0548C0, 0x054E70, 0x055520,
+                  0x055BC0, 0x056230, 0x056950, 0x057050)   # file offsets, charID order
+NAMECARD_NAMES = ("MOON", "MERCURY", "MARS", "JUPITER", "VENUS",
+                  "URANUS", "NEPTUNE", "PLUTO", "CHIBI MOON")
+NAMECARD_SIZE = 0xD00             # every blob decompresses to 104 tiles
+NAMECARD_TOP = tuple(range(0x4D, 0x57))
+NAMECARD_BOT = tuple(range(0x5D, 0x67))
+# Inks read out of CGRAM on the live screen (traces/p16_card_cgram.bin, palette
+# 5): index 3 is white and index 1 is a near-black outline. The vanilla kana are
+# drawn exactly that way -- white body, dark edge -- and the edge is doing the
+# work, because the screen behind is pale lavender. So the stamp reproduces both.
+NAMECARD_INK = 3
+NAMECARD_EDGE = 1
+NAMECARD_SPARE = (0x57, 0x67)     # the 11th cell, referenced by the $3000 map only
+# The two BG1 maps that reference the strip, and the VRAM tile each screen's
+# upload lands the blob on. A map cell's tile field is (VRAM tile - $200).
+NAMECARD_MAPS = ((0xC23EB0, 0x400),   # A.C.S. screen: rows 16-17, cols 2-11
+                 (0xC63A50, 0x300))   # the post-match winner screen: rows 24-25
+
 # The マニュアル/オート VALUES are runtime records (bank $C4, same renderer as
 # the option values) that overdraw the baked map columns on entry — found by
 # searching for the マニ cell run: [vmadd $00A1|$00B5][len $14][rows 2].
@@ -851,6 +911,110 @@ def find_record(data, want_src):
         if src == want_src:
             return n, o
     return None, None
+
+
+def namecard_blob(data, off, name, glyphs):
+    """Re-draw one character's A.C.S. name strip. -> the re-encoded codec-1 stream.
+
+    ⚠ find_record() cannot be used to reach these records: its flat scan window
+    starts at REC0 ($C3:BE08) and SIX of the nine name-card records sit before it
+    ($C3:BDCC-$BE02). They are addressed directly instead -- see the census in
+    docs/project/menu_text.md; the record layout is the usual
+    [vram16][len16][src24][dest24].
+    """
+    sheet, vanilla_len = sms_lz.decompress_ex(bytes(data), off, 0x4000)
+    if len(sheet) != NAMECARD_SIZE:
+        raise SystemExit("name-card blob %#x expands to %#x, expected %#x"
+                         % (off, len(sheet), NAMECARD_SIZE))
+    sheet = bytearray(sheet)
+    # Guard before erasing: prove these 20 tiles really are the name strip and
+    # not some of the portrait. Per-tile "must be non-blank" is the WRONG test --
+    # the names are centred, so the outer columns of a short one (MOON) are
+    # legitimately empty. What does separate them is the palette: the strip is
+    # drawn in exactly two inks over transparent (0, NAMECARD_EDGE, NAMECARD_INK)
+    # while the portrait beside it uses the whole 16-colour range. Measured on
+    # blob 1: index 0 x921, 1 x217, 3 x142 and nothing else.
+    allowed = {0, NAMECARD_EDGE, NAMECARD_INK}
+    ink = 0
+    for t in NAMECARD_TOP + NAMECARD_BOT:
+        d = sheet[t * 32:(t + 1) * 32]
+        for y in range(8):
+            p0, p1, p2, p3 = d[y * 2], d[y * 2 + 1], d[16 + y * 2], d[16 + y * 2 + 1]
+            for x in range(8):
+                m = 0x80 >> x
+                v = (1 if p0 & m else 0) | (2 if p1 & m else 0) \
+                    | (4 if p2 & m else 0) | (8 if p3 & m else 0)
+                if v not in allowed:
+                    raise SystemExit(
+                        "name-card blob %#x tile %#x uses palette index %d -- that is "
+                        "portrait art, not the name strip; the tile range has moved"
+                        % (off, t, v))
+                if v:
+                    ink += 1
+    if not 80 <= ink <= 900:
+        raise SystemExit("name-card blob %#x strip has %d ink pixels, expected 80-900"
+                         % (off, ink))
+    # ⚠ The SECOND consumer's strip is ELEVEN cells wide, not ten: its map also
+    # references blob tiles $57/$67 (measured, once each). They are blank in all
+    # nine vanilla blobs, so nothing shows there and the ten-cell stamp is
+    # complete -- but that is a fact to assert, not to assume, because a
+    # non-blank $57 would leave one vanilla kana column stranded beside English.
+    for t in NAMECARD_SPARE:
+        if any(sheet[t * 32:(t + 1) * 32]):
+            raise SystemExit(
+                "name-card blob %#x tile $%02X is not blank -- the second consumer's "
+                "11th cell would keep a leftover column" % (off, t))
+    for t in NAMECARD_TOP + NAMECARD_BOT:
+        sheet[t * 32:(t + 1) * 32] = bytes(32)
+    if len(name) > len(NAMECARD_TOP):
+        raise SystemExit("name %r is %d columns, budget is %d"
+                         % (name, len(name), len(NAMECARD_TOP)))
+    pad = (len(NAMECARD_TOP) - len(name)) // 2
+    for i, ch in enumerate(name):
+        if ch == " ":
+            continue
+        rows = glyphs[ch]
+        # The vanilla strip is a white body over a dark edge, and the edge is what
+        # makes it readable against the pale background. Draw the dilation in
+        # NAMECARD_EDGE first, then the glyph itself over it.
+        # ⚠ FOUR-neighbour, not eight. The half-width glyphs fill all 8 columns
+        # with no side bearing, so an 8-neighbour dilation spends the only gap
+        # between letters on diagonal ink: rendered side by side, MERCURY and
+        # JUPITER came out blobby with their outlines merged. The cross keeps the
+        # letters separate and the outline one pixel thin.
+        edge = []
+        for y in range(16):
+            line = []
+            for x in range(8):
+                on = any(rows[y + dy][x + dx] == "#"
+                         for dy, dx in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1))
+                         if 0 <= y + dy < 16 and 0 <= x + dx < 8)
+                line.append("#" if on else ".")
+            edge.append("".join(line))
+        etop, ebot = encode_glyph(edge, NAMECARD_EDGE)
+        gtop, gbot = encode_glyph(rows, NAMECARD_INK)
+        for tiles, e, g in ((NAMECARD_TOP, etop, gtop), (NAMECARD_BOT, ebot, gbot)):
+            t = tiles[pad + i]
+            merged = bytearray(e)
+            # the body wins wherever it has ink: clear all four planes under the
+            # glyph's pixels, then OR the body in
+            for y in range(8):
+                mask = g[y * 2] | g[y * 2 + 1] | g[16 + y * 2] | g[16 + y * 2 + 1]
+                for b in (y * 2, y * 2 + 1, 16 + y * 2, 16 + y * 2 + 1):
+                    merged[b] = (merged[b] & ~mask) | g[b]
+            sheet[t * 32:(t + 1) * 32] = bytes(merged)
+    packed = sms_lz.encode_lz(bytes(sheet))
+    if sms_lz.decompress(packed, 0, 0x4000) != bytes(sheet):
+        raise SystemExit("name-card blob %#x round-trip failed" % off)
+    if len(packed) > vanilla_len:
+        raise SystemExit(
+            "name-card blob %#x re-encodes to %d bytes over the vanilla %d -- it no "
+            "longer fits in place. Relocate the nine blobs into the appended bank "
+            "and repoint the src24 of records $C3:BDD0/BDDA/BDE4/BDEE/BDF8/BE02/"
+            "BE0C/BE16/BE20 (and, if the second consumer should follow, "
+            "$C3:BFC4/BFCE/BFD8/BFE2/BFEC/BFF6/C000/C00A/C014)."
+            % (off, len(packed), vanilla_len))
+    return packed, vanilla_len
 
 
 def build(src_path, out_path, stacked=False):
@@ -1257,6 +1421,56 @@ def build(src_path, out_path, stacked=False):
             "ACS sheet round-trip failed"
         astub = True   # no code on this screen — raster labels need no font
 
+    # ---- the A.C.S. name card -------------------------------------------------
+    # Independent of every other gate. The wheel needs SMS_P16_STAGES because it
+    # shares the glyph BLOCK that goes to VRAM $5C0; this edit puts its letters
+    # into the card's own art sheet, so it needs no VRAM glyph window, no upload
+    # hook, and none of the blank-but-referenced exposure that stopped the wheel
+    # installing one.
+    namecards = []
+    if NAMECARD_TRANSLATE:
+        if len(NAMECARD_BLOBS) != len(NAMECARD_NAMES):
+            raise SystemExit("name-card blob/name tables disagree")
+        # Every record that points at these blobs, checked before anything moves:
+        # nine at vram $4000 (the A.C.S. screen) and nine at vram $3000.
+        for rec0, vram in ((0x03BDCC, 0x4000), (0x03BFC0, 0x3000)):
+            for n, blob in enumerate(NAMECARD_BLOBS):
+                o = rec0 + n * RECSZ
+                got_vram = data[o] | (data[o + 1] << 8)
+                got_len = data[o + 2] | (data[o + 3] << 8)
+                got_src = data[o + 4] | (data[o + 5] << 8) | (data[o + 6] << 16)
+                if (got_vram, got_len, got_src) != (vram, 0x0E00, 0xC00000 | blob):
+                    raise SystemExit(
+                        "name-card record %#x reads vram $%04X len $%04X src $%06X, "
+                        "expected $%04X/$0E00/$%06X"
+                        % (o, got_vram, got_len, got_src, vram, 0xC00000 | blob))
+        # The strip tiles must be referenced EXACTLY ONCE in each map that uses
+        # them, or an edit bleeds somewhere else on the screen (the wheel gate's
+        # guard, widened to both consumers). Measured on clean: 1 each in both.
+        for map_src, vram_tile in NAMECARD_MAPS:
+            nmap = sms_lz.decompress(bytes(data), map_src & 0x3FFFFF, 0x4000)
+            cells = [nmap[i] | (nmap[i + 1] << 8) for i in range(0, min(len(nmap), 0x800), 2)]
+            for t in NAMECARD_TOP + NAMECARD_BOT:
+                field = vram_tile + t - 0x200
+                n = sum(1 for c in cells if (c & 0x3FF) == field)
+                if n != 1:
+                    raise SystemExit(
+                        "name-card tile $%02X is referenced %d times in map $%06X "
+                        "(expected exactly 1) -- the stamp would bleed" % (t, n, map_src))
+        # The halo is clipped at the cell boundary, so letters are kept apart by
+        # the font's own left margin. Measured: no half-width glyph has ink in
+        # column 0, and no adjacent pair in these nine names touches. Assert the
+        # margin rather than the outcome, so a future glyph edit fails loudly.
+        for name in NAMECARD_NAMES:
+            for ch in set(name) - {" "}:
+                if any(row[0] == "#" for row in glyphs[ch]):
+                    raise SystemExit(
+                        "glyph %r has ink in column 0: the name-card halo is clipped "
+                        "at the cell edge, so letters would run together" % ch)
+        for blob, name in zip(NAMECARD_BLOBS, NAMECARD_NAMES):
+            packed_nc, vlen = namecard_blob(data, blob, name, glyphs)
+            namecards.append((blob, packed_nc, vlen))
+
     rstub = None
     if DF_TRANSLATE:
         if bytes(data[DF_REPORT_HOOK:DF_REPORT_HOOK + 7]) != DF_REPORT_OLD:
@@ -1385,6 +1599,12 @@ def build(src_path, out_path, stacked=False):
         data[ACS_SHEET_REF] = ACS_SHEET_AT & 0xFF
         data[ACS_SHEET_REF + 1] = ACS_SHEET_AT >> 8
         data[ACS_SHEET_REF + 2] = bank
+    # The name-card blobs go back where they came from: encode_lz beats the
+    # vanilla stream on all nine (namecard_blob asserts it per blob), so there is
+    # no relocation and no record to repoint. The slack is zero-filled so the
+    # build is deterministic rather than leaving vanilla tail bytes behind.
+    for blob, packed_nc, vlen in namecards:
+        data[blob:blob + vlen] = packed_nc + bytes(vlen - len(packed_nc))
 
     fix_checksum(data)
     open(out_path, "wb").write(bytes(data))
@@ -1439,6 +1659,13 @@ def build(src_path, out_path, stacked=False):
               % (PR_TEXT, len(pr_strips), PR_CODE0, PR_CODE0 + len(pr_strips) - 1))
     else:
         print("  A.C.S. prompt: NOT translated (SMS_P16_PROMPT=1 to enable)")
+    if NAMECARD_TRANSLATE:
+        print("  A.C.S. name card: %d per-character strips re-drawn in place (%s); "
+              "tightest fit %d bytes spare"
+              % (len(namecards), ", ".join(NAMECARD_NAMES),
+                 min(v - len(p) for _, p, v in namecards)))
+    else:
+        print("  A.C.S. name card: NOT translated (SMS_P16_NAMECARD=1 to enable)")
     print("  -> %s  sha1 %s" % (out_path, hashlib.sha1(bytes(data)).hexdigest()))
     json.dump({c: placed[c] for c in sorted(placed)},
               open(os.path.join(REPO, "docs", "project", "halfwidth_tiles.json"), "w"), indent=1)

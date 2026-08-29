@@ -225,7 +225,15 @@ if os.getenv("DECOMPWATCH") == "1" then
     local hi = emu.read(0x01, emu.memType.snesWorkRam) or 0
     local bk = emu.read(0x02, emu.memType.snesWorkRam) or 0
     local db = emu.read(0x05, emu.memType.snesWorkRam) or 0
-    log(string.format("f%d CODEC1 src=$%02X:%02X%02X destbank=$%02X", frames, bk, hi, lo, db))
+    -- $1B1C rides along because the A.C.S. name card is per-character baked art
+    -- selected by it ($C3:9D2A: lda $1B1C / asl / tax / lda $9F67,x), so the blob
+    -- and the character that chose it have to be read in the SAME line or the
+    -- mapping is an assumption. Measured 2026-08-29: $1B1C=1 -> $C5:3C50,
+    -- $1B1C=5 -> $C5:5520.
+    log(string.format("f%d CODEC1 src=$%02X:%02X%02X destbank=$%02X  $1B1C=%d $1B10=%d",
+        frames, bk, hi, lo, db,
+        emu.read(0x1B1C, emu.memType.snesWorkRam) or 0,
+        emu.read(0x1B10, emu.memType.snesWorkRam) or 0))
   end, emu.callbackType.exec, 0x80919F, 0x80919F, emu.cpuType.snes, emu.memType.snesMemory)
 end
 
@@ -492,6 +500,42 @@ local ROUTES = {
       if sf % 120 == 0 then
         local f = io.open(string.format("%sp16scr_%s_post_f%d.png", ENV.TRACE, ROUTE, frames), "wb")
         if f then f:write(emu.takeScreenshot()); f:close() end
+      end
+      -- CARDDUMP=1: the A.C.S. name-card evidence set. CGRAM is in here because
+      -- the name strip's attr is $1400 (palette 5) and the stamp ink has to be
+      -- CHOSEN by reading that palette, not picked because a render looked right.
+      -- Measured: palette 5 index 1 = (32,41,49) dark outline, index 3 = white
+      -- body -- which is why the stamp draws an ink-1 outline under ink-3 text.
+      if sf == 300 and os.getenv("CARDDUMP") == "1" then
+        local f = assert(io.open(ENV.TRACE .. "p16_card.png", "wb"))
+        f:write(emu.takeScreenshot()); f:close()
+        f = assert(io.open(ENV.TRACE .. "p16_card_cgram.bin", "wb"))
+        local chunk = {}
+        for a = 0, 0x1FF do
+          chunk[#chunk + 1] = string.char(emu.read(a, emu.memType.snesCgRam) or 0)
+        end
+        f:write(table.concat(chunk)); f:close()
+        f = assert(io.open(ENV.TRACE .. "p16_card_map.bin", "wb"))
+        chunk = {}
+        for a = 0x0000, 0x07FF do          -- BG1 tilemap (VRAM word $0000)
+          chunk[#chunk + 1] = string.char(emu.read(a, VRAM) or 0)
+        end
+        f:write(table.concat(chunk)); f:close()
+        f = assert(io.open(ENV.TRACE .. "p16_card_chr.bin", "wb"))
+        chunk = {}
+        -- ⚠ VRAM tile n starts at BYTE n*32, so the card sheet -- tiles
+        -- $400-$467, where the blob lands from vram WORD $4000 -- is bytes
+        -- $8000-$8CFF, NOT $4000-$5FFF. The first cut of this dump used
+        -- $4000-$5FFF and labelled it "tiles $400-$4FF"; that range is tiles
+        -- $200-$2FF, a sheet shared by every character, so the files came out
+        -- byte-identical for all nine and looked like evidence of nothing.
+        for a = 0x8000, 0x8CFF do
+          chunk[#chunk + 1] = string.char(emu.read(a, VRAM) or 0)
+          if #chunk == 4096 then f:write(table.concat(chunk)); chunk = {} end
+        end
+        f:write(table.concat(chunk)); f:close()
+        log(string.format("f%d CARD $1B1C=%d", frames,
+            emu.read(0x1B1C, emu.memType.snesWorkRam) or 0))
       end
       if sf == 480 and os.getenv("PROMPTWATCH") == "1" then
         local f = assert(io.open(ENV.TRACE .. "p16_promptbar.bin", "wb"))

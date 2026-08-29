@@ -713,8 +713,13 @@ for the deciding-win frame at match end. It can surface only on **v0.22** (the
 one bundle with 10b) with a status label live at that instant; no Saturn build
 carries 10b. Recorded for completeness.
 
-**Open work — patch 16's remaining surface is the A.C.S. name card + prompt; the
-bracket VS names landed 2026-08-11.** Dormant maintainer options, not tasks:
+**Patch 16 is DONE (2026-08-29).** The bracket VS names landed 2026-08-11, the
+A.C.S. prompt the same day, and the **A.C.S. name card** on 2026-08-29 — the last
+in-scope surface. Neither of the two "runtime-drawn" surfaces was runtime-drawn:
+the prompt is nine pre-written strings behind `$C2:C1CA`, and the card is
+per-character baked art in nine `sms_lz` blobs, re-encoded **in place**. Seven
+gates, all off by default; standalone `build/sms_menutranslation.bps`
+(`93e2fdb4…`). Dormant maintainer options, not tasks:
 §8's fold-6/7/8-into-canonical and dash-distance retune.
 
 ⚠ **Trap 26 — a counter that looks like a frame index may be a free-running
