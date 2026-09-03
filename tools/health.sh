@@ -105,6 +105,35 @@ for f in $(git ls-files 'tools/**/*.py' 'tools/*.py'); do
 done
 [ "$syn" = 0 ] && ok "$(git ls-files 'tools/**/*.py' 'tools/*.py' | wc -l | tr -d ' ') Python files compile"
 
+echo "== tools refuse options they do not have =="
+# Two DIFFERENT things are checked here, and the second is the one that matters.
+#
+#   (1) cliguard's own selftest proves the FUNCTION rejects what it should and
+#       stays quiet on what it should not (12 cases, sabotage-tested).
+#   (2) Running each guarded tool with a bogus flag proves the tool actually
+#       CALLS it. A passing selftest says nothing about wiring, and wiring is
+#       what rots: delete the one-line call and (1) still goes green.
+#
+# Why it is worth a gate at all: these generators take an output PATH as argv[1]
+# and test their flags with `in sys.argv`, so before the guard existed an
+# unknown option became a filename and the run exited 0. `mkarchpage.py --check`
+# (a mode it does not have) wrote a file named "--check" and looked like a pass;
+# `mkindex.py --chekc` would have REGENERATED tools/README.md while appearing to
+# check it, erasing the drift it exists to report.
+if out="$(python3 tools/cliguard.py 2>&1)"; then ok "$out"; else bad "cliguard selftest: $out"; fi
+gn=0
+for t in mkarchpage mkenginepage mkindex; do
+  if python3 "tools/$t.py" --sms-health-bogus-flag >/dev/null 2>&1; then
+    bad "$t.py ACCEPTS an unknown option — it would be taken as the output filename"
+    gn=$((gn+1))
+  fi
+done
+if [ -e "./--sms-health-bogus-flag" ]; then
+  bad "a guarded tool wrote a file named after the bogus flag"
+  rm -f -- "./--sms-health-bogus-flag"
+fi
+[ "$gn" = 0 ] && ok "3 generators reject an unknown option (mkarchpage, mkenginepage, mkindex)"
+
 echo "== shell recipes parse =="
 shn=0
 for f in $(git ls-files 'tools/*.sh' 'tools/**/*.sh'); do

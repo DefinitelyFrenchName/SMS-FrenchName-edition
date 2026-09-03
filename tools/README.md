@@ -508,6 +508,7 @@ See HANDOFF.md §4 for the harness.
 - `checkpatchmap.py` — Verify what the patch documents claim about the patches, against the .bps files.
 - `checkskills.py` — Verify the skill/rules pairs carry identical rule-ID sets, both ways.
 - `checktrainingdocs.py` — Verify the training-mode docs against the Lua package they describe.
+- `cliguard.py` — Reject command-line options a tool does not define, instead of ignoring them.
 - `dis65816.py` — the 65816 decode tables and recursive descent, shared.
 - `dis65816_oracle.py` — validate our decode table against an INDEPENDENT one.
 - `docaddrs.py` — the address census the documentation checks are built on.

@@ -13,6 +13,9 @@ from pathlib import Path as _P
 import re
 import sys
 
+sys.path.insert(0, str(_P(__file__).resolve().parent))
+from cliguard import reject_unknown_flags
+
 REPO = _P(__file__).resolve().parent.parent
 TOOLS = REPO / "tools"
 
@@ -92,6 +95,12 @@ def render():
 
 
 def main():
+    # ⚠ The sharpest case of the three. --check is tested with `in sys.argv`, so
+    # a typo does not fail — it falls through to the WRITE branch, regenerates
+    # tools/README.md and prints "wrote ...". In CI that reads like the
+    # staleness check passing while it quietly erases the drift it exists to
+    # report (trap 17 with the safety catch removed).
+    reject_unknown_flags(sys.argv, {"--check"}, "mkindex.py")
     text, nfiles, ngroups = render()
     target = TOOLS / "README.md"
     if "--check" in sys.argv:

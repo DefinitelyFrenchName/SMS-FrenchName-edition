@@ -21,6 +21,8 @@ contrast.
 import html, pathlib
 
 import sys
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from cliguard import reject_unknown_flags
 OUT = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else \
       pathlib.Path(__file__).with_name("sms_data_architecture.html")
 
@@ -879,6 +881,10 @@ def standalone(page):
 
 
 if __name__ == "__main__":
+    # argv[1] is an output PATH, so an unrecognised option would silently BECOME
+    # that path and the run would exit 0 (this tool has no --check, and
+    # `mkarchpage.py --check` used to write a file named "--check").
+    reject_unknown_flags(sys.argv, {"--standalone"}, "mkarchpage.py")
     page = build(SECTIONS)
     if "--standalone" in sys.argv:
         sys.argv.remove("--standalone")

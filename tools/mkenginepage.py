@@ -38,6 +38,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import mkarchpage                                    # the shared page identity
+from cliguard import reject_unknown_flags
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 OUT_DEFAULT = pathlib.Path(__file__).with_name("sms_engine_frame.html")
@@ -803,6 +804,11 @@ def build():
 
 
 if __name__ == "__main__":
+    # This tool HAS a verification mode, which is exactly why the guard matters:
+    # a typo like --chekc would skip the check, fall through to "argv[1] is the
+    # output path", write a file of that name and exit 0 — a check silently
+    # turned into a no-op.
+    reject_unknown_flags(sys.argv, {"--standalone", "--check"}, "mkenginepage.py")
     if "--check" in sys.argv:
         problems = check()
         problems += audit(build()) + [f"SELF-TEST: {b}" for b in audit_selftest()]
