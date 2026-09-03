@@ -549,7 +549,14 @@ the portrait on the report card. Sixteen slots of <code>0x80</code> bytes from
 are genuinely unmapped — about a third of the struct — and are shown as unknown
 rather than guessed at.</figcaption></figure>
 <div class="col">
-<p>Four of these bytes carry most of the engine's meaning:</p>
+<!-- ⚠ Not "four of these bytes carry most of the engine's meaning" (replaced
+     2026-09-03): same fault as the frame page's old standfirst — an
+     unquantified "most" wearing the cadence of a measurement, attached to an
+     abstract noun. What is actually true of these four, and checkable against
+     the rows below, is that each one overturns an assumption a reader arrives
+     with. Say that. -->
+<p>Four of these bytes each overturn an assumption a reader is likely to
+arrive with:</p>
 <div class="tablewrap"><table>
 <tr><th>Byte</th><th>Field</th><th>Why it matters</th></tr>
 <tr><td><code>+0x00</code></td><td>charID / object type</td><td>1-9 are fighters,

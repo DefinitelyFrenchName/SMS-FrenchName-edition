@@ -743,7 +743,16 @@ def build():
     out.append(f'<figure><div class="scroller">{svg}</div><figcaption>{cap}</figcaption></figure>')
 
     out.append("<h2>Reading it as assembly</h2>")
-    out.append("<p>Three idioms account for most of the surprise. <strong>JSL</strong> is a "
+    # ⚠ Not "three idioms account for most of the surprise" (the phrasing this
+    # replaced, 2026-09-03, after a reader asked what it meant — fairly). Three
+    # faults: "surprise" is an abstract noun that never says surprise to WHOM,
+    # "account for most of the" borrows the cadence of a measurement without
+    # being one, which is a bad habit in a project whose first rule is that
+    # numbers come from runs, and "idioms" is wrong for the $80/$C0 mirror --
+    # that is a fact about HiROM, not a way of writing code. Name the reader and
+    # the failure instead.
+    out.append("<p>Three things in the listing below read oddly if you know "
+               "65816 but not this cartridge. <strong>JSL</strong> is a "
                "long call and <strong>jsr</strong> a same-bank one, which is why a hook that "
                "replaces a <code>jsr</code> has three bytes to work with and one replacing a "
                "<code>jsl</code> has four. <strong>The <code>$80</code> and <code>$C0</code> "
