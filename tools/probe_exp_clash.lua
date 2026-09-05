@@ -28,6 +28,10 @@ local PL = ENV.dofile("probelib.lua")
 local MODE = os.getenv("SMS_CMODE") or "sim"
 local MASH = MODE == "mash" or MODE == "mashtie" or MODE == "mashair"
     or MODE == "mashjump" or MODE == "mashgate" or MODE == "mashhold"
+-- how long the build under test runs its contest (tools/exp_animeroster.py
+-- --clash-frames). Default tracks the generator's own default.
+local CFRAMES = tonumber(os.getenv("SMS_CFRAMES") or "") or 180
+local HPSET = tonumber(os.getenv("SMS_HPSET") or "") or nil
 local TAG = os.getenv("SMS_TAG")
 -- 64 is where the two HITBOXES overlap for this fixture: measured by
 -- sweeping (62 -> one-sided hit, 64/66/68/72 -> CLASH on the v9 build).
@@ -75,6 +79,35 @@ local strug1, strug2, boxdirt = nil, nil, 0
 local seen1, seen2 = {}, {}          -- act -> first frame, per fighter
 local anim = {}                      -- the struggle's +0x05/+0x06/+0x07, P1
 local endc1, endc2 = nil, nil        -- the two counts at resolution
+-- SFXWATCH=1: every write to the GLOBAL one-shot sound slot, with the frame.
+-- ⚠ This block MUST stay below `local t`. Declared above it, the callback's
+-- closure captures a nil GLOBAL t instead of the frame counter, every entry
+-- records t=nil, and the report dies inside string.format -- which looks
+-- exactly like "the sound never fired": the header prints and not one row
+-- follows. Cost an hour on 2026-09-05.
+-- The contest re-requests its sound on each animation cycle, and "it should
+-- fire every 7 frames" is a claim about a byte, so watch the byte.
+-- ⚠ Watch BOTH mirrors: procs run with DB such that $78 is direct-page
+-- $00:0078, while a bus watch on $7E:0078 sees the WRAM address. The repo's
+-- sound probes (saturn/probe_hitsfx.lua) watch both for exactly this reason;
+-- a single-address watch is how you conclude "no sound is ever played".
+local sfx = {}
+if os.getenv("SFXWATCH") == "1" then
+  -- ⚠ Cap the list. $78 is a busy slot -- every whiff, hit, jump and land goes
+  -- through it -- and an uncapped table over a 500-frame run makes the probe
+  -- slower than its own timeout (measured: it never finished at 400 s).
+  for _, a in ipairs({ 0x7E0078, 0x000078 }) do
+    emu.addMemoryCallback(function(_, v)
+      -- only while the contest is actually running: $78 carries every whiff,
+      -- hit, jump and land in the approach too, and recording all of it is
+      -- both noise and slow enough to eat the run's time budget.
+      if (v or 0) ~= 0 and sfxlive and #sfx < 120 then sfx[#sfx + 1] = { t = t, id = v } end
+    end, emu.callbackType.write, a, a, emu.cpuType.snes, emu.memType.snesMemory)
+  end
+end
+
+local reported = false               -- the verdict block must run exactly once
+sfxlive = false                      -- SFXWATCH records only during the contest
 
 emu.addMemoryCallback(function()
   if not loaded then
@@ -82,6 +115,19 @@ emu.addMemoryCallback(function()
     if not f then print("probe_exp_clash: cannot open " .. STATE); emu.stop(1); return end
     local ss = f:read("*a"); f:close()
     emu.loadSavestate(ss)
+    -- SMS_HPSET=n: force both fighters' current AND max HP to n right after the
+    -- state loads. The fixture was captured on the clean ROM, so the character
+    -- loader (where the ACS health formula runs) never executes here and HP is
+    -- always the vanilla 96 -- which means this probe can say nothing about a
+    -- max-HP change unless the value is poked in. Used to find the ceiling the
+    -- KO test imposes: death in this engine is UNDERFLOW, tested as
+    -- `cmp #$90 / bcs` at 11 sites, so any HP that survives must stay under
+    -- $90 = 143 after the subtract.
+    if HPSET then
+      for _, base in ipairs({ P1, P2 }) do
+        PL.wr(base + 0x49, HPSET); PL.wr(base + 0x4A, HPSET)
+      end
+    end
     loaded = true; t = 0
   end
 end, emu.callbackType.exec, 0x808353, 0x808353, emu.cpuType.snes, emu.memType.snesMemory)
@@ -156,6 +202,7 @@ emu.addEventCallback(function()
     if not seen2[a2] then seen2[a2] = t end
     if a1 == 0x31 and not strug1 then strug1 = t end
     if a2 == 0x31 and not strug2 then strug2 = t end
+    sfxlive = (a1 == 0x31 or a2 == 0x31)
     -- the contest must carry NO boxes on either fighter, and the handler runs
     -- after the box writer, so a nonzero here is the frame-order claim failing
     if a1 == 0x31 and (r(P1, 0x40) ~= 0 or r(P1, 0x41) ~= 0) then boxdirt = boxdirt + 1 end
@@ -168,9 +215,40 @@ emu.addEventCallback(function()
     if a1 == 0x31 or a2 == 0x31 then
       endc1, endc2 = r(P1, 0x7C) & 0x7F, r(P2, 0x7C) & 0x7F
     end
-    if k > (MASH and 200 or 70) then
+    -- ⚠ The observation window must OUTLAST the contest, or the probe stops
+    -- mid-struggle and reports NO CONTEST / WRONG on a build that is fine.
+    -- The contest ran 90 frames until 2026-09-05 and now runs 180 by default,
+    -- so a fixed 200 was one maintainer ruling away from lying. SMS_CFRAMES
+    -- tracks the generator's --clash-frames; the window is that plus the
+    -- approach and resolution slack.
+    -- ⚠ ONCE. emu.stop() does not necessarily halt before the next endFrame
+    -- callback, and this block logs the whole `rows` table every time it runs.
+    -- Re-entering it is quadratic: a 2026-09-05 run with a long Mesen timeout
+    -- wrote a 20 GB trace before the wall clock killed it. The flag is the fix;
+    -- the frame budget is not, because the budget is the thing that used to hide
+    -- this.
+    if reported then return end
+    if k > (MASH and (CFRAMES + 80) or 70) then
+      reported = true
       log("")
       for _, s in ipairs(rows) do log("   " .. s) end
+      if #sfx > 0 then
+        log("")
+        log("   -- writes to the global sound slot $78 --")
+        local prev, gaps = nil, {}
+        for _, e in ipairs(sfx) do
+          log(string.format("   t=%4d  $78 <= %02X%s", e.t, e.id,
+              prev and string.format("   (+%d)", e.t - prev) or ""))
+          if prev then gaps[#gaps + 1] = e.t - prev end
+          prev = e.t
+        end
+        local uniq = {}
+        for _, g in ipairs(gaps) do uniq[g] = (uniq[g] or 0) + 1 end
+        local parts = {}
+        for g, n in pairs(uniq) do parts[#parts + 1] = string.format("%df x%d", g, n) end
+        table.sort(parts)
+        log("   intervals: " .. table.concat(parts, ", ") .. "   (writes: " .. #sfx .. ")")
+      end
       if #anim > 0 then
         log("")
         log("   -- P1's struggle animation (the jab must LOOP, not hold) --")

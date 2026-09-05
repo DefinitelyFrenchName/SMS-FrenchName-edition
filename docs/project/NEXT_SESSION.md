@@ -12,7 +12,7 @@ sections further down are per-session detail, newest first.
    `tools/exp_animeroster.py`. Dossier with every measurement, gate ledger and
    ruling: **`anime_fighter_feasibility.md`**.
    **The MASH-CONTEST CLASH is DONE** (2026-08-24, `build/exp_animeroster.bps`,
-   `70121a0a…`): a GROUND clash opens a ~1.5 s struggle — both fighters loop
+   `.sfc` `c44214b9…`): a GROUND clash opens a ~3 s struggle — both fighters loop
    their own standing-LP animation with no boxes, mashed presses are counted,
    the higher count wins, the loser is launched with the Hercules wall-fly
    (juggle-soft, the winner converts) and a tie backdashes both.

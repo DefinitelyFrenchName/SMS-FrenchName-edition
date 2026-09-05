@@ -283,10 +283,11 @@ def derive(rom):
 
 def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
           fly=0x0E60, bback=0x03A0, dust=0x0C00, clash=3, clash_mode="mash",
-          clash_frames=90):
+          clash_frames=180, double_health=True, acs_vs=True, clash_sfx=0x0B):
     rom = bytearray(open(src, "rb").read())
     chars = derive(rom)
     STRUG_ACT = 0x31                  # the mash contest's act (null on all nine)
+    HEALTH_STAT = 12                  # -> max HP 0xC0 = 192 = exactly double
     mash = bool(clash) and clash_mode == "mash"
     alloc = Alloc(C1_REGIONS)
     log = []
@@ -976,6 +977,26 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
         [0xC3, 0x01],                          # cmp $01,S
         ("b", 0x90, "nowrap"),
         [0x74, 0x02],
+        # ...and on that same boundary, re-request the clash sound, so the
+        # struggle is audible for its whole length instead of one hit at the
+        # start (maintainer, 2026-09-05). $78 is the GLOBAL one-shot slot: the
+        # NMI forwards it to APU port 2 at $C0:D508 and re-zeroes it at
+        # $C0:D50D, so a write per cycle is a genuine re-trigger with no JSL and
+        # nothing to clean up.
+        # ⚠ ONE FIGHTER SPEAKS. Both sides run this handler, and there is only
+        # one global slot per frame (last write wins). Two 7-frame characters
+        # wrap on the same frames and would merely write twice; but Jupiter's
+        # cycle is 9, so a Jupiter matchup would fire on BOTH a 7- and a 9-frame
+        # cadence — roughly double the intended rate, with collisions silently
+        # swallowed. Gating on P1's struct makes the cadence the same in every
+        # matchup and leaves it deterministic.
+        # ⚠ Global slot, NOT `sta $78,X`: per-player writes take `ora #$80` for
+        # P2 at $C0:D500, which is the directory shift for character VOICES
+        # (ids >= 49). An effect id sent that way plays as whatever it happens
+        # to alias — the bug recorded in saturn/BUILDS.md.
+        [0xE0, 0x00, 0x10],                    # cpx #$1000 — P1's struct only
+        ("b", 0xD0, "nowrap"),
+        [0xA9, clash_sfx], [0x85, 0x78],       # lda #sfx / sta $78
         ("label", "nowrap"),
         [0x68],
         # the contest's own clock
@@ -1139,6 +1160,109 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
 
     write_bank(rom, bankbase, blob)
     pad_to_size_multiple(rom)
+    # ---- double health, through the engine's own ACS pipeline ---------
+    # MEASURED 2026-09-05 in the clean ROM, not taken from the docs:
+    #   $C0:87F7  lda $1072 / asl / asl / asl / clc / adc #$60 / sta $1049 / sta $104A
+    # so max HP = 0x60 + 8 x health_stat, and the vanilla default (stat 0) is
+    # 0x60 = 96. Forcing the stat to 12 gives 0x60 + 96 = 0xC0 = 192, EXACTLY
+    # double, and it arrives through the legitimate pipeline: the loader copies
+    # it to +0x72, the round refill reads $104A, and every other consumer of the
+    # stat sees a normal value.
+    #
+    # The stat is forced at the COPY, not at the formula, so the ACS menu cannot
+    # edit it away: whatever the staging byte holds, the fighter loads with 12.
+    #   P1  $C0:87DF  lda $1D0A -> lda #$0C / nop
+    #   P2  $C0:8929  lda $1D12 -> lda #$0C / nop
+    # ⚠ P2's stats are at $1D10-$1D15, EIGHT bytes after P1's $1D08-$1D0D, not
+    # sixteen: docs/game/sms_acs_system.md says "$1D18-$1D1D" and is wrong.
+    #
+    # Why 12 and not more: the HUD draws the bonus as (maxHP - 0x60) / 8 tiles
+    # ($C0:D7CE ff), and the bar is 12 tiles wide (`ldy #$0C` at $C0:D790). So 12
+    # is exactly the point where the bar is FULLY green at full health, and any
+    # more would draw past its left edge. Double health and a full green bar are
+    # the same number, which is almost certainly the designers' intent.
+    # ⚠ THE KO TEST HAS TO BE WIDENED FIRST, or double health is instant death.
+    # Death in this engine is UNDERFLOW, and it is tested HEURISTICALLY: each of
+    # the eleven damage sites ends `cmp #$90 / bcs dead`, i.e. "if the byte came
+    # out >= 144 the subtract must have borrowed". That is only true while max HP
+    # stays under 144 -- which is exactly why the A.C.S. menu caps health at 5
+    # (136 HP). MEASURED 2026-09-05 with SMS_HPSET on tools/probe_exp_clash.lua:
+    # at max 192 and 160 the FIRST 15-damage hit sent the victim to act $1B with
+    # hp 0; at 144 and 136 the same hit was survived normally.
+    #
+    # The fix is to stop guessing and read the carry, which is what actually
+    # records the borrow. `sta` does not touch flags, so at all eight melee and
+    # projectile sites the carry from `sec / sbc` is still live at the `cmp`;
+    # the two throw/tick sites subtract the same way; and the throw-TECH site
+    # computes `eor #$FF / inc a / clc / adc $0049,Y`, where a carry-out means
+    # "no borrow" -- the same polarity. So at every site:
+    #     c9 90 b0 rel   (cmp #$90 / bcs dead)
+    #  -> ea ea 90 rel   (nop / nop  / bcc dead)
+    # keeping the branch displacement, and leaving the test EXACT at any max HP.
+    # Nothing downstream reads the flags the `cmp` used to set: every site falls
+    # through into a store or a load (checked at all eleven).
+    if double_health:
+        ko = bytes.fromhex("c990b0")
+        sites = [i for i in range(len(rom) - 3) if rom[i:i + 3] == ko]
+        if len(sites) != 11:
+            raise SystemExit("expected 11 `cmp #$90 / bcs` KO tests, found %d" % len(sites))
+        for i in sites:
+            rom[i:i + 3] = bytes([0xEA, 0xEA, 0x90])
+        log.append(f"KO test widened at {len(sites)} sites "
+                   "(cmp #$90/bcs -> nop/nop/bcc: exact underflow, no HP ceiling)")
+
+    # ⚠ SECOND CEILING, and it is a different bug from the KO test. The low-HP
+    # gates -- the danger act $21 and the desperation opening -- are
+    #     lda #$18 / cmp $49,X / bmi skip
+    # which is a SIGNED test of an UNSIGNED quantity. `cmp` leaves 0x18 - hp; once
+    # hp >= 153 that difference loses its sign bit and `bmi` stops branching, so
+    # the fighter is treated as nearly dead while at nearly full health.
+    # MEASURED 2026-09-05 by sweeping SMS_HPSET: act $21 fires at hp 153, 155 and
+    # 157 and does NOT at 149 or 151 -- exactly the predicted boundary.
+    # The unsigned test is already in the flags: carry is set iff 0x18 >= hp, so
+    # `bcc skip` skips precisely when hp > 24, at any max HP. One byte each, and
+    # there are exactly two sites -- a census of every HP read (cmp $49,X,
+    # cmp $0049,Y, lda $49,X, lda $0049,Y) finds these two signed branches and no
+    # others in executable banks; the damage comparisons at $C0:CCDA/CD18/CD60
+    # already use bcs and are unaffected.
+    if double_health:
+        for site, who in ((0x0109C8, "desperation/low-HP gate"),
+                          (0x010AB1, "danger act $21")):
+            if rom[site] != 0x30:
+                raise SystemExit("%s at %#x is %02X, expected 30 (bmi)"
+                                 % (who, site, rom[site]))
+            rom[site] = 0x90                                   # bmi -> bcc
+        log.append("low-HP gates made unsigned at 2 sites "
+                   "(bmi -> bcc: danger/desperation no longer misfire above 152 HP)")
+
+    if double_health:
+        for site, old_b, who in ((0x0087DF, b"\xad\x0a\x1d", "P1"),
+                                 (0x008929, b"\xad\x12\x1d", "P2")):
+            if bytes(rom[site:site + 3]) != old_b:
+                raise SystemExit("%s health-stat copy at %#x reads %s, expected %s"
+                                 % (who, site, bytes(rom[site:site + 3]).hex(), old_b.hex()))
+            rom[site:site + 3] = bytes([0xA9, HEALTH_STAT, 0xEA])   # lda #$0C / nop
+        log.append(f"double health: ACS health stat forced to {HEALTH_STAT} on both "
+                   f"loaders -> max HP 0x{0x60 + 8 * HEALTH_STAT:02X} "
+                   f"({0x60 + 8 * HEALTH_STAT}), bar fully green at full")
+
+    # ---- shut the A.C.S. door in 2P VS (patch 18's edit, ported) -------
+    # Without this the forced health stat is honest but not SAFE: a player can
+    # open A.C.S. from the VS config screen and redistribute. Patch 18 is a
+    # 12-byte in-place edit with no bank and no stub, so it costs this line
+    # nothing it has to plan for.
+    # ⚠ It closes the 2P VS door ONLY. Story and vs-COM keep theirs by design
+    # (patch 18's own ruling); in those modes the menu can still be opened,
+    # though the forced copy above means it cannot change the health anyway.
+    if acs_vs:
+        site = 0x03BB9E
+        old_b = bytes.fromhex("ad021cc902f005a900858a60")
+        if bytes(rom[site:site + 12]) != old_b:
+            raise SystemExit("patch-18 site %#x reads %s, expected %s"
+                             % (site, bytes(rom[site:site + 12]).hex(), old_b.hex()))
+        rom[site:site + 12] = bytes.fromhex("a58d3af012ad021cc902d00b")
+        log.append("no A.C.S. in 2P VS (patch 18's 12 bytes at $C3:BB9E)")
+
     fix_checksum(rom)
     open(out, "wb").write(rom)
     for line in log:
@@ -1171,8 +1295,10 @@ if __name__ == "__main__":
                     help="what a GROUND clash does: mash = the Samurai-Shodown contest "
                          "(default, maintainer 2026-08-24), backdash = the v9 instant mutual "
                          "backdash. Air clashes always backdash.")
-    ap.add_argument("--clash-frames", type=int, default=90,
-                    help="how long the mash contest runs, in frames (~1.5 s at 60)")
+    ap.add_argument("--clash-frames", type=int, default=180,
+                    help="how long the mash contest runs, in frames (~3 s at 60). "
+                         "Doubled from 90 by maintainer ruling 2026-09-05 after the "
+                         "first human field test.")
     ap.add_argument("--dust-height", type=lambda v: int(v, 0), default=0x0C00,
                     help="crouching-Dust vertical impulse (subpixels/frame; ~192px rise at 0x0C00)")
     ap.add_argument("--fly-speed", type=lambda v: int(v, 0), default=0x0E60,
@@ -1185,6 +1311,17 @@ if __name__ == "__main__":
                     help="attack class the universal launcher stamps (12 -> on-hit code 0x14, the pop-up row)")
     ap.add_argument("--juggle", type=int, default=4,
                     help="airborne reactions per launch sequence before untargetability returns (0 = no juggles)")
+    ap.add_argument("--clash-sfx", type=lambda v: int(v, 0), default=0x0B,
+                    help="sound id re-requested each animation cycle during the mash "
+                         "contest (default 0x0B, the id the clash already fires once at "
+                         "its start; 0 = silent). Effect ids only -- 49+ are per-character "
+                         "voices and mis-resolve on P2.")
+    ap.add_argument("--no-double-health", dest="double_health", action="store_false",
+                    help="keep vanilla 96 HP; by default both fighters get 192 (the "
+                         "engine's own ACS health stat forced to 12)")
+    ap.add_argument("--no-acs-vs", dest="acs_vs", action="store_false",
+                    help="leave the A.C.S. door open in 2P VS; by default it is shut "
+                         "(patch 18's edit), so the forced health stat cannot be edited away")
     a = ap.parse_args()
     src = a.src or clean_rom()
     require_source(src, stacked=a.stacked)
@@ -1192,4 +1329,5 @@ if __name__ == "__main__":
     if not 1 <= a.clash_frames <= 255:
         ap.error("--clash-frames must fit in the one-byte timer (1-255)")
     build(src, a.out, a.budget, a.juggle, a.airdash_speed, a.launcher_id, a.bounce_height,
-          a.fly_speed, a.bounce_back, a.dust_height, a.clash, a.clash_mode, a.clash_frames)
+          a.fly_speed, a.bounce_back, a.dust_height, a.clash, a.clash_mode, a.clash_frames,
+          a.double_health, a.acs_vs, a.clash_sfx)

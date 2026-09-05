@@ -37,7 +37,7 @@ wins — winner to neutral, loser launched with the Hercules wall-fly, juggle-so
 so the winner converts; a tie backdashes both, and **any airborne participant
 keeps the instant backdash** (ruling). `--clash-mode backdash` rebuilds
 byte-identical to the pre-contest build. Artifact `build/exp_animeroster.bps`
-(`70121a0a…`); detail and every measurement in
+(`.sfc` `c44214b9…`, `.bps` `b205cdc2…`); detail and every measurement in
 `docs/project/anime_fighter_feasibility.md`.
 
 **Projectiles cannot take part in a clash** (maintainer rule, asked 2026-08-25;

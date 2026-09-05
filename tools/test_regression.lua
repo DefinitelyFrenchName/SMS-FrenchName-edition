@@ -1195,9 +1195,20 @@ emu.addEventCallback(function()
     end
     results[#results + 1] = { name = "static-modifier-handlers", ok = hfail == 0, msg = hfail .. " byte mismatches" }
     log(string.format("%s static-modifier-handlers", hfail == 0 and "PASS" or "FAIL"))
+    -- ⚠ The exp-tier anime line's double-health forces the ACS health stat at
+    -- the copy, inside this very span: $C0:87DF `lda $1D0A` (ad 0a 1d) becomes
+    -- `lda #imm / nop` (a9 xx ea). That is deliberate, so the check accepts
+    -- EITHER form -- but it stays a byte-identity check in both, splicing the
+    -- override into the expected image rather than masking the bytes out.
+    local expect = CHARLOADER_HEX
+    if rom(CHARLOADER_OFF + 15) == 0xA9 and rom(CHARLOADER_OFF + 17) == 0xEA then
+      expect = expect:sub(1, 30)
+            .. string.format("a9%02xea", rom(CHARLOADER_OFF + 16))
+            .. expect:sub(37)
+    end
     local cfail = 0
-    for i = 0, #CHARLOADER_HEX / 2 - 1 do
-      if rom(CHARLOADER_OFF + i) ~= tonumber(CHARLOADER_HEX:sub(i * 2 + 1, i * 2 + 2), 16) then cfail = cfail + 1 end
+    for i = 0, #expect / 2 - 1 do
+      if rom(CHARLOADER_OFF + i) ~= tonumber(expect:sub(i * 2 + 1, i * 2 + 2), 16) then cfail = cfail + 1 end
     end
     results[#results + 1] = { name = "static-charloader-acs", ok = cfail == 0, msg = cfail .. " byte mismatches" }
     log(string.format("%s static-charloader-acs", cfail == 0 and "PASS" or "FAIL"))

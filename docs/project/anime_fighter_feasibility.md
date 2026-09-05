@@ -208,7 +208,8 @@ wall-fly punish means nothing out of the air).
   30 Hz, so counting frames would pay a mash and a hold alike. Bit 7 of `+0x7C`
   is the "already counted" latch, which keeps the whole contest in ONE cell.
 
-**Measured (venus_vs_jupiter_clean, gap 64, build `70121a0a…`):**
+**Measured (venus_vs_jupiter_clean, gap 64, build `70121a0a…` — the 90-frame
+contest; re-measured at 180 frames on `c44214b9…`, count 59):**
 
 | run | result |
 |---|---|
@@ -283,9 +284,116 @@ round-load zeroing at `$C0:8832`/`$C0:897F`; the stores are three bytes earlier
 and `checkdocs` refused the row until the ROM was read. Use a watch's PC to
 FIND a writer, never to name one.
 
+## FIRST FIELD TEST -> three changes (2026-09-05, maintainer)
+
+Human testing was "very promising". Three asks, all built. Artifact
+`build/exp_animeroster.sfc` `c44214b9…` (`.bps` `b205cdc2…`).
+
+### 1. The contest runs twice as long — 90 -> 180 frames
+
+`--clash-frames` default doubled. The timer is struct `+0x7B`, 8-bit, and its
+only operations are `dec` / `bne`, so 180 needs nothing widened. The mash count
+`+0x7C` saturates at 127 and **measured 59** over the doubled contest (29 over
+90), so it keeps ~2x of headroom; if it ever saturated the result would be a
+tie, which backdashes both, not a wrap.
+
+### 2. The clash sound now cycles with the animation
+
+The clash already fired sound `$0B` **once**, at the instant of the clash, and
+then ran silent. It is now re-requested on the same boundary that loops the
+animation — the `stz $02,X` that zeroes the step at the end of each standing-LP
+cycle. `$78` is the global one-shot slot: the NMI forwards it to APU port 2 at
+`$C0:D508` and re-zeroes it at `$C0:D50D`, so a write per cycle is a genuine
+re-trigger needing no JSL and no cleanup. Knob: `--clash-sfx` (0 = silent).
+
+⚠ **One fighter speaks.** Both sides run the handler and there is only one
+global slot per frame. Two 7-frame characters wrap together and would merely
+write twice, but Jupiter's cycle is 9, so a Jupiter matchup would fire on both a
+7- and a 9-frame cadence — about double the intended rate, with collisions
+silently swallowed. Gating on P1's struct makes the cadence identical in every
+matchup. **Measured:** 25 writes of `$0B` across the contest, `intervals: 7f x24`
+— exactly one per animation loop, no outliers.
+
+### 3. Double health — and it was NOT free
+
+The maintainer's model of the display was exactly right, and better than the
+docs: the engine already renders HP above the default as a **second colour on
+the same bar**. `$C0:D7CE` computes `(maxHP - 0x60) / 8` and paints that many
+cells with tiles `$09/$19` instead of `$01/$11`; the drain producer `$C0:D5E8`
+picks palette 1 above 96 HP and palette 0 below, so the bar runs **green ->
+yellow -> red** natively. The bar is 12 cells, 96 px, 1 HP per pixel, and
+`maxHP = 0x60 + 8 x health_stat` (`$C0:87F7`, measured). Health stat **12**
+gives `0xC0` = 192 = exactly double **and** exactly 12 green cells — double
+health and a full green bar are the same number.
+
+So the value is forced at the copy, on both loaders, which routes it through the
+legitimate pipeline and cannot be edited away by the A.C.S. menu:
+`$C0:87DF` and `$C0:8929`, `lda $1D0x` -> `lda #$0C / nop`. Patch 18's 12 bytes
+at `$C3:BB9E` are ported in as well, so the 2P VS door is shut.
+
+⚠ **But "just double the value" would have shipped a broken game, twice over.
+Both ceilings were found by measurement, not by reading.**
+
+**(a) The KO test caps survivable HP at 144.** Death here is UNDERFLOW, tested
+heuristically as `cmp #$90 / bcs` at **11 sites**: "if the byte came out >= 144
+the subtract must have borrowed". True only while max HP stays under 144 — which
+is precisely why the A.C.S. menu caps health at 5 (136 HP). Measured with
+`SMS_HPSET` on `probe_exp_clash.lua`: at max **192 and 160 the first 15-damage
+hit sent the victim to act `$1B` with hp 0**; at 144 and 136 the same hit was
+survived normally. The fix reads the carry, which is what actually records the
+borrow — `sta` does not touch flags, so at all eight melee/projectile sites the
+carry from `sec / sbc` is still live; the two throw/tick sites subtract the same
+way; and the throw-tech site's `eor #$FF / inc a / clc / adc` has the same
+polarity. So `c9 90 b0 rel` -> `ea ea 90 rel` (`nop / nop / bcc`) at all eleven,
+keeping the displacement. The test becomes **exact at any max HP** instead of
+heuristic. Nothing downstream reads the flags the `cmp` set — every site falls
+through into a store or a load (checked at all eleven).
+
+**(b) The low-HP gates are SIGNED tests of an unsigned quantity.** The danger act
+`$21` and the desperation opening are `lda #$18 / cmp $49,X / bmi skip`. `cmp`
+leaves `0x18 - hp`; once hp >= 153 that difference loses its sign bit and `bmi`
+stops branching, so a fighter at **nearly full health is treated as nearly
+dead**. Measured: act `$21` fired at hp 153, 155 and 157 and did not at 149 or
+151 — the predicted boundary exactly. Carry already holds the unsigned answer
+(set iff `0x18 >= hp`), so `bmi` -> `bcc` is one byte, at **exactly two sites**.
+A census of every HP read (`cmp $49,X`, `cmp $0049,Y`, `lda $49,X`,
+`lda $0049,Y`) finds these two signed branches and no others in executable
+banks; the damage comparisons at `$C0:CCDA/CD18/CD60` already use `bcs`.
+
+**Verified after both fixes**, sweeping max HP: 192 -> 177 neutral, 172 -> 157
+neutral, 168 -> 153 neutral, 151 -> 136 neutral, 30 -> 15 **danger**, 20 -> 5
+**danger**, 10 -> 0 **KO**. Positive and negative controls in the same sweep.
+
+⚠ **An open balance question, not a bug.** The danger/desperation threshold
+`hp <= 24` is absolute, so at 192 max it is 12.5% of the bar instead of 25%.
+Nothing scales it. Whether it should is a maintainer call.
+
+### Gates
+Regression **ALL PASS (45)** on the line and on the clean ROM. `sim`,
+`stagger` and `mashtie` unchanged. ⚠ `static-charloader-acs` byte-identity
+checks the span the health override sits in; it now accepts either the clean
+block or that exact one-instruction override, and was negative-controlled by
+corrupting `$C0:87E2` (still fails, 1 byte). The `--clash-mode backdash`
+byte-identity gate still reproduces `95d8ebe3…` with `--no-double-health
+--no-acs-vs`.
+
+### Instrument fixes this round owed
+* `probe_exp_clash.lua`'s observation window was a **fixed 200 frames** — one
+  ruling away from lying about a 180-frame contest. It now tracks `SMS_CFRAMES`.
+* Its verdict block could **re-enter**, logging the whole row table each time:
+  a run with a long Mesen budget wrote a **20 GB** trace before the wall clock
+  killed it. Now guarded to fire once.
+* `SFXWATCH=1` added, gated to the contest (`$78` is far too busy otherwise).
+  ⚠ It must stay below `local t`: declared above, its closure captures a nil
+  global instead of the frame counter and the report dies inside `string.format`
+  — which looks exactly like "the sound never fired".
+* `SMS_HPSET=n` added: the fixture is a clean-ROM savestate, so the character
+  loader never runs and HP is always 96 — without a poke the probe can say
+  nothing about a max-HP change.
+
 ## NEXT SESSION
 
-* **Field-test the contest** (`build/exp_animeroster.bps`, `70121a0a…`): does
+* **Field-test the contest** (`build/exp_animeroster.sfc`, `c44214b9…`): does
   90 frames feel right, does the loser's wall-fly read as a punish, and is the
   winner's conversion window what the maintainer wants? All three are knobs
   (`--clash-frames`, `--fly-speed`/`--bounce-*`, `--juggle`).
