@@ -1011,9 +1011,22 @@ def build(src, out, budget, juggle, airdash=None, launcher_id=12, bounce=0x0700,
         [0xC3, 0x01],                          # cmp $01,S  (other - self)
         ("b", 0xD0, "notie"),
         [0x68],
-        [0xA9, 0x26], call(STAGE),             # TIE -> both backdash (the v9 answer)
+        # TIE -> P2 WINS (maintainer ruling, 2026-09-05, superseding the
+        # 2026-08-24 "a tie backdashes both"). Which fighter is P2 is a question
+        # about STRUCT ADDRESS, not about self/other: either proc may be the one
+        # that reaches resolution first, so the test is on X, not on who we are.
+        # X is 16-bit here (the handler entered rep #$30 / ldx $88 / sep #$20,
+        # and swapx restores the same widths), so cpx #$1080 is a 3-byte compare.
+        [0xE0, 0x80, 0x10],                    # cpx #$1080 — is the OTHER one P2?
+        ("b", 0xD0, "tieself"),
+        [0xA9, 0x00], call(STAGE),             # other IS P2 -> P2 to neutral...
     ] + swapx() + [
-        [0xA9, 0x26], call(STAGE),
+        call(LOSE),                            # ...and P1 (self) takes the fly
+        ("b", 0x80, "tail"),
+        ("label", "tieself"),
+        call(LOSE),                            # other is P1 -> P1 takes the fly...
+    ] + swapx() + [
+        [0xA9, 0x00], call(STAGE),             # ...and P2 (self) to neutral
         ("b", 0x80, "tail"),
         ("label", "notie"),
         ("b", 0xB0, "otherwins"),

@@ -391,6 +391,62 @@ byte-identity gate still reproduces `95d8ebe3…` with `--no-double-health
   loader never runs and HP is always 96 — without a poke the probe can say
   nothing about a max-HP change.
 
+## TIES GO TO P2, and two clash TESTS (2026-09-05, maintainer)
+
+**Ruling, superseding 2026-08-24's "a tie backdashes both": if both fighters
+mash the exact same number, P2 wins the clash** — in the grand SMS tradition.
+So a tie now resolves like any other outcome, with the winner fixed instead of
+decided by count: P2 to neutral, P1 to the wall-fly, juggle-soft.
+
+Which fighter is P2 is a question about **struct address, not about self/other**:
+either proc may be the one that reaches resolution first, so the branch tests
+`cpx #$1080` rather than assuming who is running. X is 16-bit there (the handler
+enters `rep #$30 / ldx $88 / sep #$20`, and `swapx` restores the same widths).
+Measured: counts 0-0, P1 to act `$2F` then `$16`, P2 to `$00`.
+
+Artifact `build/exp_animeroster.sfc` **`7fd665de…`** (`.bps` `d9ed63c2…`).
+
+### Two tests, and a shared fixture
+
+Probes measure; these assert. `tools/clashfixture.lua` now owns the staging —
+savestate load, the approach, the presses, the optional HP poke and the airborne
+gate — because three private copies of subtle staging is how the next false
+verdict gets written.
+
+**`tools/test_clash_ground.lua`** — `SMS_CASE=win|tie|hold`, 7-9 checks each:
+the contest opens on both fighters on the same frame, carries no boxes for its
+whole length, lasts `SMS_CFRAMES` (±3), the jab actually loops (step wraps), and
+resolves the right way round. `hold` is the one that keeps the mechanic honest —
+a held button counts **once**, so leaning on a button is not mashing.
+
+**`tools/test_clash_air.lua`** — `SMS_CASE=gate|jump`. Asserts both halves of the
+airborne ruling: both fighters backdash (`$26` grounded, `$2B` airborne) **and**
+the contest does not open. The negative is the half that matters.
+
+⚠ **The air test's honest limitation, stated because it would otherwise be a
+green tick over nothing.** A genuine both-airborne clash cannot be staged on
+this fixture — those air normals go active on the same frame and still only
+TRADE. Neither can the easier jump-in: swept `SMS_P1PRESS {4,8,12}` ×
+`SMS_AIRPRESS {6,10,14}` on 2026-09-05, **nine combinations, zero clashes**,
+reaching the probe's own `mashjump` verdict independently. So `gate` — which
+forces `+0x16` bit 7 from an exec hook on the hooked site — is the only case
+that exercises the rule, and it is the default. It proves **the gate reads the
+bit**, not that two airborne fighters clash correctly.
+
+⚠ And `jump` reports **SETUP-FAIL, not FAIL**. A clash leaves one of three marks
+— the backdash acts, the contest act, or damage; none of the three means the
+fixture never got the hitboxes to overlap, which says nothing about the ruling.
+Calling that a rule failure is the false verdict trap 28 exists for.
+
+**Negative-controlled, both tests:** the ground test on a `--clash-mode backdash`
+build fails four checks (no contest exists); the air test on a `--clash 0` build
+fails two, correctly on *damage* — both fighters were hit, so the attacks met and
+that is a rule failure rather than a staging one, which is exactly the
+discrimination the SETUP-FAIL path is for.
+
+Gates: regression **ALL PASS (45)**; ground win/tie/hold **9/9/7**, air gate
+**5**, all on the shipping build.
+
 ## NEXT SESSION
 
 * **Field-test the contest** (`build/exp_animeroster.sfc`, `c44214b9…`): does

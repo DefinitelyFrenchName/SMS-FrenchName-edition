@@ -269,6 +269,8 @@ See HANDOFF.md §4 for the harness.
 
 ## Test suites & oracles
 
+- `test_clash_air.lua` — an AIRBORNE participant never gets the mash contest.
+- `test_clash_ground.lua` — the GROUND clash is a mash contest, and it resolves.
 - `test_labels.lua` — ROM label id -> name (id 4 was MEATY; removed 2026-07-20)
 - `test_labels_cfg.lua` — test_labels scenario: PUNISH — P1 Uranus 2HP whiffs, P1 HP poked down during her
 - `test_p11_pipe.lua` — (patch 11): pipe-stage validation on the PATCHED ROM.
@@ -508,6 +510,7 @@ See HANDOFF.md §4 for the harness.
 - `checkpatchmap.py` — Verify what the patch documents claim about the patches, against the .bps files.
 - `checkskills.py` — Verify the skill/rules pairs carry identical rule-ID sets, both ways.
 - `checktrainingdocs.py` — Verify the training-mode docs against the Lua package they describe.
+- `clashfixture.lua` — the shared staging for every clash instrument.
 - `cliguard.py` — Reject command-line options a tool does not define, instead of ignoring them.
 - `dis65816.py` — the 65816 decode tables and recursive descent, shared.
 - `dis65816_oracle.py` — validate our decode table against an INDEPENDENT one.

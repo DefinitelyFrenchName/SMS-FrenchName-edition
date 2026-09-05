@@ -293,8 +293,15 @@ emu.addEventCallback(function()
               and ("HOLDING IS NOT MASHING: P1 held X all contest, count = " .. (endc1 or 0))
               or ("WRONG: a held button counted " .. (endc1 or 0) .. " times")
         elseif MODE == "mashtie" then
-          verdict = (seen1[0x26] and seen2[0x26]) and "TIE -> both backdash"
-              or "WRONG: a tie did not backdash both"
+          -- ⚠ RULE CHANGED 2026-09-05: a tie no longer backdashes both, P2 WINS
+          -- it (maintainer). So the expectation is the same shape as a normal
+          -- resolution, with the winner fixed rather than decided by count.
+          local p2won = seen2[0x00] and not seen2[0x2F] and seen1[0x2F]
+          verdict = p2won and "TIE -> P2 WINS (P1 wall-flew, P2 to neutral)"
+              or ("WRONG: a tie did not give P2 the win"
+                  .. (seen1[0x2F] and "" or "; P1 did not wall-fly")
+                  .. (seen2[0x00] and "" or "; P2 did not reach neutral")
+                  .. (seen2[0x2F] and "; P2 wall-flew" or ""))
         else
           local win1 = seen1[0x00] and not seen1[0x2F]
           local lose2 = seen2[0x2F] and seen2[0x16]
