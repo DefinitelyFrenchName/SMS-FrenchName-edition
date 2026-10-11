@@ -484,6 +484,61 @@ add{ name = "base-death-chip-survives-at-0", group = "base", state = "neptune_vs
       string.format("chip 1 vs 1 HP must leave 0 HP ALIVE, got hp=%s died=%s", hits[1] and hits[1].v, tostring(api.mem.died)))
   end }
 
+-- base-death-*: the three ways HP reaches KO (measured 2026-10-11; [SMS-9] used to say
+-- "chip never kills" and [SMS-18] "throws cannot finish a round" — both false). Strike
+-- and toss KO on the underflow; a drain tick clamps HP at 0 and the KO waits for the
+-- grab to END. The controls for the same moves at high HP are base-throw-toss20 and
+-- base-desp-pluto-drain48 (HP drops, nobody dies).
+local function deathwatch(api)
+  local hp, act = ram(0x10C9), ram(0x1081)
+  if hp == 0 and not api.mem.zero_at then api.mem.zero_at = api.pt end
+  if act == 0x1C then api.mem.grab_last = api.pt end          -- victim held in a grab
+  if act == 0x1F and not api.mem.ko_at then api.mem.ko_at = api.pt end
+end
+local function deathmsg(api)
+  return string.format("zero_at=%s grab_last=%s ko_at=%s", tostring(api.mem.zero_at),
+    tostring(api.mem.grab_last), tostring(api.mem.ko_at))
+end
+
+add{ name = "base-death-toss-kills", group = "base", state = "neptune_vs_jupiter.mss", dur = 400,
+  frame = function(api)
+    if api.pt == 5 then park(1, 14); wr(0x10C9, 5) end       -- toss is 20 (base-throw-toss20)
+    if api.pt >= 14 and api.pt <= 17 then
+      local p = { x = true }; if onLeft(1) then p.right = true else p.left = true end
+      pulse[0] = p
+    elseif api.pt == 18 then pulse[0] = nil end
+    deathwatch(api)
+  end,
+  verdict = function(api)
+    return ck(api.mem.ko_at ~= nil, "a 20-point toss on 5 HP must KO (act 0x1F) — " .. deathmsg(api))
+  end }
+
+add{ name = "base-death-drain-defers-ko", group = "base", state = "pluto_vs_1.mss", dur = 600,
+  frame = function(api)
+    if api.pt == 5 then wr(0x1049, 0x10); wr(0x800, 0x10); park(1, 70); wr(0x10C9, 5) end
+    motion(api, 1, "632146", "x", 10, false)                 -- desperation drain, 48 total
+    deathwatch(api)
+  end,
+  verdict = function(api)
+    local m = api.mem
+    return ck(m.zero_at and m.grab_last and m.ko_at and m.zero_at < m.grab_last and m.ko_at > m.grab_last,
+      "a 48-point drain on 5 HP must pin 0 during the grab and KO only after it — " .. deathmsg(api))
+  end }
+
+add{ name = "base-death-zero-survivor-dies", group = "base", state = "uranus_vs_jupiter.mss", dur = 200,
+  frame = function(api)
+    if api.pt == 5 then park(1, 70); wr(0x10C9, 0); wr(0x801, 1) end
+    if api.pt >= 6 then
+      local p = {}; if onLeft(1) then p.right = true else p.left = true end
+      pulse[1] = p
+    end
+    motion(api, 1, "632", "y", 10, false)
+    deathwatch(api)
+  end,
+  verdict = function(api)
+    return ck(api.mem.ko_at ~= nil, "chip on a 0-HP survivor must KO — " .. deathmsg(api))
+  end }
+
 add{ name = "base-death-chip-underflow-kills", group = "base", state = "uranus_vs_jupiter.mss", dur = 200,
   frame = function(api)
     if api.pt == 5 then park(1, 70); wr(0x10C9, 1); wr(0x801, 1) end

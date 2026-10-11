@@ -66,9 +66,14 @@ bounds until re-measured.
 latched at 30 Hz — both matter whenever frames are counted, and both are why every
 timing claim in this repo is emulator-verified rather than inferred ([SNES-40]).
 
-**[SMS-9]** Death is HP underflow, not zero: HP 0 is a survivable state and chip damage
-never kills (a throw — chip-class — at 1 HP strands the victim lying at 0 forever, a
-state normal play cannot produce). Damage has no RNG: the "modifier jitter" that looked
+**[SMS-9]** Death is HP underflow, not zero: HP 0 is a survivable state, and anything
+that would take HP *below* 0 kills — chip included. The damage paths differ in WHEN:
+strikes, chip and throw tosses KO on the underflow itself; hold-throw and
+desperation-grab drain ticks clamp HP at 0 and the KO comes when the grab ENDS. All of
+them converge on one KO routine, `$C1:0A4F` (HP = 0, victim `+$16 |= $20`, a round-end
+bit in `$1E3D`). Measured 2026-10-11 (`test_regression.lua`, `base-death-*`); this rule
+used to say "chip damage never kills", generalised from a single drain observation — the
+distilled rule had drifted from the measurement it came from. Damage has no RNG: the "modifier jitter" that looked
 random was the defender's first-hit-defense byte (`sms_damage_system.md`). Command ids
 are computed from table *position*, not stored — scripts are character-independent data
 aligned by construction.
@@ -122,8 +127,9 @@ A palette census needs a real match that lands hits, and comparing snapshots tak
 two instants compares nothing (`docs/project/saturn/PROJECT.md` § OBJ palettes).
 
 **[SMS-18]** Reaching the win screen headless is hard for engine reasons: vs-COM has no
-round clock (displays 00, never ticks), the COM guards jabs indefinitely, and chip never
-kills ([SMS-9]) so throws cannot finish a round. Kill with strikes, and pin HP through
+round clock (displays 00, never ticks), the COM guards jabs indefinitely, and a drain grab
+KOs only when the grab ends ([SMS-9]) — a script that pokes HP or inputs mid-grab can
+leave the victim alive at 0. Kill with strikes or throw tosses, and pin HP through
 the per-A.C.S. maximum rather than a constant — stat builds move the cap.
 
 **[SMS-19]** The character-name variable names the CHARACTER, not the player. Both the

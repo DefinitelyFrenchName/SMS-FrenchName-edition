@@ -43,8 +43,10 @@ addresses are quoted where they are the stable interface.
   figure.
 - [SMS-8] The engine processes attacks starting the frame AFTER action start, and
   inputs latch at 30 Hz — mind both when counting frames ([SNES-40]).
-- [SMS-9] Death is HP UNDERFLOW, not zero: HP 0 is survivable and chip damage never
-  kills. Damage has no RNG (apparent jitter is the defender's first-hit-defense byte).
+- [SMS-9] Death is HP UNDERFLOW, not zero: HP 0 is survivable; anything taking HP
+  below 0 kills, chip included. Strikes/chip/throw tosses KO on the underflow; drain
+  ticks (hold-throws, desperation grabs) clamp at 0 and KO when the grab ENDS. One KO
+  routine, `$C1:0A4F`. Measured 2026-10-11 (`base-death-*`). Damage has no RNG (apparent jitter is the defender's first-hit-defense byte).
   Command ids are computed from POSITION in the table, not stored.
 - [SMS-10] There are MULTIPLE proc dispatchers (players, projectile pool, effect pool,
   plus indirect dispatch sites in other banks) — hooking one is not hooking dispatch.
@@ -75,9 +77,9 @@ addresses are quoted where they are the stable interface.
   REAL match that lands hits — a practice-mode sample misses effect rows entirely, and
   snapshot-vs-snapshot at two instants compares nothing.
 - [SMS-18] Win-screen reachability (headless): vs-COM has no round clock, the COM
-  guards jabs indefinitely, and throw damage is chip-class (chip never kills — a throw
-  at 1 HP strands the victim at 0 forever). Kill with strikes; pin HP via the
-  per-A.C.S. max, never a constant.
+  guards jabs indefinitely, and a drain grab KOs only when the grab ends ([SMS-9]) —
+  poking HP or inputs mid-grab can leave the victim alive at 0. Kill with strikes or
+  throw tosses; pin HP via the per-A.C.S. max, never a constant.
 - [SMS-19] `$7E:1B1E` names the CHARACTER, not the player — identify the player from
   the per-player writers of it, or a ported/renamed character breaks the logic.
 - [SMS-20] The win-nameplate font is MATCHUP-LOADED, not a resident A-Z — which glyphs

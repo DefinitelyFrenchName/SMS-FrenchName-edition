@@ -422,8 +422,10 @@ local ROUTES = {
         if live then
           -- pin P1 to its OWN max ($104A — HP is per-A.C.S., a fixed $50 pin
           -- was found LOWERING P1); pin P2 to 2 so any landed STRIKE
-          -- underflow-kills. Throws cannot finish (their ticks are chip-class
-          -- and chip never kills — measured: P2 lay at 0 HP forever), so fish
+          -- underflow-kills. (2026-08-06 note: "throws cannot finish — P2 lay at
+          -- 0 HP forever". CORRECTED 2026-10-11: tosses KO on underflow and drain
+          -- grabs KO when the grab ends — base-death-* in test_regression.lua;
+          -- the 08-06 observation was not reproduced.) So fish
           -- for counter-hits with the 4f jab while the COM attacks.
           wr(0x1049, ram(0x104A))
           if p2hp > 2 then wr(0x10C9, 2) end

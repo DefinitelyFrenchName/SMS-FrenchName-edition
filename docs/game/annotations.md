@@ -90,7 +90,7 @@ and findings made in this project (marked NEW, with evidence).
 | $C0:9CE2 | build_draw_list | walks the object slots and writes the live ones to $0B00 — the list the emitter reads |
 | $C0:8BF9 | rng_advance | stirs DP $90 once per frame, last stage of the loop; the byte the ochame roll reads |
 | $C0:B321 | stage_scroll_dispatch | `jsr $B33F / ldx $8E / jmp ($B32B,X)` — the per-stage scroll routines ($C0:B40A/B42F/B454) hang off this table |
-| $C0:9633 / $C0:DB35 / $C0:8CAF | **unidentified** | three loop stages nobody has named: $9633 copies $A3/$A5 aside and indexes on joy1 held, $DB35 reads $1E3D and writes $71/$1E04, $8CAF reads flag $B1 bit 1 |
+| $C0:9633 / $C0:DB35 / $C0:8CAF | **unidentified** | three loop stages nobody has named: $9633 copies $A3/$A5 aside and indexes on joy1 held, $DB35 reads $1E3D (the KO bits `$C1:0A4F` sets) and writes $71/$1E04, $8CAF reads flag $B1 bit 1 |
 
 ## Harness notes (Mesen2 2.1.1, macOS arm64, testrunner mode)
 - `Mesen --testrunner --timeout=N <rom> <script.lua> [--debug.scriptWindow.allowIoOsAccess=true] [--snes.port1.type=SnesController --snes.port2.type=SnesController]`
@@ -407,6 +407,7 @@ Venus -49, Chibi -46. Patch 7 = build/sms_pluto5hp.bps; see patch_notes.md "Patc
 | $C1:0612 | throw_connect | on grab: victim +0x01=0x1C (Held), victim +0x46=0xA0, thrower +0x46=0xE0, victim +0x06=0x80, +0x30..35/+0x02 cleared; ~8-frame engine freeze follows |
 | $C1:06E5 | throw_script_interp | runs a throw-hold script: 8-byte entries indexed by thrower +0x07 (steps by 2 per anim step). Entry: [victim_pose, drag_x lo/hi, drag_y lo/hi, byte5, byte6→thrower+0x78, swap_flag]. byte0=0xFF marks a header entry → toss path $C1:07E5 (byte1-4 = toss x/y velocity, byte5 = damage) |
 | $C1:07CF | tech_sampler | per non-frozen frame of hold steps with entry byte5≠0: if victim +0x50 & 0xF0 (fresh attack press, latched at 30Hz) → inc thrower +0x56 (mash counter) |
+| $C1:0A4F | **ko_victim** | the shared KO routine (measured 2026-10-11): `$1E08` max-update from `+$54`, victim HP = 0 (`$C1:0A62`), victim `+$16 |= $20`, then `$1E3D |= $01` (P1 died) or `$02` (P2). Reached from the toss's underflow branch (`$C1:0872`), at the end of a drain grab, and on a hit to a 0-HP survivor; `base-death-*` |
 | $C1:0823 | toss_decision | thrower +0x56 >= 2 → victim act 0x23 (tech) + HALF damage (lsr), else act 0x1D + full damage. Threshold global; per-throw variance = sampling steps only |
 | +0x56 (thrower) | mash_counter | zeroed by the per-char hold handler at throw start (Venus: $C1:772C `stz $56,X`) |
 | $C1:770F | venus_throwhold_handler | act 0x58 (hold) state proc; script `ldy #$6C53 / jsr $06E5`; act 0x59 = toss |

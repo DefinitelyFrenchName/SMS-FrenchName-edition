@@ -628,7 +628,8 @@ Then, in this order:
    stores (`$C1:0D5E` and its zero-clamp at `$C1:0D65`), and a scripted zeroing at
    **`$C1:0A62`** (`lda #$00 / sta $0049,Y`, next to a `$1E08` compare and a
    `+0x16 |= 0x20`) which **nobody has identified** — find out what it is before
-   deciding it does not matter.
+   deciding it does not matter. *(Identified 2026-10-11: it is inside `$C1:0A4F`, the
+   shared KO routine — see `sms_damage_system.md` §2 and `base-death-*`.)*
 3. **If the ruling is "scale it":** the tech branch's tail (`$C1:0857 cmp #$90 /
    bcs / sta $0049,Y`) has the same 7-byte shape as the two tails patch 14 already
    hooks, so the existing stub pattern applies almost unchanged. Mind that the

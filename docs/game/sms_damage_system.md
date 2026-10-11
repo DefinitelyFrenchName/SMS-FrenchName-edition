@@ -41,6 +41,19 @@ chain (acts 0x1A→0x1E→0x1F, then a second write zeroes the corpse's HP). Cor
 - A 0-HP-alive state is reachable in real play and the life bar shows empty.
 - Independently confirmed by the community: the game-wide Dustloop frame-data page
   states "You live on 0 health, must be reduced to below 0".
+- **Throws and drains die by a different road** (measured 2026-10-11, `base-death-*` in
+  `test_regression.lua`). The throw toss (`$C1:082F`) and the drain tick (`$C1:0D54`)
+  test `cmp #$90 / bcs` BEFORE storing:
+  - a toss that would underflow skips its store and calls **`$C1:0A4F`, the KO
+    routine** (HP = 0, victim `+$16 |= $20`, a per-victim round-end bit in `$1E3D`: `$01`
+    if P1 died, `$02` if P2). Neptune's 20-point toss on 5 HP KOs — throws DO finish rounds;
+  - a drain tick that would underflow CLAMPS HP to 0 (`$C1:0D63`) and the grab goes on:
+    Pluto's 48-point desperation drain on 5 HP pinned 0 for all 11 ticks, then `$C1:0A4F`
+    ran when the grab ended and the KO followed. A drain never kills per tick; it kills at
+    the end of the grab.
+  - a strike or chip on a 0-HP survivor also reaches `$C1:0A4F` (KO).
+  An earlier rule ([SMS-9]) said "chip damage never kills"; it was generalised from one
+  drain observation in a headless probe and is corrected.
 
 | Site (file) | Path | Damage DP | Notes |
 |---|---|---|---|
