@@ -39,7 +39,7 @@ play; nothing is stacked on top:
 **Rev. SS is built from two ROMs**, because Saturn, her voice and her stage come from
 *Bishoujo Senshi Sailor Moon SuperS: Zenin Sanka!!* (SFC, Japan, SHA-1
 `1ada34177e7384612ae83464288f3860e4c4426e`) and are not distributed here. Download
-`release/Rev.SS-NN.html`, open it in your browser and give it both clean ROMs: it
+`Rev.SS-NN.html` from the [latest release](https://github.com/DefinitelyFrenchName/SMS-FrenchName-edition/releases/latest), open it in your browser and give it both clean ROMs: it
 rebuilds the ROM on your computer, sends nothing anywhere (the page is not allowed to
 make network requests), and checks every hash. Same thing from a terminal:
 `python3 tools/saturn/apply_donorpatch.py release/Rev.SS-NN.donor.bps <rom> <rom> out.sfc`.
