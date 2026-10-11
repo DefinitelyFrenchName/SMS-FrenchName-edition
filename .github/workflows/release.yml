@@ -60,6 +60,10 @@ jobs:
         with:
           name: ${{ github.ref_name }}          # the tag is the title
           body_path: release/RELEASE_NOTES.md    # the generated notes ARE the body
-          files: release/*.bps                   # attach whatever is committed
+          # attach whatever is committed: the .bps patches and Rev. SS's one-file
+          # browser builder (release/Rev.SS-NN.html, which carries its own patch)
+          files: |
+            release/*.bps
+            release/*.html
           fail_on_unmatched_files: true          # empty glob = fail loudly, not a silent empty release
           # draft: true                          # uncomment to review before it goes public

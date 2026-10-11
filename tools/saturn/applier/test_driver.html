@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>donor applier driver</title></head>
+<body>
+<!-- Test driver for tools/saturn/test_donorpatch.sh: iframes the SHIPPED page (its CSP
+     intact), hands it the ROMs through its own file input as a player would, clicks its
+     button and reports what the page shows. Query: ?a=<rom>&b=<rom>&page=<html> -->
+<pre id="verdict"></pre>
+<script>
+"use strict";
+const q = new URLSearchParams(location.search);
+const say = (s) => { document.getElementById("verdict").textContent += s + "\n"; };
+async function load(url) {
+  const r = await fetch(url);
+  return new File([await r.blob()], url.split("/").pop());
+}
+(async () => {
+  const fr = document.createElement("iframe");
+  fr.src = q.get("page");
+  document.body.appendChild(fr);
+  await new Promise((r) => fr.addEventListener("load", r));
+  const d = fr.contentDocument;
+  const dt = new DataTransfer();
+  dt.items.add(await load(q.get("a")));
+  dt.items.add(await load(q.get("b")));
+  const input = d.getElementById("file");
+  input.files = dt.files;
+  input.dispatchEvent(new Event("change"));
+  // Wait on the page's own status, NOT on timers: headless Chrome's virtual time
+  // fast-forwards timers while crypto.subtle and file reads are still pending, so a
+  // polling loop can give up before the page has done anything (measured 2026-10-11:
+  // STATUS empty, DONE=1). An observer spends no virtual time.
+  const status = d.getElementById("status");
+  const finished = () => /^(Done|Not built)/.test(status.textContent);
+  const settled = new Promise((resolve) => {
+    const mo = new MutationObserver(() => { if (finished()) { mo.disconnect(); resolve(); } });
+    mo.observe(status, { childList: true, characterData: true, subtree: true });
+  });
+  d.getElementById("go").click();
+  if (!finished()) await settled;
+  const dl = d.getElementById("dl");
+  say("STATUS=" + d.getElementById("status").textContent);
+  say("DOWNLOAD=" + (dl.hidden ? "" : dl.download + " " + dl.href.slice(0, 5)));
+  say("DONE=1");
+})().catch((e) => { say("DRIVER_ERROR=" + e.message); say("DONE=1"); });
+</script>
+</body>
+</html>

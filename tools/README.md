@@ -7,15 +7,19 @@ See HANDOFF.md §4 for the harness.
 
 ## Saturn port tooling (tools/saturn/)
 
+- `saturn/apply_donorpatch.py` — build Rev. SS from your own two cartridges: the command-line twin of release/Rev.SS-NN.html.
 - `saturn/brr.py` — Decode SNES BRR samples to WAV.
 - `saturn/build_refsaturn.sh` — Build the COMBINED "SMS + REF v.1 + Saturn" ROM — the project-goal artifact
 - `saturn/build_saturn_stage.sh` — Saturn + stage PoC in one ROM (committed recipe).
 - `saturn/checksaturndocs.py` — Verify docs/project/saturn/'s cross-game claims against BOTH cartridges.
+- `saturn/donorpatch.py` — the two-ROM ("donor") patch format for Rev. SS: library shared by its builder and its applier.
 - `saturn/dspdiff.py` — diff two trace_dsp.lua captures and judge the difference.
 - `saturn/extract_saturn_unit.py` — Extract Sailor Saturn's complete data unit from Super S — the Route A port bundle.
 - `saturn/extract_saturn_voice.py` — Extract Saturn's voice samples from the Super S ROM, trimmed to fit SMS.
 - `saturn/extract_supers_boxes.py` — Extract hitbox/hurtbox/collision tables from Sailor Moon SUPER S (Zenin Sanka!!).
 - `saturn/gfxlib.py` — the Saturn image tools' shared graphics primitives (#95).
+- `saturn/mkapplier.py` — generate release/Rev.SS-NN.html, the one-file browser builder for the two-ROM Rev. SS patch.
+- `saturn/mkdonorpatch.py` — build Rev. SS's two-ROM patch: diffed against SMS + Super S, so no Super S bytes ship.
 - `saturn/mkkanji.py` — author 16x16 menu-font glyphs for characters SMS lacks.
 - `saturn/mkmovelist.py` — build Saturn's movelist tilemap and compress it.
 - `saturn/mkportrait.py` — convert a 1:1 screen capture into SMS report-card portrait tiles.
@@ -196,6 +200,7 @@ See HANDOFF.md §4 for the harness.
 - `saturn/sms_lz.py` — SMS's *other* compression codec, the one $C0:916B expands.
 - `saturn/spc700dis.py` — SPC700 disassembler for the SMS sound driver.
 - `saturn/supers_lz.py` — the SMS/Super S graphics LZSS decompressor, in Python.
+- `saturn/test_donorpatch.sh` — the two-ROM Rev. SS patch: Python applier, browser page and node agree, and refuse what they must.
 - `saturn/trace_dsp.lua` — record EVERY SNES-DSP register write of a scripted session, so
 - `saturn/trace_wram.lua` — snapshot all 128 KB of WRAM at checkpoints through a scripted
 - `saturn/verify_dspdiff.sh` — self-check the DSP differential harness BEFORE trusting it.

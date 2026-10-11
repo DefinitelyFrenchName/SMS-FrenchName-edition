@@ -76,6 +76,12 @@ if [ "$MODE" = ss ] || [ "$MODE" = both ]; then
     python3 tools/saturn/mksaturn_smoke.py "$S/saturn.sfc" >/dev/null
   OUT="build/SailorMoonS_Rev_SS-$REV_SS.sfc"
   python3 tools/saturn/mkstage_port.py "$S/saturn.sfc" "$OUT" --stacked >/dev/null
-  ./tools/Flips/flips --create --bps "$CLEAN" "$OUT" "release/Rev.SS-$REV_SS.bps" >/dev/null
-  echo "Rev. SS-$REV_SS  $(shasum "$OUT" | cut -d' ' -f1)  -> release/Rev.SS-$REV_SS.bps"
+  # NOT a plain .bps against the clean ROM: that would carry Super S content
+  # (sprites, voice, stage) as raw bytes. The two-ROM patch is diffed against
+  # SMS + Super S, so the player rebuilds that content from their own cartridge;
+  # mkdonorpatch refuses to write a patch in which donor bytes survive verbatim.
+  # Format: tools/saturn/donorpatch.py. The page is its one-file browser applier.
+  python3 tools/saturn/mkdonorpatch.py "$OUT" "release/Rev.SS-$REV_SS.donor.bps"
+  python3 tools/saturn/mkapplier.py
+  echo "Rev. SS-$REV_SS  $(shasum "$OUT" | cut -d' ' -f1)  -> release/Rev.SS-$REV_SS.donor.bps + release/Rev.SS-$REV_SS.html"
 fi

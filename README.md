@@ -25,7 +25,7 @@ play; nothing is stacked on top:
 | | |
 |---|---|
 | **Rev. S-NN** | The reference build (no Super S content, surgical patches, fully tested in memory and by humans) |
-| **Rev. SS-NN** | **EXPERIMENTAL Super S assets** the same, plus **Sailor Saturn** (hold L+R while confirming Uranus, Neptune or Pluto) |
+| **Rev. SS-NN** | **EXPERIMENTAL Super S assets** the same, plus **Sailor Saturn** (hold L+R while confirming Uranus, Neptune or Pluto). Needs your own *Super S* ROM too — see below |
 
 `NN` is the revision, and it is printed on the title screen — quote it (or the ROM SHA-1) in any bug report. Hashes and contents:[`release/RELEASE_NOTES.md`](release/RELEASE_NOTES.md), which is generated from the files themselves so it cannot go stale.
 
@@ -33,8 +33,16 @@ play; nothing is stacked on top:
    verify SHA-1 `bc0e29ee383574443226695215496eb0d09aaa1c`. ROMs are never distributed here.
 2. Get [Floating IPS (flips)](https://github.com/Alcaro/Flips) (or any BPS patcher).
 3. Apply a `.bps` to the clean ROM, e.g.
-   `flips --apply release/Rev.SS-02.bps "<clean>.sfc" out.sfc`
+   `flips --apply release/Rev.S-02.bps "<clean>.sfc" out.sfc`
 4. Verify the output SHA-1 against [`release/RELEASE_NOTES.md`](release/RELEASE_NOTES.md).
+
+**Rev. SS is built from two ROMs**, because Saturn, her voice and her stage come from
+*Bishoujo Senshi Sailor Moon SuperS: Zenin Sanka!!* (SFC, Japan, SHA-1
+`1ada34177e7384612ae83464288f3860e4c4426e`) and are not distributed here. Download
+`release/Rev.SS-NN.html`, open it in your browser and give it both clean ROMs: it
+rebuilds the ROM on your computer, sends nothing anywhere (the page is not allowed to
+make network requests), and checks every hash. Same thing from a terminal:
+`python3 tools/saturn/apply_donorpatch.py release/Rev.SS-NN.donor.bps <rom> <rom> out.sfc`.
 
 The individual patches below stay in `build/` for anyone assembling their own
 combination — see the warning in the release notes about chaining them.
@@ -93,7 +101,7 @@ no ROM can end up in a commit.
 | 13. Guts (Q-style taunts)                                  | Completing a taunt stacks levels (≤3) that reduce the opponent's SPECIAL/desperation damage vs you (20/40/60%, per-round; indicator in training only) | `tools/mkpatch13.py`                 | `build/sms_tauntbuff.bps`                              | `bafb87d4…`   |
 | 14. Guts Grip **(companion to 13)**                        | The same Guts levels also reduce command-grab damage (SPDs/Giant Swing); inert without patch 13 | `tools/mkpatch14.py`                 | `build/sms_gutsgrip.bps`                               | `5fadcaca…`   |
 | 15. No AUTO                                                | Removes the AUTO option from the VS button-config screen (Auto binds specials to L/R, colliding with patch 12's taunt) | `tools/mkpatch15.py`                 | `build/sms_noauto.bps`                                 | `31832e6e…`   |
-| 16. Menu translation **(EXPERIMENTAL, IN PROGRESS)**       | English menu text — a half-width A-Z built from the game's own capitals, then per-screen edits. Options, tournament select, report card, stage names, VS config, A.C.S. wheel and PLAYER SELECT are done behind build gates; the bracket VS names and the A.C.S. prompt are not. No BPS yet — see [docs/project/menu_text.md](docs/project/menu_text.md) | `tools/mkpatch16.py`                 | *(none yet)*                                           | —             |
+| 16. Menu translation **(EXPERIMENTAL)**                    | English menu text — a half-width A-Z built from the game's own capitals, then per-screen edits. Every in-scope menu surface is done (2026-08-29): Options, tournament select, report card, stage names, VS config, A.C.S. wheel, prompt and name card, PLAYER SELECT and the bracket VS names — see [docs/project/menu_text.md](docs/project/menu_text.md) | `tools/mkpatch16.py` (all seven screen gates, see patch notes) | `build/sms_menutranslation.bps`                        | `93e2fdb4…`   |
 | 18. No ACS in 2P VS                                        | Removes the A.C.S. stat-customisation screen from 2P VS only (companion to 15; story and vs-COM keep it) | `tools/mkpatch18.py`                 | `build/sms_noacs_vs.bps`                               | `67897bbf…`   |
 | 17. All stages                                             | Unlocks the hidden tenth stage (なかよし編集部) in the stage select, and — where patch 3 is present — in its random default pool | `tools/mkpatch17.py`                 | `build/sms_allstages.bps`                              | `e5dd325b…`   |
 
@@ -110,6 +118,8 @@ v0.22 and REF v.1 rebuilt 2026-07-30 with the patch-4 "©MOONLIGHT FIGHT SOCIETY
 
 **Sailor Saturn** (ported from *Sailor Moon Super S*) is the patch 100-series and is built
 by `tools/saturn/`, not by a `mkpatchN.py` — she rides in **Rev. SS** only. Her patches
-are deliberately **not** tracked as `.bps`, because they embed ported game content;
-rebuild from source (`tools/saturn/build_refsaturn.sh`, gate
-`tools/saturn/verify_saturn.sh`). Detail: [docs/project/saturn/BUILDS.md](docs/project/saturn/BUILDS.md).
+are deliberately **not** tracked as plain `.bps`, because those would embed ported game
+content; Rev. SS ships as a two-ROM patch instead (`release/Rev.SS-NN.donor.bps`, format in
+`tools/saturn/donorpatch.py`), which rebuilds that content from the player's own *Super S*,
+and whose builder refuses to write a patch carrying it verbatim. Rebuild from source with
+`tools/saturn/build_refsaturn.sh` (gate `tools/saturn/verify_saturn.sh`). Detail: [docs/project/saturn/BUILDS.md](docs/project/saturn/BUILDS.md).

@@ -34,6 +34,9 @@ echo "== generated artifacts are in sync with their sources =="
 if out="$(python3 tools/mksigs.py --check 2>&1)"; then ok "$out"; else bad "mksigs: $out"; fi
 if out="$(python3 tools/mkrelease.py --check 2>&1)"; then ok "$out"; else bad "mkrelease: $out"; fi
 if out="$(python3 tools/mkindex.py --check 2>&1)"; then ok "$out"; else bad "mkindex: $out"; fi
+# Rev. SS's browser builder carries its patch and applier inline; it must match
+# them, and keep its Content-Security-Policy (no network, by the browser's rule).
+if out="$(python3 tools/saturn/mkapplier.py --check 2>&1)"; then ok "$out"; else bad "mkapplier: $out"; fi
 # The knobs table is read from the builders' source, so this one needs no ROM
 # and runs everywhere, CI included (trap 18: a documented knob either works or
 # does not exist).
@@ -144,7 +147,7 @@ done
 echo "== the release folder is complete and self-consistent =="
 REV_S="${SMS_REV_S:-$(python3 -c 'import sys;sys.path.insert(0,"tools");import smspaths;print(smspaths.REV_S)' 2>/dev/null)}"
 REV_SS="${SMS_REV_SS:-$(python3 -c 'import sys;sys.path.insert(0,"tools");import smspaths;print(smspaths.REV_SS)' 2>/dev/null)}"
-for f in "release/Rev.S-$REV_S.bps" "release/Rev.SS-$REV_SS.bps" release/RELEASE_NOTES.md; do
+for f in "release/Rev.S-$REV_S.bps" "release/Rev.SS-$REV_SS.donor.bps" "release/Rev.SS-$REV_SS.html" release/RELEASE_NOTES.md; do
   [ -f "$f" ] && ok "$f present" || bad "$f missing (tools/build_rev.sh both)"
 done
 # every build/ or release/ path the NOTES name must exist: those are instructions
@@ -169,8 +172,8 @@ SUP="$(python3 -c 'import sys;sys.path.insert(0,"tools");from smspaths import su
 
 echo "== round-trip: each release patch reproduces its recorded ROM =="
 if [ -f "$CLEAN" ] && [ -x tools/Flips/flips ]; then
-  for r in "S" "SS"; do
-    rev="$REV_S"; [ "$r" = "SS" ] && rev="$REV_SS"
+  for r in "S"; do   # Rev. SS is a two-ROM patch: its round-trip is test_donorpatch below
+    rev="$REV_S"
     bps="release/Rev.$r-$rev.bps"; rom="build/SailorMoonS_Rev_$r-$rev.sfc"
     if [ -f "$bps" ] && [ -f "$rom" ]; then
       tmp="$(mktemp)"; ./tools/Flips/flips --apply "$bps" "$CLEAN" "$tmp" >/dev/null 2>&1
@@ -184,6 +187,13 @@ if [ -f "$CLEAN" ] && [ -x tools/Flips/flips ]; then
 else
   skip "round-trip needs the clean ROM and flips"
 fi
+# Rev. SS: the Python applier, the page's JS under node and the shipped page in
+# headless Chrome must all rebuild the recorded ROM, and refuse damaged inputs.
+# The script SKIPs itself (exit 0) when either ROM is absent.
+if out="$(tools/saturn/test_donorpatch.sh 2>&1)"; then
+  if printf '%s' "$out" | grep -q '^SKIP'; then skip "Rev. SS-$REV_SS two-ROM patch (needs the clean ROM and the Super S donor)"
+  else ok "Rev. SS-$REV_SS two-ROM patch: python, node and the browser page agree ($(printf '%s' "$out" | grep -c '^  ok') checks)"; fi
+else printf '%s\n' "$out" | sed 's/^/    /'; bad "test_donorpatch: the two-ROM Rev. SS patch failed"; fi
 
 echo "== the Saturn corpus still describes both cartridges =="
 if [ -f "$CLEAN" ] && [ -f "$SUP" ]; then
